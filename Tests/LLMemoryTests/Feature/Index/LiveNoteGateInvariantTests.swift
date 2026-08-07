@@ -1,0 +1,150 @@
+//
+//  LiveNoteGateInvariantTests.swift
+//  LLMemoryTests
+//
+//  Created by JSilver on 8/8/26.
+//
+
+import Testing
+import Foundation
+import GRDB
+@testable import LLMemory
+
+@Suite("LiveNoteGateInvariant Tests", .serialized)
+struct LiveNoteGateInvariantTests {
+    // MARK: - Property
+    private let home: MemoryHome
+    
+    // MARK: - Initializer
+    init() throws {
+        home = try MemoryHome()
+    }
+    
+    // MARK: - Test
+    @Test("reindexing a trashed file is refused — deletion must not be undone by a rebuild")
+    func reindexingATrashedFileIsRefused() throws {
+        // Given
+        let trashed = try trashNote(id: "live-1")
+        
+        // When
+        #expect(throws: (any Error).self, "a trashed file was reindexed back into live notes") {
+            _ = try home.database().write { database in try Notes.reindexFile(database, path: trashed) }
+        }
+        
+        // Then
+        #expect(try noteRows(id: "live-1") == 0, "the trashed note came back as a live row")
+        #expect(try indexedRows(id: "live-1") == 0, "the trashed note came back in FTS")
+    }
+    
+    @Test("index reindex reports failure for a trashed path instead of quietly doing nothing")
+    func indexReindexReportsFailureForATrashedPath() throws {
+        // Given
+        let trashed = try trashNote(id: "live-2")
+        
+        // When
+        let returnCode = try Index.reindex(filePaths: [trashed.path])
+        
+        // Then
+        #expect(returnCode == 1, "index reindex reported success for a trashed path")
+        #expect(try noteRows(id: "live-2") == 0, "the trashed note came back as a live row")
+    }
+    
+    @Test("restore is the one way back — the op still brings a trashed note into live rows")
+    func restoreOpStillBringsATrashedNoteBack() throws {
+        // Given
+        _ = try trashNote(id: "live-4")
+        
+        // When
+        let restored = home.apply(["op": "restore", "id": "live-4"])
+        
+        // Then
+        #expect(restored.status == "ok", "restore failed: \(restored.error)")
+        #expect(try noteRows(id: "live-4") == 1, "restore did not bring the note back")
+    }
+    
+    // A file the gate admits but the walk never reaches is reindexable by path and orphaned by the
+    // next build — the two must agree on exactly the same set.
+    @Test("the live-note gate and the directory walk admit the same files")
+    func everyPredicateAdmittedFileIsDiscoverableByTheWalk() throws {
+        // Given
+        _ = try trashNote(id: "live-3")
+        
+        let cortex = Paths.notes
+        let fileManager = FileManager.default
+        
+        try fileManager.createDirectory(
+            at: cortex.appendingPathComponent("flow/.hidden"),
+            withIntermediateDirectories: true
+        )
+        try fileManager.createDirectory(
+            at: cortex.appendingPathComponent("tech"),
+            withIntermediateDirectories: true
+        )
+        
+        for (relativePath, text) in [
+            ("flow/README.md", "# readme"),
+            ("flow/_draft.md", "# draft"),
+            ("flow/notes.txt", "not markdown"),
+            ("flow/.hidden/h.md", "# hidden"),
+            ("tech/plain.md", "# plain")
+        ] {
+            try text.write(to: cortex.appendingPathComponent(relativePath), atomically: true, encoding: .utf8)
+        }
+        
+        // When
+        let walked = Set(Paths.scanNotes().map { url in url.standardized.path })
+        let enumerator = fileManager.enumerator(at: cortex, includingPropertiesForKeys: [.isRegularFileKey])!
+        
+        // Then
+        for case let url as URL in enumerator {
+            guard (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true else { continue }
+            
+            let resolved = url.standardized
+            
+            guard Paths.liveNoteRejection(of: resolved) == nil else { continue }
+            
+            #expect(walked.contains(resolved.path),
+                "the gate admits a file the walk never discovers: \(resolved.path)")
+        }
+        
+        for relativePath in ["flow/README.md", "flow/_draft.md", "flow/notes.txt", ".trash/flow/live-3.md"] {
+            #expect(Paths.liveNoteRejection(of: cortex.appendingPathComponent(relativePath)) != nil,
+                "the gate admits \(relativePath)")
+        }
+        
+        #expect(Paths.liveNoteRejection(of: cortex.appendingPathComponent("tech/plain.md")) == nil,
+            "the gate refuses an ordinary note")
+    }
+    
+    // MARK: - Private
+    @discardableResult
+    private func trashNote(id: String) throws -> URL {
+        let created = home.createNote(id: id, content: "# body", fields: ["axis_description": "(test)"])
+        
+        #expect(created.status == "ok", "setup: create failed — \(created.error)")
+        
+        let deleted = home.apply(["op": "delete_note", "id": id, "reason": "test"])
+        
+        #expect(deleted.status == "ok", "setup: delete failed — \(deleted.error)")
+        
+        let trashed = Paths.trash.appendingPathComponent("flow/\(id).md")
+        
+        guard FileManager.default.fileExists(atPath: trashed.path) else {
+            throw TestFailure("setup: no trashed file at \(trashed.path)")
+        }
+        
+        return trashed
+    }
+    
+    private func noteRows(id: String) throws -> Int {
+        try home.read { database in
+            try Int.fetchOne(database, sql: "SELECT COUNT(*) FROM notes WHERE id = ?", arguments: [id]) ?? 0
+        }
+    }
+    
+    private func indexedRows(id: String) throws -> Int {
+        try home.read { database in
+            try Int.fetchOne(database, sql: "SELECT COUNT(*) FROM notes_fts WHERE id = ?", arguments: [id]) ?? 0
+        }
+    }
+}

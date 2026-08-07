@@ -1,0 +1,177 @@
+//
+//  Stats.swift
+//  LLMemory
+//
+//  Created by JSilver on 8/7/26.
+//
+
+import Foundation
+import GRDB
+
+public enum Stats {
+    public struct NoteStats {
+        // MARK: - Property
+        public let id: String
+        public let axis: String
+        public let title: String
+        public let summary: String?
+        public let priority: String
+        public let createdAt: Int
+        public let editedAt: Int
+        public let ageDays: Int?
+        public let sinceEditDays: Int?
+        public let sinceRetrievalDays: Int?
+        public let hitCount: Int
+        public let wordCount: Int
+        public let sectionCount: Int
+        public let stale: Bool
+        public let tagCount: Int
+        public let linkCount: Int
+        
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+    
+    public struct AxisStats {
+        // MARK: - Property
+        public let axis: String
+        public let total: Int
+        public let stale: Int
+        public let eager: Int
+        public let avgWords: Double
+        public let maxWords: Int
+        public let avgSections: Double
+        public let totalHits: Int
+        
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+    
+    public struct OverallStats {
+        // MARK: - Property
+        public let total: Int
+        public let stale: Int
+        public let axes: [(axis: String, count: Int)]
+        public let hitNonZero: Int
+        public let hitZero: Int
+        public let hitAvg: Double
+        public let hitMax: Int
+        public let avgWords: Double
+        public let maxWords: Int
+        public let avgSections: Double
+        public let activation: Activation.Stats
+        
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+    
+    // MARK: - Property
+    // MARK: - Initializer
+    // MARK: - Public
+    static func noteStats(_ db: Database, nid: String) throws -> NoteStats? {
+        let row = try Row.fetchOne(db, sql: """
+            SELECT notes.id, axis, title, summary, priority,
+                   u.created_at, edited_at, u.hit_count, u.last_retrieved_at,
+                   word_count, section_count,
+                   COALESCE(stale, 0) AS s,
+                   (SELECT COUNT(*) FROM tags WHERE note_id = notes.id) AS tag_count,
+                   (SELECT COUNT(*) FROM note_links WHERE src = notes.id OR dst = notes.id) AS link_count
+            FROM notes LEFT JOIN note_usage u ON u.note_id = notes.id WHERE notes.id = ?
+            """, arguments: [nid])
+        
+        guard let row else { return nil }
+        
+        let now = Int(Date().timeIntervalSince1970)
+        let created: Int = row["created_at"] as Int? ?? 0
+        let edited: Int = row["edited_at"] as Int? ?? 0
+        let lastRetrieved: Int = row["last_retrieved_at"] as Int? ?? 0
+        
+        return NoteStats(
+            id: row["id"],
+            axis: row["axis"],
+            title: row["title"],
+            summary: row["summary"] as String?,
+            priority: row["priority"],
+            createdAt: created,
+            editedAt: edited,
+            ageDays: created > 0 ? (now - created) / 86400 : nil,
+            sinceEditDays: edited > 0 ? (now - edited) / 86400 : nil,
+            sinceRetrievalDays: lastRetrieved > 0 ? (now - lastRetrieved) / 86400 : nil,
+            hitCount: row["hit_count"] as Int? ?? 0,
+            wordCount: row["word_count"] as Int? ?? 0,
+            sectionCount: row["section_count"] as Int? ?? 0,
+            stale: (row["s"] as Int? ?? 0) != 0,
+            tagCount: row["tag_count"] as Int? ?? 0,
+            linkCount: row["link_count"] as Int? ?? 0
+        )
+    }
+    
+    static func axisStats(_ db: Database, axis: String) throws -> AxisStats {
+        let row = try Row.fetchOne(db, sql: """
+            SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN \(Policy.stale()) THEN 1 ELSE 0 END) AS stale_count,
+                   SUM(CASE WHEN \(Policy.eager()) THEN 1 ELSE 0 END) AS eager_count,
+                   COALESCE(AVG(n.word_count), 0) AS avg_words,
+                   COALESCE(MAX(n.word_count), 0) AS max_words,
+                   COALESCE(AVG(n.section_count), 0) AS avg_sections,
+                   COALESCE(SUM(COALESCE(u.hit_count, 0)), 0) AS total_hits
+            FROM notes n LEFT JOIN note_usage u ON u.note_id = n.id WHERE n.axis = ?
+            """, arguments: [axis])!
+        
+        return AxisStats(
+            axis: axis,
+            total: row["total"] as Int? ?? 0,
+            stale: row["stale_count"] as Int? ?? 0,
+            eager: row["eager_count"] as Int? ?? 0,
+            avgWords: (round((row["avg_words"] as Double? ?? 0) * 10) / 10),
+            maxWords: row["max_words"] as Int? ?? 0,
+            avgSections: (round((row["avg_sections"] as Double? ?? 0) * 10) / 10),
+            totalHits: row["total_hits"] as Int? ?? 0
+        )
+    }
+    
+    static func overall(_ db: Database) throws -> OverallStats {
+        let total = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM notes") ?? 0
+        let stale = try Int.fetchOne(
+            db,
+            sql: "SELECT COUNT(*) FROM notes WHERE \(Policy.stale(""))"
+        ) ?? 0
+        let axisRows = try Row.fetchAll(
+            db,
+            sql: "SELECT axis, COUNT(*) c FROM notes GROUP BY axis ORDER BY c DESC, axis"
+        )
+        let axes = axisRows.map { row in (axis: row["axis"] as String, count: row["c"] as Int) }
+        let hitRow = try Row.fetchOne(db, sql: """
+            SELECT COALESCE(SUM(CASE WHEN COALESCE(u.hit_count, 0) > 0 THEN 1 ELSE 0 END), 0) AS nz,
+                   COALESCE(SUM(CASE WHEN COALESCE(u.hit_count, 0) = 0 THEN 1 ELSE 0 END), 0) AS z,
+                   COALESCE(AVG(COALESCE(u.hit_count, 0)), 0) AS avg,
+                   COALESCE(MAX(COALESCE(u.hit_count, 0)), 0) AS mx
+            FROM notes n LEFT JOIN note_usage u ON u.note_id = n.id
+            """)!
+        let sizeRow = try Row.fetchOne(db, sql: """
+            SELECT COALESCE(AVG(word_count), 0) AS aw,
+                   COALESCE(MAX(word_count), 0) AS mw,
+                   COALESCE(AVG(section_count), 0) AS as_
+            FROM notes
+            """)!
+        
+        return OverallStats(
+            total: total,
+            stale: stale,
+            axes: axes,
+            hitNonZero: hitRow["nz"] as Int? ?? 0,
+            hitZero: hitRow["z"] as Int? ?? 0,
+            hitAvg: round((hitRow["avg"] as Double? ?? 0) * 100) / 100,
+            hitMax: hitRow["mx"] as Int? ?? 0,
+            avgWords: round((sizeRow["aw"] as Double? ?? 0) * 10) / 10,
+            maxWords: sizeRow["mw"] as Int? ?? 0,
+            avgSections: round((sizeRow["as_"] as Double? ?? 0) * 10) / 10,
+            activation: try Activation.stats(db)
+        )
+    }
+    
+    // MARK: - Private
+}
