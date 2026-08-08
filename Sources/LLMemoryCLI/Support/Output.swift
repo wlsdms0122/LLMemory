@@ -52,6 +52,11 @@ func readInputText(_ raw: String?) -> String? {
 func readJSON(_ raw: String?) throws -> [String: Any]? {
     guard let trimmed = readInputText(raw) else { return nil }
 
+    return parseJSONObject(trimmed)
+}
+
+// Shape validation only — acquisition stays in readInputText.
+private func parseJSONObject(_ trimmed: String) -> [String: Any]? {
     guard let data = trimmed.data(using: .utf8) else {
         FileHandle.standardError.write("invalid encoding\n".data(using: .utf8)!)
         
@@ -85,7 +90,7 @@ func readJSON(_ raw: String?) throws -> [String: Any]? {
 func readJSONText(_ raw: String?) throws -> String? {
     guard let trimmed = readInputText(raw) else { return nil }
 
-    guard try readJSON(trimmed) != nil else { return nil }
+    guard parseJSONObject(trimmed) != nil else { return nil }
 
     return trimmed
 }

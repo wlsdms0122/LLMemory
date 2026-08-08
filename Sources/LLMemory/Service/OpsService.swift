@@ -11,7 +11,9 @@ import Storage
 // Ops-domain service — the mutation surface. apply runs the atomic write
 // transaction; the op catalog is code-owned and needs no connection.
 // The ops contract is "failure is a status, not an exception": connect/lock
-// errors are normalized here so callers always get a result envelope.
+// errors are normalized here as "unavailable" — a first-class state distinct
+// from "failed" (ran and rolled back) and "rejected" (payload refused),
+// because nothing was executed and the payload was never interpreted.
 public enum OpsService {
     // MARK: - Property
     // MARK: - Initializer
@@ -29,14 +31,12 @@ public enum OpsService {
                 )
             )
         } catch {
-            let rationale = OpsEngine.decodePayload(payloadJSON)?["rationale"] as? String ?? ""
-
             return OpsEngine.Result(
-                status: "failed",
+                status: "unavailable",
                 opResults: [],
                 error: "\(error)",
                 rejectedIndex: nil,
-                rationale: rationale,
+                rationale: "",
                 recoveryFailed: []
             )
         }
@@ -53,7 +53,7 @@ public enum OpsService {
             )
         } catch {
             return OpsEngine.DryRunResult(
-                status: "rejected",
+                status: "unavailable",
                 opCount: nil,
                 error: "\(error)",
                 rejectedIndex: nil

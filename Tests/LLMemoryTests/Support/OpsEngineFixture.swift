@@ -66,8 +66,14 @@ extension OpsEngine {
     }
 
     private static func encodePayload(_ payload: [String: Any]) throws -> String {
+        struct EncodeFailure: Error, CustomStringConvertible {
+            var description: String { "fixture encode failed: payload is not UTF-8 JSON" }
+        }
+
         let data = try JSONSerialization.data(withJSONObject: payload)
 
-        return String(data: data, encoding: .utf8) ?? ""
+        guard let text = String(data: data, encoding: .utf8) else { throw EncodeFailure() }
+
+        return text
     }
 }

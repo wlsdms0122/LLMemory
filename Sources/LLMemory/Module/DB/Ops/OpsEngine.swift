@@ -139,7 +139,7 @@ public enum OpsEngine {
     // MARK: - Public
     // The one place the raw payload string re-enters the [String: Any] world —
     // both ops transactions decode through here.
-    public static func decodePayload(_ json: String) -> [String: Any]? {
+    static func decodePayload(_ json: String) -> [String: Any]? {
         guard
             let data = json.data(using: .utf8),
             let object = try? JSONSerialization.jsonObject(with: data),

@@ -22,10 +22,15 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     private var connection: DatabaseQueue?
 
     // flock(2) — cross-process write exclusion between concurrent CLI invocations.
-    // In-process nesting is tracked by lockDepth under writeSection (sync
-    // writeLock) or writeGate (async write transactions).
+    // The depth counter is only sound under exactly one in-process gate at a
+    // time — writeSection (sync writeLock) or writeGate (async write
+    // transactions) — so acquireLock records its owner and fails loud if the
+    // other gate overlaps instead of silently skipping the flock.
+    private enum LockOwner { case section, gate }
+
     private var lockDescriptor: Int32 = -1
     private var lockDepth: Int = 0
+    private var lockOwner: LockOwner?
     private let lockMutex = NSLock()
     private let writeSection = NSRecursiveLock()
     private let writeGate = WriteGate()
@@ -175,11 +180,14 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         // In-process exclusion first — flock cannot separate two tasks of one
         // process (they share the descriptor, and the depth counter presumes an
         // outer mutex), so the async gate is what makes the counter sound here.
+        // The flock wait and the transaction body still block this thread —
+        // accepted for the single-shot CLI; a dedicated queue is the recorded
+        // way out if embedding ever needs it.
         await writeGate.acquire()
 
         defer { writeGate.release() }
 
-        try acquireLock()
+        try acquireLock(as: .gate)
 
         defer { releaseLock() }
 
@@ -200,7 +208,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         defer { writeSection.unlock() }
 
-        try acquireLock()
+        try acquireLock(as: .section)
 
         defer { releaseLock() }
 
@@ -233,10 +241,18 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         return migrator
     }
 
-    private func acquireLock() throws {
+    private func acquireLock(as owner: LockOwner) throws {
         lockMutex.lock()
 
         defer { lockMutex.unlock() }
+
+        // Two gates never overlap by design (bootstrap precedes any transaction
+        // dispatch); if that ever breaks, skipping the flock here would silently
+        // drop cross-process exclusion — crash instead.
+        precondition(
+            lockDepth == 0 || lockOwner == owner,
+            "write lock overlap across gates — writeSection and writeGate must never interleave"
+        )
 
         if lockDescriptor < 0 {
             let dataDirectory = databaseURL.deletingLastPathComponent()
@@ -259,6 +275,8 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
             guard c_flock(lockDescriptor, LOCK_EX) == 0 else {
                 throw DBError.lockFailed(errno: errno)
             }
+
+            lockOwner = owner
         }
 
         lockDepth += 1
@@ -271,8 +289,12 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         lockDepth -= 1
 
-        if lockDepth == 0 && lockDescriptor >= 0 {
-            _ = c_flock(lockDescriptor, LOCK_UN)
+        if lockDepth == 0 {
+            lockOwner = nil
+
+            if lockDescriptor >= 0 {
+                _ = c_flock(lockDescriptor, LOCK_UN)
+            }
         }
     }
 
@@ -283,8 +305,9 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     }
 }
 
-// An async-safe mutex — waiters park as continuations instead of blocking a
-// cooperative thread, and release may happen on any thread.
+// An async-safe mutex — NSLock cannot legally span an await (unlock is
+// thread-affine), so waiters park as continuations and release may happen on
+// any thread. It orders tasks; the guarded body may still block its thread.
 final class WriteGate: @unchecked Sendable {
     // MARK: - Property
     private let lock = NSLock()
