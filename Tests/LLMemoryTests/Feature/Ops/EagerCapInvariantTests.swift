@@ -59,7 +59,7 @@ struct EagerCapInvariantTests {
         // Given — pushed over the cap behind the gate's back, the way a hand-edited brain would be.
         #expect(home.apply((0 ..< cap).map { index in eagerNote("cap-\(index)") }).status == "ok")
         
-        try GRDBStorage.session.writeLock {
+        try home.storage.writeLock {
             try home.database().write { database in
                 try database.execute(sql: "UPDATE notes SET priority = 'eager'")
             }

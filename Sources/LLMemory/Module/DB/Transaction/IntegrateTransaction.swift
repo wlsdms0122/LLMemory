@@ -20,7 +20,7 @@ public struct IntegrateTransaction: GRDBWriteTransaction {
 
     // MARK: - Private
     private func perform(_ connection: Connection) throws -> Result {
-        var result = try Consolidate.integrateLocked()
+        var result = try Consolidate.integrateLocked(connection)
         let integrity = try connection.read { db in try Consolidate.integrityL1(db) }
         result.integrityL1 = Consolidate.IntegrateResult.IntegrityReport(
             checked: integrity.checked,

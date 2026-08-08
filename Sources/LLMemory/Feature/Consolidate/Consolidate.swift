@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 import Storage
 
-public enum Consolidate {
+public struct Consolidate {
     public struct AxisReport {
         // MARK: - Property
         public let all: [(axis: String, description: String?, count: Int)]
@@ -244,7 +244,13 @@ public enum Consolidate {
         Config.getInt("events.retention_days", default: 30) * 24 * 60 * 60
     }
     
+    let session: Session
+    
     // MARK: - Initializer
+    init(session: Session) {
+        self.session = session
+    }
+    
     // MARK: - Public
     public static func compactOldEvents(
         _ db: Database,
@@ -432,15 +438,16 @@ public enum Consolidate {
         }
     }
     
-    static func pruneLocked() throws -> PruneResult {
+    static func pruneLocked(_ queue: any DatabaseWriter) throws -> PruneResult {
         let now = Int(Date().timeIntervalSince1970)
         var decay: (decayed: Int, pruned: Int) = (0, 0)
 
-        try GRDBStorage.session.write { db in
+        try queue.write { db in
             decay = try Links.decayAndPrune(db)
         }
 
         Events.record(
+            queue,
             kind: Events.kindConsolidation,
             payload: [
                 "action": "prune",
@@ -453,24 +460,24 @@ public enum Consolidate {
         return PruneResult(linksDecayed: decay.decayed, linksPruned: decay.pruned)
     }
 
-    public static func integrate() async throws -> IntegrateResult {
-        try await GRDBStorage.session.run(IntegrateTransaction())
+    public func integrate() async throws -> IntegrateResult {
+        try await session.storage.run(IntegrateTransaction())
     }
 
-    public static func homeostasis() async throws -> Homeostasis.Report {
-        try await GRDBStorage.session.run(HomeostasisTransaction())
+    public func homeostasis() async throws -> Homeostasis.Report {
+        try await session.storage.run(HomeostasisTransaction())
     }
 
-    public static func prune() async throws -> PruneResult {
-        try await GRDBStorage.session.run(PruneTransaction())
+    public func prune() async throws -> PruneResult {
+        try await session.storage.run(PruneTransaction())
     }
 
-    public static func report() async throws -> (axis: AxisReport, tag: TagReport) {
-        try await GRDBStorage.session.run(ConsolidateReportTransaction())
+    public func report() async throws -> (axis: AxisReport, tag: TagReport) {
+        try await session.storage.run(ConsolidateReportTransaction())
     }
 
     // MARK: - Private
-    static func integrateLocked() throws -> IntegrateResult {
+    static func integrateLocked(_ queue: any DatabaseWriter) throws -> IntegrateResult {
         let now = Int(Date().timeIntervalSince1970)
         var axisSummary: AxisReport!
         var tagSummary: TagReport!
@@ -493,7 +500,7 @@ public enum Consolidate {
         var termsRejected = 0
         var reviewPass = EnrichmentReview.ReviewPass()
         
-        try GRDBStorage.session.write { db in
+        try queue.write { db in
             _ = try Activation.deriveWindows(db, now: now)
             
             eventsCompacted = try compactOldEvents(
@@ -532,7 +539,7 @@ public enum Consolidate {
         }
         
         let decay: (decayed: Int, pruned: Int) = (0, 0)
-        let vectorBuild = (try? Vectors.build())
+        let vectorBuild = (try? Vectors.build(queue))
         let summary = IntegrateResult.Summary(
             eventsCompacted: eventsCompacted,
             smallAxes: axisSummary.small.count,
@@ -568,7 +575,7 @@ public enum Consolidate {
             for (key, value) in dictionary { tracePayload[key] = value }
         }
         
-        Events.record(kind: Events.kindConsolidation, payload: tracePayload, ts: now)
+        Events.record(queue, kind: Events.kindConsolidation, payload: tracePayload, ts: now)
         
         return IntegrateResult(
             summary: summary,

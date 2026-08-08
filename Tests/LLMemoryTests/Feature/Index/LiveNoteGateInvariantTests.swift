@@ -42,7 +42,7 @@ struct LiveNoteGateInvariantTests {
         let trashed = try trashNote(id: "live-2")
         
         // When
-        let returnCode = try Index.reindexLocked(filePaths: [trashed.path])
+        let returnCode = try Index.reindexLocked(home.database(), filePaths: [trashed.path])
         
         // Then
         #expect(returnCode == 1, "index reindex reported success for a trashed path")

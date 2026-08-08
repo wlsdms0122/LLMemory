@@ -60,7 +60,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("gate-1", source: "[\"\(grounding.path)\"]")
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         try "alpha changed".write(to: grounding, atomically: true, encoding: .utf8)
@@ -99,7 +99,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("gate-2", source: "[\"\(grounding.path)\"]")
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         try FileManager.default.removeItem(at: path)
@@ -136,7 +136,7 @@ struct SourceGateInvariantTests {
             .write(to: path, atomically: true, encoding: .utf8)
         
         // When
-        let output = try Consolidate.integrateLocked()
+        let output = try Consolidate.integrateLocked(home.database())
         
         // Then
         #expect(output.summary.sourcesUnreadable == 1,
@@ -155,7 +155,7 @@ struct SourceGateInvariantTests {
     @Test("a malformed source in an op is refused by dry-run and apply alike")
     func malformedOpsSourceIsRejectedByDryRunAndApply() throws {
         // Given
-        _ = try GRDBStorage.session.connect()
+        _ = try home.storage.connect()
         
         // When
         for bad in [[123], [NSNull()], [""], [["foo": "bar"]]] as [Any] {
@@ -164,7 +164,7 @@ struct SourceGateInvariantTests {
                 "title": "t", "summary": "s", "tags": ["flow"], "content": "# body",
                 "axis_description": "(test)", "source": bad
             ]
-            let dryRun = OpsTransaction.dryRun(["ops": [op], "rationale": "test"])
+            let dryRun = OpsTransaction.dryRun(home.storage, ["ops": [op], "rationale": "test"])
         
         // Then
             #expect(dryRun.status == "rejected", "dry-run accepted malformed source \(bad)")
@@ -183,7 +183,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("gate-3", source: "[\"\(grounding.path)\"]")
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         
@@ -215,7 +215,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("gate-4", source: "[\"\(grounding.path)\"]")
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         
@@ -242,7 +242,7 @@ struct SourceGateInvariantTests {
     @Test("every well-formed shape still applies")
     func validShapesStillApply() throws {
         // Given
-        _ = try GRDBStorage.session.connect()
+        _ = try home.storage.connect()
         
         // When
         let result = home.apply([[

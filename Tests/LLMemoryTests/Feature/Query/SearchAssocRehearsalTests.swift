@@ -29,7 +29,7 @@ struct SearchAssocRehearsalTests {
         home.createNote(id: "areh-a", title: "alpha", content: "## A\nzephyrquasar context\n")
         home.createNote(id: "areh-b", title: "beta", content: "## A\nzephyrquasar context\n")
         
-        _ = try Links.strengthen(
+        _ = try Links.strengthen(home.database(), 
             pairs: [("areh-a", "areh-b")],
             kind: Links.kindAssoc,
             step: 0.5,
@@ -39,7 +39,7 @@ struct SearchAssocRehearsalTests {
         #expect(try assocWeight(between: "areh-a", and: "areh-b") == 0.5)
         
         // When
-        _ = try QueryFeature.searchNotes(query: "zephyrquasar", limit: 5)
+        _ = try QueryFeature.searchNotes(home.database(), query: "zephyrquasar", limit: 5)
         
         // Then
         #expect(try assocWeight(between: "areh-a", and: "areh-b") ?? 0 > 0.5,

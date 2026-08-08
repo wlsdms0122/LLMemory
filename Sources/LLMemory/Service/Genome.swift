@@ -218,10 +218,8 @@ public enum Genome {
         }
     }
     
-    static func warmCache() {
+    static func warmCache(_ queue: any DatabaseWriter) {
         cache.removeAll()
-        
-        guard let queue = try? GRDBStorage.session.connect() else { return }
         
         if let rows = try? queue.read({ db in
             try Row.fetchAll(db, sql: "SELECT gene_id, value FROM genome")

@@ -62,7 +62,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         try "alpha".write(to: source, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("fresh-1", sources: [source])
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         
@@ -96,7 +96,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         try "alpha".write(to: source, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("fresh-2", sources: [source])
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         
@@ -126,7 +126,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         try "alpha".write(to: source, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("fresh-3", sources: [source])
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         try "beta".write(to: source, atomically: true, encoding: .utf8)
@@ -154,7 +154,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         try "beta".write(to: second, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("fresh-4", sources: [first, second])
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         try FileManager.default.removeItem(at: second)

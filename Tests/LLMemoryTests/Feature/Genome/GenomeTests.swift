@@ -30,7 +30,7 @@ struct GenomeTests {
         #expect(Genome.source("links.sibling_rank_weight") == "wild_type")
         
         // When — a legacy config value exists.
-        Config.set("priming.alpha", value: 0.8)
+        try Config.set(home.database(), "priming.alpha", value: 0.8)
         
         // Then
         #expect(Genome.double("priming.alpha") == 0.8)
@@ -107,7 +107,7 @@ struct GenomeTests {
         home.createNote(id: "seed")
         home.createNote(id: "dead-expand")
         
-        Config.set("homeostasis.min_sample", value: 10)
+        try Config.set(home.database(), "homeostasis.min_sample", value: 10)
         
         let base = home.now - 50_000
         
@@ -157,7 +157,7 @@ struct GenomeTests {
         home.createNote(id: "seed")
         home.createNote(id: "dead-expand")
         
-        Config.set("homeostasis.min_sample", value: 10)
+        try Config.set(home.database(), "homeostasis.min_sample", value: 10)
         
         let base = home.now - 50_000
         
@@ -189,7 +189,7 @@ struct GenomeTests {
         home.createNote(id: "seed")
         home.createNote(id: "landed-expand")
         
-        Config.set("homeostasis.min_sample", value: 10)
+        try Config.set(home.database(), "homeostasis.min_sample", value: 10)
         
         let base = home.now - 50_000
         
@@ -243,7 +243,7 @@ struct GenomeTests {
         home.createNote(id: "seed")
         home.createNote(id: "dead-expand")
         
-        Config.set("homeostasis.min_sample", value: 10)
+        try Config.set(home.database(), "homeostasis.min_sample", value: 10)
         
         let base = home.now - 50_000
         

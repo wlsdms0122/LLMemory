@@ -25,7 +25,7 @@ struct NoteArtifactsInvariantTests {
     @Test("every table that cascades from a note is classified — an unclassified one is invisible to the ops that must carry it")
     func everyNoteCascadeTableIsClassified() throws {
         // When
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         let cascade = try queue.read { db in try NoteArtifacts.noteCascadeTables(db) }
         
         // Then
@@ -44,7 +44,7 @@ struct NoteArtifactsInvariantTests {
     @Test("every artifact declares what a split does with it, so none is silently dropped")
     func everyArtifactHasSplitPolicy() throws {
         // When
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         let cascade = Set(try queue.read { db in try NoteArtifacts.noteCascadeTables(db) })
         
         // Then
@@ -91,7 +91,7 @@ struct NoteArtifactsInvariantTests {
     @Test("every declared disposition names a table that actually exists")
     func dispositionEntriesAreRealCascadeTables() throws {
         // When
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         let cascade = Set(try queue.read { db in try NoteArtifacts.noteCascadeTables(db) })
         
         // Then
@@ -200,7 +200,7 @@ struct NoteArtifactsInvariantTests {
             #expect(before[table]! > 0, "the round-trip fixture never fills '\(table)' — a newly preserved table needs data added above")
         }
         
-        _ = try Index.buildLocked(rebuild: true)
+        _ = try Index.buildLocked(home.database(), rebuild: true)
         
         let after = try counts(preserved)
         

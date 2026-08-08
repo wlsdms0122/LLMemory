@@ -29,6 +29,7 @@ public struct HomeostasisTransaction: GRDBWriteTransaction {
         }
 
         Events.record(
+            connection,
             kind: Events.kindConsolidation,
             payload: [
                 "action": "homeostasis",

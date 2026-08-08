@@ -15,14 +15,17 @@ protocol BrainHome {
     var url: URL { get }
     // One clock reading per home, so everything a test writes shares a timestamp.
     var now: Int { get }
+    var session: Session { get }
 }
 
 extension BrainHome {
     // MARK: - Public
     var path: String { url.path }
 
+    var storage: GRDBStorage { session.storage }
+
     func database() throws -> any DatabaseWriter {
-        try GRDBStorage.session.connect()
+        try storage.connect()
     }
 
     func read<T>(_ body: (Database) throws -> T) throws -> T {
@@ -30,12 +33,12 @@ extension BrainHome {
     }
 
     func write<T>(_ body: (Database) throws -> T) throws -> T {
-        try GRDBStorage.session.writeLock { try database().write(body) }
+        try storage.writeLock { try database().write(body) }
     }
 
     @discardableResult
     func apply(_ operations: [[String: Any]], rationale: String = "test") -> OpsTransaction.Result {
-        OpsTransaction.apply(["ops": operations, "rationale": rationale])
+        OpsTransaction.apply(storage, ["ops": operations, "rationale": rationale])
     }
 
     @discardableResult

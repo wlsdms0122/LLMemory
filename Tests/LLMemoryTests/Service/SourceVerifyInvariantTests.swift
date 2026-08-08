@@ -87,7 +87,7 @@ struct SourceVerifyInvariantTests {
         
         try markdown.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
@@ -149,7 +149,7 @@ struct SourceVerifyInvariantTests {
         # body
         """.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "alpha-changed".write(to: older, atomically: true, encoding: .utf8)
@@ -189,7 +189,7 @@ struct SourceVerifyInvariantTests {
         # body
         """.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
@@ -237,7 +237,7 @@ struct SourceVerifyInvariantTests {
         # body
         """.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
@@ -268,7 +268,7 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote("src-keep", source: file)
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
@@ -303,7 +303,7 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote("src-rb", source: file)
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
@@ -340,12 +340,12 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote("src-ack", source: file)
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
         // When
-        let early = OpsTransaction.apply(["ops": [["op": "rebase_source", "id": "src-ack", "reason": "r"]], "rationale": "t"])
+        let early = OpsTransaction.apply(home.storage, ["ops": [["op": "rebase_source", "id": "src-ack", "reason": "r"]], "rationale": "t"])
         
         // Then
         #expect(early.status == "ok", "rebase of a fresh source must be allowed: \(early.error)")
@@ -358,7 +358,7 @@ struct SourceVerifyInvariantTests {
         
         #expect(before?.stale == 1)
         
-        let result = OpsTransaction.apply(["ops": [["op": "rebase_source", "id": "src-ack", "reason": "reconciled"]], "rationale": "t"])
+        let result = OpsTransaction.apply(home.storage, ["ops": [["op": "rebase_source", "id": "src-ack", "reason": "reconciled"]], "rationale": "t"])
         
         #expect(result.status == "ok", "rebase failed: \(result.error)")
         
@@ -383,7 +383,7 @@ struct SourceVerifyInvariantTests {
         """.write(to: plainPath, atomically: true, encoding: .utf8)
         try queue.write { db in _ = try Notes.reindexFile(db, path: plainPath) }
         
-        let none = OpsTransaction.apply(["ops": [["op": "rebase_source", "id": "src-plain", "reason": "r"]], "rationale": "t"])
+        let none = OpsTransaction.apply(home.storage, ["ops": [["op": "rebase_source", "id": "src-plain", "reason": "r"]], "rationale": "t"])
         
         #expect(none.status != "ok", "rebase without a note_source row must be refused")
     }
@@ -398,7 +398,7 @@ struct SourceVerifyInvariantTests {
         try "two".write(to: second, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote("src-decl", source: first)
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "one drifted".write(to: first, atomically: true, encoding: .utf8)
@@ -409,7 +409,7 @@ struct SourceVerifyInvariantTests {
         // Then
         #expect(try Self.sourceRow(queue, "src-decl")?.stale == 1)
         
-        let result = OpsTransaction.apply(["ops": [["op": "set_frontmatter", "id": "src-decl",
+        let result = OpsTransaction.apply(home.storage, ["ops": [["op": "set_frontmatter", "id": "src-decl",
             "fields": ["source": [second.path]]]], "rationale": "t"])
         
         #expect(result.status == "ok", "set_frontmatter failed: \(result.error)")
@@ -432,7 +432,7 @@ struct SourceVerifyInvariantTests {
         
         let notePath = try Self.writeSourcedNote("src-sp", source: file,
             body: "## A\nalpha\n## B\nbeta\n")
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
@@ -449,7 +449,7 @@ struct SourceVerifyInvariantTests {
             ["id": "src-sp-a", "axis": "flow", "title": "A", "tags": ["flow"], "summary": "s", "sections": ["## A"]],
             ["id": "src-sp-b", "axis": "flow", "title": "B", "tags": ["flow"], "summary": "s", "sections": ["## B"]]
         ]
-        let result = OpsTransaction.apply(["ops": [["op": "split_note", "from_id": "src-sp", "into": into]], "rationale": "t"])
+        let result = OpsTransaction.apply(home.storage, ["ops": [["op": "split_note", "from_id": "src-sp", "into": into]], "rationale": "t"])
         
         #expect(result.status == "ok", "split failed: \(result.error)")
         
@@ -471,7 +471,7 @@ struct SourceVerifyInvariantTests {
         try "two".write(to: second, atomically: true, encoding: .utf8)
         
         let intoPath = try Self.writeSourcedNote("src-mi", source: first)
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         // When
         try queue.write { db in _ = try Notes.reindexFile(db, path: intoPath) }
@@ -485,7 +485,7 @@ struct SourceVerifyInvariantTests {
         
         #expect(try Self.sourceRow(queue, "src-mi")?.stale == 1)
         
-        let result = OpsTransaction.apply(["ops": [[
+        let result = OpsTransaction.apply(home.storage, ["ops": [[
             "op": "merge_notes", "into_id": "src-mi", "from_ids": ["src-mf"],
             "merged_content": "## body\nmerged\n", "summary": "s", "tags": ["flow"],
             "source": [second.path]
@@ -510,7 +510,7 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote("src-same", source: file)
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
@@ -523,7 +523,7 @@ struct SourceVerifyInvariantTests {
         // Then
         #expect(before?.stale == 1)
         
-        let result = OpsTransaction.apply(["ops": [["op": "set_frontmatter", "id": "src-same",
+        let result = OpsTransaction.apply(home.storage, ["ops": [["op": "set_frontmatter", "id": "src-same",
             "fields": ["summary": "updated", "source": [file.path]]]], "rationale": "t"])
         
         #expect(result.status == "ok", "set_frontmatter failed: \(result.error)")
@@ -543,7 +543,7 @@ struct SourceVerifyInvariantTests {
         
         let notePath = try Self.writeSourcedNote("src-rs", source: file,
             body: "## A\nalpha\n## B\nbeta\n")
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
@@ -562,7 +562,7 @@ struct SourceVerifyInvariantTests {
             ["id": "src-rs-b", "axis": "flow", "title": "B", "tags": ["flow"], "summary": "s",
                 "sections": ["## B"]]
         ]
-        let result = OpsTransaction.apply(["ops": [["op": "split_note", "from_id": "src-rs", "into": into]], "rationale": "t"])
+        let result = OpsTransaction.apply(home.storage, ["ops": [["op": "split_note", "from_id": "src-rs", "into": into]], "rationale": "t"])
         
         #expect(result.status == "ok", "split failed: \(result.error)")
         

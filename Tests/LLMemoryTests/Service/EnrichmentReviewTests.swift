@@ -52,7 +52,7 @@ struct EnrichmentReviewTests {
         ]])
         
         // When
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         let status = try queue.read { db in try EnrichmentReview.status(db) }
         
         // Then
@@ -83,11 +83,11 @@ struct EnrichmentReviewTests {
             "op": "propose_link", "src": "rev-alpha0", "dst": "rev-beta0",
             "provenance": "noisy:model"
         ]])
-        _ = try Vectors.build()
+        _ = try Vectors.build(home.database())
         
         let now = home.now
-        let flagged = try GRDBStorage.session.writeLock { () -> Int in
-            let queue = try GRDBStorage.session.connect()
+        let flagged = try home.storage.writeLock { () -> Int in
+            let queue = try home.storage.connect()
         
         // When
             return try queue.write { db in try EnrichmentReview.flagDisagreements(db, now: now).flagged }
@@ -97,7 +97,7 @@ struct EnrichmentReviewTests {
         #expect(flagged >= 0)
         
         if flagged > 0 {
-            let queue = try GRDBStorage.session.connect()
+            let queue = try home.storage.connect()
             let reviewFlags = try queue.read { db in
                 try Int.fetchOne(db, sql: """
                     SELECT COUNT(*) FROM ripple_flags WHERE flag = 'enrich_review'
@@ -123,7 +123,7 @@ struct EnrichmentReviewTests {
         ]])
         
         // When
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         let stats = try queue.read { db in try EnrichmentReview.provenanceStats(db) }
         let modelX = stats.first { entry in entry.provenance == "modelX" }
         
@@ -142,9 +142,9 @@ struct EnrichmentReviewTests {
         // Then
         #expect(home.apply([["op": "invalidate", "id": "cov-arch", "reason": "test"]]).status == "ok")
         
-        _ = try Vectors.build()
+        _ = try Vectors.build(home.database())
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         let status = try queue.read { db in try EnrichmentReview.status(db) }
         
         #expect(status.vectorCount == 2, "only surface notes get a vector row")
@@ -162,9 +162,9 @@ struct EnrichmentReviewTests {
         _ = home.apply([["op": "propose_link", "src": "rev-h1", "dst": "rev-h2"]])
         
         let now = home.now
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
-        try GRDBStorage.session.writeLock {
+        try home.storage.writeLock {
             try queue.write { db in
                 try Self.putVector(db, id: "rev-h1", vector: [1, 0])
                 try Self.putVector(db, id: "rev-h2", vector: [0, 1])
@@ -179,7 +179,7 @@ struct EnrichmentReviewTests {
         // Then
         #expect(openBefore == 2)
         
-        try GRDBStorage.session.writeLock {
+        try home.storage.writeLock {
             try queue.write { db in
                 try Self.putVector(db, id: "rev-h2", vector: [1, 0])
                 
@@ -208,9 +208,9 @@ struct EnrichmentReviewTests {
         _ = home.apply([["op": "propose_link", "src": "rev-e1", "dst": "rev-e2"]])
         
         let now = home.now
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
-        try GRDBStorage.session.writeLock {
+        try home.storage.writeLock {
             try queue.write { db in
                 try Self.putVector(db, id: "rev-e1", vector: [1, 0])
                 try Self.putVector(db, id: "rev-e2", vector: [0, 1])
@@ -225,7 +225,7 @@ struct EnrichmentReviewTests {
         // Then
         #expect(openBefore == 2)
         
-        try GRDBStorage.session.writeLock {
+        try home.storage.writeLock {
             try queue.write { db in
                 try db.execute(sql: "DELETE FROM note_links WHERE kind = ?",
                     arguments: [Links.kindAssoc])
@@ -248,9 +248,9 @@ struct EnrichmentReviewTests {
         _ = home.apply([["op": "propose_link", "src": "rev-k1", "dst": "rev-k2"]])
         
         let now = home.now
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
-        try GRDBStorage.session.writeLock {
+        try home.storage.writeLock {
             try queue.write { db in
                 try Self.putVector(db, id: "rev-k1", vector: [1, 0])
                 try Self.putVector(db, id: "rev-k2", vector: [0, 1])
@@ -259,7 +259,7 @@ struct EnrichmentReviewTests {
             }
         }
         
-        try GRDBStorage.session.writeLock {
+        try home.storage.writeLock {
             try queue.write { db in
                 try db.execute(sql: "DELETE FROM note_vectors")
                 
@@ -284,9 +284,9 @@ struct EnrichmentReviewTests {
         _ = home.apply([["op": "propose_link", "src": "rev-j1", "dst": "rev-j2"]])
         
         let now = home.now
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
-        try GRDBStorage.session.writeLock {
+        try home.storage.writeLock {
             try queue.write { db in
                 try Self.putVector(db, id: "rev-j1", vector: [1, 0])
                 try Self.putVector(db, id: "rev-j2", vector: [0, 1])
@@ -317,7 +317,7 @@ struct EnrichmentReviewTests {
         
         #expect(openAfterResolve == 1, "only rev-j1 closes — rev-j2 must stay open")
         
-        try GRDBStorage.session.writeLock {
+        try home.storage.writeLock {
             try queue.write { db in
                 _ = try EnrichmentReview.flagDisagreements(db, now: now + 1)
             }
@@ -359,8 +359,8 @@ struct EnrichmentReviewTests {
         ]])
         
         let now = home.now
-        let flagged = try GRDBStorage.session.writeLock { () -> Int in
-            let queue = try GRDBStorage.session.connect()
+        let flagged = try home.storage.writeLock { () -> Int in
+            let queue = try home.storage.connect()
         
         // When
             return try queue.write { db in try EnrichmentReview.flagDisagreements(db, now: now).flagged }

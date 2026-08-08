@@ -24,7 +24,7 @@ enum IndexError: Error, CustomStringConvertible {
     }
 }
 
-public enum Index {
+public struct Index {
     public struct BuildResult {
         // MARK: - Property
         public let count: Int
@@ -99,10 +99,17 @@ public enum Index {
     // MARK: - Property
     private static let idRegex = try! NSRegularExpression(pattern: #"^[a-z0-9][a-z0-9-]*$"#)
     
+    let session: Session
+    
     // MARK: - Initializer
+    init(session: Session) {
+        self.session = session
+    }
+    
     // MARK: - Public
-    static func buildLocked(rebuild: Bool = false) throws -> BuildResult {
-        try GRDBStorage.session.writeLock {
+    // Caller holds the write lock (run's write marker or an explicit writeLock).
+    static func buildLocked(_ queue: any DatabaseWriter, rebuild: Bool = false) throws -> BuildResult {
+        try {
             let now = Int(Date().timeIntervalSince1970)
             let files = Paths.scanNotes()
             var scannedRels = Set<String>()
@@ -143,7 +150,7 @@ public enum Index {
             
             parseInto(&pending, files)
             
-            return try GRDBStorage.session.write { db in
+            return try queue.write { db in
                 try reconcile(
                     db,
                     pending: pending,
@@ -153,12 +160,13 @@ public enum Index {
                     fileErrors: fileErrors
                 )
             }
-        }
+        }()
     }
     
+    // Caller holds the write lock (run's write marker or an explicit writeLock).
     @discardableResult
-    static func reindexLocked(filePaths: [String]) throws -> Int {
-        try GRDBStorage.session.writeLock {
+    static func reindexLocked(_ queue: any DatabaseWriter, filePaths: [String]) throws -> Int {
+        try {
             var exitCode = 0
 
             for filePath in filePaths {
@@ -188,7 +196,7 @@ public enum Index {
                 }
 
                 do {
-                    let noteId = try GRDBStorage.session.write { db in
+                    let noteId = try queue.write { db in
                         try Notes.reindexFile(db, path: path)
                     }
                     let relativePath = Paths.relative(of: path) ?? path.path
@@ -203,41 +211,39 @@ public enum Index {
             }
 
             return exitCode
-        }
+        }()
     }
 
-    static func check(level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
-        try check(rawLevel: level.rawValue)
+    static func check(_ queue: any DatabaseWriter, level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
+        try check(queue, rawLevel: level.rawValue)
     }
 
-    public static func build(rebuild: Bool = false) async throws -> BuildResult {
-        try await GRDBStorage.session.run(BuildIndexTransaction(.init(rebuild: rebuild)))
+    public func build(rebuild: Bool = false) async throws -> BuildResult {
+        try await session.storage.run(BuildIndexTransaction(.init(rebuild: rebuild)))
     }
 
     @discardableResult
-    public static func reindex(filePaths: [String]) async throws -> Int {
-        try await GRDBStorage.session.run(ReindexNotesTransaction(.init(filePaths: filePaths)))
+    public func reindex(filePaths: [String]) async throws -> Int {
+        try await session.storage.run(ReindexNotesTransaction(.init(filePaths: filePaths)))
     }
 
-    public static func check(level: IntegrityLevel = .l1) async throws -> (ok: Bool, msgs: [String]) {
-        try await GRDBStorage.session.run(CheckIntegrityTransaction(.init(level: level)))
+    public func check(level: IntegrityLevel = .l1) async throws -> (ok: Bool, msgs: [String]) {
+        try await session.storage.run(CheckIntegrityTransaction(.init(level: level)))
     }
 
-    public static func buildVectors() async throws -> Vectors.BuildResult {
-        try await GRDBStorage.session.run(BuildVectorsTransaction())
+    public func buildVectors() async throws -> Vectors.BuildResult {
+        try await session.storage.run(BuildVectorsTransaction())
     }
 
-    public static func verifySources() async throws -> SourcesService.BulkVerifyResult {
-        try await GRDBStorage.session.run(VerifySourcesTransaction())
+    public func verifySources() async throws -> SourcesService.BulkVerifyResult {
+        try await session.storage.run(VerifySourcesTransaction())
     }
 
-    public static func validateTerms(rejectStale: Bool) async throws -> ValidateResult {
-        try await GRDBStorage.session.run(ValidateTermsTransaction(.init(rejectStale: rejectStale)))
+    public func validateTerms(rejectStale: Bool) async throws -> ValidateResult {
+        try await session.storage.run(ValidateTermsTransaction(.init(rejectStale: rejectStale)))
     }
     
-    public static func initialize(home: String, bare: Bool = false) throws -> InitResult {
-        Session.configure(home: home)
-        
+    public func initialize(bare: Bool = false) throws -> InitResult {
         let fileManager = FileManager.default
         let dataExisted = fileManager.fileExists(atPath: Paths.dataDirectory.path)
         let cortexExisted = fileManager.fileExists(atPath: Paths.cortexRoot.path)
@@ -248,12 +254,13 @@ public enum Index {
         
         // init is deliberate setup — presence of .innate/ is not consulted, only --bare is.
         let seeding = bare ? Seeding.Result() : Seeding.plant(mode: .missingOnly, force: true)
-        let result = try GRDBStorage.session.writeLock { () -> Index.BuildResult in
-            try GRDBStorage.session.initialize()
+        let result = try session.storage.writeLock { () -> Index.BuildResult in
+            try session.storage.initialize()
 
-            let built = try Index.buildLocked(rebuild: false)
+            let queue = try session.storage.connect()
+            let built = try Index.buildLocked(queue, rebuild: false)
 
-            try GRDBStorage.session.write { db in try Seeding.describeInnateAxis(db) }
+            try queue.write { db in try Seeding.describeInnateAxis(db) }
 
             return built
         }
@@ -278,15 +285,11 @@ public enum Index {
     
     // Report-only classification of the innate space against the shipped copy — what
     // update would plant/refresh/relocate/skip — without touching a single file.
-    public static func checkSeeds(home: String, force: Bool = false) -> Seeding.Result {
-        Session.configure(home: home)
-
-        return Seeding.plant(mode: .overwrite, force: force, dryRun: true)
+    public func checkSeeds(force: Bool = false) -> Seeding.Result {
+        Seeding.plant(mode: .overwrite, force: force, dryRun: true)
     }
 
-    public static func update(home: String, override: Bool = false) throws -> UpdateResult {
-        Session.configure(home: home)
-
+    public func update(override: Bool = false) throws -> UpdateResult {
         // Classify first without writing. Any drift means human state is in the way —
         // update warns and leaves the innate space alone; only --override restates it
         // to exactly the shipped set (removing foreign files too). An absent space
@@ -303,14 +306,15 @@ public enum Index {
             blocked = true
         }
 
-        let result = try GRDBStorage.session.writeLock {
+        let result = try session.storage.writeLock {
             // update is the migration surface: a brain left behind by a binary upgrade
             // is carried forward here, before anything else touches the connection.
-            try GRDBStorage.session.initialize()
+            try session.storage.initialize()
 
-            let built = try Index.buildLocked(rebuild: false)
+            let queue = try session.storage.connect()
+            let built = try Index.buildLocked(queue, rebuild: false)
 
-            try GRDBStorage.session.write { db in try Seeding.describeInnateAxis(db) }
+            try queue.write { db in try Seeding.describeInnateAxis(db) }
 
             return built
         }
@@ -433,9 +437,8 @@ public enum Index {
     }
     
     // MARK: - Private
-    static func check(rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
+    static func check(_ queue: any DatabaseWriter, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
         let eagerCap = Config.getInt("eager.max_count", default: 20)
-        let queue = try GRDBStorage.session.connect()
         
         return try queue.read { db in
             var messages: [String] = []

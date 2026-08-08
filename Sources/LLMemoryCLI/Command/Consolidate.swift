@@ -87,9 +87,9 @@ struct ConsolidateIntegrate: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
-        let result = try await Consolidate.integrate()
+        let result = try await brain.consolidate.integrate()
         
         emitConsolidateSummary(result.summary, json: format.json)
     }
@@ -130,9 +130,9 @@ struct ConsolidateHomeostasis: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
-        let result = try await Consolidate.homeostasis()
+        let result = try await brain.consolidate.homeostasis()
         
         emitConsolidateSummary(result, json: format.json)
     }
@@ -163,9 +163,9 @@ struct ConsolidatePrune: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
-        let result = try await Consolidate.prune()
+        let result = try await brain.consolidate.prune()
         
         emitConsolidateSummary(result, json: format.json)
     }
@@ -236,9 +236,9 @@ struct ConsolidateReport: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
-        let (axisReport, tagReport) = try await Consolidate.report()
+        let (axisReport, tagReport) = try await brain.consolidate.report()
         let report = ReportOutput(
             axes: axisReport.all.map { entry in
                 AxisRow(axis: entry.axis, count: entry.count, description: entry.description)
@@ -527,6 +527,8 @@ struct ConsolidateCandidates: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
+        let brain = Brain(home: global.home)
+        
         let validKinds = QueryFeature.candidateValidKinds + ["all", "retrieval", "structural"]
         
         if !Set(validKinds).contains(kind) {
@@ -558,7 +560,7 @@ struct ConsolidateCandidates: AsyncParsableCommand {
             groupMode = false
         }
         
-        let batches = try await QueryFeature.candidates(home: global.home, kinds: kinds, limit: limit)
+        let batches = try await brain.query.candidates(kinds: kinds, limit: limit)
         let result: [String: KindOutput] = batches.mapValues { batch in
             mapBatch(batch, full: verbose)
         }

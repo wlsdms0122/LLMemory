@@ -103,7 +103,7 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: old, sessionId: nil, hitIds: ["n1"])
         }
         
-        _ = try Consolidate.integrateLocked()
+        _ = try Consolidate.integrateLocked(home.database())
         
         // When
         try home.read { database in

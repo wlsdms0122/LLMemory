@@ -20,7 +20,7 @@ public struct NeighborsTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.neighbors(id: parameter.id, k: parameter.k, cliSessionId: parameter.cliSessionId)
+        try QueryFeature.neighbors(connection, id: parameter.id, k: parameter.k, cliSessionId: parameter.cliSessionId)
     }
 }
 

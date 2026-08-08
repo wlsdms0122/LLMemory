@@ -65,7 +65,9 @@ struct RulesetList: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let items = try await RulesetFeature.list(home: global.home).map { summary in
+        let brain = Brain(home: global.home)
+        
+        let items = try await brain.ruleset.list().map { summary in
             Output(
                 id: summary.id,
                 name: summary.name,
@@ -136,7 +138,9 @@ struct RulesetShow: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let output: Output? = try await RulesetFeature.show(home: global.home, id: id).map { ruleset in
+        let brain = Brain(home: global.home)
+        
+        let output: Output? = try await brain.ruleset.show(id: id).map { ruleset in
             Output(
                 id: ruleset.id,
                 name: ruleset.name,
@@ -208,8 +212,9 @@ struct RulesetEffective: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        guard let effective = try await RulesetFeature.effective(
-            home: global.home,
+        let brain = Brain(home: global.home)
+        
+        guard let effective = try await brain.ruleset.effective(
             ruleset: ruleset,
             axis: axis
         ) else {

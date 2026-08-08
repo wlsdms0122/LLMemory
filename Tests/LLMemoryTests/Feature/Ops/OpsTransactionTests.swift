@@ -26,7 +26,7 @@ struct TransactionTests {
     @Test("an empty op list is rejected — a transaction with nothing in it is a caller mistake")
     func emptyOpsRejected() {
         // When
-        let result = OpsTransaction.apply(["ops": [], "rationale": "x"])
+        let result = OpsTransaction.apply(home.storage, ["ops": [], "rationale": "x"])
         
         // Then
         #expect(result.status == "rejected")
@@ -58,7 +58,7 @@ struct TransactionTests {
     @Test("dry-run validates without writing anything to disk")
     func dryRunDoesNotPersist() {
         // When
-        let result = OpsTransaction.dryRun(["ops": [createOp(id: "tx-dry-1")], "rationale": "test"])
+        let result = OpsTransaction.dryRun(home.storage, ["ops": [createOp(id: "tx-dry-1")], "rationale": "test"])
         
         // Then
         #expect(result.status == "ok")
@@ -81,7 +81,7 @@ struct TransactionTests {
         #expect(home.createNote(id: "tx-drs-1", content: "## A\nbody\n").status == "ok")
         
         // When
-        let result = OpsTransaction.dryRun([
+        let result = OpsTransaction.dryRun(home.storage, [
             "ops": [patchOp(id: "tx-drs-1", section: "## NOPE")],
             "rationale": "test"
         ])
@@ -108,8 +108,8 @@ struct TransactionTests {
         ]
         
         // Then
-        #expect(OpsTransaction.dryRun(staged).status == "ok")
-        #expect(OpsTransaction.apply(staged).status == "ok")
+        #expect(OpsTransaction.dryRun(home.storage, staged).status == "ok")
+        #expect(OpsTransaction.apply(home.storage, staged).status == "ok")
     }
     
     @Test("a database-only op earlier in the batch does not suppress the section check")
@@ -118,7 +118,7 @@ struct TransactionTests {
         #expect(home.createNote(id: "tx-dbo-1", content: "## A\nbody\n").status == "ok")
         
         // When
-        let result = OpsTransaction.dryRun([
+        let result = OpsTransaction.dryRun(home.storage, [
             "ops": [
                 [
                     "op": "set_note_meta", "id": "tx-dbo-1", "namespace": "probe",
@@ -140,7 +140,7 @@ struct TransactionTests {
         #expect(home.createNote(id: "tx-chn-1", content: "## A\nbody\n").status == "ok")
         
         // When
-        let result = OpsTransaction.dryRun([
+        let result = OpsTransaction.dryRun(home.storage, [
             "ops": [
                 patchOp(id: "tx-chn-1", section: "## A", content: "- fine"),
                 patchOp(id: "tx-chn-1", section: "## NOPE")
@@ -159,11 +159,11 @@ struct TransactionTests {
         let create = createOp(id: "tx-cp-1")
         
         // When
-        let good = OpsTransaction.dryRun([
+        let good = OpsTransaction.dryRun(home.storage, [
             "ops": [create, patchOp(id: "tx-cp-1", section: "## A", content: "- ok")],
             "rationale": "test"
         ])
-        let bad = OpsTransaction.dryRun([
+        let bad = OpsTransaction.dryRun(home.storage, [
             "ops": [create, patchOp(id: "tx-cp-1", section: "## NOPE")],
             "rationale": "test"
         ])

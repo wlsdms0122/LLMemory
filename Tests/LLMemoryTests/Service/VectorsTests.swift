@@ -27,7 +27,7 @@ struct VectorsTests {
         home.createNote(id: "vec-only1")
         
         // When
-        let result = try Vectors.build()
+        let result = try Vectors.build(home.database())
         
         // Then
         #expect(result.skipped)
@@ -42,14 +42,14 @@ struct VectorsTests {
         }
         
         // When
-        let result = try Vectors.build()
+        let result = try Vectors.build(home.database())
         
         // Then
         #expect(!result.skipped)
         #expect(result.noteCount == 6)
         #expect(result.dim >= 1 && result.dim <= 5)
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         let vectorCount = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM note_vectors") ?? 0
         }
@@ -84,10 +84,10 @@ struct VectorsTests {
                 content: "## A\nbeta cluster body \(index)\n")
         }
         
-        _ = try Vectors.build()
+        _ = try Vectors.build(home.database())
         
         // When
-        let hits = try Vectors.expand(seedIds: ["vec-a0"], limit: 8)
+        let hits = try Vectors.expand(home.database(), seedIds: ["vec-a0"], limit: 8)
         
         // Then
         #expect(!hits.isEmpty)
@@ -104,7 +104,7 @@ struct VectorsTests {
         home.createNote(id: "vec-x2")
         
         // When
-        let hits = try Vectors.expand(seedIds: ["vec-x1"], limit: 5)
+        let hits = try Vectors.expand(home.database(), seedIds: ["vec-x1"], limit: 5)
         
         // Then
         #expect(hits.isEmpty)
@@ -157,17 +157,17 @@ struct VectorsTests {
         home.createNote(id: "vg-stl-0", tags: ["flow", "vggroup"],
             content: "## A\nstale gate body 0\n")
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in
             try db.execute(sql: "UPDATE notes SET stale = 1 WHERE id IN ('vg-arc-0', 'vg-arc-1')")
             try db.execute(sql: "UPDATE notes SET stale = 1 WHERE id = 'vg-stl-0'")
         }
         
-        _ = try Vectors.build()
+        _ = try Vectors.build(home.database())
         
         // When
-        let hits = try Vectors.expand(seedIds: ["vg-act-0"], limit: 5)
+        let hits = try Vectors.expand(home.database(), seedIds: ["vg-act-0"], limit: 5)
         
         // Then
         #expect(hits.count == 4)
@@ -187,7 +187,7 @@ struct VectorsTests {
         let vector: [Float] = [0.6, 0.8, 0, 0]
         let blob = vector.withUnsafeBufferPointer { buffer in Data(buffer: buffer) }
         let now = home.now
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in
             for noteId in ["vt-n0"] + others {
@@ -199,7 +199,7 @@ struct VectorsTests {
         }
         
         // When
-        let got = try Vectors.expand(seedIds: ["vt-n0"], limit: 3).map { hit in hit.id }
+        let got = try Vectors.expand(home.database(), seedIds: ["vt-n0"], limit: 3).map { hit in hit.id }
         
         // Then
         #expect(got == ["vt-n1", "vt-n2", "vt-n3"],
@@ -219,7 +219,7 @@ struct VectorsTests {
         home.createNote(id: "vb-stl-0", tags: ["flow", "vbgroup"],
             content: "## A\nstale build body\n")
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in
             try db.execute(sql: "UPDATE notes SET stale = 1 WHERE id = 'vb-arc-0'")
@@ -227,7 +227,7 @@ struct VectorsTests {
         }
         
         // When
-        let result = try Vectors.build()
+        let result = try Vectors.build(home.database())
         
         // Then
         #expect(result.noteCount == 4)

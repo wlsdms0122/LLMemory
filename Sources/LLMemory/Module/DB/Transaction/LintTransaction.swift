@@ -20,7 +20,7 @@ public struct LintTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.lint(id: parameter.id, code: parameter.code, severity: parameter.severity, limit: parameter.limit, includeDismissed: parameter.includeDismissed)
+        try QueryFeature.lint(connection, id: parameter.id, code: parameter.code, severity: parameter.severity, limit: parameter.limit, includeDismissed: parameter.includeDismissed)
     }
 }
 

@@ -20,7 +20,7 @@ public struct GetSectionsTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.getSections(id: parameter.id, sections: parameter.sections)
+        try QueryFeature.getSections(connection, id: parameter.id, sections: parameter.sections)
     }
 }
 

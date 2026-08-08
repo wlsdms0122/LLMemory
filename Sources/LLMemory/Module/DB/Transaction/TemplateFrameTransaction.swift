@@ -20,7 +20,7 @@ public struct TemplateFrameTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.template(id: parameter.id)
+        try QueryFeature.template(connection, id: parameter.id)
     }
 }
 

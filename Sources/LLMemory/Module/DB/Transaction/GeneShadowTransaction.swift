@@ -110,6 +110,7 @@ public struct GeneShadowTransaction: GRDBTransaction {
             
             default:
                 let snapshot = try Framing.snapshot(
+                    connection,
                     userInput: loggedQuery.text,
                     agentOutput: "",
                     sessionId: loggedQuery.sessionId,

@@ -42,7 +42,7 @@ struct SectionRowsRobustnessTests {
             try db.execute(sql: "DELETE FROM notes_fts WHERE id = 'hl-note' AND section = ''")
         }
         
-        let (ok, messages) = try Index.check(level: .l2)
+        let (ok, messages) = try Index.check(home.database(), level: .l2)
         
         #expect(!ok)
         #expect(messages.contains { message in message.contains("fts-headless") && message.contains("hl-note") })

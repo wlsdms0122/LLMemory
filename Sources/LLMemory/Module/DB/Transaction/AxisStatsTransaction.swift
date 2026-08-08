@@ -20,7 +20,7 @@ public struct AxisStatsTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.axisStats(axis: parameter.axis)
+        try QueryFeature.axisStats(connection, axis: parameter.axis)
     }
 }
 

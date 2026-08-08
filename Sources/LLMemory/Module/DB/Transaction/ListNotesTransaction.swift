@@ -20,7 +20,7 @@ public struct ListNotesTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.list(priority: parameter.priority, axis: parameter.axis, stale: parameter.stale, sourceStale: parameter.sourceStale, limit: parameter.limit)
+        try QueryFeature.list(connection, priority: parameter.priority, axis: parameter.axis, stale: parameter.stale, sourceStale: parameter.sourceStale, limit: parameter.limit)
     }
 }
 

@@ -47,9 +47,9 @@ enum Config {
         Genome.invalidateCache()
     }
     
-    static func warmCache() {
+    static func warmCache(_ storage: GRDBStorage) {
         do {
-            let queue = try GRDBStorage.session.connect()
+            let queue = try storage.connect()
             let rows = try queue.read { db in
                 try Row.fetchAll(
                     db,
@@ -66,16 +66,15 @@ enum Config {
             }
             
             warmed = true
+            Genome.warmCache(queue)
         } catch { }
-        
-        Genome.warmCache()
     }
     
-    static func set(_ key: String, value: Any) {
+    static func set(_ queue: any DatabaseWriter, _ key: String, value: Any) {
         let stringValue = "\(value)"
         
         do {
-            try GRDBStorage.session.write { db in
+            try queue.write { db in
                 try db.execute(
                     sql: """
                     INSERT INTO meta (key, value) VALUES (?, ?)
@@ -122,58 +121,20 @@ enum Config {
     }
     
     static func allKeys() -> [String: String] {
-        do {
-            let queue = try GRDBStorage.session.connect()
-            
-            return try queue.read { db in
-                var values: [String: String] = [:]
-                let rows = try Row.fetchAll(
-                    db,
-                    sql: "SELECT key, value FROM meta WHERE key LIKE ?",
-                    arguments: [prefix + "%"]
-                )
-                
-                for row in rows {
-                    let key: String = row["key"]
-                    let value: String = row["value"]
-                    
-                    values[String(key.dropFirst(prefix.count))] = value
-                }
-                
-                return values
-            }
-        } catch {
-            return [:]
+        var values: [String: String] = [:]
+        
+        for (key, value) in cache where value != nilSentinel {
+            values[String(key.dropFirst(prefix.count))] = value
         }
+        
+        return values
     }
     
     // MARK: - Private
     private static func fetch(_ key: String) -> String? {
-        let cacheKey = prefix + key
+        // Cache-only: the Session that owns this home warms the cache at construction.
+        guard let value = cache[prefix + key] else { return nil }
         
-        if let value = cache[cacheKey] {
-            return value == nilSentinel ? nil : value
-        }
-        
-        if warmed {
-            return nil
-        }
-        
-        do {
-            let queue = try GRDBStorage.session.connect()
-            let value = try queue.read { db in
-                try String.fetchOne(
-                    db,
-                    sql: "SELECT value FROM meta WHERE key = ?",
-                    arguments: [cacheKey]
-                )
-            }
-            
-            cache[cacheKey] = value ?? nilSentinel
-            
-            return value
-        } catch {
-            return nil
-        }
+        return value == nilSentinel ? nil : value
     }
 }

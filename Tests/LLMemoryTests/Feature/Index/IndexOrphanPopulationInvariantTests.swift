@@ -31,7 +31,7 @@ struct IndexOrphanPopulationInvariantTests {
         try breakFrontmatter(at: try home.indexedPath(of: "opx"))
         
         // When
-        let result = try Index.buildLocked(rebuild: false)
+        let result = try Index.buildLocked(home.database(), rebuild: false)
         
         // Then
         let survived = try home.read { database in
@@ -58,7 +58,7 @@ struct IndexOrphanPopulationInvariantTests {
         
         // When
         #expect(throws: Error.self, "rebuild must fail loud instead of committing a lossy snapshot") {
-            try Index.buildLocked(rebuild: true)
+            try Index.buildLocked(home.database(), rebuild: true)
         }
         
         // Then
@@ -82,7 +82,7 @@ struct IndexOrphanPopulationInvariantTests {
             .write(to: try home.indexedPath(of: "noid-bad"), atomically: true, encoding: .utf8)
         
         // When
-        #expect(throws: Error.self) { try Index.buildLocked(rebuild: true) }
+        #expect(throws: Error.self) { try Index.buildLocked(home.database(), rebuild: true) }
         
         // Then
         let notes = try home.read { database in
@@ -102,7 +102,7 @@ struct IndexOrphanPopulationInvariantTests {
         try breakFrontmatter(at: destination)
         
         // When
-        let result = try Index.buildLocked(rebuild: false)
+        let result = try Index.buildLocked(home.database(), rebuild: false)
         
         // Then
         let rows = try home.read { database in
@@ -121,7 +121,7 @@ struct IndexOrphanPopulationInvariantTests {
         _ = try move(id: "mvx", to: "skill/mvx.md")
         
         // When
-        let result = try Index.buildLocked(rebuild: false)
+        let result = try Index.buildLocked(home.database(), rebuild: false)
         
         // Then
         let path = try home.read { database in
@@ -140,7 +140,7 @@ struct IndexOrphanPopulationInvariantTests {
         try FileManager.default.removeItem(at: try home.indexedPath(of: "gone"))
         
         // When
-        let result = try Index.buildLocked(rebuild: false)
+        let result = try Index.buildLocked(home.database(), rebuild: false)
         
         // Then
         let rows = try home.read { database in

@@ -15,7 +15,7 @@ public struct PruneTransaction: GRDBWriteTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try Consolidate.pruneLocked()
+        try Consolidate.pruneLocked(connection)
     }
 }
 

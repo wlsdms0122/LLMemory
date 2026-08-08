@@ -71,11 +71,11 @@ struct OpsApply: ParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
         guard let payload = try readJSON(input) else { throw ExitCode(2) }
         
-        let result = OpsTransaction.apply(
+        let result = brain.ops.apply(
             payload,
             sessionId: Session.retrievalSession(cli: global.sessionId),
             ruleset: rulesetOption.rulesetId
@@ -120,11 +120,11 @@ struct OpsDryRun: ParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
         guard let payload = try readJSON(input) else { throw ExitCode(2) }
         
-        let result = OpsTransaction.dryRun(payload, ruleset: rulesetOption.rulesetId)
+        let result = brain.ops.dryRun(payload, ruleset: rulesetOption.rulesetId)
         
         render(result, json: format.json) { result in opsResultBlocks(result) }
         
@@ -190,7 +190,7 @@ struct OpsVocab: ParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
         if verbose {
             let rows = Handlers.opNames().compactMap { name -> VerboseOp? in
@@ -264,7 +264,7 @@ struct OpsDescribe: ParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
         guard let schema = Handlers.opSchema(op) else {
             FileHandle.standardError.write(

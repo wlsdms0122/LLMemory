@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 import Storage
 
-public enum RulesetFeature {
+public struct RulesetFeature {
     public struct Summary {
         // MARK: - Property
         public let id: String
@@ -46,28 +46,27 @@ public enum RulesetFeature {
     }
     
     // MARK: - Property
+    let session: Session
+
     // MARK: - Initializer
+    init(session: Session) {
+        self.session = session
+    }
+
     // MARK: - Public
-    public static func list(home: String) async throws -> [Summary] {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(ListRulesetsTransaction())
+    public func list() async throws -> [Summary] {
+        try await session.storage.run(ListRulesetsTransaction())
     }
 
-    public static func show(home: String, id: String) async throws -> ShowResult? {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(ShowRulesetTransaction(.init(id: id)))
+    public func show(id: String) async throws -> ShowResult? {
+        try await session.storage.run(ShowRulesetTransaction(.init(id: id)))
     }
 
-    public static func effective(
-        home: String,
+    public func effective(
         ruleset: String,
         axis: String
     ) async throws -> Ruleset.Effective? {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             EffectiveRulesetTransaction(.init(ruleset: ruleset, axis: axis))
         )
     }

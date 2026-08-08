@@ -20,7 +20,7 @@ public struct BuildIndexTransaction: GRDBWriteTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try Index.buildLocked(rebuild: parameter.rebuild)
+        try Index.buildLocked(connection, rebuild: parameter.rebuild)
     }
 }
 

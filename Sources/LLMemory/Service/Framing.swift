@@ -217,6 +217,7 @@ public enum Framing {
     }
     
     static func snapshot(
+        _ queue: any DatabaseWriter,
         userInput: String,
         agentOutput: String,
         similarLimit: Int? = nil,
@@ -230,7 +231,6 @@ public enum Framing {
         let text = "\(userInput)\n\(agentOutput)"
         let keywords = extractKeywords(text)
         let entityHints = NoteText.extractEntityHints(text)
-        let queue = try GRDBStorage.session.connect()
         var similarNotes: [SimilarNote] = []
         var axes: [AxisRow] = []
         var topTagCounts: [(String, Int)] = []
@@ -260,6 +260,7 @@ public enum Framing {
         if !similarNotes.isEmpty {
             do {
                 linked = try Links.expand(
+                    queue,
                     noteIds: similarNotes.map { note in note.id },
                     hops: expandHops,
                     kind: linkKind
@@ -277,6 +278,7 @@ public enum Framing {
             
             do {
                 vectorLinked = try Vectors.expand(
+                    queue,
                     seedIds: similarNotes.map { note in note.id },
                     limit: similarLimit,
                     excludeIds: already
@@ -301,7 +303,7 @@ public enum Framing {
         
         if !dryRun && ranked.count >= 2 {
             do {
-                _ = try Links.rebirth(rankedIds: ranked)
+                _ = try Links.rebirth(queue, rankedIds: ranked)
             } catch {
                 degraded.append("rebirth: \(error)")
             }

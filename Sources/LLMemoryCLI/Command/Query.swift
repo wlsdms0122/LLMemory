@@ -80,7 +80,9 @@ struct QueryTemplate: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let (note, frame) = try await QueryFeature.template(home: global.home, id: id)
+        let brain = Brain(home: global.home)
+        
+        let (note, frame) = try await brain.query.template(id: id)
         let output = Output(id: note.id, axis: note.axis, path: note.path, frame: frame)
         
         render(output, json: format.json) { output in
@@ -156,7 +158,9 @@ struct QueryAxes: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let axes = try await QueryFeature.listAxes(home: global.home)
+        let brain = Brain(home: global.home)
+        
+        let axes = try await brain.query.listAxes()
         let rows = axes.map { entry in
             AxisRow(axis: entry.axis, count: entry.count, description: entry.description)
         }
@@ -275,7 +279,9 @@ struct QueryEnrichment: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let status = try await QueryFeature.enrichment(home: global.home)
+        let brain = Brain(home: global.home)
+        
+        let status = try await brain.query.enrichment()
         let output = Output(
             retrievalTerms: status.termCounts.map { term in
                 TermCount(kind: term.kind, status: term.status, count: term.count)
@@ -546,6 +552,8 @@ struct QueryRelated: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
+        let brain = Brain(home: global.home)
+        
         let payload = try readJSON(input) ?? [:]
         var text = payload["text"] as? String ?? ""
         
@@ -558,8 +566,7 @@ struct QueryRelated: AsyncParsableCommand {
         
         let kind = payload["kind"] as? String
         let includeBodies = (payload["include_bodies"] as? Bool) ?? false
-        let result = try await QueryFeature.related(
-            home: global.home,
+        let result = try await brain.query.related(
             text: text,
             kind: kind,
             cliSessionId: global.sessionId,
@@ -940,8 +947,9 @@ struct QuerySearch: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let (rows, extra) = try await QueryFeature.search(
-            home: global.home,
+        let brain = Brain(home: global.home)
+        
+        let (rows, extra) = try await brain.query.search(
             query: query,
             axis: axis,
             limit: limit,
@@ -1203,6 +1211,8 @@ struct QueryGet: AsyncParsableCommand {
     }
     
     func run() async throws {
+        let brain = Brain(home: global.home)
+        
         if toc {
             try await runToc()
             
@@ -1221,8 +1231,7 @@ struct QueryGet: AsyncParsableCommand {
             return
         }
         
-        let (found, missing) = try await QueryFeature.get(
-            home: global.home,
+        let (found, missing) = try await brain.query.get(
             ids: ids,
             cliSessionId: global.sessionId
         )
@@ -1265,8 +1274,9 @@ struct QueryGet: AsyncParsableCommand {
     
     // MARK: - Private
     private func runSections() async throws {
-        let (note, slices) = try await QueryFeature.getSections(
-            home: global.home,
+        let brain = Brain(home: global.home)
+        
+        let (note, slices) = try await brain.query.getSections(
             id: ids[0],
             sections: section
         )
@@ -1293,8 +1303,9 @@ struct QueryGet: AsyncParsableCommand {
     }
     
     private func runBudget(_ budget: Int) async throws {
-        let (note, cut) = try await QueryFeature.getBudget(
-            home: global.home,
+        let brain = Brain(home: global.home)
+        
+        let (note, cut) = try await brain.query.getBudget(
             id: ids[0],
             budget: budget
         )
@@ -1391,7 +1402,9 @@ struct QueryGet: AsyncParsableCommand {
     }
     
     private func runToc() async throws {
-        let (note, entries) = try await QueryFeature.toc(home: global.home, id: ids[0])
+        let brain = Brain(home: global.home)
+        
+        let (note, entries) = try await brain.query.toc(id: ids[0])
         let output = TocOutput(
             id: note.id,
             axis: note.axis,
@@ -1509,9 +1522,10 @@ struct QueryMeta: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
+        let brain = Brain(home: global.home)
+        
         if let id {
-            let data = try await QueryFeature.metaById(
-                home: global.home,
+            let data = try await brain.query.metaById(
                 noteId: id,
                 namespace: namespace
             )
@@ -1541,8 +1555,7 @@ struct QueryMeta: AsyncParsableCommand {
             throw ExitCode(2)
         }
         
-        let rows = try await QueryFeature.metaByKV(
-            home: global.home,
+        let rows = try await brain.query.metaByKV(
             namespace: namespace,
             key: key,
             value: value,
@@ -1587,7 +1600,9 @@ struct QueryEntity: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let rows = try await QueryFeature.entity(home: global.home, name: name, limit: limit)
+        let brain = Brain(home: global.home)
+        
+        let rows = try await brain.query.entity(name: name, limit: limit)
         
         render(rows, json: format.json) { rows in
             [
@@ -1719,7 +1734,9 @@ struct QueryStructure: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let structure = try await QueryFeature.structure(home: global.home, axis: axis)
+        let brain = Brain(home: global.home)
+        
+        let structure = try await brain.query.structure(axis: axis)
         let distribution = structure.distribution
         let stats: QueryStats.AxisOutput? = structure.axisStats.map { stats in
             QueryStats.AxisOutput(
@@ -1863,8 +1880,9 @@ struct QueryNeighbors: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let scores = try await QueryFeature.neighbors(
-            home: global.home,
+        let brain = Brain(home: global.home)
+        
+        let scores = try await brain.query.neighbors(
             id: id,
             k: k,
             cliSessionId: global.sessionId
@@ -2054,8 +2072,10 @@ struct QueryStats: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
+        let brain = Brain(home: global.home)
+        
         if let id {
-            guard let stats = try await QueryFeature.noteStats(home: global.home, id: id) else {
+            guard let stats = try await brain.query.noteStats(id: id) else {
                 FileHandle.standardError.write("unknown id: \(id)\n".data(using: .utf8)!)
                 
                 throw ExitCode(1)
@@ -2100,7 +2120,7 @@ struct QueryStats: AsyncParsableCommand {
                 return [.keyValue(pairs)]
             }
         } else if let axis {
-            let stats = try await QueryFeature.axisStats(home: global.home, axis: axis)
+            let stats = try await brain.query.axisStats(axis: axis)
             let output = AxisOutput(
                 axis: stats.axis,
                 total: stats.total,
@@ -2127,7 +2147,7 @@ struct QueryStats: AsyncParsableCommand {
                 return [.keyValue(pairs)]
             }
         } else {
-            let stats = try await QueryFeature.overallStats(home: global.home)
+            let stats = try await brain.query.overallStats()
             let output = OverallOutput(
                 total: stats.total,
                 stale: stats.stale,
@@ -2252,8 +2272,9 @@ struct QueryList: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let rows = try await QueryFeature.list(
-            home: global.home,
+        let brain = Brain(home: global.home)
+        
+        let rows = try await brain.query.list(
             priority: priority,
             axis: axis,
             stale: stale,
@@ -2339,7 +2360,9 @@ struct QueryHistory: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let rows = try await QueryFeature.history(home: global.home, noteId: id, limit: limit)
+        let brain = Brain(home: global.home)
+        
+        let rows = try await brain.query.history(noteId: id, limit: limit)
         
         render(rows, json: format.json) { rows in
             [
@@ -2413,6 +2436,8 @@ struct QueryLint: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
+        let brain = Brain(home: global.home)
+        
         if rules {
             let catalog = Lint.ruleCatalog()
             
@@ -2428,8 +2453,7 @@ struct QueryLint: AsyncParsableCommand {
             return
         }
         
-        let issues = try await QueryFeature.lint(
-            home: global.home,
+        let issues = try await brain.query.lint(
             id: id,
             code: code,
             severity: severity,

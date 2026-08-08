@@ -148,7 +148,7 @@ struct LintFindingIdentityInvariantTests {
         try text.replacingOccurrences(of: "summary:", with: "priorty: x\nsumary: y\nsummary:")
             .write(to: file, atomically: true, encoding: .utf8)
         
-        _ = try GRDBStorage.session.writeLock {
+        _ = try home.storage.writeLock {
             try home.database().write { database in try Notes.reindexFile(database, path: file) }
         }
         

@@ -72,7 +72,9 @@ struct GenomeList: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let rows = try await GenomeFeature.list(home: global.home)
+        let brain = Brain(home: global.home)
+        
+        let rows = try await brain.genome.list()
         
         render(Output(genes: rows), json: format.json) { output in
             [
@@ -136,7 +138,9 @@ struct GenomeHistory: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let rows = try await GenomeFeature.history(home: global.home, gene: gene, limit: limit)
+        let brain = Brain(home: global.home)
+        
+        let rows = try await brain.genome.history(gene: gene, limit: limit)
         
         render(Output(events: rows), json: format.json) { output in
             [
@@ -201,8 +205,9 @@ struct GenomeShadow: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let result = try await GenomeFeature.shadow(
-            home: global.home,
+        let brain = Brain(home: global.home)
+        
+        let result = try await brain.genome.shadow(
             gene: gene,
             value: value,
             limit: limit,

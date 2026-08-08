@@ -17,8 +17,8 @@ enum Events {
     // MARK: - Initializer
     // MARK: - Public
     static func record(
+        _ db: Database,
         kind: String,
-        txDB db: Database? = nil,
         payload: [String: Any?],
         sessionId: String? = nil,
         ts: Int? = nil
@@ -28,19 +28,25 @@ enum Events {
         
         var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId, payload: json)
         
-        do {
-            if let db {
-                try record.insert(db)
-            } else {
-                try GRDBStorage.session.write { db in
-                    try record.insert(db)
-                }
-            }
-        } catch {
+        try? record.insert(db)
+    }
+    
+    // A lone event INSERT is a single atomic statement — it needs no cross-process
+    // write lock, so callers outside a locked section pass the queue directly.
+    static func record(
+        _ queue: any DatabaseWriter,
+        kind: String,
+        payload: [String: Any?],
+        sessionId: String? = nil,
+        ts: Int? = nil
+    ) {
+        try? queue.write { db in
+            record(db, kind: kind, payload: payload, sessionId: sessionId, ts: ts)
         }
     }
     
     static func recordRetrieval(
+        _ queue: any DatabaseWriter,
         cmd: String,
         payload: [(String, Any?)],
         sessionId: String? = nil
@@ -49,7 +55,7 @@ enum Events {
         
         for (key, value) in payload { fields[key] = value }
         
-        record(kind: kindRetrieval, payload: fields, sessionId: sessionId)
+        record(queue, kind: kindRetrieval, payload: fields, sessionId: sessionId)
     }
     
     // MARK: - Private

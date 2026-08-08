@@ -20,7 +20,7 @@ public struct CheckIntegrityTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try Index.check(rawLevel: parameter.level.rawValue)
+        try Index.check(connection, rawLevel: parameter.level.rawValue)
     }
 }
 

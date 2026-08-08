@@ -20,7 +20,7 @@ public struct NoteMetaByKVTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.metaByKV(namespace: parameter.namespace, key: parameter.key, value: parameter.value, limit: parameter.limit)
+        try QueryFeature.metaByKV(connection, namespace: parameter.namespace, key: parameter.key, value: parameter.value, limit: parameter.limit)
     }
 }
 

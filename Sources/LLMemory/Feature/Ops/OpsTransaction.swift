@@ -138,6 +138,7 @@ public enum OpsTransaction {
     // MARK: - Initializer
     // MARK: - Public
     public static func apply(
+        _ storage: GRDBStorage,
         _ payload: [String: Any],
         sessionId: String? = nil,
         ruleset: String? = nil
@@ -179,8 +180,8 @@ public enum OpsTransaction {
         }
         
         do {
-            return try GRDBStorage.session.writeLock {
-                let queue = try GRDBStorage.session.connect()
+            return try storage.writeLock {
+                let queue = try storage.connect()
                 
                 if let rulesetId = effectiveRulesetId {
                     let exists = try queue.read { db in
@@ -199,15 +200,15 @@ public enum OpsTransaction {
                     }
                 }
                 
-                let txResult: Result = try GRDBStorage.session.write { db in
+                let txResult: Result = try queue.write { db in
                     if let (message, index) = try validate(
                         opsRaw,
                         db: db,
                         rulesetId: effectiveRulesetId
                     ) {
                         Events.record(
+                            db,
                             kind: Events.kindCapture,
-                            txDB: db,
                             payload: [
                                 "tx_status": "rejected",
                                 "error": message,
@@ -235,8 +236,8 @@ public enum OpsTransaction {
                         let message = "snapshot failed: \(error)"
                         
                         Events.record(
+                            db,
                             kind: Events.kindCapture,
-                            txDB: db,
                             payload: [
                                 "tx_status": "rejected",
                                 "error": message,
@@ -332,8 +333,8 @@ public enum OpsTransaction {
                         if let index { payload["failed_index"] = index }
                         
                         Events.record(
+                            db,
                             kind: Events.kindCapture,
-                            txDB: db,
                             payload: payload,
                             sessionId: sessionId
                         )
@@ -353,8 +354,8 @@ public enum OpsTransaction {
                     }
                     
                     Events.record(
+                        db,
                         kind: Events.kindCapture,
-                        txDB: db,
                         payload: [
                             "tx_status": "ok",
                             "op_count": opsRaw.count,
@@ -373,13 +374,13 @@ public enum OpsTransaction {
                     )
                 }
                 
-                if txResult.status != "ok" { Genome.warmCache() }
+                if txResult.status != "ok" { Genome.warmCache(queue) }
                 
                 if txResult.status == "ok" {
                     let touched = enrichmentTouchedNotes(opsRaw)
                     
                     if !touched.isEmpty {
-                        _ = try? GRDBStorage.session.write { db in
+                        _ = try? queue.write { db in
                             try Validation.validatePendingTerms(db, noteIds: touched)
                         }
                     }
@@ -398,7 +399,7 @@ public enum OpsTransaction {
                 conflict: conflict
             )
         } catch {
-            Genome.warmCache()
+            if let queue = try? storage.connect() { Genome.warmCache(queue) }
             
             return Result(
                 status: "failed",
@@ -411,7 +412,7 @@ public enum OpsTransaction {
         }
     }
     
-    public static func dryRun(_ payload: [String: Any], ruleset: String? = nil) -> DryRunResult {
+    public static func dryRun(_ storage: GRDBStorage, _ payload: [String: Any], ruleset: String? = nil) -> DryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return DryRunResult(
                 status: "rejected",
@@ -441,7 +442,7 @@ public enum OpsTransaction {
         }
         
         do {
-            let queue = try GRDBStorage.session.connect()
+            let queue = try storage.connect()
             
             if let rulesetId = effectiveRulesetId {
                 let exists = try queue.read { db in try Ruleset.rulesetExists(db, id: rulesetId) }

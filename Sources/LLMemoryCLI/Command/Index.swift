@@ -121,9 +121,9 @@ struct IndexVectors: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
-        let result = try await Index.buildVectors()
+        let result = try await brain.index.buildVectors()
         let output = VectorsOutput(
             noteCount: result.noteCount,
             dim: result.dim,
@@ -215,9 +215,9 @@ struct IndexVerifyTerms: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
-        let validation = try await Index.validateTerms(rejectStale: rejectStale)
+        let validation = try await brain.index.validateTerms(rejectStale: rejectStale)
         let result = ValidateOutput(
             activated: validation.activated,
             rejected: validation.rejected,
@@ -324,12 +324,12 @@ struct IndexBuild: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
         if !path.isEmpty {
             if rebuild { throw ValidationError("--path and --rebuild are mutually exclusive") }
             
-            let returnCode = try await Index.reindex(filePaths: path)
+            let returnCode = try await brain.index.reindex(filePaths: path)
             
             render(
                 ReindexOutput(reindexed: path.count, returnCode: Int(returnCode)),
@@ -343,7 +343,7 @@ struct IndexBuild: AsyncParsableCommand {
             return
         }
         
-        let result = try await Index.build(rebuild: rebuild)
+        let result = try await brain.index.build(rebuild: rebuild)
         
         for error in result.errors {
             FileHandle.standardError.write("ERROR \(error)\n".data(using: .utf8)!)
@@ -353,7 +353,7 @@ struct IndexBuild: AsyncParsableCommand {
         
         if rebuild {
             do {
-                vectors = try await Index.buildVectors().noteCount
+                vectors = try await brain.index.buildVectors().noteCount
             } catch {
                 FileHandle.standardError.write(
                     "WARN vectors rebuild failed: \(error)\n".data(using: .utf8)!
@@ -427,9 +427,9 @@ struct IndexVerifyIntegrity: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
-        let (ok, messages) = try await Index.check(level: level)
+        let (ok, messages) = try await brain.index.check(level: level)
         
         render(
             CheckOutput(ok: ok, level: level.rawValue, messages: messages),
@@ -497,9 +497,9 @@ struct IndexVerifySources: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        Session.configure(home: global.home)
+        let brain = Brain(home: global.home)
         
-        let result = try await Index.verifySources()
+        let result = try await brain.index.verifySources()
         let output = VerifyOutput(
             total: result.total,
             rechecked: result.rechecked,

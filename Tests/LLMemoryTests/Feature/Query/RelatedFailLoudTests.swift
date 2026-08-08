@@ -23,26 +23,23 @@ struct RelatedFailLoudTests {
     }
     
     // MARK: - Test
-    @Test("related on a home that was never initialized throws instead of returning nothing")
+    @Test("a home that was never initialized refuses to connect instead of returning nothing")
     func relatedThrowsOnMissingBrain() {
-        // Given
+        // Given — every query surface reaches the database through connect, so the
+        // gate that used to live inside `related` now fires before it is even reachable.
         let uninitialized = FileManager.default.temporaryDirectory
             .appendingPathComponent("llmemory-related-ghost-\(UUID().uuidString)").path
-        
-        Session.configure(home: uninitialized)
+        let ghost = Session(home: uninitialized)
         
         // Then
-        #expect(throws: (any Error).self) {
-            _ = try QueryFeature.related(
-                text: "transfer flow",
-                kind: nil,
-                cliSessionId: "",
-                includeBodies: false
-            )
+        #expect(throws: DBError.self) {
+            _ = try ghost.storage.connect()
         }
         
-        // Rebind the fixture home so its teardown runs through a working connection.
-        Session.configure(home: home.path)
+        // Rebind the fixture home so its teardown runs against its own paths.
+        Paths.configure(home: home.path)
+        Config.invalidateCache()
+        Config.warmCache(home.storage)
     }
     
     @Test("related on a brain whose schema does not match the binary throws")
@@ -54,11 +51,11 @@ struct RelatedFailLoudTests {
             try database.execute(sql: "DELETE FROM grdb_migrations")
         }
 
-        GRDBStorage.session.disconnect()
+        home.storage.disconnect()
 
         // Then
         #expect(throws: DBError.self) {
-            _ = try QueryFeature.related(
+            _ = try QueryFeature.related(home.database(), 
                 text: "gate note",
                 kind: nil,
                 cliSessionId: "",

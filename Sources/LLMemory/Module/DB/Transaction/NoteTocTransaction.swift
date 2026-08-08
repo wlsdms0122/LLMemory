@@ -20,7 +20,7 @@ public struct NoteTocTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.toc(id: parameter.id)
+        try QueryFeature.toc(connection, id: parameter.id)
     }
 }
 

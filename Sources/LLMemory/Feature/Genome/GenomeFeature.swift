@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 import Storage
 
-public enum GenomeFeature {
+public struct GenomeFeature {
     public struct ShadowResult: Encodable {
         public struct QueryDiff: Encodable {
             // MARK: - Property
@@ -47,34 +47,32 @@ public enum GenomeFeature {
     }
     
     // MARK: - Property
-    // MARK: - Initializer
-    // MARK: - Public
-    public static func list(home: String) async throws -> [Genome.ListRow] {
-        Session.configure(home: home)
+    let session: Session
 
-        return try await GRDBStorage.session.run(ListGenesTransaction())
+    // MARK: - Initializer
+    init(session: Session) {
+        self.session = session
     }
 
-    public static func history(
-        home: String,
+    // MARK: - Public
+    public func list() async throws -> [Genome.ListRow] {
+        try await session.storage.run(ListGenesTransaction())
+    }
+
+    public func history(
         gene: String?,
         limit: Int
     ) async throws -> [Genome.HistoryRow] {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(GeneHistoryTransaction(.init(gene: gene, limit: limit)))
+        try await session.storage.run(GeneHistoryTransaction(.init(gene: gene, limit: limit)))
     }
 
-    public static func shadow(
-        home: String,
+    public func shadow(
         gene: String,
         value: Double,
         limit: Int,
         sampleDiffs: Int
     ) async throws -> ShadowResult {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             GeneShadowTransaction(
                 .init(gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
             )

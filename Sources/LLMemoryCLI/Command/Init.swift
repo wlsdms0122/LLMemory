@@ -65,7 +65,7 @@ struct InitCommand: ParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        let result = try Index.initialize(home: global.home, bare: bare)
+        let result = try Brain(home: global.home).index.initialize(bare: bare)
         let output = InitOutput(
             alreadyInitialized: result.alreadyInitialized,
             homePath: result.homePath,

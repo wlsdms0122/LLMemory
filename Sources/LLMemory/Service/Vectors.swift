@@ -40,10 +40,10 @@ public enum Vectors {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
+    // Caller holds the write lock (run's write marker or an explicit writeLock).
     @discardableResult
-    static func build() throws -> BuildResult {
-        try GRDBStorage.session.writeLock {
-            let queue = try GRDBStorage.session.connect()
+    static func build(_ queue: any DatabaseWriter) throws -> BuildResult {
+        try {
             let now = Int(Date().timeIntervalSince1970)
             let noteIds: [String] = try queue.read { db in
                 try String.fetchAll(
@@ -118,7 +118,7 @@ public enum Vectors {
             let ppmi = computePPMI(matrix, n: noteCount)
             let projection = try truncatedSVD(ppmi, n: noteCount, k: dim)
             
-            try GRDBStorage.session.write { db in
+            try queue.write { db in
                 try db.execute(sql: "DELETE FROM note_vectors")
                 
                 for (index, id) in noteIds.enumerated() {
@@ -155,7 +155,7 @@ public enum Vectors {
                 skipped: false,
                 reason: ""
             )
-        }
+        }()
     }
     
     static func computePPMI(_ matrix: [Double], n: Int) -> [Double] {
@@ -240,13 +240,12 @@ public enum Vectors {
     }
     
     static func expand(
+        _ queue: any DatabaseWriter,
         seedIds: [String],
         limit: Int = 10,
         excludeIds: Set<String> = []
     ) throws -> [VectorHit] {
         guard !seedIds.isEmpty else { return [] }
-        
-        let queue = try GRDBStorage.session.connect()
         
         return try queue.read { db -> [VectorHit] in
             let vectors = try EnrichmentReview.loadVectors(db)

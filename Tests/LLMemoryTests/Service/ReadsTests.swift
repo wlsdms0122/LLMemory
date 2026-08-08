@@ -27,7 +27,7 @@ struct ReadsTests {
         // Given
         home.createNote(id: "cat-a", title: "Title A", content: "## S\nthe TossDIContainer body.\n")
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         // When
         try queue.read { db in
@@ -50,7 +50,7 @@ struct ReadsTests {
     @Test("asking the catalog for no ids returns nothing rather than everything")
     func catalogEmptyIdsIsEmpty() throws {
         // Given
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         // When
         try queue.read { db in
@@ -66,7 +66,7 @@ struct ReadsTests {
         // Given
         home.createNote(id: "cat-hit", content: "## S\nbody\n")
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         try queue.write { db in
             try db.execute(sql: """
@@ -91,10 +91,10 @@ struct ReadsTests {
         home.createNote(id: "list-lazy", content: "## S\nb\n")
         home.createNote(id: "list-eager", content: "## S\nb\n")
         
-        _ = OpsTransaction.apply(["ops": [["op": "set_frontmatter", "id": "list-eager",
+        _ = OpsTransaction.apply(home.storage, ["ops": [["op": "set_frontmatter", "id": "list-eager",
             "fields": ["priority": "eager"]]], "rationale": "t"])
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         // When
         try queue.read { db in
@@ -126,7 +126,7 @@ struct ReadsTests {
         home.createNote(id: "ax-flow", axis: "flow", tags: ["flow"], content: "## S\nb\n")
         home.createNote(id: "ax-tech", axis: "tech", tags: ["tech"], content: "## S\nb\n")
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         // When
         try queue.read { db in
@@ -142,7 +142,7 @@ struct ReadsTests {
         // Given
         home.createNote(id: "ss-note", content: "## S\nb\n")
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         // When
         try queue.read { db in
@@ -162,7 +162,7 @@ struct ReadsTests {
         // Given
         for index in 0..<5 { home.createNote(id: "lim-\(index)", content: "## S\nb\n") }
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         // When
         try queue.read { db in
@@ -180,7 +180,7 @@ struct ReadsTests {
         createWithEntities(id: "ent-a", entities: ["PIIMaskingTransformer"])
         createWithEntities(id: "ent-b", entities: ["PIIMaskingTransformer"])
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         // When
         try queue.read { db in
@@ -198,7 +198,7 @@ struct ReadsTests {
         // Given
         createWithEntities(id: "ent-c", entities: ["TransferService"])
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         // When
         try queue.read { db in
@@ -215,7 +215,7 @@ struct ReadsTests {
         // Given
         home.createNote(id: "hist-a", content: "## S\nb\n")
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         // When
         try queue.read { db in
@@ -231,10 +231,10 @@ struct ReadsTests {
         // Given
         home.createNote(id: "hist-b", content: "## S\nb\n")
         
-        _ = OpsTransaction.apply(["ops": [["op": "flag", "id": "hist-b", "kind": "reconsolidate",
+        _ = OpsTransaction.apply(home.storage, ["ops": [["op": "flag", "id": "hist-b", "kind": "reconsolidate",
             "reason": "x"]], "rationale": "t"])
         
-        let queue = try GRDBStorage.session.connect()
+        let queue = try home.storage.connect()
         
         // When
         try queue.read { db in

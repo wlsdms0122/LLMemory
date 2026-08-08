@@ -15,18 +15,6 @@ public protocol GRDBStorable: DBStorable where Connection == any DatabaseWriter 
 
 public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // MARK: - Property
-    // Process-wide binding for ambient callers (Config/Events/services that do not
-    // receive the storage explicitly). Owned by Session.configure(home:).
-    nonisolated(unsafe) private static var boundSession: GRDBStorage?
-
-    public static var session: GRDBStorage {
-        guard let storage = boundSession else {
-            preconditionFailure("no bound storage — Session.configure(home:) must run first")
-        }
-
-        return storage
-    }
-
     private let databaseURL: URL
     private let migrations: [any GRDBMigration]
 
@@ -137,10 +125,6 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     }
 
     // MARK: - Public
-    public static func bind(session storage: GRDBStorage) {
-        boundSession = storage
-    }
-
     public func initialize() throws {
         let dataDirectory = databaseURL.deletingLastPathComponent()
 

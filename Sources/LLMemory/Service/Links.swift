@@ -152,11 +152,7 @@ public enum Links {
         )
     }
     
-    static func distribution() throws -> Distribution {
-        guard let queue = try? GRDBStorage.session.connect() else {
-            return Distribution(byKind: [], weightBuckets: [:], topDegree: [])
-        }
-        
+    static func distribution(_ queue: any DatabaseWriter) throws -> Distribution {
         return try queue.read { db in
             let byKindRows = try Row.fetchAll(db, sql: """
                 SELECT kind, COUNT(*) AS c, MIN(weight) AS mn, AVG(weight) AS av, MAX(weight) AS mx
@@ -379,6 +375,7 @@ public enum Links {
     
     @discardableResult
     static func strengthen(
+        _ queue: any DatabaseWriter,
         pairs: [(String, String)],
         kind: String = kindCooccur,
         step: Double? = nil,
@@ -389,7 +386,7 @@ public enum Links {
         let stepValue = step ?? Genome.double("links.strengthen_step")
         let now = Int(Date().timeIntervalSince1970)
         
-        return try GRDBStorage.session.write { db in
+        return try queue.write { db in
             var strengthened = 0
             
             for (src, dst) in pairs {
@@ -429,14 +426,13 @@ public enum Links {
     }
     
     static func neighbors(
+        _ queue: any DatabaseWriter,
         noteId: String,
         minWeight: Double? = nil,
         limit: Int = 5,
         kind: String? = nil
     ) throws -> [Neighbor] {
         let floor = minWeight ?? Genome.double("links.neighbor_floor")
-        
-        guard let queue = try? GRDBStorage.session.connect() else { return [] }
         
         return try queue.read { db in
             var sql = """
@@ -474,6 +470,7 @@ public enum Links {
     }
     
     static func expand(
+        _ queue: any DatabaseWriter,
         noteIds: [String],
         hops: Int = 1,
         minWeight: Double? = nil,
@@ -483,8 +480,6 @@ public enum Links {
         guard !noteIds.isEmpty else { return [] }
         
         let floor = minWeight ?? Genome.double("links.neighbor_floor")
-        
-        guard let queue = try? GRDBStorage.session.connect() else { return [] }
         
         return try queue.read { db in
             var seen: [String: (note: ExpandedNote, rankWeight: Double)] = [:]
@@ -563,6 +558,7 @@ public enum Links {
     
     @discardableResult
     static func rebirth(
+        _ queue: any DatabaseWriter,
         noteIds: [String],
         factor: Double? = nil,
         cap: Double = 1.0
@@ -570,11 +566,11 @@ public enum Links {
         let factor = factor ?? Genome.double("rebirth.default_factor")
         let ranked = noteIds.map { id in (id, factor) }
         
-        return try rebirth(rankedIds: ranked, cap: cap)
+        return try rebirth(queue, rankedIds: ranked, cap: cap)
     }
     
     @discardableResult
-    static func rebirth(rankedIds: [(String, Double)], cap: Double = 1.0) throws -> Int {
+    static func rebirth(_ queue: any DatabaseWriter, rankedIds: [(String, Double)], cap: Double = 1.0) throws -> Int {
         guard rankedIds.count >= 2 else { return 0 }
         
         var factorOf: [String: Double] = [:]
@@ -587,7 +583,7 @@ public enum Links {
         let now = Int(Date().timeIntervalSince1970)
         let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
         
-        return try GRDBStorage.session.write { db in
+        return try queue.write { db in
             var arguments: [DatabaseValueConvertible?] = []
             arguments.append(contentsOf: ids as [DatabaseValueConvertible?])
             arguments.append(contentsOf: ids as [DatabaseValueConvertible?])

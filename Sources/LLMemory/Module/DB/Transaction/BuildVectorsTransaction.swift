@@ -15,7 +15,7 @@ public struct BuildVectorsTransaction: GRDBWriteTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try Vectors.build()
+        try Vectors.build(connection)
     }
 }
 

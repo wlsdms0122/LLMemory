@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 import Storage
 
-public enum QueryFeature {
+public struct QueryFeature {
     public struct RelatedResult {
         // MARK: - Property
         public let snapshot: Framing.Snapshot
@@ -129,12 +129,17 @@ public enum QueryFeature {
     public static let candidateRetrievalKinds = Candidates.retrievalKinds
     public static let candidateStructuralKinds = Candidates.structuralKinds
     
+    let session: Session
+
     // MARK: - Initializer
+    init(session: Session) {
+        self.session = session
+    }
+
     // MARK: - Public
 
     // MARK: - Public (domain surface — configures the session and runs the matching transaction)
-    public static func search(
-        home: String,
+    public func search(
         query: String,
         axis: String?,
         limit: Int,
@@ -144,9 +149,7 @@ public enum QueryFeature {
         excludeAxes: [String],
         raw: Bool
     ) async throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             SearchNotesTransaction(
                 .init(
                     query: query,
@@ -162,16 +165,13 @@ public enum QueryFeature {
         )
     }
 
-    public static func related(
-        home: String,
+    public func related(
         text: String,
         kind: String?,
         cliSessionId: String,
         includeBodies: Bool
     ) async throws -> RelatedResult {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             RelatedNotesTransaction(
                 .init(
                     text: text,
@@ -183,14 +183,11 @@ public enum QueryFeature {
         )
     }
 
-    public static func get(
-        home: String,
+    public func get(
         ids: [String],
         cliSessionId: String = ""
     ) async throws -> (found: [GetNote], missing: [String]) {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             GetNotesTransaction(
                 .init(
                     ids: ids,
@@ -200,14 +197,11 @@ public enum QueryFeature {
         )
     }
 
-    public static func getSections(
-        home: String,
+    public func getSections(
         id: String,
         sections: [String]
     ) async throws -> (note: GetNote, slices: [SectionSlice]) {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             GetSectionsTransaction(
                 .init(
                     id: id,
@@ -217,14 +211,11 @@ public enum QueryFeature {
         )
     }
 
-    public static func getBudget(
-        home: String,
+    public func getBudget(
         id: String,
         budget: Int
     ) async throws -> (note: GetNote, cut: BudgetCut) {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             GetBudgetTransaction(
                 .init(
                     id: id,
@@ -234,13 +225,10 @@ public enum QueryFeature {
         )
     }
 
-    public static func toc(
-        home: String,
+    public func toc(
         id: String
     ) async throws -> (note: GetNote, entries: [TocEntry]) {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             NoteTocTransaction(
                 .init(
                     id: id
@@ -249,13 +237,10 @@ public enum QueryFeature {
         )
     }
 
-    public static func template(
-        home: String,
+    public func template(
         id: String
     ) async throws -> (note: GetNote, frame: [Template.FrameNode]) {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             TemplateFrameTransaction(
                 .init(
                     id: id
@@ -264,14 +249,11 @@ public enum QueryFeature {
         )
     }
 
-    public static func metaById(
-        home: String,
+    public func metaById(
         noteId: String,
         namespace: String?
     ) async throws -> [String: [String: String]] {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             NoteMetaByIdTransaction(
                 .init(
                     noteId: noteId,
@@ -281,16 +263,13 @@ public enum QueryFeature {
         )
     }
 
-    public static func metaByKV(
-        home: String,
+    public func metaByKV(
         namespace: String,
         key: String,
         value: String?,
         limit: Int
     ) async throws -> [(noteId: String, value: String)] {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             NoteMetaByKVTransaction(
                 .init(
                     namespace: namespace,
@@ -302,14 +281,11 @@ public enum QueryFeature {
         )
     }
 
-    public static func entity(
-        home: String,
+    public func entity(
         name: String?,
         limit: Int
     ) async throws -> [Reads.EntityHit] {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             EntityNotesTransaction(
                 .init(
                     name: name,
@@ -319,21 +295,14 @@ public enum QueryFeature {
         )
     }
 
-    public static func listAxes(
-        home: String
-    ) async throws -> [(axis: String, description: String?, count: Int)] {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(ListAxesTransaction())
+    public func listAxes() async throws -> [(axis: String, description: String?, count: Int)] {
+        try await session.storage.run(ListAxesTransaction())
     }
 
-    public static func structure(
-        home: String,
+    public func structure(
         axis: String?
     ) async throws -> StructureResult {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             StructureReportTransaction(
                 .init(
                     axis: axis
@@ -342,15 +311,12 @@ public enum QueryFeature {
         )
     }
 
-    public static func neighbors(
-        home: String,
+    public func neighbors(
         id: String,
         k: Int,
         cliSessionId: String = ""
     ) async throws -> [Candidates.NeighborScore] {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             NeighborsTransaction(
                 .init(
                     id: id,
@@ -361,13 +327,10 @@ public enum QueryFeature {
         )
     }
 
-    public static func noteStats(
-        home: String,
+    public func noteStats(
         id: String
     ) async throws -> Stats.NoteStats? {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             NoteStatsTransaction(
                 .init(
                     id: id
@@ -376,13 +339,10 @@ public enum QueryFeature {
         )
     }
 
-    public static func axisStats(
-        home: String,
+    public func axisStats(
         axis: String
     ) async throws -> Stats.AxisStats {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             AxisStatsTransaction(
                 .init(
                     axis: axis
@@ -391,25 +351,18 @@ public enum QueryFeature {
         )
     }
 
-    public static func overallStats(
-        home: String
-    ) async throws -> Stats.OverallStats {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(OverallStatsTransaction())
+    public func overallStats() async throws -> Stats.OverallStats {
+        try await session.storage.run(OverallStatsTransaction())
     }
 
-    public static func list(
-        home: String,
+    public func list(
         priority: String?,
         axis: String?,
         stale: Bool,
         sourceStale: Bool,
         limit: Int?
     ) async throws -> [Reads.ListRow] {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             ListNotesTransaction(
                 .init(
                     priority: priority,
@@ -422,14 +375,11 @@ public enum QueryFeature {
         )
     }
 
-    public static func history(
-        home: String,
+    public func history(
         noteId: String,
         limit: Int
     ) async throws -> [Reads.HistoryEvent] {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             NoteHistoryTransaction(
                 .init(
                     noteId: noteId,
@@ -439,17 +389,14 @@ public enum QueryFeature {
         )
     }
 
-    public static func lint(
-        home: String,
+    public func lint(
         id: String? = nil,
         code: String? = nil,
         severity: String? = nil,
         limit: Int? = nil,
         includeDismissed: Bool = false
     ) async throws -> [Lint.Issue] {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             LintTransaction(
                 .init(
                     id: id,
@@ -462,22 +409,15 @@ public enum QueryFeature {
         )
     }
 
-    public static func enrichment(
-        home: String
-    ) async throws -> EnrichmentReview.Status {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(EnrichmentStatusTransaction())
+    public func enrichment() async throws -> EnrichmentReview.Status {
+        try await session.storage.run(EnrichmentStatusTransaction())
     }
 
-    public static func candidates(
-        home: String,
+    public func candidates(
         kinds: [String],
         limit: Int
     ) async throws -> [String: CandidateBatch] {
-        Session.configure(home: home)
-
-        return try await GRDBStorage.session.run(
+        try await session.storage.run(
             CandidatesTransaction(
                 .init(
                     kinds: kinds,
@@ -488,6 +428,7 @@ public enum QueryFeature {
     }
 
     static func search(
+        _ queue: any DatabaseWriter,
         query: String,
         axis: String?,
         limit: Int,
@@ -498,6 +439,7 @@ public enum QueryFeature {
         raw: Bool
     ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
         return try searchNotes(
+            queue,
             query: query,
             axis: axis,
             limit: limit,
@@ -510,15 +452,15 @@ public enum QueryFeature {
     }
     
     static func related(
+        _ queue: any DatabaseWriter,
         text: String,
         kind: String?,
         cliSessionId: String,
         includeBodies: Bool
     ) throws -> RelatedResult {
-        _ = try GRDBStorage.session.connect()
-        
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let snapshot = try Framing.snapshot(
+            queue,
             userInput: text,
             agentOutput: "",
             linkKind: kind,
@@ -526,6 +468,7 @@ public enum QueryFeature {
         )
         
         Events.recordRetrieval(
+            queue,
             cmd: "related",
             payload: [
                 ("text", String(text.prefix(200))),
@@ -551,11 +494,11 @@ public enum QueryFeature {
     }
     
     static func get(
+        _ queue: any DatabaseWriter,
         ids: [String],
         cliSessionId: String = ""
     ) throws -> (found: [GetNote], missing: [String]) {
-        let queue = try GRDBStorage.session.connect()
-        let byId = try queue.read { db in try Reads.catalog(db, ids: ids) }
+                let byId = try queue.read { db in try Reads.catalog(db, ids: ids) }
         var found: [GetNote] = []
         var missing: [String] = []
         
@@ -585,7 +528,7 @@ public enum QueryFeature {
         }
         
         if !found.isEmpty {
-            Events.recordRetrieval(
+            Events.recordRetrieval(queue, 
                 cmd: "get",
                 payload: [("hit_ids", found.map { note in note.id })],
                 sessionId: Env.retrievalSession(cli: cliSessionId)
@@ -596,10 +539,11 @@ public enum QueryFeature {
     }
     
     static func getSections(
+        _ queue: any DatabaseWriter,
         id: String,
         sections: [String]
     ) throws -> (note: GetNote, slices: [SectionSlice]) {
-        let (found, missing) = try get(ids: [id])
+        let (found, missing) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -618,10 +562,11 @@ public enum QueryFeature {
     }
     
     static func getBudget(
+        _ queue: any DatabaseWriter,
         id: String,
         budget: Int
     ) throws -> (note: GetNote, cut: BudgetCut) {
-        let (found, missing) = try get(ids: [id])
+        let (found, missing) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -762,8 +707,8 @@ public enum QueryFeature {
         ))
     }
     
-    static func toc(id: String) throws -> (note: GetNote, entries: [TocEntry]) {
-        let (found, missing) = try get(ids: [id])
+    static func toc(_ queue: any DatabaseWriter, id: String) throws -> (note: GetNote, entries: [TocEntry]) {
+        let (found, missing) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -778,9 +723,10 @@ public enum QueryFeature {
     }
     
     static func template(
+        _ queue: any DatabaseWriter,
         id: String
     ) throws -> (note: GetNote, frame: [Template.FrameNode]) {
-        let (found, missing) = try get(ids: [id])
+        let (found, missing) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -790,24 +736,24 @@ public enum QueryFeature {
     }
     
     static func metaById(
+        _ queue: any DatabaseWriter,
         noteId: String,
         namespace: String?
     ) throws -> [String: [String: String]] {
-        let queue = try GRDBStorage.session.connect()
-        
+                
         return try queue.read { db in
             try NoteMeta.getAll(db, noteId: noteId, namespace: namespace)
         }
     }
     
     static func metaByKV(
+        _ queue: any DatabaseWriter,
         namespace: String,
         key: String,
         value: String?,
         limit: Int
     ) throws -> [(noteId: String, value: String)] {
-        let queue = try GRDBStorage.session.connect()
-        
+                
         return try queue.read { db in
             try NoteMeta.findByKV(
                 db,
@@ -819,23 +765,21 @@ public enum QueryFeature {
         }
     }
     
-    static func entity(name: String?, limit: Int) throws -> [Reads.EntityHit] {
-        let queue = try GRDBStorage.session.connect()
-        
+    static func entity(_ queue: any DatabaseWriter, name: String?, limit: Int) throws -> [Reads.EntityHit] {
+                
         return try queue.read { db in try Reads.entityLookup(db, name: name, limit: limit) }
     }
     
     static func listAxes(
+        _ queue: any DatabaseWriter,
     ) throws -> [(axis: String, description: String?, count: Int)] {
-        let queue = try GRDBStorage.session.connect()
-        
+                
         return try axesWithCounts(queue)
     }
     
-    static func structure(axis: String?) throws -> StructureResult {
-        let queue = try GRDBStorage.session.connect()
-        let axes = try axesWithCounts(queue)
-        let distribution = try Links.distribution()
+    static func structure(_ queue: any DatabaseWriter, axis: String?) throws -> StructureResult {
+                let axes = try axesWithCounts(queue)
+        let distribution = try Links.distribution(queue, )
         var stats: Stats.AxisStats? = nil
         
         if let axis {
@@ -846,14 +790,15 @@ public enum QueryFeature {
     }
     
     static func neighbors(
+        _ queue: any DatabaseWriter,
         id: String,
         k: Int,
         cliSessionId: String = ""
     ) throws -> [Candidates.NeighborScore] {
-        let queue = try GRDBStorage.session.connect()
-        let scores = try queue.read { db in try Candidates.neighbors(db, noteId: id, k: k) }
+                let scores = try queue.read { db in try Candidates.neighbors(db, noteId: id, k: k) }
         
         Events.recordRetrieval(
+            queue,
             cmd: "neighbors",
             payload: [("anchor", id), ("hit_ids", scores.map { score in score.id })],
             sessionId: Env.retrievalSession(cli: cliSessionId)
@@ -862,33 +807,30 @@ public enum QueryFeature {
         return scores
     }
     
-    static func noteStats(id: String) throws -> Stats.NoteStats? {
-        let queue = try GRDBStorage.session.connect()
-        
+    static func noteStats(_ queue: any DatabaseWriter, id: String) throws -> Stats.NoteStats? {
+                
         return try queue.read { db in try Stats.noteStats(db, nid: id) }
     }
     
-    static func axisStats(axis: String) throws -> Stats.AxisStats {
-        let queue = try GRDBStorage.session.connect()
-        
+    static func axisStats(_ queue: any DatabaseWriter, axis: String) throws -> Stats.AxisStats {
+                
         return try queue.read { db in try Stats.axisStats(db, axis: axis) }
     }
     
-    static func overallStats() throws -> Stats.OverallStats {
-        let queue = try GRDBStorage.session.connect()
-        
+    static func overallStats(_ queue: any DatabaseWriter) throws -> Stats.OverallStats {
+                
         return try queue.read { db in try Stats.overall(db) }
     }
     
     static func list(
+        _ queue: any DatabaseWriter,
         priority: String?,
         axis: String?,
         stale: Bool,
         sourceStale: Bool,
         limit: Int?
     ) throws -> [Reads.ListRow] {
-        let queue = try GRDBStorage.session.connect()
-        let filter = Reads.ListFilter(
+                let filter = Reads.ListFilter(
             priority: priority,
             axis: axis,
             stale: stale,
@@ -900,23 +842,23 @@ public enum QueryFeature {
     }
     
     static func history(
+        _ queue: any DatabaseWriter,
         noteId: String,
         limit: Int
     ) throws -> [Reads.HistoryEvent] {
-        let queue = try GRDBStorage.session.connect()
-        
+                
         return try queue.read { db in try Reads.history(db, noteId: noteId, limit: limit) }
     }
     
     static func lint(
+        _ queue: any DatabaseWriter,
         id: String? = nil,
         code: String? = nil,
         severity: String? = nil,
         limit: Int? = nil,
         includeDismissed: Bool = false
     ) throws -> [Lint.Issue] {
-        let queue = try GRDBStorage.session.connect()
-        
+                
         return try queue.read { db in
             var issues = try id != nil ? Lint.lintNote(db, nid: id!) : Lint.lintAll(db)
             
@@ -950,18 +892,17 @@ public enum QueryFeature {
         }
     }
     
-    static func enrichment() throws -> EnrichmentReview.Status {
-        let queue = try GRDBStorage.session.connect()
-        
+    static func enrichment(_ queue: any DatabaseWriter) throws -> EnrichmentReview.Status {
+                
         return try queue.read { db in try EnrichmentReview.status(db) }
     }
     
     static func candidates(
+        _ queue: any DatabaseWriter,
         kinds: [String],
         limit: Int
     ) throws -> [String: CandidateBatch] {
-        let queue = try GRDBStorage.session.connect()
-        
+                
         return try queue.read { db in
             var batches: [String: CandidateBatch] = [:]
             
@@ -971,11 +912,8 @@ public enum QueryFeature {
         }
     }
     
-    static func prepare(_ home: String) throws -> any DatabaseWriter {
-        return try GRDBStorage.session.connect()
-    }
-    
     static func searchNotes(
+        _ queue: any DatabaseWriter,
         query: String,
         axis: String? = nil,
         limit: Int = 5,
@@ -986,8 +924,7 @@ public enum QueryFeature {
         sinceTs: Int? = nil,
         raw: Bool = false
     ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
-        let queue = try GRDBStorage.session.connect()
-        let rows: [Search.SearchRow] = try queue.read { db in
+                let rows: [Search.SearchRow] = try queue.read { db in
             try Search.fts(
                 db,
                 query: query,
@@ -1004,6 +941,7 @@ public enum QueryFeature {
         
         if expand > 0 {
             extra = (try? Links.expand(
+                queue,
                 noteIds: rows.map { row in row.id },
                 hops: 1,
                 limit: expand
@@ -1012,12 +950,12 @@ public enum QueryFeature {
         
         let hitIds = rows.map { row in row.id } + extra.map { note in note.id }
         
-        try GRDBStorage.session.write { db in
+        try queue.write { db in
             try Notes.activate(db, ids: hitIds, now: Int(Date().timeIntervalSince1970))
         }
         
-        wireTogether(ids: hitIds)
-        rehearseAssoc(rows: rows, extra: extra)
+        wireTogether(queue, ids: hitIds)
+        rehearseAssoc(queue, rows: rows, extra: extra)
         
         let trimmedQuery = String(query.prefix(200))
         let payload: [(String, Any?)] = [
@@ -1031,13 +969,13 @@ public enum QueryFeature {
             ("expand_ids", extra.map { note in note.id })
         ]
         
-        Events.recordRetrieval(cmd: "search", payload: payload, sessionId: sessionId)
+        Events.recordRetrieval(queue, cmd: "search", payload: payload, sessionId: sessionId)
         
         return (rows, extra)
     }
     
     // MARK: - Private
-    private static func wireTogether(ids: [String]) {
+    private static func wireTogether(_ queue: any DatabaseWriter, ids: [String]) {
         var seen = Set<String>()
         var unique: [String] = []
         
@@ -1056,10 +994,10 @@ public enum QueryFeature {
             }
         }
         
-        _ = try? Links.strengthen(pairs: pairs, cap: 1.0)
+        _ = try? Links.strengthen(queue, pairs: pairs, cap: 1.0)
     }
     
-    private static func rehearseAssoc(rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
+    private static func rehearseAssoc(_ queue: any DatabaseWriter, rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
         let boost = Genome.double("rebirth.search_boost")
         var ranked: [(String, Double)] = []
         
@@ -1073,7 +1011,7 @@ public enum QueryFeature {
             ranked.append((note.id, 1.0 + boost / Double(base + index + 1)))
         }
         
-        if ranked.count >= 2 { _ = try? Links.rebirth(rankedIds: ranked) }
+        if ranked.count >= 2 { _ = try? Links.rebirth(queue, rankedIds: ranked) }
     }
     
     private static func axesWithCounts(

@@ -80,7 +80,7 @@ struct UpdateCommand: ParsableCommand {
             return
         }
 
-        let result = try Index.update(home: global.home, override: override)
+        let result = try Brain(home: global.home).index.update(override: override)
         let output = UpdateOutput(
             home: result.homePath,
             planted: result.seeding.planted,
@@ -131,7 +131,7 @@ struct UpdateCommand: ParsableCommand {
 
     // MARK: - Private
     private func runCheck() throws {
-        let result = Index.checkSeeds(home: global.home, force: override)
+        let result = Brain(home: global.home).index.checkSeeds(force: override)
         let output = CheckOutput(
             home: global.home,
             planted: result.planted,
