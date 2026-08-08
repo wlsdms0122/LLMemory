@@ -528,7 +528,8 @@ public struct QueryFeature {
         }
         
         if !found.isEmpty {
-            Events.recordRetrieval(queue, 
+            Events.recordRetrieval(
+                queue,
                 cmd: "get",
                 payload: [("hit_ids", found.map { note in note.id })],
                 sessionId: Env.retrievalSession(cli: cliSessionId)
@@ -740,7 +741,6 @@ public struct QueryFeature {
         noteId: String,
         namespace: String?
     ) throws -> [String: [String: String]] {
-                
         return try queue.read { db in
             try NoteMeta.getAll(db, noteId: noteId, namespace: namespace)
         }
@@ -753,7 +753,6 @@ public struct QueryFeature {
         value: String?,
         limit: Int
     ) throws -> [(noteId: String, value: String)] {
-                
         return try queue.read { db in
             try NoteMeta.findByKV(
                 db,
@@ -766,20 +765,16 @@ public struct QueryFeature {
     }
     
     static func entity(_ queue: any DatabaseWriter, name: String?, limit: Int) throws -> [Reads.EntityHit] {
-                
         return try queue.read { db in try Reads.entityLookup(db, name: name, limit: limit) }
     }
     
-    static func listAxes(
-        _ queue: any DatabaseWriter,
-    ) throws -> [(axis: String, description: String?, count: Int)] {
-                
-        return try axesWithCounts(queue)
+    static func listAxes(_ queue: any DatabaseWriter) throws -> [(axis: String, description: String?, count: Int)] {
+        try axesWithCounts(queue)
     }
     
     static func structure(_ queue: any DatabaseWriter, axis: String?) throws -> StructureResult {
                 let axes = try axesWithCounts(queue)
-        let distribution = try Links.distribution(queue, )
+        let distribution = try Links.distribution(queue)
         var stats: Stats.AxisStats? = nil
         
         if let axis {
@@ -808,17 +803,14 @@ public struct QueryFeature {
     }
     
     static func noteStats(_ queue: any DatabaseWriter, id: String) throws -> Stats.NoteStats? {
-                
         return try queue.read { db in try Stats.noteStats(db, nid: id) }
     }
     
     static func axisStats(_ queue: any DatabaseWriter, axis: String) throws -> Stats.AxisStats {
-                
         return try queue.read { db in try Stats.axisStats(db, axis: axis) }
     }
     
     static func overallStats(_ queue: any DatabaseWriter) throws -> Stats.OverallStats {
-                
         return try queue.read { db in try Stats.overall(db) }
     }
     
@@ -846,7 +838,6 @@ public struct QueryFeature {
         noteId: String,
         limit: Int
     ) throws -> [Reads.HistoryEvent] {
-                
         return try queue.read { db in try Reads.history(db, noteId: noteId, limit: limit) }
     }
     
@@ -858,7 +849,6 @@ public struct QueryFeature {
         limit: Int? = nil,
         includeDismissed: Bool = false
     ) throws -> [Lint.Issue] {
-                
         return try queue.read { db in
             var issues = try id != nil ? Lint.lintNote(db, nid: id!) : Lint.lintAll(db)
             
@@ -893,7 +883,6 @@ public struct QueryFeature {
     }
     
     static func enrichment(_ queue: any DatabaseWriter) throws -> EnrichmentReview.Status {
-                
         return try queue.read { db in try EnrichmentReview.status(db) }
     }
     
@@ -902,7 +891,6 @@ public struct QueryFeature {
         kinds: [String],
         limit: Int
     ) throws -> [String: CandidateBatch] {
-                
         return try queue.read { db in
             var batches: [String: CandidateBatch] = [:]
             

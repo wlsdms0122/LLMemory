@@ -109,109 +109,107 @@ public struct Index {
     // MARK: - Public
     // Caller holds the write lock (run's write marker or an explicit writeLock).
     static func buildLocked(_ queue: any DatabaseWriter, rebuild: Bool = false) throws -> BuildResult {
-        try {
-            let now = Int(Date().timeIntervalSince1970)
-            let files = Paths.scanNotes()
-            var scannedRels = Set<String>()
-            var pending: [PendingNote] = []
-            var fileErrors: [String] = []
+        let now = Int(Date().timeIntervalSince1970)
+        let files = Paths.scanNotes()
+        var scannedRels = Set<String>()
+        var pending: [PendingNote] = []
+        var fileErrors: [String] = []
             
-            func parseInto(_ list: inout [PendingNote], _ urls: [URL]) {
-                for file in urls {
-                    let relativePath: String
-                    do {
-                        relativePath = try Notes.relativeToBrainRoot(file)
-                    } catch {
-                        fileErrors.append("\(file.path): \(error)")
-                        continue
-                    }
+        func parseInto(_ list: inout [PendingNote], _ urls: [URL]) {
+            for file in urls {
+                let relativePath: String
+                do {
+                    relativePath = try Notes.relativeToBrainRoot(file)
+                } catch {
+                    fileErrors.append("\(file.path): \(error)")
+                    continue
+                }
                     
-                    scannedRels.insert(relativePath)
+                scannedRels.insert(relativePath)
                     
-                    do {
-                        let text = try String(contentsOf: file, encoding: .utf8)
-                        let (fields, body) = try Frontmatter.parse(text)
+                do {
+                    let text = try String(contentsOf: file, encoding: .utf8)
+                    let (fields, body) = try Frontmatter.parse(text)
                         
-                        list.append(
-                            PendingNote(
-                                file: file,
-                                rel: relativePath,
-                                raw: text,
-                                contentHash: Notes.contentHash(text),
-                                fields: fields,
-                                body: body
-                            )
+                    list.append(
+                        PendingNote(
+                            file: file,
+                            rel: relativePath,
+                            raw: text,
+                            contentHash: Notes.contentHash(text),
+                            fields: fields,
+                            body: body
                         )
-                    } catch {
-                        fileErrors.append("\(relativePath): \(error)")
-                    }
+                    )
+                } catch {
+                    fileErrors.append("\(relativePath): \(error)")
                 }
             }
+        }
             
-            parseInto(&pending, files)
+        parseInto(&pending, files)
             
-            return try queue.write { db in
-                try reconcile(
-                    db,
-                    pending: pending,
-                    scannedRels: scannedRels,
-                    rebuild: rebuild,
-                    now: now,
-                    fileErrors: fileErrors
-                )
-            }
-        }()
+        return try queue.write { db in
+            try reconcile(
+                db,
+                pending: pending,
+                scannedRels: scannedRels,
+                rebuild: rebuild,
+                now: now,
+                fileErrors: fileErrors
+            )
+        }
+
     }
     
     // Caller holds the write lock (run's write marker or an explicit writeLock).
     @discardableResult
     static func reindexLocked(_ queue: any DatabaseWriter, filePaths: [String]) throws -> Int {
-        try {
-            var exitCode = 0
+        var exitCode = 0
 
-            for filePath in filePaths {
-                var path = URL(fileURLWithPath: (filePath as NSString).expandingTildeInPath)
+        for filePath in filePaths {
+            var path = URL(fileURLWithPath: (filePath as NSString).expandingTildeInPath)
 
-                if !path.path.hasPrefix("/") {
-                    path = Paths.brainRoot.appendingPathComponent(filePath)
-                }
-
-                path = path.standardizedFileURL.resolvingSymlinksInPath()
-
-                if !FileManager.default.fileExists(atPath: path.path) {
-                    FileHandle.standardError.write(
-                        "ERROR \(filePath): not found\n".data(using: .utf8)!
-                    )
-                    exitCode = 1
-                    continue
-                }
-
-                if Paths.relative(of: path) == nil {
-                    FileHandle.standardError.write(
-                        "ERROR \(filePath): outside brain home \(Paths.brainRoot.path)\n"
-                            .data(using: .utf8)!
-                    )
-                    exitCode = 1
-                    continue
-                }
-
-                do {
-                    let noteId = try queue.write { db in
-                        try Notes.reindexFile(db, path: path)
-                    }
-                    let relativePath = Paths.relative(of: path) ?? path.path
-
-                    print("reindexed: \(noteId) (\(relativePath))")
-                } catch {
-                    FileHandle.standardError.write(
-                        "ERROR \(filePath): \(error)\n".data(using: .utf8)!
-                    )
-                    exitCode = 1
-                }
+            if !path.path.hasPrefix("/") {
+                path = Paths.brainRoot.appendingPathComponent(filePath)
             }
 
-            return exitCode
-        }()
+            path = path.standardizedFileURL.resolvingSymlinksInPath()
+
+            if !FileManager.default.fileExists(atPath: path.path) {
+                FileHandle.standardError.write(
+                    "ERROR \(filePath): not found\n".data(using: .utf8)!
+                )
+                exitCode = 1
+                continue
+            }
+
+            if Paths.relative(of: path) == nil {
+                FileHandle.standardError.write(
+                    "ERROR \(filePath): outside brain home \(Paths.brainRoot.path)\n"
+                        .data(using: .utf8)!
+                )
+                exitCode = 1
+                continue
+            }
+
+            do {
+                let noteId = try queue.write { db in
+                    try Notes.reindexFile(db, path: path)
+                }
+                let relativePath = Paths.relative(of: path) ?? path.path
+
+                print("reindexed: \(noteId) (\(relativePath))")
+            } catch {
+                FileHandle.standardError.write(
+                    "ERROR \(filePath): \(error)\n".data(using: .utf8)!
+                )
+                exitCode = 1
+            }
+        }
+
+        return exitCode
+
     }
 
     static func check(_ queue: any DatabaseWriter, level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
@@ -264,6 +262,9 @@ public struct Index {
 
             return built
         }
+
+        // The session may have warmed its caches before this database existed or migrated.
+        session.rewarm()
         
         try Guide.markdown.write(
             to: Paths.brainRoot.appendingPathComponent("README.md"),
@@ -318,6 +319,9 @@ public struct Index {
 
             return built
         }
+
+        // The session may have warmed its caches before this database existed or migrated.
+        session.rewarm()
 
         try Guide.markdown.write(
             to: Paths.brainRoot.appendingPathComponent("README.md"),

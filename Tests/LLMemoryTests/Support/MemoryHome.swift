@@ -56,9 +56,8 @@ final class MemoryHome: BrainHome, @unchecked Sendable {
                 }
             }
             
-            // The Session warmed against a database that did not exist yet — warm again now.
-            Config.invalidateCache()
-            Config.warmCache(session.storage)
+            // The Session warmed against a database that did not exist yet.
+            session.rewarm()
         } catch {
             Self.exclusion.unlock()
             

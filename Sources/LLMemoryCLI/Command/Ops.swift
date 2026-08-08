@@ -190,8 +190,6 @@ struct OpsVocab: ParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        let brain = Brain(home: global.home)
-        
         if verbose {
             let rows = Handlers.opNames().compactMap { name -> VerboseOp? in
                 guard let schema = Handlers.opSchema(name) else { return nil }
@@ -264,8 +262,6 @@ struct OpsDescribe: ParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        let brain = Brain(home: global.home)
-        
         guard let schema = Handlers.opSchema(op) else {
             FileHandle.standardError.write(
                 "unknown op: \(op) (see `ops vocab`)\n".data(using: .utf8) ?? Data()

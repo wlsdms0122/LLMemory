@@ -8,8 +8,9 @@
 import Foundation
 
 // The package's entry point — the composition root that binds one brain home
-// and hands out its domain surfaces. Pure DI: everything below receives its
-// dependencies from here; nothing reads process-global storage.
+// and hands out its domain surfaces. Storage flows from here by explicit
+// injection; Paths and the Config/Genome caches are still process-global
+// (see Session), so one live Brain per process until they move onto it.
 public struct Brain {
     // MARK: - Property
     public let session: Session

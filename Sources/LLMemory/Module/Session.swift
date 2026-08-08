@@ -39,6 +39,14 @@ public final class Session {
     }
 
     // MARK: - Public
+    // Re-warms the parameter caches from the database — required after the
+    // database first comes into existence or migrates (init/update), since the
+    // constructor may have warmed against a database that was not there yet.
+    public func rewarm() {
+        Config.invalidateCache()
+        Config.warmCache(storage)
+    }
+
     public static func retrievalSession(cli: String?) -> String? {
         Env.retrievalSession(cli: cli)
     }

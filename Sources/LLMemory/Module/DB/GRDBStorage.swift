@@ -135,16 +135,18 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         stateLock.lock()
 
         let connection: DatabaseQueue
+        let cached: Bool
 
         do {
             if let opened = self.connection {
                 connection = opened
+                cached = true
             } else {
                 connection = try DatabaseQueue(
                     path: databaseURL.path,
                     configuration: Self.makeConfiguration()
                 )
-                self.connection = connection
+                cached = false
             }
 
             stateLock.unlock()
@@ -154,6 +156,14 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         }
 
         try migrate(connection: connection)
+
+        // Cache only a validated connection — caching before the migration/shape
+        // gate would let later connects hand out an unverified one.
+        if !cached {
+            stateLock.lock()
+            self.connection = connection
+            stateLock.unlock()
+        }
     }
 
     @discardableResult
