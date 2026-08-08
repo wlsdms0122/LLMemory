@@ -15,11 +15,11 @@ public struct PruneTransaction: GRDBWriteTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try Consolidate.pruneLocked(connection)
+        try Consolidation.pruneLocked(connection)
     }
 }
 
 public extension PruneTransaction {
     typealias Parameter = Void
-    typealias Result = Consolidate.PruneResult
+    typealias Result = Consolidation.PruneResult
 }

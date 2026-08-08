@@ -21,12 +21,12 @@ public struct ConsolidateReportTransaction: GRDBTransaction {
     // MARK: - Private
     private func perform(_ connection: Connection) throws -> Result {
         try connection.read { db in
-            (try Consolidate.axisReport(db), try Consolidate.tagReport(db))
+            (try Consolidation.axisReport(db), try Consolidation.tagReport(db))
         }
     }
 }
 
 public extension ConsolidateReportTransaction {
     typealias Parameter = Void
-    typealias Result = (axis: Consolidate.AxisReport, tag: Consolidate.TagReport)
+    typealias Result = (axis: Consolidation.AxisReport, tag: Consolidation.TagReport)
 }

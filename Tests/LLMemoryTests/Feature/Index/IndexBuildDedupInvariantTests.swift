@@ -36,7 +36,7 @@ struct IndexBuildDedupInvariantTests {
         
         // When — the copy first, so the original arrives on the unchanged-mtime fast path.
         let result = try home.database().write { database in
-            try Index.reconcile(
+            try Indexer.reconcile(
                 database,
                 pending: [copy, original],
                 scannedRels: [original.rel, copy.rel],
@@ -66,7 +66,7 @@ struct IndexBuildDedupInvariantTests {
         
         // When
         _ = try home.database().write { database in
-            try Index.reconcile(
+            try Indexer.reconcile(
                 database,
                 pending: [source, destination],
                 scannedRels: [source.rel, destination.rel],
@@ -102,7 +102,7 @@ struct IndexBuildDedupInvariantTests {
             .write(to: file, atomically: true, encoding: .utf8)
         try fileManager.setAttributes([.modificationDate: frozen as Any], ofItemAtPath: file.path)
         
-        let result = try Index.buildLocked(home.database(), rebuild: false)
+        let result = try Indexer.buildLocked(home.database(), rebuild: false)
         
         // Then
         let indexedRows = try home.read { database in
@@ -131,7 +131,7 @@ struct IndexBuildDedupInvariantTests {
             .write(to: file, atomically: true, encoding: .utf8)
         try fileManager.setAttributes([.modificationDate: frozen as Any], ofItemAtPath: file.path)
         
-        let (passed, messages) = try Index.check(home.database(), level: .l2)
+        let (passed, messages) = try Indexer.check(home.database(), level: .l2)
         
         // Then
         #expect(!passed)
@@ -142,13 +142,13 @@ struct IndexBuildDedupInvariantTests {
     
     // MARK: - Private
     
-    private func pendingNote(at url: URL) throws -> Index.PendingNote {
+    private func pendingNote(at url: URL) throws -> Indexer.PendingNote {
         let resolved = url.resolvingSymlinksInPath().standardizedFileURL
         let relativePath = resolved.path.replacingOccurrences(of: Paths.brainRoot.path + "/", with: "")
         let text = try String(contentsOf: resolved, encoding: .utf8)
         let (fields, body) = try Frontmatter.parse(text)
         
-        return Index.PendingNote(
+        return Indexer.PendingNote(
             file: resolved,
             rel: relativePath,
             raw: text,

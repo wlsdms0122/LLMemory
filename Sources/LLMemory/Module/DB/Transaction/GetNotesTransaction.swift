@@ -20,7 +20,7 @@ public struct GetNotesTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.get(connection, ids: parameter.ids, cliSessionId: parameter.cliSessionId)
+        try Retrieval.get(connection, ids: parameter.ids, cliSessionId: parameter.cliSessionId)
     }
 }
 
@@ -37,5 +37,5 @@ public extension GetNotesTransaction {
         }
     }
 
-    typealias Result = (found: [QueryFeature.GetNote], missing: [String], record: RecordRetrievalTransaction.Parameter?)
+    typealias Result = (found: [Reads.GetNote], missing: [String], record: RecordRetrievalTransaction.Parameter?)
 }

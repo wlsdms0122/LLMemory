@@ -15,7 +15,7 @@ public struct ListAxesTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.listAxes(connection)
+        try Retrieval.listAxes(connection)
     }
 }
 

@@ -20,7 +20,7 @@ public struct ReindexNotesTransaction: GRDBWriteTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try Index.reindexLocked(connection, filePaths: parameter.filePaths)
+        try Indexer.reindexLocked(connection, filePaths: parameter.filePaths)
     }
 }
 

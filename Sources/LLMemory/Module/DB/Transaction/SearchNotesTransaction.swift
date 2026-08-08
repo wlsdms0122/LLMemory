@@ -20,7 +20,7 @@ public struct SearchNotesTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.search(connection, query: parameter.query, axis: parameter.axis, limit: parameter.limit, expand: parameter.expand, cliSessionId: parameter.cliSessionId, includeStale: parameter.includeStale, excludeAxes: parameter.excludeAxes, raw: parameter.raw)
+        try Retrieval.search(connection, query: parameter.query, axis: parameter.axis, limit: parameter.limit, expand: parameter.expand, cliSessionId: parameter.cliSessionId, includeStale: parameter.includeStale, excludeAxes: parameter.excludeAxes, raw: parameter.raw)
     }
 }
 

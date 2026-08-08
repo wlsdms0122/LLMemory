@@ -20,7 +20,7 @@ public struct NoteTocTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.toc(connection, id: parameter.id)
+        try Retrieval.toc(connection, id: parameter.id)
     }
 }
 
@@ -35,5 +35,5 @@ public extension NoteTocTransaction {
         }
     }
 
-    typealias Result = (note: QueryFeature.GetNote, entries: [QueryFeature.TocEntry])
+    typealias Result = (note: Reads.GetNote, entries: [Reads.TocEntry])
 }

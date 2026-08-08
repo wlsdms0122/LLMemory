@@ -188,7 +188,7 @@ struct EnrichmentTests {
             "provenance": "test:capture"
         ]]).status == "ok")
         
-        _ = try Index.buildLocked(home.database(), rebuild: true)
+        _ = try Indexer.buildLocked(home.database(), rebuild: true)
         
         let queue = try home.storage.connect()
         let (status, hit) = try home.read { db -> (String?, Bool) in
@@ -361,7 +361,7 @@ struct EnrichmentTests {
         #expect(home.apply([["op": "set_note_meta", "id": "rbm-note",
             "namespace": "test", "key": "k", "value": "preserved"]]).status == "ok")
         
-        _ = try Index.buildLocked(home.database(), rebuild: true)
+        _ = try Indexer.buildLocked(home.database(), rebuild: true)
         
         let queue = try home.storage.connect()
         let value = try home.read { db in
@@ -382,7 +382,7 @@ struct EnrichmentTests {
             try db.execute(sql: "UPDATE note_usage SET hit_count=7, last_retrieved_at=1700000000 WHERE note_id='usage-note'")
         }
         
-        _ = try Index.buildLocked(home.database(), rebuild: true)
+        _ = try Indexer.buildLocked(home.database(), rebuild: true)
         
         // When
         let (hitCount, lastRetrieved) = try home.read { db -> (Int, Int) in
@@ -412,7 +412,7 @@ struct EnrichmentTests {
         try queue.write { db in
             try db.execute(sql: "UPDATE note_lifecycle_events SET created_at = 1 WHERE note_id='lc-note'")
             
-            _ = try Consolidate.pruneOldLifecycleEvents(db, now: 1_000_000_000, retentionDays: 180)
+            _ = try Consolidation.pruneOldLifecycleEvents(db, now: 1_000_000_000, retentionDays: 180)
         }
         
         let after = try queue.read { db in
@@ -437,7 +437,7 @@ struct EnrichmentTests {
             try db.execute(sql: "UPDATE entity_index SET hit_count=5 WHERE note_id='rc-note' AND entity='BAR-9'")
         }
         
-        _ = try Index.reindexLocked(home.database(), filePaths: [path])
+        _ = try Indexer.reindexLocked(home.database(), filePaths: [path])
         
         let hitCount = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT hit_count FROM entity_index WHERE note_id='rc-note' AND entity='BAR-9'") ?? -1
@@ -459,7 +459,7 @@ struct EnrichmentTests {
             try db.execute(sql: "UPDATE entity_index SET hit_count=9 WHERE note_id='eh-note' AND entity='FOO-1'")
         }
         
-        _ = try Index.buildLocked(home.database(), rebuild: true)
+        _ = try Indexer.buildLocked(home.database(), rebuild: true)
         
         let hitCount = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT hit_count FROM entity_index WHERE note_id='eh-note' AND entity='FOO-1'") ?? -1
@@ -482,7 +482,7 @@ struct EnrichmentTests {
         
         #expect(before == 2)
         
-        _ = try Index.buildLocked(home.database(), rebuild: true)
+        _ = try Indexer.buildLocked(home.database(), rebuild: true)
         
         let after = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM entity_index WHERE note_id='ent-note'") ?? 0
@@ -506,7 +506,7 @@ struct EnrichmentTests {
                 """)
         }
         
-        _ = try Index.buildLocked(home.database(), rebuild: true)
+        _ = try Indexer.buildLocked(home.database(), rebuild: true)
         
         // When
         let survived = try home.read { db in

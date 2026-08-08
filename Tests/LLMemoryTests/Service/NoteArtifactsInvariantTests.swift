@@ -200,7 +200,7 @@ struct NoteArtifactsInvariantTests {
             #expect(before[table]! > 0, "the round-trip fixture never fills '\(table)' — a newly preserved table needs data added above")
         }
         
-        _ = try Index.buildLocked(home.database(), rebuild: true)
+        _ = try Indexer.buildLocked(home.database(), rebuild: true)
         
         let after = try counts(preserved)
         

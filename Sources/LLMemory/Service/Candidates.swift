@@ -954,3 +954,32 @@ public enum Candidates {
         return tokens
     }
 }
+
+public extension Candidates {
+    enum Batch {
+        case split([SplitCandidate])
+        case flagged([FlaggedCandidate])
+        case clusters([Cluster])
+        case missingEdge([MissingEdge])
+        case nearDuplicate([NearDuplicate])
+        
+        public var count: Int {
+            switch self {
+            case .split(let items):
+                return items.count
+            
+            case .flagged(let items):
+                return items.count
+            
+            case .clusters(let items):
+                return items.count
+            
+            case .missingEdge(let items):
+                return items.count
+            
+            case .nearDuplicate(let items):
+                return items.count
+            }
+        }
+    }
+}

@@ -23,7 +23,7 @@ struct CheckLevelsTests {
     @Test("every message a level emits is tagged with the level that produced it")
     func messagesCarryTheirLevelPrefix() throws {
         // When
-        let (_, messages) = try Index.check(home.database(), level: .l1)
+        let (_, messages) = try Indexer.check(home.database(), level: .l1)
         
         // Then
         for message in messages {
@@ -37,8 +37,8 @@ struct CheckLevelsTests {
         try writeUnindexedNote(id: "l0-orphan")
         
         // When
-        let (passedLevel0, messagesAtLevel0) = try Index.check(home.database(), level: .l0)
-        let (passedLevel1, messagesAtLevel1) = try Index.check(home.database(), level: .l1)
+        let (passedLevel0, messagesAtLevel0) = try Indexer.check(home.database(), level: .l0)
+        let (passedLevel1, messagesAtLevel1) = try Indexer.check(home.database(), level: .l1)
         
         // Then
         #expect(passedLevel0, "the file's shape is intact, so L0 must pass — got \(messagesAtLevel0)")
@@ -49,14 +49,14 @@ struct CheckLevelsTests {
     }
     
     @Test("each level carries every finding of the level below it", arguments: [
-        (Index.IntegrityLevel.l2, Index.IntegrityLevel.l1, ["L1"]),
-        (Index.IntegrityLevel.l3, Index.IntegrityLevel.l2, ["L1", "L2"]),
-        (Index.IntegrityLevel.l4, Index.IntegrityLevel.l3, ["L1", "L2", "L3"])
+        (Indexer.IntegrityLevel.l2, Indexer.IntegrityLevel.l1, ["L1"]),
+        (Indexer.IntegrityLevel.l3, Indexer.IntegrityLevel.l2, ["L1", "L2"]),
+        (Indexer.IntegrityLevel.l4, Indexer.IntegrityLevel.l3, ["L1", "L2", "L3"])
     ])
-    func aLevelCarriesTheOneBelowIt(level: Index.IntegrityLevel, below: Index.IntegrityLevel, prefixes: [String]) throws {
+    func aLevelCarriesTheOneBelowIt(level: Indexer.IntegrityLevel, below: Indexer.IntegrityLevel, prefixes: [String]) throws {
         // When
-        let (_, deeper) = try Index.check(home.database(), level: level)
-        let (_, shallower) = try Index.check(home.database(), level: below)
+        let (_, deeper) = try Indexer.check(home.database(), level: level)
+        let (_, shallower) = try Indexer.check(home.database(), level: below)
         
         // Then
         let carried = deeper.filter { message in
@@ -72,7 +72,7 @@ struct CheckLevelsTests {
         let levelPrefix = try NSRegularExpression(pattern: #"^L[1-4]$"#)
         
         // When
-        let (_, messages) = try Index.check(home.database(), level: .l4)
+        let (_, messages) = try Indexer.check(home.database(), level: .l4)
         
         // Then
         for message in messages {

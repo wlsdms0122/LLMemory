@@ -20,9 +20,9 @@ public struct IntegrateTransaction: GRDBWriteTransaction {
 
     // MARK: - Private
     private func perform(_ connection: Connection) throws -> Result {
-        var result = try Consolidate.integrateLocked(connection)
-        let integrity = try connection.read { db in try Consolidate.integrityL1(db) }
-        result.integrityL1 = Consolidate.IntegrateResult.IntegrityReport(
+        var result = try Consolidation.integrateLocked(connection)
+        let integrity = try connection.read { db in try Consolidation.integrityL1(db) }
+        result.integrityL1 = Consolidation.IntegrateResult.IntegrityReport(
             checked: integrity.checked,
             issues: integrity.issues
         )
@@ -34,5 +34,5 @@ public struct IntegrateTransaction: GRDBWriteTransaction {
 
 public extension IntegrateTransaction {
     typealias Parameter = Void
-    typealias Result = Consolidate.IntegrateResult
+    typealias Result = Consolidation.IntegrateResult
 }

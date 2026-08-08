@@ -20,7 +20,7 @@ public struct GetSectionsTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.getSections(connection, id: parameter.id, sections: parameter.sections)
+        try Retrieval.getSections(connection, id: parameter.id, sections: parameter.sections)
     }
 }
 
@@ -37,5 +37,5 @@ public extension GetSectionsTransaction {
         }
     }
 
-    typealias Result = (note: QueryFeature.GetNote, slices: [QueryFeature.SectionSlice])
+    typealias Result = (note: Reads.GetNote, slices: [Reads.SectionSlice])
 }

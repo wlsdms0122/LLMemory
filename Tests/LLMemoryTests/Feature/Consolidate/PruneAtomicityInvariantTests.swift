@@ -51,7 +51,7 @@ struct PruneAtomicityInvariantTests {
         try home.write { database in try seedAssocLink(database, weight: 1.0) }
         
         // When
-        let result = try Consolidate.pruneLocked(home.database())
+        let result = try Consolidation.pruneLocked(home.database())
         
         // Then
         let weight = try home.read { database in try Self.linkWeight(database) }

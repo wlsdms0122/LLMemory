@@ -136,7 +136,7 @@ struct SourceGateInvariantTests {
             .write(to: path, atomically: true, encoding: .utf8)
         
         // When
-        let output = try Consolidate.integrateLocked(home.database())
+        let output = try Consolidation.integrateLocked(home.database())
         
         // Then
         #expect(output.summary.sourcesUnreadable == 1,

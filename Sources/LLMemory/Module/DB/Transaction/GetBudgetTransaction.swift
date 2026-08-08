@@ -20,7 +20,7 @@ public struct GetBudgetTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.getBudget(connection, id: parameter.id, budget: parameter.budget)
+        try Retrieval.getBudget(connection, id: parameter.id, budget: parameter.budget)
     }
 }
 
@@ -37,5 +37,5 @@ public extension GetBudgetTransaction {
         }
     }
 
-    typealias Result = (note: QueryFeature.GetNote, cut: QueryFeature.BudgetCut)
+    typealias Result = (note: Reads.GetNote, cut: Reads.BudgetCut)
 }

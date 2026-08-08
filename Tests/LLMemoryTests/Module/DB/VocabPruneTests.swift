@@ -33,7 +33,7 @@ struct VocabPruneTests {
         #expect(try lifecycle.axisExists("tdbaxis"))
         
         // When
-        let result = try home.database().write { database in try Consolidate.pruneEmptyAxes(database) }
+        let result = try home.database().write { database in try Consolidation.pruneEmptyAxes(database) }
         
         // Then
         #expect(result.pruned.contains("tdbaxis"))

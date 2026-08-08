@@ -20,7 +20,7 @@ public struct BuildIndexTransaction: GRDBWriteTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try Index.buildLocked(connection, rebuild: parameter.rebuild)
+        try Indexer.buildLocked(connection, rebuild: parameter.rebuild)
     }
 }
 
@@ -35,5 +35,5 @@ public extension BuildIndexTransaction {
         }
     }
 
-    typealias Result = Index.BuildResult
+    typealias Result = Indexer.BuildResult
 }

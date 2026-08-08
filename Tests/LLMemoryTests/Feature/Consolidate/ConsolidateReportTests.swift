@@ -28,7 +28,7 @@ struct ConsolidateReportTests {
         home.createNote(id: "axis-tech-1", axis: "tech", tags: ["tech"])
         
         // When
-        let report = try home.read { database in try Consolidate.axisReport(database, low: 1, high: 2) }
+        let report = try home.read { database in try Consolidation.axisReport(database, low: 1, high: 2) }
         
         // Then
         let counts = Dictionary(uniqueKeysWithValues: report.all.map { entry in (entry.axis, entry.count) })
@@ -48,7 +48,7 @@ struct ConsolidateReportTests {
         home.createNote(id: "tag-common-2", tags: ["flow", "shared"])
         
         // When
-        let report = try home.read { database in try Consolidate.tagReport(database) }
+        let report = try home.read { database in try Consolidation.tagReport(database) }
         
         // Then
         let rare = Set(report.rare.map(\.tag))
@@ -62,7 +62,7 @@ struct ConsolidateReportTests {
     func compactOldEventsKeepsEverythingInsideRetention() throws {
         // When
         let result = try home.database().write { database in
-            try Consolidate.compactOldEvents(database, now: home.now, retentionSec: 99_999_999)
+            try Consolidation.compactOldEvents(database, now: home.now, retentionSec: 99_999_999)
         }
         
         // Then

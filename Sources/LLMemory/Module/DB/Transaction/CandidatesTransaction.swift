@@ -20,7 +20,7 @@ public struct CandidatesTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.candidates(connection, kinds: parameter.kinds, limit: parameter.limit)
+        try Retrieval.candidates(connection, kinds: parameter.kinds, limit: parameter.limit)
     }
 }
 
@@ -37,5 +37,5 @@ public extension CandidatesTransaction {
         }
     }
 
-    typealias Result = [String: QueryFeature.CandidateBatch]
+    typealias Result = [String: Candidates.Batch]
 }

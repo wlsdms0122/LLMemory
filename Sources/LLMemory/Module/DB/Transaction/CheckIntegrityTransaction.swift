@@ -20,17 +20,17 @@ public struct CheckIntegrityTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try Index.check(connection, rawLevel: parameter.level.rawValue)
+        try Indexer.check(connection, rawLevel: parameter.level.rawValue)
     }
 }
 
 public extension CheckIntegrityTransaction {
     struct Parameter: Sendable {
         // MARK: - Property
-        public let level: Index.IntegrityLevel
+        public let level: Indexer.IntegrityLevel
 
         // MARK: - Initializer
-        public init(level: Index.IntegrityLevel = .l1) {
+        public init(level: Indexer.IntegrityLevel = .l1) {
             self.level = level
         }
     }

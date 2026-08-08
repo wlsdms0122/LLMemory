@@ -29,7 +29,7 @@ public struct ValidateTermsTransaction: GRDBWriteTransaction {
             let pass = try Validation.validatePendingTerms(db, noteIds: nil)
             let staleRejected = parameter.rejectStale ? try Validation.rejectStalePending(db) : 0
 
-            return Index.ValidateResult(
+            return Indexer.ValidateResult(
                 activated: pass.activated,
                 rejected: pass.rejected,
                 stillPending: pass.stillPending,
@@ -51,5 +51,5 @@ public extension ValidateTermsTransaction {
         }
     }
 
-    typealias Result = Index.ValidateResult
+    typealias Result = Indexer.ValidateResult
 }

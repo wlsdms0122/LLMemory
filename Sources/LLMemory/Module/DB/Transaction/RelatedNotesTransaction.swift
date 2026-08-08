@@ -20,7 +20,7 @@ public struct RelatedNotesTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.related(connection, text: parameter.text, kind: parameter.kind, cliSessionId: parameter.cliSessionId, includeBodies: parameter.includeBodies)
+        try Retrieval.related(connection, text: parameter.text, kind: parameter.kind, cliSessionId: parameter.cliSessionId, includeBodies: parameter.includeBodies)
     }
 }
 
@@ -41,5 +41,5 @@ public extension RelatedNotesTransaction {
         }
     }
 
-    typealias Result = (result: QueryFeature.RelatedResult, record: RecordRetrievalTransaction.Parameter)
+    typealias Result = (result: Framing.RelatedResult, record: RecordRetrievalTransaction.Parameter)
 }

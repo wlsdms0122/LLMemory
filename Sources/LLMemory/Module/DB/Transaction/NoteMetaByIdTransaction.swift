@@ -20,7 +20,7 @@ public struct NoteMetaByIdTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.metaById(connection, noteId: parameter.noteId, namespace: parameter.namespace)
+        try Retrieval.metaById(connection, noteId: parameter.noteId, namespace: parameter.namespace)
     }
 }
 

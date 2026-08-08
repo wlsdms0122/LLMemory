@@ -15,7 +15,7 @@ public struct OverallStatsTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.overallStats(connection)
+        try Retrieval.overallStats(connection)
     }
 }
 

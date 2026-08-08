@@ -20,7 +20,7 @@ public struct EntityNotesTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.entity(connection, name: parameter.name, limit: parameter.limit)
+        try Retrieval.entity(connection, name: parameter.name, limit: parameter.limit)
     }
 }
 

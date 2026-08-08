@@ -311,3 +311,15 @@ public enum Framing {
         return parts.isEmpty ? "" : parts.joined(separator: " OR ")
     }
 }
+
+public extension Framing {
+    struct RelatedResult {
+        // MARK: - Property
+        public let snapshot: Framing.Snapshot
+        public let bodies: [String: String]
+        
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+}

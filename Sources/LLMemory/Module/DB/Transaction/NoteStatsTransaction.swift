@@ -20,7 +20,7 @@ public struct NoteStatsTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.noteStats(connection, id: parameter.id)
+        try Retrieval.noteStats(connection, id: parameter.id)
     }
 }
 

@@ -15,7 +15,7 @@ public struct EnrichmentStatusTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.enrichment(connection)
+        try Retrieval.enrichment(connection)
     }
 }
 

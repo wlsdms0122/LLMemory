@@ -422,7 +422,7 @@ struct IndexVerifyIntegrity: AsyncParsableCommand {
     @OptionGroup var format: OutputFormat
     
     @Option(name: .long, help: "Highest level to run (0..4, default 1).")
-    var level: Index.IntegrityLevel = .l1
+    var level: Indexer.IntegrityLevel = .l1
     
     // MARK: - Initializer
     // MARK: - Public
@@ -535,11 +535,11 @@ struct IndexVerifySources: AsyncParsableCommand {
     // MARK: - Private
 }
 
-extension Index.IntegrityLevel: ExpressibleByArgument {
+extension Indexer.IntegrityLevel: ExpressibleByArgument {
     public var defaultValueDescription: String { String(rawValue) }
     
     public init?(argument: String) {
-        guard let raw = Int(argument), let level = Index.IntegrityLevel(rawValue: raw) else {
+        guard let raw = Int(argument), let level = Indexer.IntegrityLevel(rawValue: raw) else {
             return nil
         }
         

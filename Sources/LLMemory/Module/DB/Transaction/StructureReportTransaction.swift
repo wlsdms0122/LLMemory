@@ -20,7 +20,7 @@ public struct StructureReportTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.structure(connection, axis: parameter.axis)
+        try Retrieval.structure(connection, axis: parameter.axis)
     }
 }
 
@@ -35,5 +35,5 @@ public extension StructureReportTransaction {
         }
     }
 
-    typealias Result = QueryFeature.StructureResult
+    typealias Result = Reads.StructureResult
 }

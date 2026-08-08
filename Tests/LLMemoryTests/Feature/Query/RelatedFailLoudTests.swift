@@ -55,7 +55,7 @@ struct RelatedFailLoudTests {
 
         // Then
         #expect(throws: DBError.self) {
-            _ = try QueryFeature.related(home.database(), 
+            _ = try Retrieval.related(home.database(), 
                 text: "gate note",
                 kind: nil,
                 cliSessionId: "",

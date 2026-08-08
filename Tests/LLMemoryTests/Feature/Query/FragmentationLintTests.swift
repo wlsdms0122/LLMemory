@@ -268,7 +268,7 @@ struct FragmentationLintTests {
         #expect(try siblingEdgeCount() == 1)
         
         // When
-        _ = try Index.buildLocked(home.database(), rebuild: true)
+        _ = try Indexer.buildLocked(home.database(), rebuild: true)
         
         // Then
         #expect(try siblingEdgeCount() == 1, "a rebuild must not erase sibling edges")
@@ -435,7 +435,7 @@ struct FragmentationLintTests {
     }
     
     private func lint(id: String? = nil, code: String, includeDismissed: Bool = false) throws -> [Lint.Issue] {
-        try QueryFeature.lint(home.database(), id: id, code: code, includeDismissed: includeDismissed)
+        try Retrieval.lint(home.database(), id: id, code: code, includeDismissed: includeDismissed)
     }
     
     private func subjects(of code: String) throws -> [String] {

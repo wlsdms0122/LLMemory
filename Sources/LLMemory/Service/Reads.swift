@@ -236,3 +236,82 @@ public enum Reads {
     
     // MARK: - Private
 }
+
+public extension Reads {
+    struct NoteFrontmatter: Encodable {
+        // MARK: - Property
+        private let doc: FrontmatterDoc
+        
+        // MARK: - Initializer
+        init(_ doc: FrontmatterDoc) {
+            self.doc = doc
+        }
+        
+        // MARK: - Public
+        public func encode(to encoder: Encoder) throws {
+            try doc.encode(to: encoder)
+        }
+        
+        // MARK: - Private
+    }
+    
+    struct GetNote {
+        // MARK: - Property
+        public let id, axis, path: String
+        public let frontmatter: NoteFrontmatter
+        public let body: String
+        public let hitCount, createdAt, editedAt: Int
+        public let priority: String
+        
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+    
+    struct SectionSlice {
+        // MARK: - Property
+        public let path: String
+        public let text: String
+        
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+    
+    struct TocEntry {
+        // MARK: - Property
+        public let path: String
+        public let words: Int
+        
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+    
+    struct BudgetCut {
+        // MARK: - Property
+        public let shown: String
+        public let shownSections: [TocEntry]
+        public let omitted: [TocEntry]
+        public let truncatedWithin: String?
+        public let shownWords: Int
+        public let totalWords: Int
+        
+        public var truncated: Bool { !omitted.isEmpty || truncatedWithin != nil }
+        
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+    
+    struct StructureResult {
+        // MARK: - Property
+        public let axes: [(axis: String, description: String?, count: Int)]
+        public let distribution: Links.Distribution
+        public let axisStats: Stats.AxisStats?
+        
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+}

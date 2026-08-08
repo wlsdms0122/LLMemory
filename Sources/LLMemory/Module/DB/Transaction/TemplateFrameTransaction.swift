@@ -20,7 +20,7 @@ public struct TemplateFrameTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try QueryFeature.template(connection, id: parameter.id)
+        try Retrieval.template(connection, id: parameter.id)
     }
 }
 
@@ -35,5 +35,5 @@ public extension TemplateFrameTransaction {
         }
     }
 
-    typealias Result = (note: QueryFeature.GetNote, frame: [Template.FrameNode])
+    typealias Result = (note: Reads.GetNote, frame: [Template.FrameNode])
 }
