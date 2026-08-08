@@ -26,18 +26,14 @@ enum Events {
         let timestamp = ts ?? Int(Date().timeIntervalSince1970)
         let json = serializePayload(payload)
         
+        var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId, payload: json)
+        
         do {
             if let db {
-                try db.execute(
-                    sql: "INSERT INTO events (ts, kind, session_id, payload) VALUES (?, ?, ?, ?)",
-                    arguments: [timestamp, kind, sessionId, json]
-                )
+                try record.insert(db)
             } else {
                 try GRDBStorage.session.write { db in
-                    try db.execute(
-                        sql: "INSERT INTO events (ts, kind, session_id, payload) VALUES (?, ?, ?, ?)",
-                        arguments: [timestamp, kind, sessionId, json]
-                    )
+                    try record.insert(db)
                 }
             }
         } catch {

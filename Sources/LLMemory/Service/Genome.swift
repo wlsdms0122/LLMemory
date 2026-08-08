@@ -198,28 +198,22 @@ public enum Genome {
         geneId: String?,
         limit: Int
     ) throws -> [HistoryRow] {
-        let rows: [Row]
+        var request = GenomeEventRecord
+            .order(Column("ts").desc, Column("id").desc)
+            .limit(limit)
         
         if let geneId {
-            rows = try Row.fetchAll(db, sql: """
-                SELECT gene_id, old_value, new_value, cause, detail, ts FROM genome_events
-                WHERE gene_id = ? ORDER BY ts DESC, id DESC LIMIT ?
-                """, arguments: [geneId, limit])
-        } else {
-            rows = try Row.fetchAll(db, sql: """
-                SELECT gene_id, old_value, new_value, cause, detail, ts FROM genome_events
-                ORDER BY ts DESC, id DESC LIMIT ?
-                """, arguments: [limit])
+            request = request.filter(Column("gene_id") == geneId)
         }
         
-        return rows.map { row in
+        return try request.fetchAll(db).map { event in
             HistoryRow(
-                geneId: row["gene_id"],
-                oldValue: row["old_value"],
-                newValue: row["new_value"],
-                cause: row["cause"],
-                detail: row["detail"],
-                ts: row["ts"]
+                geneId: event.geneId,
+                oldValue: event.oldValue,
+                newValue: event.newValue,
+                cause: event.cause,
+                detail: event.detail,
+                ts: event.ts
             )
         }
     }
@@ -275,14 +269,17 @@ public enum Genome {
         
         let old = cache[id] ?? Config.getDouble(id, default: gene.wildType)
         
-        try db.execute(sql: """
-            INSERT INTO genome (gene_id, value, updated_at) VALUES (?, ?, ?)
-            ON CONFLICT(gene_id) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-            """, arguments: [id, value, now])
-        try db.execute(sql: """
-            INSERT INTO genome_events (gene_id, old_value, new_value, cause, detail, ts)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """, arguments: [id, old, value, cause, detail, now])
+        try GenomeRecord(geneId: id, value: value, updatedAt: now).upsert(db)
+        
+        var event = GenomeEventRecord(
+            geneId: id,
+            oldValue: old,
+            newValue: value,
+            cause: cause,
+            detail: detail,
+            ts: now
+        )
+        try event.insert(db)
         
         cache[id] = value
         
@@ -295,11 +292,17 @@ public enum Genome {
         
         let old = cache[id] ?? Config.getDouble(id, default: gene.wildType)
         
-        try db.execute(sql: "DELETE FROM genome WHERE gene_id = ?", arguments: [id])
-        try db.execute(sql: """
-            INSERT INTO genome_events (gene_id, old_value, new_value, cause, detail, ts)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """, arguments: [id, old, gene.wildType, cause, "reset to wild-type", now])
+        _ = try GenomeRecord.deleteOne(db, key: id)
+        
+        var event = GenomeEventRecord(
+            geneId: id,
+            oldValue: old,
+            newValue: gene.wildType,
+            cause: cause,
+            detail: "reset to wild-type",
+            ts: now
+        )
+        try event.insert(db)
         
         cache[id] = nil
         

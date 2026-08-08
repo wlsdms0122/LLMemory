@@ -275,38 +275,27 @@ public enum Ruleset {
     }
     
     static func listRulesets(_ db: Database) throws -> [Row] {
-        let rows = try GRDB.Row.fetchAll(db, sql: """
-            SELECT id, name, description FROM ruleset ORDER BY id
-            """)
-        
-        return rows.map { row in
-            Row(id: row["id"], name: row["name"], description: row["description"])
+        try RulesetRecord.order(Column("id")).fetchAll(db).map { record in
+            Row(id: record.id, name: record.name, description: record.description)
         }
     }
     
     static func getRuleset(_ db: Database, id: String) throws -> Row? {
-        guard let row = try GRDB.Row.fetchOne(
-            db,
-            sql: "SELECT id, name, description FROM ruleset WHERE id = ?",
-            arguments: [id]
-        ) else {
-            return nil
+        try RulesetRecord.fetchOne(db, key: id).map { record in
+            Row(id: record.id, name: record.name, description: record.description)
         }
-        
-        return Row(id: row["id"], name: row["name"], description: row["description"])
     }
     
     static func fetchRules(_ db: Database, rulesetId: String) throws -> [Rule] {
-        let rows = try GRDB.Row.fetchAll(db, sql: """
-            SELECT id, ruleset_id, kind, params FROM rule
-            WHERE ruleset_id = ? AND enabled = 1
-            ORDER BY id
-            """, arguments: [rulesetId])
+        let records = try RuleRecord
+            .filter(Column("ruleset_id") == rulesetId && Column("enabled") == true)
+            .order(Column("id"))
+            .fetchAll(db)
         
-        return try rows.map { row in
-            let id: Int64 = row["id"]
-            let rulesetId: String = row["ruleset_id"]
-            let paramsRaw: String = row["params"]
+        return try records.map { record in
+            let id = record.id
+            let rulesetId = record.rulesetId
+            let paramsRaw = record.params
             
             guard let data = paramsRaw.data(using: .utf8),
                 let parsed = try? JSONSerialization.jsonObject(with: data),
@@ -322,7 +311,7 @@ public enum Ruleset {
             return Rule(
                 id: id,
                 rulesetId: rulesetId,
-                kind: row["kind"],
+                kind: record.kind,
                 params: params,
                 paramsRaw: paramsRaw
             )
@@ -330,7 +319,7 @@ public enum Ruleset {
     }
     
     static func rulesetExists(_ db: Database, id: String) throws -> Bool {
-        try Int.fetchOne(db, sql: "SELECT 1 FROM ruleset WHERE id = ?", arguments: [id]) != nil
+        try RulesetRecord.exists(db, key: id)
     }
     
     // MARK: - Private
