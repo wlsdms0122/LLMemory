@@ -88,11 +88,12 @@ struct LayeringInvariantTests {
             """)
     }
 
-    @Test("the storage gates (connect/writeLock) are Module-internal")
+    @Test("the storage gates (connect/writeLock) have named owners only")
     func storageGatesStayInModule() {
         // When
+        let allowed = ["GRDBStorage.swift", "Session.swift", "Config.swift"]
         let violations = sources
-            .filter { file in !file.url.path.contains("/LLMemory/Module/") }
+            .filter { file in !allowed.contains(file.url.lastPathComponent) }
             .flatMap { file in
                 file.codeLines()
                     .filter { _, text in
@@ -103,8 +104,8 @@ struct LayeringInvariantTests {
 
         // Then
         #expect(violations.isEmpty, """
-            Direct storage gate outside Module — only the lifecycle boundary \
-            (Session.bootstrap) and the DB module may touch connect/writeLock:
+            Direct storage gate outside its owners — storage defines the gates, \
+            Session.bootstrap (lifecycle) and Config warming are the only users:
             \(violations.joined(separator: "\n"))
             """)
     }

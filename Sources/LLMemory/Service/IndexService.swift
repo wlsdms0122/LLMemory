@@ -39,7 +39,7 @@ public enum IndexService {
         try await storage.run(BuildVectorsTransaction())
     }
 
-    public static func verifySources(_ storage: GRDBStorage) async throws -> SourcesService.BulkVerifyResult {
+    public static func verifySources(_ storage: GRDBStorage) async throws -> NoteSources.BulkVerifyResult {
         try await storage.run(VerifySourcesTransaction())
     }
 

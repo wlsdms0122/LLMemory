@@ -108,7 +108,7 @@ struct SourceVerifyInvariantTests {
         
         try FileManager.default.removeItem(at: second)
         
-        _ = try queue.write { db in try SourcesService.bulkVerify(db, now: future) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db, now: future) }
         
         let after = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT source_stale FROM note_source WHERE note_id = 'src-1'") ?? -1
@@ -155,7 +155,7 @@ struct SourceVerifyInvariantTests {
         try "alpha-changed".write(to: older, atomically: true, encoding: .utf8)
         try fileManager.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_500_000)], ofItemAtPath: older.path)
         
-        _ = try queue.write { db in try SourcesService.bulkVerify(db) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db) }
         
         // When
         let stale = try queue.read { db in
@@ -201,7 +201,7 @@ struct SourceVerifyInvariantTests {
         // Then
         #expect(rows == 0, "URL/date/relative-only sources must not create a note_source row")
         
-        _ = try queue.write { db in try SourcesService.bulkVerify(db, now: 9_999_999_999) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db, now: 9_999_999_999) }
         
         let stale = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM note_source WHERE note_id = 'src-url' AND source_stale = 1") ?? -1
@@ -251,7 +251,7 @@ struct SourceVerifyInvariantTests {
         
         try FileManager.default.removeItem(at: grounding)
         
-        _ = try queue.write { db in try SourcesService.bulkVerify(db, now: 9_999_999_999) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db, now: 9_999_999_999) }
         
         let stale = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT source_stale FROM note_source WHERE note_id = 'src-mix'") ?? -1
@@ -280,7 +280,7 @@ struct SourceVerifyInvariantTests {
         
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try SourcesService.bulkVerify(db, now: 9_999_999_999) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db, now: 9_999_999_999) }
         
         #expect(try Self.sourceRow(queue, "src-keep")?.stale == 1)
         
@@ -312,7 +312,7 @@ struct SourceVerifyInvariantTests {
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
         // When
-        _ = try queue.write { db in try SourcesService.bulkVerify(db, now: 9_999_999_999) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db, now: 9_999_999_999) }
         
         // Then
         #expect(try Self.sourceRow(queue, "src-rb")?.stale == 1)
@@ -352,7 +352,7 @@ struct SourceVerifyInvariantTests {
         
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try SourcesService.bulkVerify(db, now: 9_999_999_999) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db, now: 9_999_999_999) }
         
         let before = try Self.sourceRow(queue, "src-ack")
         
@@ -404,7 +404,7 @@ struct SourceVerifyInvariantTests {
         try "one drifted".write(to: first, atomically: true, encoding: .utf8)
         
         // When
-        _ = try queue.write { db in try SourcesService.bulkVerify(db, now: 9_999_999_999) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db, now: 9_999_999_999) }
         
         // Then
         #expect(try Self.sourceRow(queue, "src-decl")?.stale == 1)
@@ -418,7 +418,7 @@ struct SourceVerifyInvariantTests {
         
         #expect(after?.stale == 0, "a new declaration is a new baseline — no inherited stale")
         
-        let expected = try queue.read { _ in SourcesService.computeFingerprint([second.path]) }
+        let expected = try queue.read { _ in NoteSources.computeFingerprint([second.path]) }
         
         #expect(after?.hash == expected, "baseline must be the new declaration's fingerprint")
     }
@@ -437,7 +437,7 @@ struct SourceVerifyInvariantTests {
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try SourcesService.bulkVerify(db, now: 9_999_999_999) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db, now: 9_999_999_999) }
         
         // When
         let parent = try Self.sourceRow(queue, "src-sp")
@@ -481,7 +481,7 @@ struct SourceVerifyInvariantTests {
         
         try "one drifted".write(to: first, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try SourcesService.bulkVerify(db, now: 9_999_999_999) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db, now: 9_999_999_999) }
         
         #expect(try Self.sourceRow(queue, "src-mi")?.stale == 1)
         
@@ -497,7 +497,7 @@ struct SourceVerifyInvariantTests {
         
         #expect(after?.stale == 0, "an authored declaration change re-baselines")
         
-        let expected = try queue.read { _ in SourcesService.computeFingerprint([second.path]) }
+        let expected = try queue.read { _ in NoteSources.computeFingerprint([second.path]) }
         
         #expect(after?.hash == expected, "baseline must be the merged declaration's fingerprint")
     }
@@ -515,7 +515,7 @@ struct SourceVerifyInvariantTests {
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try SourcesService.bulkVerify(db, now: 9_999_999_999) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db, now: 9_999_999_999) }
         
         // When
         let before = try Self.sourceRow(queue, "src-same")
@@ -548,7 +548,7 @@ struct SourceVerifyInvariantTests {
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try SourcesService.bulkVerify(db, now: 9_999_999_999) }
+        _ = try queue.write { db in try NoteSources.bulkVerify(db, now: 9_999_999_999) }
         
         // When
         let parent = try Self.sourceRow(queue, "src-rs")
@@ -608,7 +608,7 @@ struct SourceVerifyInvariantTests {
         
         #expect(violations.isEmpty, """
             re-baselining authority outside the ops handlers — the index pass may only project \
-            (SourcesService.projectRefs):
+            (NoteSources.projectRefs):
             \(violations.joined(separator: "\n"))
             """)
     }

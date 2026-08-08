@@ -78,53 +78,11 @@ public struct RecordRetrievalTransaction: GRDBWriteTransaction {
 }
 
 public extension RecordRetrievalTransaction {
-    struct Parameter: Sendable {
-        // MARK: - Property
-        public let sessionId: String?
-        public let activateIds: [String]
-        public let strengthenPairs: [Pair]
-        public let rebirthRanked: [Ranked]
-        public let payloadJSON: String
-
-        // MARK: - Initializer
-        init(
-            sessionId: String?,
-            activateIds: [String] = [],
-            strengthenPairs: [Pair] = [],
-            rebirthRanked: [Ranked] = [],
-            payloadJSON: String
-        ) {
-            self.sessionId = sessionId
-            self.activateIds = activateIds
-            self.strengthenPairs = strengthenPairs
-            self.rebirthRanked = rebirthRanked
-            self.payloadJSON = payloadJSON
-        }
-    }
-
-    struct Pair: Sendable {
-        // MARK: - Property
-        public let source: String
-        public let destination: String
-
-        // MARK: - Initializer
-        init(_ source: String, _ destination: String) {
-            self.source = source
-            self.destination = destination
-        }
-    }
-
-    struct Ranked: Sendable {
-        // MARK: - Property
-        public let id: String
-        public let factor: Double
-
-        // MARK: - Initializer
-        init(_ id: String, _ factor: Double) {
-            self.id = id
-            self.factor = factor
-        }
-    }
+    // The record is derived on the read path — the query tier owns its shape;
+    // this transaction adapts it as its parameter.
+    typealias Parameter = Retrieval.Record
+    typealias Pair = Retrieval.Record.Pair
+    typealias Ranked = Retrieval.Record.Ranked
 
     typealias Result = [String]
 }

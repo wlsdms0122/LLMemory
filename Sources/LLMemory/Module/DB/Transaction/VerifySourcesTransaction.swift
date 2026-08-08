@@ -20,11 +20,11 @@ public struct VerifySourcesTransaction: GRDBWriteTransaction {
 
     // MARK: - Private
     private func perform(_ connection: Connection) throws -> Result {
-        try connection.write { db in try SourcesService.bulkVerify(db) }
+        try connection.write { db in try NoteSources.bulkVerify(db) }
     }
 }
 
 public extension VerifySourcesTransaction {
     typealias Parameter = Void
-    typealias Result = SourcesService.BulkVerifyResult
+    typealias Result = NoteSources.BulkVerifyResult
 }

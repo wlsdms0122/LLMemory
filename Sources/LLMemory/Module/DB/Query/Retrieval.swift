@@ -10,7 +10,7 @@ import GRDB
 
 // Read-side retrieval mechanisms — pure functions of a reader connection.
 // Side effects are never applied here: mechanisms derive them as
-// `RecordRetrievalTransaction.Parameter` for the write path to apply.
+// `Retrieval.Record` for the write path to apply.
 public enum Retrieval {
     // MARK: - Property
     public static let candidateValidKinds = Candidates.validKinds
@@ -29,7 +29,7 @@ public enum Retrieval {
         includeStale: Bool,
         excludeAxes: [String],
         raw: Bool
-    ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote], record: RecordRetrievalTransaction.Parameter) {
+    ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote], record: Retrieval.Record) {
         try searchNotes(
             queue,
             query: query,
@@ -49,7 +49,7 @@ public enum Retrieval {
         kind: String?,
         cliSessionId: String,
         includeBodies: Bool
-    ) throws -> (result: Framing.RelatedResult, record: RecordRetrievalTransaction.Parameter) {
+    ) throws -> (result: Framing.RelatedResult, record: Retrieval.Record) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let snapshot = try Framing.snapshot(
             queue,
@@ -71,7 +71,7 @@ public enum Retrieval {
             }
         }
         
-        let record = RecordRetrievalTransaction.Parameter(
+        let record = Retrieval.Record(
             sessionId: sessionId,
             rebirthRanked: relatedRanked(snapshot: snapshot),
             payloadJSON: Events.retrievalPayloadJSON(cmd: "related", payload: [
@@ -88,7 +88,7 @@ public enum Retrieval {
         _ queue: any DatabaseReader,
         ids: [String],
         cliSessionId: String = ""
-    ) throws -> (found: [Reads.GetNote], missing: [String], record: RecordRetrievalTransaction.Parameter?) {
+    ) throws -> (found: [Reads.GetNote], missing: [String], record: Retrieval.Record?) {
         let byId = try queue.read { db in try Reads.catalog(db, ids: ids) }
         var found: [Reads.GetNote] = []
         var missing: [String] = []
@@ -118,7 +118,7 @@ public enum Retrieval {
             )
         }
         
-        let record: RecordRetrievalTransaction.Parameter? = found.isEmpty ? nil : .init(
+        let record: Retrieval.Record? = found.isEmpty ? nil : .init(
             sessionId: Env.retrievalSession(cli: cliSessionId),
             payloadJSON: Events.retrievalPayloadJSON(cmd: "get", payload: [
                 ("hit_ids", found.map { note in note.id })
@@ -132,7 +132,7 @@ public enum Retrieval {
         _ queue: any DatabaseReader,
         id: String,
         sections: [String]
-    ) throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice], record: RecordRetrievalTransaction.Parameter?) {
+    ) throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice], record: Retrieval.Record?) {
         let (found, missing, record) = try get(queue, ids: [id])
         
         guard let note = found.first else {
@@ -155,7 +155,7 @@ public enum Retrieval {
         _ queue: any DatabaseReader,
         id: String,
         budget: Int
-    ) throws -> (note: Reads.GetNote, record: RecordRetrievalTransaction.Parameter?, cut: Reads.BudgetCut) {
+    ) throws -> (note: Reads.GetNote, record: Retrieval.Record?, cut: Reads.BudgetCut) {
         let (found, missing, record) = try get(queue, ids: [id])
         
         guard let note = found.first else {
@@ -297,7 +297,7 @@ public enum Retrieval {
         ))
     }
     
-    static func toc(_ queue: any DatabaseReader, id: String) throws -> (note: Reads.GetNote, entries: [Reads.TocEntry], record: RecordRetrievalTransaction.Parameter?) {
+    static func toc(_ queue: any DatabaseReader, id: String) throws -> (note: Reads.GetNote, entries: [Reads.TocEntry], record: Retrieval.Record?) {
         let (found, missing, record) = try get(queue, ids: [id])
         
         guard let note = found.first else {
@@ -315,7 +315,7 @@ public enum Retrieval {
     static func template(
         _ queue: any DatabaseReader,
         id: String
-    ) throws -> (note: Reads.GetNote, frame: [Template.FrameNode], record: RecordRetrievalTransaction.Parameter?) {
+    ) throws -> (note: Reads.GetNote, frame: [Template.FrameNode], record: Retrieval.Record?) {
         let (found, missing, record) = try get(queue, ids: [id])
         
         guard let note = found.first else {
@@ -378,9 +378,9 @@ public enum Retrieval {
         id: String,
         k: Int,
         cliSessionId: String = ""
-    ) throws -> (scores: [Candidates.NeighborScore], record: RecordRetrievalTransaction.Parameter?) {
+    ) throws -> (scores: [Candidates.NeighborScore], record: Retrieval.Record?) {
         let scores = try queue.read { db in try Candidates.neighbors(db, noteId: id, k: k) }
-        let record: RecordRetrievalTransaction.Parameter? = scores.isEmpty ? nil : .init(
+        let record: Retrieval.Record? = scores.isEmpty ? nil : .init(
             sessionId: Env.retrievalSession(cli: cliSessionId),
             payloadJSON: Events.retrievalPayloadJSON(cmd: "neighbors", payload: [
                 ("anchor", id),
@@ -500,7 +500,7 @@ public enum Retrieval {
         excludeAxes: [String]? = nil,
         sinceTs: Int? = nil,
         raw: Bool = false
-    ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote], record: RecordRetrievalTransaction.Parameter) {
+    ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote], record: Retrieval.Record) {
         let rows: [Search.SearchRow] = try queue.read { db in
             try Search.fts(
                 db,
@@ -537,7 +537,7 @@ public enum Retrieval {
             ("hit_ids", rows.map { row in row.id }),
             ("expand_ids", extra.map { note in note.id })
         ]
-        let record = RecordRetrievalTransaction.Parameter(
+        let record = Retrieval.Record(
             sessionId: sessionId,
             activateIds: hitIds,
             strengthenPairs: cooccurrencePairs(hitIds),
@@ -551,7 +551,7 @@ public enum Retrieval {
         // MARK: - Private
     // Pure derivations of the retrieval side effects — applied later by
     // RecordRetrievalTransaction on the write path.
-    private static func cooccurrencePairs(_ ids: [String]) -> [RecordRetrievalTransaction.Pair] {
+    private static func cooccurrencePairs(_ ids: [String]) -> [Retrieval.Record.Pair] {
         var seen = Set<String>()
         var unique: [String] = []
         
@@ -562,11 +562,11 @@ public enum Retrieval {
         
         if unique.count < 2 || unique.count > 8 { return [] }
         
-        var pairs: [RecordRetrievalTransaction.Pair] = []
+        var pairs: [Retrieval.Record.Pair] = []
         
         for left in 0..<unique.count {
             for right in (left + 1)..<unique.count {
-                pairs.append(RecordRetrievalTransaction.Pair(unique[left], unique[right]))
+                pairs.append(Retrieval.Record.Pair(unique[left], unique[right]))
             }
         }
         
@@ -576,35 +576,35 @@ public enum Retrieval {
     private static func searchRanked(
         rows: [Search.SearchRow],
         extra: [Links.ExpandedNote]
-    ) -> [RecordRetrievalTransaction.Ranked] {
+    ) -> [Retrieval.Record.Ranked] {
         let boost = Genome.double("rebirth.search_boost")
-        var ranked: [RecordRetrievalTransaction.Ranked] = []
+        var ranked: [Retrieval.Record.Ranked] = []
         
         for (index, row) in rows.enumerated() {
-            ranked.append(RecordRetrievalTransaction.Ranked(row.id, 1.0 + boost / Double(index + 1)))
+            ranked.append(Retrieval.Record.Ranked(row.id, 1.0 + boost / Double(index + 1)))
         }
         
         let base = rows.count
         
         for (index, note) in extra.enumerated() {
-            ranked.append(RecordRetrievalTransaction.Ranked(note.id, 1.0 + boost / Double(base + index + 1)))
+            ranked.append(Retrieval.Record.Ranked(note.id, 1.0 + boost / Double(base + index + 1)))
         }
         
         return ranked
     }
     
-    private static func relatedRanked(snapshot: Framing.Snapshot) -> [RecordRetrievalTransaction.Ranked] {
+    private static func relatedRanked(snapshot: Framing.Snapshot) -> [Retrieval.Record.Ranked] {
         let boost = Genome.double("rebirth.related_boost")
-        var ranked: [RecordRetrievalTransaction.Ranked] = []
+        var ranked: [Retrieval.Record.Ranked] = []
         
         for (index, note) in snapshot.similar.enumerated() {
-            ranked.append(RecordRetrievalTransaction.Ranked(note.id, 1.0 + boost / Double(index + 1)))
+            ranked.append(Retrieval.Record.Ranked(note.id, 1.0 + boost / Double(index + 1)))
         }
         
         let baseRank = snapshot.similar.count
         
         for (index, note) in snapshot.linked.enumerated() {
-            ranked.append(RecordRetrievalTransaction.Ranked(note.id, 1.0 + boost / Double(baseRank + index + 1)))
+            ranked.append(Retrieval.Record.Ranked(note.id, 1.0 + boost / Double(baseRank + index + 1)))
         }
         
         return ranked
@@ -659,6 +659,61 @@ public enum Retrieval {
         
         default:
             return .split([])
+        }
+    }
+}
+
+public extension Retrieval {
+    // The retrieval side effects, derived as data on the read path — usage
+    // activation, co-occurrence pairs, rebirth ranking and the retrieval event
+    // payload. The write path (RecordRetrievalTransaction) applies it.
+    struct Record: Sendable {
+        // MARK: - Property
+        public let sessionId: String?
+        public let activateIds: [String]
+        public let strengthenPairs: [Pair]
+        public let rebirthRanked: [Ranked]
+        public let payloadJSON: String
+
+        // MARK: - Initializer
+        init(
+            sessionId: String?,
+            activateIds: [String] = [],
+            strengthenPairs: [Pair] = [],
+            rebirthRanked: [Ranked] = [],
+            payloadJSON: String
+        ) {
+            self.sessionId = sessionId
+            self.activateIds = activateIds
+            self.strengthenPairs = strengthenPairs
+            self.rebirthRanked = rebirthRanked
+            self.payloadJSON = payloadJSON
+        }
+    }
+}
+
+public extension Retrieval.Record {
+    struct Pair: Sendable {
+        // MARK: - Property
+        public let source: String
+        public let destination: String
+
+        // MARK: - Initializer
+        init(_ source: String, _ destination: String) {
+            self.source = source
+            self.destination = destination
+        }
+    }
+
+    struct Ranked: Sendable {
+        // MARK: - Property
+        public let id: String
+        public let factor: Double
+
+        // MARK: - Initializer
+        init(_ id: String, _ factor: Double) {
+            self.id = id
+            self.factor = factor
         }
     }
 }

@@ -42,8 +42,8 @@ struct FrontmatterSourceOptionalityTests {
     
     @Test("an empty declaration hashes to nothing, exactly as an absent one does")
     func emptyDeclarationHashesToNothingJustLikeAbsent() {
-        #expect(SourcesService.computeFingerprint([]) == nil)
-        #expect(SourcesService.computeDeclHash([]) == nil)
+        #expect(NoteSources.computeFingerprint([]) == nil)
+        #expect(NoteSources.computeDeclHash([]) == nil)
     }
     
     @Test("a split child inherits an empty basis without inventing a key for it")

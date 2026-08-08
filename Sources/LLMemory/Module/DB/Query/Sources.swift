@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 import CryptoKit
 
-public enum SourcesService {
+public enum NoteSources {
     struct SourceState {
         // MARK: - Property
         let noteId: String

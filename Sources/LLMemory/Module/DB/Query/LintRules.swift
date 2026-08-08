@@ -656,7 +656,7 @@ struct StaleSourceRule: NoteLintRule {
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintEngine.Finding] {
         note.doc.source
             .filter { source in
-                SourcesService.isDriftCheckable(source)
+                NoteSources.isDriftCheckable(source)
                     && !FileManager.default.fileExists(
                         atPath: (source as NSString).expandingTildeInPath
                     )
