@@ -35,5 +35,5 @@ public extension TemplateFrameTransaction {
         }
     }
 
-    typealias Result = (note: Reads.GetNote, frame: [Template.FrameNode])
+    typealias Result = (note: Reads.GetNote, frame: [Template.FrameNode], record: RecordRetrievalTransaction.Parameter?)
 }

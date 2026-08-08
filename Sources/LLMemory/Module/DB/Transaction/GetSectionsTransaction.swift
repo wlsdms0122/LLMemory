@@ -37,5 +37,5 @@ public extension GetSectionsTransaction {
         }
     }
 
-    typealias Result = (note: Reads.GetNote, slices: [Reads.SectionSlice])
+    typealias Result = (note: Reads.GetNote, slices: [Reads.SectionSlice], record: RecordRetrievalTransaction.Parameter?)
 }

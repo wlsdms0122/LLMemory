@@ -29,28 +29,40 @@ public struct RecordRetrievalTransaction: GRDBWriteTransaction {
 
     // MARK: - Internal
     // Sync body — also the direct surface for synchronous unit tests.
+    // Usage activation is the one mandatory state transition (fail-loud, as before
+    // the split); strengthening and rebirth are advisory learning signals and the
+    // event is a trace — those stay best-effort, surfaced through the result.
     func perform(_ connection: Connection) throws -> Result {
         let now = Int(Date().timeIntervalSince1970)
+        var degraded: [String] = []
 
         if !parameter.activateIds.isEmpty {
-            try? connection.write { db in
+            try connection.write { db in
                 try Notes.activate(db, ids: parameter.activateIds, now: now)
             }
         }
 
         if !parameter.strengthenPairs.isEmpty {
-            _ = try? Links.strengthen(
-                connection,
-                pairs: parameter.strengthenPairs.map { pair in (pair.source, pair.destination) },
-                cap: 1.0
-            )
+            do {
+                _ = try Links.strengthen(
+                    connection,
+                    pairs: parameter.strengthenPairs.map { pair in (pair.source, pair.destination) },
+                    cap: 1.0
+                )
+            } catch {
+                degraded.append("strengthen: \(error)")
+            }
         }
 
         if parameter.rebirthRanked.count >= 2 {
-            _ = try? Links.rebirth(
-                connection,
-                rankedIds: parameter.rebirthRanked.map { ranked in (ranked.id, ranked.factor) }
-            )
+            do {
+                _ = try Links.rebirth(
+                    connection,
+                    rankedIds: parameter.rebirthRanked.map { ranked in (ranked.id, ranked.factor) }
+                )
+            } catch {
+                degraded.append("rebirth: \(error)")
+            }
         }
 
         Events.record(
@@ -60,6 +72,8 @@ public struct RecordRetrievalTransaction: GRDBWriteTransaction {
             sessionId: parameter.sessionId,
             ts: now
         )
+
+        return degraded
     }
 }
 
@@ -112,5 +126,5 @@ public extension RecordRetrievalTransaction {
         }
     }
 
-    typealias Result = Void
+    typealias Result = [String]
 }

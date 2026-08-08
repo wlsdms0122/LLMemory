@@ -446,7 +446,7 @@ struct TemplateTests {
         // Then
         #expect(makeTemplate().status == "ok")
         
-        let (note, frame) = try Retrieval.template(home.database(), id: "tpl-spec")
+        let (note, frame, _) = try Retrieval.template(home.database(), id: "tpl-spec")
         
         #expect(note.id == "tpl-spec")
         #expect(frame.map(\.title) == ["Background", "Spec", "Reference"])

@@ -37,5 +37,5 @@ public extension GetBudgetTransaction {
         }
     }
 
-    typealias Result = (note: Reads.GetNote, cut: Reads.BudgetCut)
+    typealias Result = (note: Reads.GetNote, record: RecordRetrievalTransaction.Parameter?, cut: Reads.BudgetCut)
 }

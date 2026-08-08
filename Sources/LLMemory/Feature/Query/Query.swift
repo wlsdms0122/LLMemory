@@ -47,7 +47,7 @@ public struct QueryFeature {
             )
         )
         
-        try? await session.storage.run(RecordRetrievalTransaction(outcome.record))
+        try await applyRecord(outcome.record)
         
         return (outcome.rows, outcome.extra)
     }
@@ -69,9 +69,14 @@ public struct QueryFeature {
             )
         )
         
-        try? await session.storage.run(RecordRetrievalTransaction(outcome.record))
+        let degraded = try await applyRecord(outcome.record)
         
-        return outcome.result
+        guard !degraded.isEmpty else { return outcome.result }
+        
+        var snapshot = outcome.result.snapshot
+        snapshot.degraded.append(contentsOf: degraded)
+        
+        return Framing.RelatedResult(snapshot: snapshot, bodies: outcome.result.bodies)
     }
 
     public func get(
@@ -87,9 +92,7 @@ public struct QueryFeature {
             )
         )
         
-        if let record = outcome.record {
-            try? await session.storage.run(RecordRetrievalTransaction(record))
-        }
+        try await applyRecord(outcome.record)
         
         return (outcome.found, outcome.missing)
     }
@@ -98,7 +101,7 @@ public struct QueryFeature {
         id: String,
         sections: [String]
     ) async throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice]) {
-        try await session.storage.run(
+        let outcome = try await session.storage.run(
             GetSectionsTransaction(
                 .init(
                     id: id,
@@ -106,13 +109,17 @@ public struct QueryFeature {
                 )
             )
         )
+        
+        try await applyRecord(outcome.record)
+        
+        return (outcome.note, outcome.slices)
     }
 
     public func getBudget(
         id: String,
         budget: Int
     ) async throws -> (note: Reads.GetNote, cut: Reads.BudgetCut) {
-        try await session.storage.run(
+        let outcome = try await session.storage.run(
             GetBudgetTransaction(
                 .init(
                     id: id,
@@ -120,30 +127,42 @@ public struct QueryFeature {
                 )
             )
         )
+        
+        try await applyRecord(outcome.record)
+        
+        return (outcome.note, outcome.cut)
     }
 
     public func toc(
         id: String
     ) async throws -> (note: Reads.GetNote, entries: [Reads.TocEntry]) {
-        try await session.storage.run(
+        let outcome = try await session.storage.run(
             NoteTocTransaction(
                 .init(
                     id: id
                 )
             )
         )
+        
+        try await applyRecord(outcome.record)
+        
+        return (outcome.note, outcome.entries)
     }
 
     public func template(
         id: String
     ) async throws -> (note: Reads.GetNote, frame: [Template.FrameNode]) {
-        try await session.storage.run(
+        let outcome = try await session.storage.run(
             TemplateFrameTransaction(
                 .init(
                     id: id
                 )
             )
         )
+        
+        try await applyRecord(outcome.record)
+        
+        return (outcome.note, outcome.frame)
     }
 
     public func metaById(
@@ -223,9 +242,7 @@ public struct QueryFeature {
             )
         )
         
-        if let record = outcome.record {
-            try? await session.storage.run(RecordRetrievalTransaction(record))
-        }
+        try await applyRecord(outcome.record)
         
         return outcome.scores
     }
@@ -331,4 +348,13 @@ public struct QueryFeature {
     }
 
     // MARK: - Private
+    // The one place read-derived side effects get applied — surfaces never juggle
+    // the record by hand. Throws when the mandatory state transition (activation)
+    // fails; advisory failures come back as degraded notes.
+    @discardableResult
+    private func applyRecord(_ record: RecordRetrievalTransaction.Parameter?) async throws -> [String] {
+        guard let record else { return [] }
+
+        return try await session.storage.run(RecordRetrievalTransaction(record))
+    }
 }

@@ -35,5 +35,5 @@ public extension NoteTocTransaction {
         }
     }
 
-    typealias Result = (note: Reads.GetNote, entries: [Reads.TocEntry])
+    typealias Result = (note: Reads.GetNote, entries: [Reads.TocEntry], record: RecordRetrievalTransaction.Parameter?)
 }

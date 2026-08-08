@@ -132,8 +132,8 @@ public enum Retrieval {
         _ queue: any DatabaseReader,
         id: String,
         sections: [String]
-    ) throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice]) {
-        let (found, missing, _) = try get(queue, ids: [id])
+    ) throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice], record: RecordRetrievalTransaction.Parameter?) {
+        let (found, missing, record) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -148,15 +148,15 @@ public enum Retrieval {
             slices.append(Reads.SectionSlice(path: path.display(), text: text))
         }
         
-        return (note, slices)
+        return (note, slices, record)
     }
     
     static func getBudget(
         _ queue: any DatabaseReader,
         id: String,
         budget: Int
-    ) throws -> (note: Reads.GetNote, cut: Reads.BudgetCut) {
-        let (found, missing, _) = try get(queue, ids: [id])
+    ) throws -> (note: Reads.GetNote, record: RecordRetrievalTransaction.Parameter?, cut: Reads.BudgetCut) {
+        let (found, missing, record) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -227,7 +227,7 @@ public enum Retrieval {
             let shown = lines[..<cut].joined(separator: "\n")
             let name = prefix.isEmpty ? "(preamble)" : prefix
             
-            return (note, Reads.BudgetCut(
+            return (note, record, Reads.BudgetCut(
                 shown: shown,
                 shownSections: [],
                 omitted: tops.map { top in
@@ -263,7 +263,7 @@ public enum Retrieval {
         }
         
         guard let cut = cutAt else {
-            return (note, Reads.BudgetCut(
+            return (note, record, Reads.BudgetCut(
                 shown: body,
                 shownSections: shownSections,
                 omitted: [],
@@ -277,7 +277,7 @@ public enum Retrieval {
             let end = linePrefix(of: first.start..<first.end, cap: budget)
             let shown = lines[..<end].joined(separator: "\n")
             
-            return (note, Reads.BudgetCut(
+            return (note, record, Reads.BudgetCut(
                 shown: shown,
                 shownSections: [],
                 omitted: Array(omitted.dropFirst()),
@@ -287,7 +287,7 @@ public enum Retrieval {
             ))
         }
         
-        return (note, Reads.BudgetCut(
+        return (note, record, Reads.BudgetCut(
             shown: lines[..<cut].joined(separator: "\n"),
             shownSections: shownSections,
             omitted: omitted,
@@ -297,8 +297,8 @@ public enum Retrieval {
         ))
     }
     
-    static func toc(_ queue: any DatabaseReader, id: String) throws -> (note: Reads.GetNote, entries: [Reads.TocEntry]) {
-        let (found, missing, _) = try get(queue, ids: [id])
+    static func toc(_ queue: any DatabaseReader, id: String) throws -> (note: Reads.GetNote, entries: [Reads.TocEntry], record: RecordRetrievalTransaction.Parameter?) {
+        let (found, missing, record) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -309,20 +309,20 @@ public enum Retrieval {
             Reads.TocEntry(path: row.path, words: SectionEdit.wordCount(row.text))
         }
         
-        return (note, entries)
+        return (note, entries, record)
     }
     
     static func template(
         _ queue: any DatabaseReader,
         id: String
-    ) throws -> (note: Reads.GetNote, frame: [Template.FrameNode]) {
-        let (found, missing, _) = try get(queue, ids: [id])
+    ) throws -> (note: Reads.GetNote, frame: [Template.FrameNode], record: RecordRetrievalTransaction.Parameter?) {
+        let (found, missing, record) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
         }
         
-        return (note, Template.parseFrame(note.body))
+        return (note, Template.parseFrame(note.body), record)
     }
     
     static func metaById(

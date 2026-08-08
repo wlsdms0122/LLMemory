@@ -88,6 +88,10 @@ public struct Index {
         let result = try session.storage.writeLock { () -> Indexer.BuildResult in
             try session.storage.initialize()
 
+            // The constructor may have warmed against a database that was not
+            // there yet — re-warm before anything below reads the caches.
+            session.rewarm()
+
             let queue = try session.storage.connect()
             let built = try Indexer.buildLocked(queue, rebuild: false)
 
@@ -95,9 +99,6 @@ public struct Index {
 
             return built
         }
-
-        // The session may have warmed its caches before this database existed or migrated.
-        session.rewarm()
         
         try Guide.markdown.write(
             to: Paths.brainRoot.appendingPathComponent("README.md"),
@@ -145,6 +146,10 @@ public struct Index {
             // is carried forward here, before anything else touches the connection.
             try session.storage.initialize()
 
+            // The constructor may have warmed against a database that was not
+            // there yet — re-warm before anything below reads the caches.
+            session.rewarm()
+
             let queue = try session.storage.connect()
             let built = try Indexer.buildLocked(queue, rebuild: false)
 
@@ -152,9 +157,6 @@ public struct Index {
 
             return built
         }
-
-        // The session may have warmed its caches before this database existed or migrated.
-        session.rewarm()
 
         try Guide.markdown.write(
             to: Paths.brainRoot.appendingPathComponent("README.md"),
