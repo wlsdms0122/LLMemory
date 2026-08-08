@@ -45,18 +45,31 @@ enum Events {
         }
     }
     
-    static func recordRetrieval(
+    static func record(
         _ queue: any DatabaseWriter,
-        cmd: String,
-        payload: [(String, Any?)],
-        sessionId: String? = nil
+        kind: String,
+        payloadJSON: String,
+        sessionId: String? = nil,
+        ts: Int? = nil
     ) {
+        let timestamp = ts ?? Int(Date().timeIntervalSince1970)
+        var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId, payload: payloadJSON)
+        
+        try? queue.write { db in
+            try record.insert(db)
+        }
+    }
+    
+    // Pre-serialization for retrieval side effects derived on the read path and
+    // applied later by a write transaction.
+    static func retrievalPayloadJSON(cmd: String, payload: [(String, Any?)]) -> String {
         var fields: [String: Any?] = ["cmd": cmd]
         
         for (key, value) in payload { fields[key] = value }
         
-        record(queue, kind: kindRetrieval, payload: fields, sessionId: sessionId)
+        return serializePayload(fields)
     }
+    
     
     // MARK: - Private
     private static func serializePayload(_ payload: [String: Any?]) -> String {

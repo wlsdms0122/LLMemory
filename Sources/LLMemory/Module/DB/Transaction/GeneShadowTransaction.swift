@@ -113,8 +113,7 @@ public struct GeneShadowTransaction: GRDBTransaction {
                     connection,
                     userInput: loggedQuery.text,
                     agentOutput: "",
-                    sessionId: loggedQuery.sessionId,
-                    dryRun: true
+                    sessionId: loggedQuery.sessionId
                 )
                 
                 return snapshot.similar.map { note in note.id }

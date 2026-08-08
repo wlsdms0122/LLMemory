@@ -41,5 +41,5 @@ public extension RelatedNotesTransaction {
         }
     }
 
-    typealias Result = QueryFeature.RelatedResult
+    typealias Result = (result: QueryFeature.RelatedResult, record: RecordRetrievalTransaction.Parameter)
 }

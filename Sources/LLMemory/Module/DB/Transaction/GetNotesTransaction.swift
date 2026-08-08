@@ -37,5 +37,5 @@ public extension GetNotesTransaction {
         }
     }
 
-    typealias Result = (found: [QueryFeature.GetNote], missing: [String])
+    typealias Result = (found: [QueryFeature.GetNote], missing: [String], record: RecordRetrievalTransaction.Parameter?)
 }

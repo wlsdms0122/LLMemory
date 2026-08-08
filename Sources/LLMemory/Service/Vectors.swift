@@ -239,7 +239,7 @@ public enum Vectors {
     }
     
     static func expand(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         seedIds: [String],
         limit: Int = 10,
         excludeIds: Set<String> = []

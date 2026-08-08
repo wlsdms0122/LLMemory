@@ -49,5 +49,5 @@ public extension SearchNotesTransaction {
         }
     }
 
-    typealias Result = (rows: [Search.SearchRow], extra: [Links.ExpandedNote])
+    typealias Result = (rows: [Search.SearchRow], extra: [Links.ExpandedNote], record: RecordRetrievalTransaction.Parameter)
 }

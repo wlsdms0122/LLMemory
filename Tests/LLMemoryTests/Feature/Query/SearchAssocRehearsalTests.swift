@@ -39,7 +39,9 @@ struct SearchAssocRehearsalTests {
         #expect(try assocWeight(between: "areh-a", and: "areh-b") == 0.5)
         
         // When
-        _ = try QueryFeature.searchNotes(home.database(), query: "zephyrquasar", limit: 5)
+        let outcome = try QueryFeature.searchNotes(home.database(), query: "zephyrquasar", limit: 5)
+        
+        try RecordRetrievalTransaction(outcome.record).perform(home.database())
         
         // Then
         #expect(try assocWeight(between: "areh-a", and: "areh-b") ?? 0 > 0.5,

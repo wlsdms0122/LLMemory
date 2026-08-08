@@ -152,7 +152,7 @@ public enum Links {
         )
     }
     
-    static func distribution(_ queue: any DatabaseWriter) throws -> Distribution {
+    static func distribution(_ queue: any DatabaseReader) throws -> Distribution {
         return try queue.read { db in
             let byKindRows = try Row.fetchAll(db, sql: """
                 SELECT kind, COUNT(*) AS c, MIN(weight) AS mn, AVG(weight) AS av, MAX(weight) AS mx
@@ -426,7 +426,7 @@ public enum Links {
     }
     
     static func neighbors(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         noteId: String,
         minWeight: Double? = nil,
         limit: Int = 5,
@@ -470,7 +470,7 @@ public enum Links {
     }
     
     static func expand(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         noteIds: [String],
         hops: Int = 1,
         minWeight: Double? = nil,

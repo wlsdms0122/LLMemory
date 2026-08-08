@@ -167,34 +167,25 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     }
 
     @discardableResult
-    public func run<T: DBTransaction>(_ transaction: T) async throws -> T.Result where T.Connection == Connection {
-        storage(self, willRun: transaction)
+    public func run<T: GRDBWriteTransaction>(_ transaction: T) async throws -> T.Result {
+        let connection = try connect()
+
+        try acquireLock()
 
         do {
-            let connection = try connect()
-            let result: T.Result
-
-            if transaction is any GRDBWriteTransaction {
-                try acquireLock()
-
-                do {
-                    result = try await transaction.execute(connection)
-                    releaseLock()
-                } catch {
-                    releaseLock()
-                    throw error
-                }
-            } else {
-                result = try await transaction.execute(connection)
-            }
-
-            storage(self, didRun: transaction, withResult: .success(result))
+            let result = try await transaction.execute(connection)
+            releaseLock()
 
             return result
         } catch {
-            storage(self, didRun: transaction, withResult: .failure(error))
+            releaseLock()
             throw error
         }
+    }
+
+    @discardableResult
+    public func run<T: GRDBTransaction>(_ transaction: T) async throws -> T.Result {
+        try await transaction.execute(try connect())
     }
 
     // Interim direct-write surface for callers not yet converted to transactions.

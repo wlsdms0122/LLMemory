@@ -217,14 +217,13 @@ public enum Framing {
     }
     
     static func snapshot(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         userInput: String,
         agentOutput: String,
         similarLimit: Int? = nil,
         expandHops: Int? = nil,
         linkKind: String? = nil,
-        sessionId: String? = nil,
-        dryRun: Bool = false
+        sessionId: String? = nil
     ) throws -> Snapshot {
         let similarLimit = similarLimit ?? Genome.int("related.similar_limit")
         let expandHops = expandHops ?? Genome.int("related.expand_hops")
@@ -285,27 +284,6 @@ public enum Framing {
                 )
             } catch {
                 degraded.append("vector_linked: \(error)")
-            }
-        }
-        
-        let boost = Genome.double("rebirth.related_boost")
-        var ranked: [(String, Double)] = []
-        
-        for (index, note) in similarNotes.enumerated() {
-            ranked.append((note.id, 1.0 + boost / Double(index + 1)))
-        }
-        
-        let baseRank = similarNotes.count
-        
-        for (index, note) in linked.enumerated() {
-            ranked.append((note.id, 1.0 + boost / Double(baseRank + index + 1)))
-        }
-        
-        if !dryRun && ranked.count >= 2 {
-            do {
-                _ = try Links.rebirth(queue, rankedIds: ranked)
-            } catch {
-                degraded.append("rebirth: \(error)")
             }
         }
         

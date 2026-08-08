@@ -212,7 +212,7 @@ public struct Index {
 
     }
 
-    static func check(_ queue: any DatabaseWriter, level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
+    static func check(_ queue: any DatabaseReader, level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
         try check(queue, rawLevel: level.rawValue)
     }
 
@@ -441,7 +441,7 @@ public struct Index {
     }
     
     // MARK: - Private
-    static func check(_ queue: any DatabaseWriter, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
+    static func check(_ queue: any DatabaseReader, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
         let eagerCap = Config.getInt("eager.max_count", default: 20)
         
         return try queue.read { db in

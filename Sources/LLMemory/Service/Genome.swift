@@ -218,7 +218,7 @@ public enum Genome {
         }
     }
     
-    static func warmCache(_ queue: any DatabaseWriter) {
+    static func warmCache(_ queue: any DatabaseReader) {
         cache.removeAll()
         
         if let rows = try? queue.read({ db in

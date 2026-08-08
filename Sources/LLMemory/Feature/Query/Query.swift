@@ -149,7 +149,7 @@ public struct QueryFeature {
         excludeAxes: [String],
         raw: Bool
     ) async throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
-        try await session.storage.run(
+        let outcome = try await session.storage.run(
             SearchNotesTransaction(
                 .init(
                     query: query,
@@ -163,6 +163,10 @@ public struct QueryFeature {
                 )
             )
         )
+        
+        try? await session.storage.run(RecordRetrievalTransaction(outcome.record))
+        
+        return (outcome.rows, outcome.extra)
     }
 
     public func related(
@@ -171,7 +175,7 @@ public struct QueryFeature {
         cliSessionId: String,
         includeBodies: Bool
     ) async throws -> RelatedResult {
-        try await session.storage.run(
+        let outcome = try await session.storage.run(
             RelatedNotesTransaction(
                 .init(
                     text: text,
@@ -181,13 +185,17 @@ public struct QueryFeature {
                 )
             )
         )
+        
+        try? await session.storage.run(RecordRetrievalTransaction(outcome.record))
+        
+        return outcome.result
     }
 
     public func get(
         ids: [String],
         cliSessionId: String = ""
     ) async throws -> (found: [GetNote], missing: [String]) {
-        try await session.storage.run(
+        let outcome = try await session.storage.run(
             GetNotesTransaction(
                 .init(
                     ids: ids,
@@ -195,6 +203,12 @@ public struct QueryFeature {
                 )
             )
         )
+        
+        if let record = outcome.record {
+            try? await session.storage.run(RecordRetrievalTransaction(record))
+        }
+        
+        return (outcome.found, outcome.missing)
     }
 
     public func getSections(
@@ -316,7 +330,7 @@ public struct QueryFeature {
         k: Int,
         cliSessionId: String = ""
     ) async throws -> [Candidates.NeighborScore] {
-        try await session.storage.run(
+        let outcome = try await session.storage.run(
             NeighborsTransaction(
                 .init(
                     id: id,
@@ -325,6 +339,12 @@ public struct QueryFeature {
                 )
             )
         )
+        
+        if let record = outcome.record {
+            try? await session.storage.run(RecordRetrievalTransaction(record))
+        }
+        
+        return outcome.scores
     }
 
     public func noteStats(
@@ -428,7 +448,7 @@ public struct QueryFeature {
     }
 
     static func search(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         query: String,
         axis: String?,
         limit: Int,
@@ -437,8 +457,8 @@ public struct QueryFeature {
         includeStale: Bool,
         excludeAxes: [String],
         raw: Bool
-    ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
-        return try searchNotes(
+    ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote], record: RecordRetrievalTransaction.Parameter) {
+        try searchNotes(
             queue,
             query: query,
             axis: axis,
@@ -452,29 +472,18 @@ public struct QueryFeature {
     }
     
     static func related(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         text: String,
         kind: String?,
         cliSessionId: String,
         includeBodies: Bool
-    ) throws -> RelatedResult {
+    ) throws -> (result: RelatedResult, record: RecordRetrievalTransaction.Parameter) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let snapshot = try Framing.snapshot(
             queue,
             userInput: text,
             agentOutput: "",
             linkKind: kind,
-            sessionId: sessionId
-        )
-        
-        Events.recordRetrieval(
-            queue,
-            cmd: "related",
-            payload: [
-                ("text", String(text.prefix(200))),
-                ("hit_ids", snapshot.similar.map { note in note.id }),
-                ("expand_ids", snapshot.linked.map { note in note.id })
-            ],
             sessionId: sessionId
         )
         
@@ -490,15 +499,25 @@ public struct QueryFeature {
             }
         }
         
-        return RelatedResult(snapshot: snapshot, bodies: bodies)
+        let record = RecordRetrievalTransaction.Parameter(
+            sessionId: sessionId,
+            rebirthRanked: relatedRanked(snapshot: snapshot),
+            payloadJSON: Events.retrievalPayloadJSON(cmd: "related", payload: [
+                ("text", String(text.prefix(200))),
+                ("hit_ids", snapshot.similar.map { note in note.id }),
+                ("expand_ids", snapshot.linked.map { note in note.id })
+            ])
+        )
+        
+        return (RelatedResult(snapshot: snapshot, bodies: bodies), record)
     }
     
-    static func get(
-        _ queue: any DatabaseWriter,
+        static func get(
+        _ queue: any DatabaseReader,
         ids: [String],
         cliSessionId: String = ""
-    ) throws -> (found: [GetNote], missing: [String]) {
-                let byId = try queue.read { db in try Reads.catalog(db, ids: ids) }
+    ) throws -> (found: [GetNote], missing: [String], record: RecordRetrievalTransaction.Parameter?) {
+        let byId = try queue.read { db in try Reads.catalog(db, ids: ids) }
         var found: [GetNote] = []
         var missing: [String] = []
         
@@ -527,24 +546,22 @@ public struct QueryFeature {
             )
         }
         
-        if !found.isEmpty {
-            Events.recordRetrieval(
-                queue,
-                cmd: "get",
-                payload: [("hit_ids", found.map { note in note.id })],
-                sessionId: Env.retrievalSession(cli: cliSessionId)
-            )
-        }
+        let record: RecordRetrievalTransaction.Parameter? = found.isEmpty ? nil : .init(
+            sessionId: Env.retrievalSession(cli: cliSessionId),
+            payloadJSON: Events.retrievalPayloadJSON(cmd: "get", payload: [
+                ("hit_ids", found.map { note in note.id })
+            ])
+        )
         
-        return (found, missing)
+        return (found, missing, record)
     }
     
-    static func getSections(
-        _ queue: any DatabaseWriter,
+        static func getSections(
+        _ queue: any DatabaseReader,
         id: String,
         sections: [String]
     ) throws -> (note: GetNote, slices: [SectionSlice]) {
-        let (found, missing) = try get(queue, ids: [id])
+        let (found, missing, _) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -563,11 +580,11 @@ public struct QueryFeature {
     }
     
     static func getBudget(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         id: String,
         budget: Int
     ) throws -> (note: GetNote, cut: BudgetCut) {
-        let (found, missing) = try get(queue, ids: [id])
+        let (found, missing, _) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -708,8 +725,8 @@ public struct QueryFeature {
         ))
     }
     
-    static func toc(_ queue: any DatabaseWriter, id: String) throws -> (note: GetNote, entries: [TocEntry]) {
-        let (found, missing) = try get(queue, ids: [id])
+    static func toc(_ queue: any DatabaseReader, id: String) throws -> (note: GetNote, entries: [TocEntry]) {
+        let (found, missing, _) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -724,10 +741,10 @@ public struct QueryFeature {
     }
     
     static func template(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         id: String
     ) throws -> (note: GetNote, frame: [Template.FrameNode]) {
-        let (found, missing) = try get(queue, ids: [id])
+        let (found, missing, _) = try get(queue, ids: [id])
         
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -737,7 +754,7 @@ public struct QueryFeature {
     }
     
     static func metaById(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         noteId: String,
         namespace: String?
     ) throws -> [String: [String: String]] {
@@ -747,7 +764,7 @@ public struct QueryFeature {
     }
     
     static func metaByKV(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         namespace: String,
         key: String,
         value: String?,
@@ -764,15 +781,15 @@ public struct QueryFeature {
         }
     }
     
-    static func entity(_ queue: any DatabaseWriter, name: String?, limit: Int) throws -> [Reads.EntityHit] {
+    static func entity(_ queue: any DatabaseReader, name: String?, limit: Int) throws -> [Reads.EntityHit] {
         return try queue.read { db in try Reads.entityLookup(db, name: name, limit: limit) }
     }
     
-    static func listAxes(_ queue: any DatabaseWriter) throws -> [(axis: String, description: String?, count: Int)] {
+    static func listAxes(_ queue: any DatabaseReader) throws -> [(axis: String, description: String?, count: Int)] {
         try axesWithCounts(queue)
     }
     
-    static func structure(_ queue: any DatabaseWriter, axis: String?) throws -> StructureResult {
+    static func structure(_ queue: any DatabaseReader, axis: String?) throws -> StructureResult {
                 let axes = try axesWithCounts(queue)
         let distribution = try Links.distribution(queue)
         var stats: Stats.AxisStats? = nil
@@ -785,37 +802,37 @@ public struct QueryFeature {
     }
     
     static func neighbors(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         id: String,
         k: Int,
         cliSessionId: String = ""
-    ) throws -> [Candidates.NeighborScore] {
-                let scores = try queue.read { db in try Candidates.neighbors(db, noteId: id, k: k) }
-        
-        Events.recordRetrieval(
-            queue,
-            cmd: "neighbors",
-            payload: [("anchor", id), ("hit_ids", scores.map { score in score.id })],
-            sessionId: Env.retrievalSession(cli: cliSessionId)
+    ) throws -> (scores: [Candidates.NeighborScore], record: RecordRetrievalTransaction.Parameter?) {
+        let scores = try queue.read { db in try Candidates.neighbors(db, noteId: id, k: k) }
+        let record: RecordRetrievalTransaction.Parameter? = scores.isEmpty ? nil : .init(
+            sessionId: Env.retrievalSession(cli: cliSessionId),
+            payloadJSON: Events.retrievalPayloadJSON(cmd: "neighbors", payload: [
+                ("anchor", id),
+                ("hit_ids", scores.map { score in score.id })
+            ])
         )
         
-        return scores
+        return (scores, record)
     }
     
-    static func noteStats(_ queue: any DatabaseWriter, id: String) throws -> Stats.NoteStats? {
+        static func noteStats(_ queue: any DatabaseReader, id: String) throws -> Stats.NoteStats? {
         return try queue.read { db in try Stats.noteStats(db, nid: id) }
     }
     
-    static func axisStats(_ queue: any DatabaseWriter, axis: String) throws -> Stats.AxisStats {
+    static func axisStats(_ queue: any DatabaseReader, axis: String) throws -> Stats.AxisStats {
         return try queue.read { db in try Stats.axisStats(db, axis: axis) }
     }
     
-    static func overallStats(_ queue: any DatabaseWriter) throws -> Stats.OverallStats {
+    static func overallStats(_ queue: any DatabaseReader) throws -> Stats.OverallStats {
         return try queue.read { db in try Stats.overall(db) }
     }
     
     static func list(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         priority: String?,
         axis: String?,
         stale: Bool,
@@ -834,7 +851,7 @@ public struct QueryFeature {
     }
     
     static func history(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         noteId: String,
         limit: Int
     ) throws -> [Reads.HistoryEvent] {
@@ -842,7 +859,7 @@ public struct QueryFeature {
     }
     
     static func lint(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         id: String? = nil,
         code: String? = nil,
         severity: String? = nil,
@@ -882,12 +899,12 @@ public struct QueryFeature {
         }
     }
     
-    static func enrichment(_ queue: any DatabaseWriter) throws -> EnrichmentReview.Status {
+    static func enrichment(_ queue: any DatabaseReader) throws -> EnrichmentReview.Status {
         return try queue.read { db in try EnrichmentReview.status(db) }
     }
     
     static func candidates(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         kinds: [String],
         limit: Int
     ) throws -> [String: CandidateBatch] {
@@ -901,7 +918,7 @@ public struct QueryFeature {
     }
     
     static func searchNotes(
-        _ queue: any DatabaseWriter,
+        _ queue: any DatabaseReader,
         query: String,
         axis: String? = nil,
         limit: Int = 5,
@@ -911,8 +928,8 @@ public struct QueryFeature {
         excludeAxes: [String]? = nil,
         sinceTs: Int? = nil,
         raw: Bool = false
-    ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
-                let rows: [Search.SearchRow] = try queue.read { db in
+    ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote], record: RecordRetrievalTransaction.Parameter) {
+        let rows: [Search.SearchRow] = try queue.read { db in
             try Search.fts(
                 db,
                 query: query,
@@ -937,14 +954,6 @@ public struct QueryFeature {
         }
         
         let hitIds = rows.map { row in row.id } + extra.map { note in note.id }
-        
-        try queue.write { db in
-            try Notes.activate(db, ids: hitIds, now: Int(Date().timeIntervalSince1970))
-        }
-        
-        wireTogether(queue, ids: hitIds)
-        rehearseAssoc(queue, rows: rows, extra: extra)
-        
         let trimmedQuery = String(query.prefix(200))
         let payload: [(String, Any?)] = [
             ("query", trimmedQuery),
@@ -956,14 +965,21 @@ public struct QueryFeature {
             ("hit_ids", rows.map { row in row.id }),
             ("expand_ids", extra.map { note in note.id })
         ]
+        let record = RecordRetrievalTransaction.Parameter(
+            sessionId: sessionId,
+            activateIds: hitIds,
+            strengthenPairs: cooccurrencePairs(hitIds),
+            rebirthRanked: searchRanked(rows: rows, extra: extra),
+            payloadJSON: Events.retrievalPayloadJSON(cmd: "search", payload: payload)
+        )
         
-        Events.recordRetrieval(queue, cmd: "search", payload: payload, sessionId: sessionId)
-        
-        return (rows, extra)
+        return (rows, extra, record)
     }
     
-    // MARK: - Private
-    private static func wireTogether(_ queue: any DatabaseWriter, ids: [String]) {
+        // MARK: - Private
+    // Pure derivations of the retrieval side effects — applied later by
+    // RecordRetrievalTransaction on the write path.
+    private static func cooccurrencePairs(_ ids: [String]) -> [RecordRetrievalTransaction.Pair] {
         var seen = Set<String>()
         var unique: [String] = []
         
@@ -972,38 +988,58 @@ public struct QueryFeature {
             unique.append(id)
         }
         
-        if unique.count < 2 || unique.count > 8 { return }
+        if unique.count < 2 || unique.count > 8 { return [] }
         
-        var pairs: [(String, String)] = []
+        var pairs: [RecordRetrievalTransaction.Pair] = []
         
         for left in 0..<unique.count {
             for right in (left + 1)..<unique.count {
-                pairs.append((unique[left], unique[right]))
+                pairs.append(RecordRetrievalTransaction.Pair(unique[left], unique[right]))
             }
         }
         
-        _ = try? Links.strengthen(queue, pairs: pairs, cap: 1.0)
+        return pairs
     }
     
-    private static func rehearseAssoc(_ queue: any DatabaseWriter, rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
+    private static func searchRanked(
+        rows: [Search.SearchRow],
+        extra: [Links.ExpandedNote]
+    ) -> [RecordRetrievalTransaction.Ranked] {
         let boost = Genome.double("rebirth.search_boost")
-        var ranked: [(String, Double)] = []
+        var ranked: [RecordRetrievalTransaction.Ranked] = []
         
         for (index, row) in rows.enumerated() {
-            ranked.append((row.id, 1.0 + boost / Double(index + 1)))
+            ranked.append(RecordRetrievalTransaction.Ranked(row.id, 1.0 + boost / Double(index + 1)))
         }
         
         let base = rows.count
         
         for (index, note) in extra.enumerated() {
-            ranked.append((note.id, 1.0 + boost / Double(base + index + 1)))
+            ranked.append(RecordRetrievalTransaction.Ranked(note.id, 1.0 + boost / Double(base + index + 1)))
         }
         
-        if ranked.count >= 2 { _ = try? Links.rebirth(queue, rankedIds: ranked) }
+        return ranked
     }
     
-    private static func axesWithCounts(
-        _ queue: any DatabaseWriter
+    private static func relatedRanked(snapshot: Framing.Snapshot) -> [RecordRetrievalTransaction.Ranked] {
+        let boost = Genome.double("rebirth.related_boost")
+        var ranked: [RecordRetrievalTransaction.Ranked] = []
+        
+        for (index, note) in snapshot.similar.enumerated() {
+            ranked.append(RecordRetrievalTransaction.Ranked(note.id, 1.0 + boost / Double(index + 1)))
+        }
+        
+        let baseRank = snapshot.similar.count
+        
+        for (index, note) in snapshot.linked.enumerated() {
+            ranked.append(RecordRetrievalTransaction.Ranked(note.id, 1.0 + boost / Double(baseRank + index + 1)))
+        }
+        
+        return ranked
+    }
+    
+        private static func axesWithCounts(
+        _ queue: any DatabaseReader
     ) throws -> [(axis: String, description: String?, count: Int)] {
         try queue.read { db in
             let rows = try Row.fetchAll(db, sql: """

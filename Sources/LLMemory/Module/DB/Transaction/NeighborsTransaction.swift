@@ -39,5 +39,5 @@ public extension NeighborsTransaction {
         }
     }
 
-    typealias Result = [Candidates.NeighborScore]
+    typealias Result = (scores: [Candidates.NeighborScore], record: RecordRetrievalTransaction.Parameter?)
 }
