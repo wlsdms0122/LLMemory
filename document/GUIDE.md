@@ -296,16 +296,20 @@ lexical(BM25)·그래프 위에 *의미층* 을 더한다. 두 갈래 — ① LL
 `vector_linked` 로 키워드를 안 공유하는 의미상 가까운 노트를 확장. `consolidate integrate` 가
 주기적으로 refactorize (호출 시 항상 재분해).
 
-**스키마 버전**: binary 가 기대하는 schema 와 DB 의 `user_version` 이 어긋나면 모든
-명령이 fast-fail 한다. 하위 호환(마이그레이션)은 없다 — `data/memory.db` 를 지우고
-`init` 하면 cortex/ markdown 에서 재구성된다.
+**스키마 버전 (마이그레이션)**: 스키마는 순서 있는 migration 으로 관리된다 — 적용 이력은
+DB 안의 migration 원장에 남는다. brain 이 binary 보다 뒤처져 있으면(원장에 미적용 migration 존재)
+모든 명령이 fast-fail 하며, `llmemory update` 가 앞으로 옮겨 심는다 (실행 전
+`sqlite3 data/memory.db ".backup backup.db"` 백업 권장 — WAL-safe; 단순 파일 복사는
+체크포인트 안 된 -wal 내용을 놓친다). 더 새로운 binary 가 만진 brain 은 이 binary 가
+읽지 않는다 — binary 를 올려라.
 
 > **주의 — DB 삭제는 "cortex 에서 재구성"이 아니라 "의미층 폐기"다.** markdown 이 SSoT 인 것은
 > `notes`(+tags/entities/source) 뿐이고, **의미층과 이력은 DB 에만 있다** — assoc/cooccur 엣지,
 > retrieval terms(alias·cue), `note_meta`, ripple flag, candidate dismissal, lifecycle 이벤트,
 > hit 관측값. 지우면 전부 사라지고 재구성되지 않는다(enrich 가 시간을 들여 다시 쌓아야 한다).
-> 스키마가 바뀌어 재구성이 불가피하면 **먼저 `memory.db` 를 복사해두고**, init 후 그 사본에서
-> 위 테이블을 옮겨 심는다.
+> migration 이 있으므로 스키마 변경으로 DB 를 지울 일은 원칙적으로 없다 — 손상 등으로
+> 재구성이 불가피하면 **먼저 `memory.db` 를 복사해두고**, init 후 그 사본에서 위 테이블을
+> 옮겨 심는다.
 
 각 op·명령의 계약·검증 규칙은 llmemory 자체 표면이 SSoT — `ops describe <op>`,
 `index <cmd> --help`, `query enrichment`. (별도 설계 문서에 의존하지 않는다.)
