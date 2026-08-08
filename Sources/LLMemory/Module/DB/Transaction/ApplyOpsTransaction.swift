@@ -30,7 +30,7 @@ public struct ApplyOpsTransaction: GRDBWriteTransaction {
     // MARK: - Internal
     // Sync body — also the direct surface for synchronous unit tests.
     func perform(_ connection: Connection) -> Result {
-        guard let payload = Self.decode(parameter.payloadJSON) else {
+        guard let payload = OpsEngine.decodePayload(parameter.payloadJSON) else {
             return OpsEngine.Result(
                 status: "rejected",
                 opResults: [],
@@ -50,15 +50,6 @@ public struct ApplyOpsTransaction: GRDBWriteTransaction {
     }
 
     // MARK: - Private
-    static func decode(_ json: String) -> [String: Any]? {
-        guard
-            let data = json.data(using: .utf8),
-            let object = try? JSONSerialization.jsonObject(with: data),
-            let payload = object as? [String: Any]
-        else { return nil }
-
-        return payload
-    }
 }
 
 public extension ApplyOpsTransaction {

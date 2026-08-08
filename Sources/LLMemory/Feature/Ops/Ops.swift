@@ -21,8 +21,8 @@ public struct Ops {
         payloadJSON: String,
         sessionId: String? = nil,
         ruleset: String? = nil
-    ) async throws -> OpsEngine.Result {
-        try await OpsService.apply(
+    ) async -> OpsEngine.Result {
+        await OpsService.apply(
             session.storage,
             payloadJSON: payloadJSON,
             sessionId: sessionId,
@@ -33,16 +33,8 @@ public struct Ops {
     public func dryRun(
         payloadJSON: String,
         ruleset: String? = nil
-    ) async throws -> OpsEngine.DryRunResult {
-        try await OpsService.dryRun(session.storage, payloadJSON: payloadJSON, ruleset: ruleset)
-    }
-
-    public func opNames() -> [String] {
-        OpsService.opNames()
-    }
-
-    public func opSchema(_ name: String) -> OpSchema? {
-        OpsService.opSchema(name)
+    ) async -> OpsEngine.DryRunResult {
+        await OpsService.dryRun(session.storage, payloadJSON: payloadJSON, ruleset: ruleset)
     }
 
     // MARK: - Private

@@ -22,11 +22,13 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     private var connection: DatabaseQueue?
 
     // flock(2) — cross-process write exclusion between concurrent CLI invocations.
-    // In-process nesting is tracked by lockDepth under writeSection.
+    // In-process nesting is tracked by lockDepth under writeSection (sync
+    // writeLock) or writeGate (async write transactions).
     private var lockDescriptor: Int32 = -1
     private var lockDepth: Int = 0
     private let lockMutex = NSLock()
     private let writeSection = NSRecursiveLock()
+    private let writeGate = WriteGate()
 
     private var brainRootPath: String {
         databaseURL.deletingLastPathComponent()
@@ -170,17 +172,18 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     public func run<T: GRDBWriteTransaction>(_ transaction: T) async throws -> T.Result {
         let connection = try connect()
 
+        // In-process exclusion first — flock cannot separate two tasks of one
+        // process (they share the descriptor, and the depth counter presumes an
+        // outer mutex), so the async gate is what makes the counter sound here.
+        await writeGate.acquire()
+
+        defer { writeGate.release() }
+
         try acquireLock()
 
-        do {
-            let result = try await transaction.execute(connection)
-            releaseLock()
+        defer { releaseLock() }
 
-            return result
-        } catch {
-            releaseLock()
-            throw error
-        }
+        return try await transaction.execute(connection)
     }
 
     @discardableResult
@@ -188,8 +191,10 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         try await transaction.execute(try connect())
     }
 
-    // Interim direct-write surface for callers not yet converted to transactions.
-    // Carries the same lock discipline as `run` for write transactions.
+    // The sync lifecycle gate — Session.bootstrap (which must run before the
+    // migration gate can pass) and test fixtures. flock excludes it across
+    // processes; in-process it never overlaps `run` writes because bootstrap
+    // precedes any transaction dispatch.
     public func writeLock<T>(_ body: () throws -> T) throws -> T {
         writeSection.lock()
 
@@ -276,4 +281,45 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
             _ = Darwin.close(lockDescriptor)
         }
     }
+}
+
+// An async-safe mutex — waiters park as continuations instead of blocking a
+// cooperative thread, and release may happen on any thread.
+final class WriteGate: @unchecked Sendable {
+    // MARK: - Property
+    private let lock = NSLock()
+    private var busy = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    // MARK: - Initializer
+    // MARK: - Public
+    func acquire() async {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+
+            if busy {
+                waiters.append(continuation)
+                lock.unlock()
+            } else {
+                busy = true
+                lock.unlock()
+                continuation.resume()
+            }
+        }
+    }
+
+    func release() {
+        lock.lock()
+
+        if waiters.isEmpty {
+            busy = false
+            lock.unlock()
+        } else {
+            let next = waiters.removeFirst()
+            lock.unlock()
+            next.resume()
+        }
+    }
+
+    // MARK: - Private
 }

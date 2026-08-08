@@ -75,7 +75,7 @@ struct OpsApply: AsyncParsableCommand {
         
         guard let payload = try readJSONText(input) else { throw ExitCode(2) }
         
-        let result = try await brain.ops.apply(
+        let result = await brain.ops.apply(
             payloadJSON: payload,
             sessionId: Session.retrievalSession(cli: global.sessionId),
             ruleset: rulesetOption.rulesetId
@@ -124,7 +124,7 @@ struct OpsDryRun: AsyncParsableCommand {
         
         guard let payload = try readJSONText(input) else { throw ExitCode(2) }
         
-        let result = try await brain.ops.dryRun(payloadJSON: payload, ruleset: rulesetOption.rulesetId)
+        let result = await brain.ops.dryRun(payloadJSON: payload, ruleset: rulesetOption.rulesetId)
         
         render(result, json: format.json) { result in opsResultBlocks(result) }
         
@@ -190,11 +190,9 @@ struct OpsVocab: ParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        let brain = Brain(home: global.home)
-        
         if verbose {
-            let rows = brain.ops.opNames().compactMap { name -> VerboseOp? in
-                guard let schema = brain.ops.opSchema(name) else { return nil }
+            let rows = OpsService.opNames().compactMap { name -> VerboseOp? in
+                guard let schema = OpsService.opSchema(name) else { return nil }
                 
                 return VerboseOp(
                     name: name,
@@ -214,7 +212,7 @@ struct OpsVocab: ParsableCommand {
                 ]
             }
         } else {
-            render(Output(ops: brain.ops.opNames()), json: format.json) { output in
+            render(Output(ops: OpsService.opNames()), json: format.json) { output in
                 [.text(output.ops.joined(separator: "\n"))]
             }
         }
@@ -264,9 +262,7 @@ struct OpsDescribe: ParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        let brain = Brain(home: global.home)
-        
-        guard let schema = brain.ops.opSchema(op) else {
+        guard let schema = OpsService.opSchema(op) else {
             FileHandle.standardError.write(
                 "unknown op: \(op) (see `ops vocab`)\n".data(using: .utf8) ?? Data()
             )

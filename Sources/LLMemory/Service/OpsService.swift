@@ -10,6 +10,8 @@ import Storage
 
 // Ops-domain service — the mutation surface. apply runs the atomic write
 // transaction; the op catalog is code-owned and needs no connection.
+// The ops contract is "failure is a status, not an exception": connect/lock
+// errors are normalized here so callers always get a result envelope.
 public enum OpsService {
     // MARK: - Property
     // MARK: - Initializer
@@ -19,24 +21,48 @@ public enum OpsService {
         payloadJSON: String,
         sessionId: String? = nil,
         ruleset: String? = nil
-    ) async throws -> OpsEngine.Result {
-        try await storage.run(
-            ApplyOpsTransaction(
-                .init(payloadJSON: payloadJSON, sessionId: sessionId, ruleset: ruleset)
+    ) async -> OpsEngine.Result {
+        do {
+            return try await storage.run(
+                ApplyOpsTransaction(
+                    .init(payloadJSON: payloadJSON, sessionId: sessionId, ruleset: ruleset)
+                )
             )
-        )
+        } catch {
+            let rationale = OpsEngine.decodePayload(payloadJSON)?["rationale"] as? String ?? ""
+
+            return OpsEngine.Result(
+                status: "failed",
+                opResults: [],
+                error: "\(error)",
+                rejectedIndex: nil,
+                rationale: rationale,
+                recoveryFailed: []
+            )
+        }
     }
 
     public static func dryRun(
         _ storage: GRDBStorage,
         payloadJSON: String,
         ruleset: String? = nil
-    ) async throws -> OpsEngine.DryRunResult {
-        try await storage.run(
-            DryRunOpsTransaction(.init(payloadJSON: payloadJSON, ruleset: ruleset))
-        )
+    ) async -> OpsEngine.DryRunResult {
+        do {
+            return try await storage.run(
+                DryRunOpsTransaction(.init(payloadJSON: payloadJSON, ruleset: ruleset))
+            )
+        } catch {
+            return OpsEngine.DryRunResult(
+                status: "rejected",
+                opCount: nil,
+                error: "\(error)",
+                rejectedIndex: nil
+            )
+        }
     }
 
+    // Code-owned catalog — no connection, no session. Callable directly by any
+    // surface (the CLI included).
     public static func opNames() -> [String] {
         Handlers.opNames()
     }

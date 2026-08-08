@@ -28,7 +28,7 @@ public struct DryRunOpsTransaction: GRDBTransaction {
     // MARK: - Internal
     // Sync body — also the direct surface for synchronous unit tests.
     func perform(_ connection: Connection) -> Result {
-        guard let payload = ApplyOpsTransaction.decode(parameter.payloadJSON) else {
+        guard let payload = OpsEngine.decodePayload(parameter.payloadJSON) else {
             return OpsEngine.DryRunResult(
                 status: "rejected",
                 opCount: nil,

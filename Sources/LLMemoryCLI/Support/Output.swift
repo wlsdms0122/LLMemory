@@ -16,9 +16,11 @@ let jsonEncoder: JSONEncoder = {
     return encoder
 }()
 
-func readJSON(_ raw: String?) throws -> [String: Any]? {
+// The one input-acquisition gate — raw argument first, stdin otherwise, with
+// the tty/empty refusals. Both JSON readers build on it.
+func readInputText(_ raw: String?) -> String? {
     let text: String
-    
+
     if let raw, !raw.isEmpty {
         text = raw
     } else {
@@ -26,24 +28,30 @@ func readJSON(_ raw: String?) throws -> [String: Any]? {
             FileHandle.standardError.write(
                 "no input; pass --json '<JSON>' or pipe JSON to stdin\n".data(using: .utf8)!
             )
-            
+
             return nil
         }
-        
+
         let data = FileHandle.standardInput.readDataToEndOfFile()
         text = String(data: data, encoding: .utf8) ?? ""
     }
-    
+
     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    
+
     if trimmed.isEmpty {
         FileHandle.standardError.write(
             "empty input; pass --json '<JSON>' or pipe JSON to stdin\n".data(using: .utf8)!
         )
-        
+
         return nil
     }
-    
+
+    return trimmed
+}
+
+func readJSON(_ raw: String?) throws -> [String: Any]? {
+    guard let trimmed = readInputText(raw) else { return nil }
+
     guard let data = trimmed.data(using: .utf8) else {
         FileHandle.standardError.write("invalid encoding\n".data(using: .utf8)!)
         
@@ -75,32 +83,7 @@ func readJSON(_ raw: String?) throws -> [String: Any]? {
 // the transaction boundary as a JSON string, so the CLI validates shape here
 // (exit 2 contract) and passes the original bytes through untouched.
 func readJSONText(_ raw: String?) throws -> String? {
-    let text: String
-
-    if let raw, !raw.isEmpty {
-        text = raw
-    } else {
-        if isatty(fileno(stdin)) != 0 {
-            FileHandle.standardError.write(
-                "no input; pass --json '<JSON>' or pipe JSON to stdin\n".data(using: .utf8)!
-            )
-
-            return nil
-        }
-
-        let data = FileHandle.standardInput.readDataToEndOfFile()
-        text = String(data: data, encoding: .utf8) ?? ""
-    }
-
-    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-
-    if trimmed.isEmpty {
-        FileHandle.standardError.write(
-            "empty input; pass --json '<JSON>' or pipe JSON to stdin\n".data(using: .utf8)!
-        )
-
-        return nil
-    }
+    guard let trimmed = readInputText(raw) else { return nil }
 
     guard try readJSON(trimmed) != nil else { return nil }
 

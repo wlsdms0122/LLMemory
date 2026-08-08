@@ -577,7 +577,7 @@ struct SourceVerifyInvariantTests {
     @Test("only an ops handler may rebaseline — no read path is allowed to")
     func rebaseAuthorityIsConfinedToOpsHandlers() throws {
         // When
-        let allowed: Set<String> = ["Service/Sources.swift",
+        let allowed: Set<String> = ["Module/DB/Query/Sources.swift",
             "Module/DB/Ops/HandlersBasic.swift",
             "Module/DB/Ops/HandlersStructural.swift"]
         let root = PackageSource().file("Sources/LLMemory")

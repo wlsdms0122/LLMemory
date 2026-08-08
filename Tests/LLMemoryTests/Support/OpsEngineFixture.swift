@@ -8,9 +8,11 @@
 import Foundation
 @testable import LLMemory
 
-// Fixture adapter — production reaches the engine through ApplyOpsTransaction
-// (storage.run provides the write lock); unit tests keep the old storage-based
-// entry with the same lock discipline.
+// Fixture adapter over the production entry — the payload is serialized to the
+// JSON string the CLI would send and applied through the ops transactions'
+// sync bodies, so decode and transaction wiring are exercised by every ops
+// test. The write lock rides writeLock (the sync gate) because unit tests
+// stay synchronous; the async `storage.run` gate is covered by the CLI suite.
 extension OpsEngine {
     static func apply(
         _ storage: GRDBStorage,
@@ -19,13 +21,16 @@ extension OpsEngine {
         ruleset: String? = nil
     ) -> Result {
         do {
-            return try storage.writeLock {
-                OpsEngine.apply(
-                    try storage.connect(),
-                    payload,
+            let transaction = ApplyOpsTransaction(
+                .init(
+                    payloadJSON: try Self.encodePayload(payload),
                     sessionId: sessionId,
                     ruleset: ruleset
                 )
+            )
+
+            return try storage.writeLock {
+                transaction.perform(try storage.connect())
             }
         } catch {
             return Result(
@@ -44,15 +49,25 @@ extension OpsEngine {
         _ payload: [String: Any],
         ruleset: String? = nil
     ) -> DryRunResult {
-        guard let queue = try? storage.connect() else {
+        do {
+            let transaction = DryRunOpsTransaction(
+                .init(payloadJSON: try Self.encodePayload(payload), ruleset: ruleset)
+            )
+
+            return transaction.perform(try storage.connect())
+        } catch {
             return DryRunResult(
                 status: "rejected",
                 opCount: nil,
-                error: "not connected",
+                error: "\(error)",
                 rejectedIndex: nil
             )
         }
+    }
 
-        return OpsEngine.dryRun(queue, payload, ruleset: ruleset)
+    private static func encodePayload(_ payload: [String: Any]) throws -> String {
+        let data = try JSONSerialization.data(withJSONObject: payload)
+
+        return String(data: data, encoding: .utf8) ?? ""
     }
 }
