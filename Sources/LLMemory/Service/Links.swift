@@ -153,7 +153,7 @@ public enum Links {
     }
     
     static func distribution() throws -> Distribution {
-        guard let queue = try? DB.connect() else {
+        guard let queue = try? GRDBStorage.session.connect() else {
             return Distribution(byKind: [], weightBuckets: [:], topDegree: [])
         }
         
@@ -389,7 +389,7 @@ public enum Links {
         let stepValue = step ?? Genome.double("links.strengthen_step")
         let now = Int(Date().timeIntervalSince1970)
         
-        return try DB.write { db in
+        return try GRDBStorage.session.write { db in
             var strengthened = 0
             
             for (src, dst) in pairs {
@@ -436,7 +436,7 @@ public enum Links {
     ) throws -> [Neighbor] {
         let floor = minWeight ?? Genome.double("links.neighbor_floor")
         
-        guard let queue = try? DB.connect() else { return [] }
+        guard let queue = try? GRDBStorage.session.connect() else { return [] }
         
         return try queue.read { db in
             var sql = """
@@ -484,7 +484,7 @@ public enum Links {
         
         let floor = minWeight ?? Genome.double("links.neighbor_floor")
         
-        guard let queue = try? DB.connect() else { return [] }
+        guard let queue = try? GRDBStorage.session.connect() else { return [] }
         
         return try queue.read { db in
             var seen: [String: (note: ExpandedNote, rankWeight: Double)] = [:]
@@ -587,7 +587,7 @@ public enum Links {
         let now = Int(Date().timeIntervalSince1970)
         let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
         
-        return try DB.write { db in
+        return try GRDBStorage.session.write { db in
             var arguments: [DatabaseValueConvertible?] = []
             arguments.append(contentsOf: ids as [DatabaseValueConvertible?])
             arguments.append(contentsOf: ids as [DatabaseValueConvertible?])

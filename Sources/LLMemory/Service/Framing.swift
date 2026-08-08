@@ -230,7 +230,7 @@ public enum Framing {
         let text = "\(userInput)\n\(agentOutput)"
         let keywords = extractKeywords(text)
         let entityHints = NoteText.extractEntityHints(text)
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         var similarNotes: [SimilarNote] = []
         var axes: [AxisRow] = []
         var topTagCounts: [(String, Int)] = []

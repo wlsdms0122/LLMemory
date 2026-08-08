@@ -101,7 +101,7 @@ public enum Index {
     // MARK: - Initializer
     // MARK: - Public
     public static func build(rebuild: Bool = false) throws -> BuildResult {
-        try DB.writeLock {
+        try GRDBStorage.session.writeLock {
             let now = Int(Date().timeIntervalSince1970)
             let files = Paths.scanNotes()
             var scannedRels = Set<String>()
@@ -142,7 +142,7 @@ public enum Index {
             
             parseInto(&pending, files)
             
-            return try DB.write { db in
+            return try GRDBStorage.session.write { db in
                 try reconcile(
                     db,
                     pending: pending,
@@ -157,7 +157,7 @@ public enum Index {
     
     @discardableResult
     public static func reindex(filePaths: [String]) throws -> Int {
-        try DB.writeLock {
+        try GRDBStorage.session.writeLock {
             var exitCode = 0
             
             for filePath in filePaths {
@@ -187,7 +187,7 @@ public enum Index {
                 }
                 
                 do {
-                    let noteId = try DB.write { db in
+                    let noteId = try GRDBStorage.session.write { db in
                         try Notes.reindexFile(db, path: path)
                     }
                     let relativePath = Paths.relative(of: path) ?? path.path
@@ -222,12 +222,12 @@ public enum Index {
         
         // init is deliberate setup — presence of .innate/ is not consulted, only --bare is.
         let seeding = bare ? Seeding.Result() : Seeding.plant(mode: .missingOnly, force: true)
-        let result = try DB.writeLock { () -> Index.BuildResult in
-            try DB.initDB()
+        let result = try GRDBStorage.session.writeLock { () -> Index.BuildResult in
+            try GRDBStorage.session.initialize()
 
             let built = try Index.build(rebuild: false)
 
-            try DB.write { db in try Seeding.describeInnateAxis(db) }
+            try GRDBStorage.session.write { db in try Seeding.describeInnateAxis(db) }
 
             return built
         }
@@ -277,14 +277,18 @@ public enum Index {
             blocked = true
         }
 
-        let result = try DB.writeLock {
+        let result = try GRDBStorage.session.writeLock {
+            // update is the migration surface: a brain left behind by a binary upgrade
+            // is carried forward here, before anything else touches the connection.
+            try GRDBStorage.session.initialize()
+
             let built = try Index.build(rebuild: false)
 
-            try DB.write { db in try Seeding.describeInnateAxis(db) }
+            try GRDBStorage.session.write { db in try Seeding.describeInnateAxis(db) }
 
             return built
         }
-        
+
         try Guide.markdown.write(
             to: Paths.brainRoot.appendingPathComponent("README.md"),
             atomically: true,
@@ -307,11 +311,11 @@ public enum Index {
     }
     
     public static func verifySources() throws -> SourcesService.BulkVerifyResult {
-        try DB.write { db in try SourcesService.bulkVerify(db) }
+        try GRDBStorage.session.write { db in try SourcesService.bulkVerify(db) }
     }
     
     public static func validateTerms(rejectStale: Bool) throws -> ValidateResult {
-        try DB.write { db -> ValidateResult in
+        try GRDBStorage.session.write { db -> ValidateResult in
             let pass = try Validation.validatePendingTerms(db, noteIds: nil)
             let staleRejected = rejectStale ? try Validation.rejectStalePending(db) : 0
             
@@ -427,12 +431,12 @@ public enum Index {
     // MARK: - Private
     private static func check(rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
         let eagerCap = Config.getInt("eager.max_count", default: 20)
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         return try queue.read { db in
             var messages: [String] = []
             var ok = true
-            let shape = try DB.checkSchemaShape(db)
+            let shape = try SchemaShape(migrations: Session.migrations).check(db)
             
             if !shape.isEmpty {
                 messages.append(contentsOf: shape)

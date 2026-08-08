@@ -630,10 +630,10 @@ public enum QueryFeature {
         }
     }
     
-    static func prepare(_ home: String) throws -> DatabaseQueue {
+    static func prepare(_ home: String) throws -> any DatabaseWriter {
         Session.configure(home: home)
         
-        return try DB.connect()
+        return try GRDBStorage.session.connect()
     }
     
     static func searchNotes(
@@ -647,7 +647,7 @@ public enum QueryFeature {
         sinceTs: Int? = nil,
         raw: Bool = false
     ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         let rows: [Search.SearchRow] = try queue.read { db in
             try Search.fts(
                 db,
@@ -673,7 +673,7 @@ public enum QueryFeature {
         
         let hitIds = rows.map { row in row.id } + extra.map { note in note.id }
         
-        try DB.write { db in
+        try GRDBStorage.session.write { db in
             try Notes.activate(db, ids: hitIds, now: Int(Date().timeIntervalSince1970))
         }
         
@@ -738,7 +738,7 @@ public enum QueryFeature {
     }
     
     private static func axesWithCounts(
-        _ queue: DatabaseQueue
+        _ queue: any DatabaseWriter
     ) throws -> [(axis: String, description: String?, count: Int)] {
         try queue.read { db in
             let rows = try Row.fetchAll(db, sql: """

@@ -221,7 +221,7 @@ struct RulesetTests {
     }
     
     private func write(_ body: (Database) throws -> Void) throws {
-        try DB.writeLock { try home.database().write(body) }
+        try GRDBStorage.session.writeLock { try home.database().write(body) }
     }
     
     private func resolve(axis: String, rulesetIds: [String]) throws -> Ruleset.Effective {

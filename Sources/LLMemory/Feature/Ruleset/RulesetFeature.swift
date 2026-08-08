@@ -98,9 +98,9 @@ public enum RulesetFeature {
     }
     
     // MARK: - Private
-    private static func prepare(_ home: String) throws -> DatabaseQueue {
+    private static func prepare(_ home: String) throws -> any DatabaseWriter {
         Session.configure(home: home)
         
-        return try DB.connect()
+        return try GRDBStorage.session.connect()
     }
 }

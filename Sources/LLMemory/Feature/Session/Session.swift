@@ -8,14 +8,25 @@
 import Foundation
 
 public enum Session {
+    // The migration catalogue is assembled here — the process bootstrap is the
+    // single place that knows which migrations make up the current brain schema.
+    static let migrations: [any GRDBMigration] = [
+        Migration1()
+    ]
+
     public static func configure(home: String) {
         let changed = Paths.configure(home: home)
-        
+
         if changed {
-            DB.reset()
+            GRDBStorage.bind(
+                session: GRDBStorage(
+                    databaseURL: Paths.db,
+                    migrations: migrations
+                )
+            )
             Config.invalidateCache()
         }
-        
+
         Config.warmCache()
     }
     

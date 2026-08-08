@@ -179,8 +179,8 @@ public enum Transaction {
         }
         
         do {
-            return try DB.writeLock {
-                let queue = try DB.connect()
+            return try GRDBStorage.session.writeLock {
+                let queue = try GRDBStorage.session.connect()
                 
                 if let rulesetId = effectiveRulesetId {
                     let exists = try queue.read { db in
@@ -199,7 +199,7 @@ public enum Transaction {
                     }
                 }
                 
-                let txResult: Result = try DB.write { db in
+                let txResult: Result = try GRDBStorage.session.write { db in
                     if let (message, index) = try validate(
                         opsRaw,
                         db: db,
@@ -379,7 +379,7 @@ public enum Transaction {
                     let touched = enrichmentTouchedNotes(opsRaw)
                     
                     if !touched.isEmpty {
-                        _ = try? DB.write { db in
+                        _ = try? GRDBStorage.session.write { db in
                             try Validation.validatePendingTerms(db, noteIds: touched)
                         }
                     }
@@ -441,7 +441,7 @@ public enum Transaction {
         }
         
         do {
-            let queue = try DB.connect()
+            let queue = try GRDBStorage.session.connect()
             
             if let rulesetId = effectiveRulesetId {
                 let exists = try queue.read { db in try Ruleset.rulesetExists(db, id: rulesetId) }

@@ -1,5 +1,5 @@
 {
-  "originHash" : "58fa9429cadf04ed583c07b7c22ef6f0940eae5db282a2589a730d102f8d0854",
+  "originHash" : "76409dfec98a7cde1bd39c9787b81ceff1c358ccb6a4c33f064e20af7c79709c",
   "pins" : [
     {
       "identity" : "grdb.swift",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "2cf6c756e1e5ef6901ebae16576a7e4e4b834622",
         "version" : "6.29.3"
+      }
+    },
+    {
+      "identity" : "storage",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wlsdms0122/Storage",
+      "state" : {
+        "revision" : "d1e17eb97104b84fd61a81cb3007ff75b567544d",
+        "version" : "1.2.1"
       }
     },
     {

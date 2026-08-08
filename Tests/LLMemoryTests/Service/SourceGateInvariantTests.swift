@@ -60,7 +60,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("gate-1", source: "[\"\(grounding.path)\"]")
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         try "alpha changed".write(to: grounding, atomically: true, encoding: .utf8)
@@ -99,7 +99,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("gate-2", source: "[\"\(grounding.path)\"]")
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         try FileManager.default.removeItem(at: path)
@@ -126,7 +126,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("gate-6", source: "[\"\(grounding.path)\"]")
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         
@@ -157,7 +157,7 @@ struct SourceGateInvariantTests {
     @Test("a malformed source in an op is refused by dry-run and apply alike")
     func malformedOpsSourceIsRejectedByDryRunAndApply() throws {
         // Given
-        _ = try DB.connect()
+        _ = try GRDBStorage.session.connect()
         
         // When
         for bad in [[123], [NSNull()], [""], [["foo": "bar"]]] as [Any] {
@@ -185,7 +185,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("gate-3", source: "[\"\(grounding.path)\"]")
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         
@@ -217,7 +217,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("gate-4", source: "[\"\(grounding.path)\"]")
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
         
@@ -244,7 +244,7 @@ struct SourceGateInvariantTests {
     @Test("every well-formed shape still applies")
     func validShapesStillApply() throws {
         // Given
-        _ = try DB.connect()
+        _ = try GRDBStorage.session.connect()
         
         // When
         let result = home.apply([[

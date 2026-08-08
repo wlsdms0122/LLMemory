@@ -418,7 +418,7 @@ public enum Consolidate {
     }
     
     public static func report() throws -> (axis: AxisReport, tag: TagReport) {
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         let axisSummary = try queue.read { db in try axisReport(db) }
         let tagSummary = try queue.read { db in try tagReport(db) }
         
@@ -440,8 +440,8 @@ public enum Consolidate {
     }
     
     public static func integrate() throws -> IntegrateResult {
-        var result = try DB.writeLock { try integrateLocked() }
-        let integrity = try DB.connect().read { db in try integrityL1(db) }
+        var result = try GRDBStorage.session.writeLock { try integrateLocked() }
+        let integrity = try GRDBStorage.session.connect().read { db in try integrityL1(db) }
         result.integrityL1 = IntegrateResult.IntegrityReport(
             checked: integrity.checked,
             issues: integrity.issues
@@ -452,11 +452,11 @@ public enum Consolidate {
     }
     
     public static func homeostasis() throws -> Homeostasis.Report {
-        try DB.writeLock {
+        try GRDBStorage.session.writeLock {
             let now = Int(Date().timeIntervalSince1970)
             var report: Homeostasis.Report!
             
-            try DB.write { db in
+            try GRDBStorage.session.write { db in
                 _ = try Activation.deriveWindows(db, now: now)
                 report = try Homeostasis.tick(db, now: now)
             }
@@ -477,11 +477,11 @@ public enum Consolidate {
     }
     
     public static func prune() throws -> PruneResult {
-        try DB.writeLock {
+        try GRDBStorage.session.writeLock {
             let now = Int(Date().timeIntervalSince1970)
             var decay: (decayed: Int, pruned: Int) = (0, 0)
             
-            try DB.write { db in
+            try GRDBStorage.session.write { db in
                 decay = try Links.decayAndPrune(db)
             }
             
@@ -523,7 +523,7 @@ public enum Consolidate {
         var termsRejected = 0
         var reviewPass = EnrichmentReview.ReviewPass()
         
-        try DB.write { db in
+        try GRDBStorage.session.write { db in
             _ = try Activation.deriveWindows(db, now: now)
             
             eventsCompacted = try compactOldEvents(

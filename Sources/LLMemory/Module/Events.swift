@@ -33,7 +33,7 @@ enum Events {
                     arguments: [timestamp, kind, sessionId, json]
                 )
             } else {
-                try DB.write { db in
+                try GRDBStorage.session.write { db in
                     try db.execute(
                         sql: "INSERT INTO events (ts, kind, session_id, payload) VALUES (?, ?, ?, ?)",
                         arguments: [timestamp, kind, sessionId, json]

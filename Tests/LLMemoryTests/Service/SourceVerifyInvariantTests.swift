@@ -47,7 +47,7 @@ struct SourceVerifyInvariantTests {
         return path
     }
     
-    private static func sourceRow(_ queue: DatabaseQueue, _ id: String) throws -> (hash: String, stale: Int)? {
+    private static func sourceRow(_ queue: any DatabaseWriter, _ id: String) throws -> (hash: String, stale: Int)? {
         try queue.read { db in
             guard let row = try Row.fetchOne(db,
                 sql: "SELECT source_hash, source_stale FROM note_source WHERE note_id = ?",
@@ -87,7 +87,7 @@ struct SourceVerifyInvariantTests {
         
         try markdown.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
@@ -149,7 +149,7 @@ struct SourceVerifyInvariantTests {
         # body
         """.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "alpha-changed".write(to: older, atomically: true, encoding: .utf8)
@@ -189,7 +189,7 @@ struct SourceVerifyInvariantTests {
         # body
         """.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
@@ -237,7 +237,7 @@ struct SourceVerifyInvariantTests {
         # body
         """.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
@@ -268,7 +268,7 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote("src-keep", source: file)
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
@@ -303,7 +303,7 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote("src-rb", source: file)
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
@@ -340,7 +340,7 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote("src-ack", source: file)
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         
@@ -398,7 +398,7 @@ struct SourceVerifyInvariantTests {
         try "two".write(to: second, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote("src-decl", source: first)
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "one drifted".write(to: first, atomically: true, encoding: .utf8)
@@ -432,7 +432,7 @@ struct SourceVerifyInvariantTests {
         
         let notePath = try Self.writeSourcedNote("src-sp", source: file,
             body: "## A\nalpha\n## B\nbeta\n")
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
@@ -471,7 +471,7 @@ struct SourceVerifyInvariantTests {
         try "two".write(to: second, atomically: true, encoding: .utf8)
         
         let intoPath = try Self.writeSourcedNote("src-mi", source: first)
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         // When
         try queue.write { db in _ = try Notes.reindexFile(db, path: intoPath) }
@@ -510,7 +510,7 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote("src-same", source: file)
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
@@ -543,7 +543,7 @@ struct SourceVerifyInvariantTests {
         
         let notePath = try Self.writeSourcedNote("src-rs", source: file,
             body: "## A\nalpha\n## B\nbeta\n")
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in _ = try Notes.reindexFile(db, path: notePath) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)

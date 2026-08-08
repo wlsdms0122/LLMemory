@@ -21,8 +21,8 @@ extension BrainHome {
     // MARK: - Public
     var path: String { url.path }
 
-    func database() throws -> DatabaseQueue {
-        try DB.connect()
+    func database() throws -> any DatabaseWriter {
+        try GRDBStorage.session.connect()
     }
 
     func read<T>(_ body: (Database) throws -> T) throws -> T {
@@ -30,7 +30,7 @@ extension BrainHome {
     }
 
     func write<T>(_ body: (Database) throws -> T) throws -> T {
-        try DB.writeLock { try database().write(body) }
+        try GRDBStorage.session.writeLock { try database().write(body) }
     }
 
     @discardableResult

@@ -46,16 +46,15 @@ struct RelatedFailLoudTests {
     
     @Test("related on a brain whose schema does not match the binary throws")
     func relatedThrowsOnSchemaMismatch() throws {
-        // Given
+        // Given — a migration ledger that predates every registered migration.
         home.createNote(id: "gate-note")
-        
+
         try home.database().write { database in
-            try database.execute(sql: "PRAGMA user_version = 1")
+            try database.execute(sql: "DELETE FROM grdb_migrations")
         }
-        
-        DB.queue = nil
-        DB.versionChecked = false
-        
+
+        GRDBStorage.session.disconnect()
+
         // Then
         #expect(throws: DBError.self) {
             _ = try QueryFeature.related(
@@ -66,12 +65,15 @@ struct RelatedFailLoudTests {
                 includeBodies: false
             )
         }
-        
-        // Restore the stamp so the fixture can tear the home down through a working connection.
+
+        // Restore the ledger so the fixture can tear the home down through a working connection.
         let raw = try DatabaseQueue(path: Paths.db.path)
-        
+
         try raw.write { database in
-            try database.execute(sql: "PRAGMA user_version = \(DB.schemaVersion)")
+            try database.execute(
+                sql: "INSERT INTO grdb_migrations (identifier) VALUES (?)",
+                arguments: ["1"]
+            )
         }
     }
 }

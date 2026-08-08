@@ -42,8 +42,8 @@ public enum Vectors {
     // MARK: - Public
     @discardableResult
     static func build() throws -> BuildResult {
-        try DB.writeLock {
-            let queue = try DB.connect()
+        try GRDBStorage.session.writeLock {
+            let queue = try GRDBStorage.session.connect()
             let now = Int(Date().timeIntervalSince1970)
             let noteIds: [String] = try queue.read { db in
                 try String.fetchAll(
@@ -118,7 +118,7 @@ public enum Vectors {
             let ppmi = computePPMI(matrix, n: noteCount)
             let projection = try truncatedSVD(ppmi, n: noteCount, k: dim)
             
-            try DB.write { db in
+            try GRDBStorage.session.write { db in
                 try db.execute(sql: "DELETE FROM note_vectors")
                 
                 for (index, id) in noteIds.enumerated() {
@@ -246,7 +246,7 @@ public enum Vectors {
     ) throws -> [VectorHit] {
         guard !seedIds.isEmpty else { return [] }
         
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         return try queue.read { db -> [VectorHit] in
             let vectors = try EnrichmentReview.loadVectors(db)

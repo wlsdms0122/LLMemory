@@ -43,18 +43,22 @@ final class MemoryHome: BrainHome, @unchecked Sendable {
             )
             
             Paths.configure(home: url.path)
-            
-            DB.queue = nil
-            DB.versionChecked = false
-            
+
+            GRDBStorage.bind(
+                session: GRDBStorage(
+                    databaseURL: Paths.db,
+                    migrations: Session.migrations
+                )
+            )
+
             Config.invalidateCache()
-            
-            try DB.initDB()
+
+            try GRDBStorage.session.initialize()
 
             // A fresh install owns zero axes, but most tests model a brain that has lived for a
             // while. Pre-creating the vocabulary the fixtures rely on keeps every inline op from
             // having to carry an axis_description.
-            try DB.connect().write { database in
+            try GRDBStorage.session.connect().write { database in
                 for axis in ["flow", "tech", "persona", "repo", "env", "journal"] {
                     try Vocab.ensureAxis(database, axis: axis, description: "(test axis)", now: now)
                 }
@@ -71,8 +75,7 @@ final class MemoryHome: BrainHome, @unchecked Sendable {
     deinit {
         try? FileManager.default.removeItem(at: url)
         
-        DB.queue = nil
-        DB.versionChecked = false
+        GRDBStorage.session.disconnect()
         
         Config.invalidateCache()
         

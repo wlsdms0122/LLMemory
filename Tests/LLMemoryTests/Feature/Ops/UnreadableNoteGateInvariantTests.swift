@@ -105,7 +105,7 @@ struct UnreadableNoteGateInvariantTests {
         _ = try corrupt(id: "fts-bad", body: "garbage\n")
         
         // When
-        let output = try DB.writeLock {
+        let output = try GRDBStorage.session.writeLock {
             try home.database().write { database -> (orphansPruned: Int, refilled: Int, unreadable: [String]) in
                 try database.execute(sql: "DELETE FROM notes_fts WHERE id IN ('fts-ok','fts-bad')")
                 
@@ -304,7 +304,7 @@ struct UnreadableNoteGateInvariantTests {
     }
     
     private func stampLifecycle(of noteId: String) throws {
-        try DB.writeLock {
+        try GRDBStorage.session.writeLock {
             try home.database().write { database in
                 try Notes.stampLifecycle(database, nid: noteId, now: 1, isNew: false)
             }

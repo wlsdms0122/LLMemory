@@ -48,10 +48,10 @@ public enum GenomeFeature {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    static func prepare(_ home: String) throws -> DatabaseQueue {
+    static func prepare(_ home: String) throws -> any DatabaseWriter {
         Session.configure(home: home)
         
-        return try DB.connect()
+        return try GRDBStorage.session.connect()
     }
     
     public static func list(home: String) throws -> [Genome.ListRow] {

@@ -25,7 +25,7 @@ struct NoteArtifactsInvariantTests {
     @Test("every table that cascades from a note is classified — an unclassified one is invisible to the ops that must carry it")
     func everyNoteCascadeTableIsClassified() throws {
         // When
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         let cascade = try queue.read { db in try NoteArtifacts.noteCascadeTables(db) }
         
         // Then
@@ -44,7 +44,7 @@ struct NoteArtifactsInvariantTests {
     @Test("every artifact declares what a split does with it, so none is silently dropped")
     func everyArtifactHasSplitPolicy() throws {
         // When
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         let cascade = Set(try queue.read { db in try NoteArtifacts.noteCascadeTables(db) })
         
         // Then
@@ -91,7 +91,7 @@ struct NoteArtifactsInvariantTests {
     @Test("every declared disposition names a table that actually exists")
     func dispositionEntriesAreRealCascadeTables() throws {
         // When
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         let cascade = Set(try queue.read { db in try NoteArtifacts.noteCascadeTables(db) })
         
         // Then
@@ -112,7 +112,7 @@ struct NoteArtifactsInvariantTests {
         let memory = try DatabaseQueue()
         let columnsOf: [String: [String]] = try memory.write { db in
             try db.execute(sql: "PRAGMA foreign_keys = OFF")
-            try db.execute(sql: DB.schema)
+            try db.execute(sql: Migration1.schema)
             
             var columns: [String: [String]] = [:]
             
@@ -176,7 +176,7 @@ struct NoteArtifactsInvariantTests {
             "tags": ["flow"], "summary": "s", "content": "## Body\nc\n",
             "source": [source.path]]]).status == "ok")
         
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in
             try db.execute(sql: "INSERT INTO ripple_flags (note_id, flag, created_at, last_flagged_at) VALUES ('rt-a','reconsolidate',1,1)")

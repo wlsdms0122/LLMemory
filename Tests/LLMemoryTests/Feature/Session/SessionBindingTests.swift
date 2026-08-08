@@ -30,9 +30,9 @@ struct SessionBindingTests {
         
         Session.configure(home: second.path)
         
-        try DB.initDB()
+        try GRDBStorage.session.initialize()
         
-        // initDB drops the connection and leaves the config cache cold, so the home has to be bound
+        // initialize drops the connection and leaves the config cache cold, so the home has to be bound
         // again before anything reads it — an op that hits a cold Config would open a second
         // connection from inside its own write.
         Session.configure(home: second.path)
@@ -65,12 +65,12 @@ struct SessionBindingTests {
     @Test("reconfiguring the same home keeps the connection — no warm-cache thrash")
     func sameHomeKeepsTheConnection() throws {
         // Given
-        let before = try DB.connect()
+        let before = try GRDBStorage.session.connect()
         
         // When
         Session.configure(home: home.path)
         
-        let after = try DB.connect()
+        let after = try GRDBStorage.session.connect()
         
         // Then
         #expect(before === after, "reconfiguring the same home must not replace the connection")
@@ -78,7 +78,7 @@ struct SessionBindingTests {
     
     // MARK: - Private
     private static func noteIds() throws -> Set<String> {
-        try DB.connect().read { database in
+        try GRDBStorage.session.connect().read { database in
             Set(try String.fetchAll(database, sql: "SELECT id FROM notes"))
         }
     }

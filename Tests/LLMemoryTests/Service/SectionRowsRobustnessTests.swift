@@ -38,7 +38,7 @@ struct SectionRowsRobustnessTests {
         #expect(home.createNote(id: "hl-note", axis: "tech", tags: ["tech"], content: "## A\nbody\n")
             .status == "ok")
         
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         try queue.write { db in
             try db.execute(sql: "DELETE FROM notes_fts WHERE id = 'hl-note' AND section = ''")

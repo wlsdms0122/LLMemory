@@ -237,7 +237,7 @@ struct TemplateTests {
     }
     
     private func body(_ home: MemoryHome, _ id: String) throws -> String {
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         let relative = try queue.read { db in
             try String.fetchOne(db, sql: "SELECT path FROM notes WHERE id = ?", arguments: [id])
         }
@@ -264,7 +264,7 @@ struct TemplateTests {
             #expect(scaffolded.contains(heading))
         }
         
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         let row = try queue.read { db in
             try Row.fetchOne(db, sql: "SELECT template, locked FROM notes WHERE id = 'doc-1'")
         }
@@ -353,7 +353,7 @@ struct TemplateTests {
         #expect(created.status == "failed")
         #expect(created.error.contains("template frame"))
         
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         
         #expect(try !queue.read { db in try Notes.exists(db, nid: "doc-4") })
     }
@@ -392,7 +392,7 @@ struct TemplateTests {
             "content": "# A\nx\n# B\ny\n"
         ]], "rationale": "t"]).status == "ok")
         
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         let relative = try queue.read { db in
             try String.fetchOne(db, sql: "SELECT path FROM notes WHERE id='tpl-ab'")
         }
@@ -401,7 +401,7 @@ struct TemplateTests {
         
         try (text + "# C\nguidance C.\n").write(to: templateFile, atomically: true, encoding: .utf8)
         
-        _ = try DB.writeLock { try queue.write { db in try Notes.reindexFile(db, path: templateFile) } }
+        _ = try GRDBStorage.session.writeLock { try queue.write { db in try Notes.reindexFile(db, path: templateFile) } }
         
         let result = Transaction.apply(["ops": [[
             "op": "delete_note", "id": "doc-d", "reason": "drift cleanup"
@@ -432,7 +432,7 @@ struct TemplateTests {
             "tags": ["flow"], "content": "## A\ny\n", "locked": true, "entities": ["ClusterEnt"]
         ]], "rationale": "t"]).status == "ok")
         
-        let queue = try DB.connect()
+        let queue = try GRDBStorage.session.connect()
         let members = Set(try queue.read { db in try Candidates.clusters(db) }.flatMap { cluster in cluster.members.map(\.id) })
         
         #expect(members.contains("cl-n1"))

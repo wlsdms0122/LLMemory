@@ -49,7 +49,7 @@ enum Config {
     
     static func warmCache() {
         do {
-            let queue = try DB.connect()
+            let queue = try GRDBStorage.session.connect()
             let rows = try queue.read { db in
                 try Row.fetchAll(
                     db,
@@ -75,7 +75,7 @@ enum Config {
         let stringValue = "\(value)"
         
         do {
-            try DB.write { db in
+            try GRDBStorage.session.write { db in
                 try db.execute(
                     sql: """
                     INSERT INTO meta (key, value) VALUES (?, ?)
@@ -123,7 +123,7 @@ enum Config {
     
     static func allKeys() -> [String: String] {
         do {
-            let queue = try DB.connect()
+            let queue = try GRDBStorage.session.connect()
             
             return try queue.read { db in
                 var values: [String: String] = [:]
@@ -160,7 +160,7 @@ enum Config {
         }
         
         do {
-            let queue = try DB.connect()
+            let queue = try GRDBStorage.session.connect()
             let value = try queue.read { db in
                 try String.fetchOne(
                     db,
