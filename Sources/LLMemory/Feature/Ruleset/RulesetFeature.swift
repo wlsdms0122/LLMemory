@@ -10,41 +10,6 @@ import GRDB
 import Storage
 
 public struct RulesetFeature {
-    public struct Summary {
-        // MARK: - Property
-        public let id: String
-        public let name: String
-        public let description: String?
-        public let ruleCount: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    public struct RuleView {
-        // MARK: - Property
-        public let id: Int64
-        public let kind: String
-        public let paramsJSON: String
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    public struct ShowResult {
-        // MARK: - Property
-        public let id: String
-        public let name: String
-        public let description: String?
-        public let rules: [RuleView]
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
     // MARK: - Property
     let session: Session
 
@@ -54,11 +19,11 @@ public struct RulesetFeature {
     }
 
     // MARK: - Public
-    public func list() async throws -> [Summary] {
+    public func list() async throws -> [Ruleset.Summary] {
         try await session.storage.run(ListRulesetsTransaction())
     }
 
-    public func show(id: String) async throws -> ShowResult? {
+    public func show(id: String) async throws -> Ruleset.ShowResult? {
         try await session.storage.run(ShowRulesetTransaction(.init(id: id)))
     }
 

@@ -122,7 +122,7 @@ public struct GeneShadowTransaction: GRDBTransaction {
             }
         }
         
-        var diffs: [GenomeFeature.ShadowResult.QueryDiff] = []
+        var diffs: [Genome.ShadowResult.QueryDiff] = []
         var changed = 0
         
         for loggedQuery in logged {
@@ -137,7 +137,7 @@ public struct GeneShadowTransaction: GRDBTransaction {
                     let candidateIds = Set(candidate)
                     
                     diffs.append(
-                        GenomeFeature.ShadowResult.QueryDiff(
+                        Genome.ShadowResult.QueryDiff(
                             query: "\(loggedQuery.command): \(loggedQuery.text)",
                             baseline: baseline,
                             candidate: candidate,
@@ -149,7 +149,7 @@ public struct GeneShadowTransaction: GRDBTransaction {
             }
         }
         
-        return GenomeFeature.ShadowResult(
+        return Genome.ShadowResult(
             gene: parameter.gene,
             baselineValue: baselineValue,
             candidateValue: parameter.value,
@@ -177,5 +177,5 @@ public extension GeneShadowTransaction {
         }
     }
 
-    typealias Result = GenomeFeature.ShadowResult
+    typealias Result = Genome.ShadowResult
 }

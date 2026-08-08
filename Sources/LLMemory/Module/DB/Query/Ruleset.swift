@@ -324,3 +324,40 @@ public enum Ruleset {
     
     // MARK: - Private
 }
+
+public extension Ruleset {
+    struct Summary {
+        // MARK: - Property
+        public let id: String
+        public let name: String
+        public let description: String?
+        public let ruleCount: Int
+
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+
+    struct RuleView {
+        // MARK: - Property
+        public let id: Int64
+        public let kind: String
+        public let paramsJSON: String
+
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+
+    struct ShowResult {
+        // MARK: - Property
+        public let id: String
+        public let name: String
+        public let description: String?
+        public let rules: [RuleView]
+
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+}

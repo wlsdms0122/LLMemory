@@ -24,7 +24,7 @@ public struct ListRulesetsTransaction: GRDBTransaction {
             try Ruleset.listRulesets(db).map { ruleset in
                 let rules = try Ruleset.fetchRules(db, rulesetId: ruleset.id)
 
-                return RulesetFeature.Summary(
+                return Ruleset.Summary(
                     id: ruleset.id,
                     name: ruleset.name,
                     description: ruleset.description,
@@ -37,5 +37,5 @@ public struct ListRulesetsTransaction: GRDBTransaction {
 
 public extension ListRulesetsTransaction {
     typealias Parameter = Void
-    typealias Result = [RulesetFeature.Summary]
+    typealias Result = [Ruleset.Summary]
 }

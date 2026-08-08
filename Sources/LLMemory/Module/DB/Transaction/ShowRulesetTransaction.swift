@@ -25,14 +25,14 @@ public struct ShowRulesetTransaction: GRDBTransaction {
 
     // MARK: - Private
     private func perform(_ connection: Connection) throws -> Result {
-        try connection.read { db -> RulesetFeature.ShowResult? in
+        try connection.read { db -> Ruleset.ShowResult? in
             guard let ruleset = try Ruleset.getRuleset(db, id: parameter.id) else { return nil }
 
             let rules = try Ruleset.fetchRules(db, rulesetId: parameter.id).map { rule in
-                RulesetFeature.RuleView(id: rule.id, kind: rule.kind, paramsJSON: rule.paramsRaw)
+                Ruleset.RuleView(id: rule.id, kind: rule.kind, paramsJSON: rule.paramsRaw)
             }
 
-            return RulesetFeature.ShowResult(
+            return Ruleset.ShowResult(
                 id: ruleset.id,
                 name: ruleset.name,
                 description: ruleset.description,
@@ -53,5 +53,5 @@ public extension ShowRulesetTransaction {
         }
     }
 
-    typealias Result = RulesetFeature.ShowResult?
+    typealias Result = Ruleset.ShowResult?
 }
