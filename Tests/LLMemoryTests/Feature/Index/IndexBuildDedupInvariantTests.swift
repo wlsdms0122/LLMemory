@@ -102,7 +102,7 @@ struct IndexBuildDedupInvariantTests {
             .write(to: file, atomically: true, encoding: .utf8)
         try fileManager.setAttributes([.modificationDate: frozen as Any], ofItemAtPath: file.path)
         
-        let result = try Index.build(rebuild: false)
+        let result = try Index.buildLocked(rebuild: false)
         
         // Then
         let indexedRows = try home.read { database in

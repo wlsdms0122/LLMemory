@@ -1,5 +1,5 @@
 //
-//  CheckIntegrityTransaction.swift
+//  BuildIndexTransaction.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/8/26.
@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct CheckIntegrityTransaction: GRDBTransaction {
+public struct BuildIndexTransaction: GRDBWriteTransaction {
     // MARK: - Property
     public let parameter: Parameter
 
@@ -20,20 +20,20 @@ public struct CheckIntegrityTransaction: GRDBTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try Index.check(level: parameter.level)
+        try Index.buildLocked(rebuild: parameter.rebuild)
     }
 }
 
-public extension CheckIntegrityTransaction {
+public extension BuildIndexTransaction {
     struct Parameter: Sendable {
         // MARK: - Property
-        public let level: Index.IntegrityLevel
+        public let rebuild: Bool
 
         // MARK: - Initializer
-        public init(level: Index.IntegrityLevel = .l1) {
-            self.level = level
+        public init(rebuild: Bool = false) {
+            self.rebuild = rebuild
         }
     }
 
-    typealias Result = (ok: Bool, msgs: [String])
+    typealias Result = Index.BuildResult
 }

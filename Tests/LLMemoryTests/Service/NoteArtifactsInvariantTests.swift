@@ -176,36 +176,36 @@ struct NoteArtifactsInvariantTests {
             "tags": ["flow"], "summary": "s", "content": "## Body\nc\n",
             "source": [source.path]]]).status == "ok")
         
-        let queue = try GRDBStorage.session.connect()
-        
-        try queue.write { db in
+        try home.write { db in
             try db.execute(sql: "INSERT INTO ripple_flags (note_id, flag, created_at, last_flagged_at) VALUES ('rt-a','reconsolidate',1,1)")
             try db.execute(sql: "INSERT OR IGNORE INTO note_links (src,dst,kind,weight,created_at,last_activated_at) VALUES ('rt-a','rt-b','cooccur',1.0,1,1)")
             try db.execute(sql: "INSERT OR IGNORE INTO note_links (src,dst,kind,weight,created_at,last_activated_at) VALUES ('rt-a','rt-b','assoc',1.0,1,1)")
         }
         
         let preserved = NoteArtifacts.tableDisposition.filter { entry in entry.value == .preserved }.map { entry in entry.key }
-        
-        var before: [String: Int] = [:]
-        
-        try queue.read { db in
-            for table in preserved {
-                before[table] = try Int.fetchOne(db, sql: "SELECT count(*) FROM \(table)") ?? 0
+        let counts: ([String]) throws -> [String: Int] = { tables in
+            try home.read { db in
+                var counted: [String: Int] = [:]
+                
+                for table in tables {
+                    counted[table] = try Int.fetchOne(db, sql: "SELECT count(*) FROM \(table)") ?? 0
+                }
+                
+                return counted
             }
         }
+        let before = try counts(preserved)
         
         for table in preserved {
             #expect(before[table]! > 0, "the round-trip fixture never fills '\(table)' — a newly preserved table needs data added above")
         }
         
-        _ = try Index.build(rebuild: true)
+        _ = try Index.buildLocked(rebuild: true)
         
-        try queue.read { db in
-            for table in preserved {
-                let after = try Int.fetchOne(db, sql: "SELECT count(*) FROM \(table)") ?? 0
-                
-                #expect(after == before[table]!, "the rebuild lost '\(table)': \(before[table]!) → \(after)")
-            }
+        let after = try counts(preserved)
+        
+        for table in preserved {
+            #expect(after[table]! == before[table]!, "the rebuild lost '\(table)': \(before[table]!) → \(after[table]!)")
         }
     }
 }

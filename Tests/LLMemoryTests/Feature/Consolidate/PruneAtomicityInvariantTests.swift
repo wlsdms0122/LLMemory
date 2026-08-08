@@ -46,12 +46,12 @@ struct PruneAtomicityInvariantTests {
     }
     
     @Test("prune decays learned links and reports the count it committed")
-    func pruneDecaysLinksAndReportsIt() async throws {
+    func pruneDecaysLinksAndReportsIt() throws {
         // Given
         try home.write { database in try seedAssocLink(database, weight: 1.0) }
         
         // When
-        let result = try await GRDBStorage.session.run(PruneTransaction())
+        let result = try Consolidate.pruneLocked()
         
         // Then
         let weight = try home.read { database in try Self.linkWeight(database) }

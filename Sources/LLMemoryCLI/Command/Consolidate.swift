@@ -8,7 +8,6 @@
 import ArgumentParser
 import Foundation
 import LLMemory
-import Storage
 
 struct ConsolidateCommand: ParsableCommand {
     // MARK: - Property
@@ -90,7 +89,7 @@ struct ConsolidateIntegrate: AsyncParsableCommand {
     func run() async throws {
         Session.configure(home: global.home)
         
-        let result = try await GRDBStorage.session.run(IntegrateTransaction())
+        let result = try await Consolidate.integrate()
         
         emitConsolidateSummary(result.summary, json: format.json)
     }
@@ -133,7 +132,7 @@ struct ConsolidateHomeostasis: AsyncParsableCommand {
     func run() async throws {
         Session.configure(home: global.home)
         
-        let result = try await GRDBStorage.session.run(HomeostasisTransaction())
+        let result = try await Consolidate.homeostasis()
         
         emitConsolidateSummary(result, json: format.json)
     }
@@ -166,7 +165,7 @@ struct ConsolidatePrune: AsyncParsableCommand {
     func run() async throws {
         Session.configure(home: global.home)
         
-        let result = try await GRDBStorage.session.run(PruneTransaction())
+        let result = try await Consolidate.prune()
         
         emitConsolidateSummary(result, json: format.json)
     }
@@ -239,7 +238,7 @@ struct ConsolidateReport: AsyncParsableCommand {
     func run() async throws {
         Session.configure(home: global.home)
         
-        let (axisReport, tagReport) = try await GRDBStorage.session.run(ConsolidateReportTransaction())
+        let (axisReport, tagReport) = try await Consolidate.report()
         let report = ReportOutput(
             axes: axisReport.all.map { entry in
                 AxisRow(axis: entry.axis, count: entry.count, description: entry.description)

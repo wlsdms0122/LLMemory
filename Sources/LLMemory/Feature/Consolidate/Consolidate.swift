@@ -7,6 +7,7 @@
 
 import Foundation
 import GRDB
+import Storage
 
 public enum Consolidate {
     public struct AxisReport {
@@ -431,6 +432,43 @@ public enum Consolidate {
         }
     }
     
+    static func pruneLocked() throws -> PruneResult {
+        let now = Int(Date().timeIntervalSince1970)
+        var decay: (decayed: Int, pruned: Int) = (0, 0)
+
+        try GRDBStorage.session.write { db in
+            decay = try Links.decayAndPrune(db)
+        }
+
+        Events.record(
+            kind: Events.kindConsolidation,
+            payload: [
+                "action": "prune",
+                "links_decayed": decay.decayed,
+                "links_pruned": decay.pruned
+            ],
+            ts: now
+        )
+
+        return PruneResult(linksDecayed: decay.decayed, linksPruned: decay.pruned)
+    }
+
+    public static func integrate() async throws -> IntegrateResult {
+        try await GRDBStorage.session.run(IntegrateTransaction())
+    }
+
+    public static func homeostasis() async throws -> Homeostasis.Report {
+        try await GRDBStorage.session.run(HomeostasisTransaction())
+    }
+
+    public static func prune() async throws -> PruneResult {
+        try await GRDBStorage.session.run(PruneTransaction())
+    }
+
+    public static func report() async throws -> (axis: AxisReport, tag: TagReport) {
+        try await GRDBStorage.session.run(ConsolidateReportTransaction())
+    }
+
     // MARK: - Private
     static func integrateLocked() throws -> IntegrateResult {
         let now = Int(Date().timeIntervalSince1970)

@@ -1,5 +1,5 @@
 //
-//  BuildIndexTransaction.swift
+//  ReindexNotesTransaction.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/8/26.
@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct BuildIndexTransaction: GRDBWriteTransaction {
+public struct ReindexNotesTransaction: GRDBWriteTransaction {
     // MARK: - Property
     public let parameter: Parameter
 
@@ -20,20 +20,20 @@ public struct BuildIndexTransaction: GRDBWriteTransaction {
 
     // MARK: - Lifecycle
     public func execute(_ connection: Connection) async throws -> Result {
-        try Index.build(rebuild: parameter.rebuild)
+        try Index.reindexLocked(filePaths: parameter.filePaths)
     }
 }
 
-public extension BuildIndexTransaction {
+public extension ReindexNotesTransaction {
     struct Parameter: Sendable {
         // MARK: - Property
-        public let rebuild: Bool
+        public let filePaths: [String]
 
         // MARK: - Initializer
-        public init(rebuild: Bool = false) {
-            self.rebuild = rebuild
+        public init(filePaths: [String]) {
+            self.filePaths = filePaths
         }
     }
 
-    typealias Result = Index.BuildResult
+    typealias Result = Int
 }

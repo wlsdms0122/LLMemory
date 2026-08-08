@@ -88,7 +88,7 @@ struct DismissalsTests {
         #expect(!(try splitCandidateIds().contains("big-4")))
         
         // When
-        _ = try Index.build(rebuild: true)
+        _ = try Index.buildLocked(rebuild: true)
         
         // Then
         let survived = try home.read { database in

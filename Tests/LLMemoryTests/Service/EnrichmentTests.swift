@@ -188,10 +188,10 @@ struct EnrichmentTests {
             "provenance": "test:capture"
         ]]).status == "ok")
         
-        _ = try Index.build(rebuild: true)
+        _ = try Index.buildLocked(rebuild: true)
         
         let queue = try GRDBStorage.session.connect()
-        let (status, hit) = try queue.read { db -> (String?, Bool) in
+        let (status, hit) = try home.read { db -> (String?, Bool) in
             let status = try String.fetchOne(db, sql: """
                 SELECT status FROM note_retrieval_terms
                 WHERE note_id = 'enr-rb1' AND kind = 'alias'
@@ -361,10 +361,10 @@ struct EnrichmentTests {
         #expect(home.apply([["op": "set_note_meta", "id": "rbm-note",
             "namespace": "test", "key": "k", "value": "preserved"]]).status == "ok")
         
-        _ = try Index.build(rebuild: true)
+        _ = try Index.buildLocked(rebuild: true)
         
         let queue = try GRDBStorage.session.connect()
-        let value = try queue.read { db in
+        let value = try home.read { db in
             try String.fetchOne(db, sql: "SELECT value FROM note_meta WHERE note_id='rbm-note' AND key='k'")
         }
         
@@ -378,14 +378,14 @@ struct EnrichmentTests {
         
         let queue = try GRDBStorage.session.connect()
         
-        try queue.write { db in
+        try home.write { db in
             try db.execute(sql: "UPDATE note_usage SET hit_count=7, last_retrieved_at=1700000000 WHERE note_id='usage-note'")
         }
         
-        _ = try Index.build(rebuild: true)
+        _ = try Index.buildLocked(rebuild: true)
         
         // When
-        let (hitCount, lastRetrieved) = try queue.read { db -> (Int, Int) in
+        let (hitCount, lastRetrieved) = try home.read { db -> (Int, Int) in
             (try Int.fetchOne(db, sql: "SELECT hit_count FROM note_usage WHERE note_id='usage-note'") ?? -1,
                 try Int.fetchOne(db, sql: "SELECT last_retrieved_at FROM note_usage WHERE note_id='usage-note'") ?? -1)
         }
@@ -423,7 +423,7 @@ struct EnrichmentTests {
     }
     
     @Test("reindexing preserves an entity hit count")
-    func reindexPreservesEntityHitCount() async throws {
+    func reindexPreservesEntityHitCount() throws {
         // Then
         #expect(home.apply([["op": "create_note", "id": "rc-note", "axis": "tech",
             "title": "t", "tags": ["tech"], "summary": "s",
@@ -437,7 +437,7 @@ struct EnrichmentTests {
             try db.execute(sql: "UPDATE entity_index SET hit_count=5 WHERE note_id='rc-note' AND entity='BAR-9'")
         }
         
-        _ = try await GRDBStorage.session.run(ReindexNotesTransaction(.init(filePaths: [path])))
+        _ = try Index.reindexLocked(filePaths: [path])
         
         let hitCount = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT hit_count FROM entity_index WHERE note_id='rc-note' AND entity='BAR-9'") ?? -1
@@ -455,13 +455,13 @@ struct EnrichmentTests {
         
         let queue = try GRDBStorage.session.connect()
         
-        try queue.write { db in
+        try home.write { db in
             try db.execute(sql: "UPDATE entity_index SET hit_count=9 WHERE note_id='eh-note' AND entity='FOO-1'")
         }
         
-        _ = try Index.build(rebuild: true)
+        _ = try Index.buildLocked(rebuild: true)
         
-        let hitCount = try queue.read { db in
+        let hitCount = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT hit_count FROM entity_index WHERE note_id='eh-note' AND entity='FOO-1'") ?? -1
         }
         
@@ -476,15 +476,15 @@ struct EnrichmentTests {
             "content": "## a\nbody\n", "entities": ["BKIOS-999", "kim-cs"]]]).status == "ok")
         
         let queue = try GRDBStorage.session.connect()
-        let before = try queue.read { db in
+        let before = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM entity_index WHERE note_id='ent-note'") ?? 0
         }
         
         #expect(before == 2)
         
-        _ = try Index.build(rebuild: true)
+        _ = try Index.buildLocked(rebuild: true)
         
-        let after = try queue.read { db in
+        let after = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM entity_index WHERE note_id='ent-note'") ?? 0
         }
         
@@ -499,17 +499,17 @@ struct EnrichmentTests {
         
         let queue = try GRDBStorage.session.connect()
         
-        try queue.write { db in
+        try home.write { db in
             try db.execute(sql: """
                 INSERT OR IGNORE INTO note_links (src, dst, kind, weight, created_at, last_activated_at)
                 VALUES ('co-a','co-b','cooccur', 1.0, 1700000000, 1700000000)
                 """)
         }
         
-        _ = try Index.build(rebuild: true)
+        _ = try Index.buildLocked(rebuild: true)
         
         // When
-        let survived = try queue.read { db in
+        let survived = try home.read { db in
             (try Int.fetchOne(db, sql:
                 "SELECT COUNT(*) FROM note_links WHERE kind='cooccur' AND src='co-a' AND dst='co-b'") ?? 0) > 0
         }

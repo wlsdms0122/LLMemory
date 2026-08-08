@@ -8,7 +8,6 @@
 import ArgumentParser
 import Foundation
 import LLMemory
-import Storage
 
 struct IndexCommand: ParsableCommand {
     // MARK: - Property
@@ -124,7 +123,7 @@ struct IndexVectors: AsyncParsableCommand {
     func run() async throws {
         Session.configure(home: global.home)
         
-        let result = try await GRDBStorage.session.run(BuildVectorsTransaction())
+        let result = try await Index.buildVectors()
         let output = VectorsOutput(
             noteCount: result.noteCount,
             dim: result.dim,
@@ -218,7 +217,7 @@ struct IndexVerifyTerms: AsyncParsableCommand {
     func run() async throws {
         Session.configure(home: global.home)
         
-        let validation = try await GRDBStorage.session.run(ValidateTermsTransaction(.init(rejectStale: rejectStale)))
+        let validation = try await Index.validateTerms(rejectStale: rejectStale)
         let result = ValidateOutput(
             activated: validation.activated,
             rejected: validation.rejected,
@@ -330,7 +329,7 @@ struct IndexBuild: AsyncParsableCommand {
         if !path.isEmpty {
             if rebuild { throw ValidationError("--path and --rebuild are mutually exclusive") }
             
-            let returnCode = try await GRDBStorage.session.run(ReindexNotesTransaction(.init(filePaths: path)))
+            let returnCode = try await Index.reindex(filePaths: path)
             
             render(
                 ReindexOutput(reindexed: path.count, returnCode: Int(returnCode)),
@@ -344,7 +343,7 @@ struct IndexBuild: AsyncParsableCommand {
             return
         }
         
-        let result = try await GRDBStorage.session.run(BuildIndexTransaction(.init(rebuild: rebuild)))
+        let result = try await Index.build(rebuild: rebuild)
         
         for error in result.errors {
             FileHandle.standardError.write("ERROR \(error)\n".data(using: .utf8)!)
@@ -354,7 +353,7 @@ struct IndexBuild: AsyncParsableCommand {
         
         if rebuild {
             do {
-                vectors = try await GRDBStorage.session.run(BuildVectorsTransaction()).noteCount
+                vectors = try await Index.buildVectors().noteCount
             } catch {
                 FileHandle.standardError.write(
                     "WARN vectors rebuild failed: \(error)\n".data(using: .utf8)!
@@ -430,7 +429,7 @@ struct IndexVerifyIntegrity: AsyncParsableCommand {
     func run() async throws {
         Session.configure(home: global.home)
         
-        let (ok, messages) = try await GRDBStorage.session.run(CheckIntegrityTransaction(.init(level: level)))
+        let (ok, messages) = try await Index.check(level: level)
         
         render(
             CheckOutput(ok: ok, level: level.rawValue, messages: messages),
@@ -500,7 +499,7 @@ struct IndexVerifySources: AsyncParsableCommand {
     func run() async throws {
         Session.configure(home: global.home)
         
-        let result = try await GRDBStorage.session.run(VerifySourcesTransaction())
+        let result = try await Index.verifySources()
         let output = VerifyOutput(
             total: result.total,
             rechecked: result.rechecked,

@@ -7,6 +7,7 @@
 
 import Foundation
 import GRDB
+import Storage
 
 enum IndexError: Error, CustomStringConvertible {
     case duplicateId(String)
@@ -100,7 +101,7 @@ public enum Index {
     
     // MARK: - Initializer
     // MARK: - Public
-    static func build(rebuild: Bool = false) throws -> BuildResult {
+    static func buildLocked(rebuild: Bool = false) throws -> BuildResult {
         try GRDBStorage.session.writeLock {
             let now = Int(Date().timeIntervalSince1970)
             let files = Paths.scanNotes()
@@ -155,8 +156,83 @@ public enum Index {
         }
     }
     
+    @discardableResult
+    static func reindexLocked(filePaths: [String]) throws -> Int {
+        try GRDBStorage.session.writeLock {
+            var exitCode = 0
+
+            for filePath in filePaths {
+                var path = URL(fileURLWithPath: (filePath as NSString).expandingTildeInPath)
+
+                if !path.path.hasPrefix("/") {
+                    path = Paths.brainRoot.appendingPathComponent(filePath)
+                }
+
+                path = path.standardizedFileURL.resolvingSymlinksInPath()
+
+                if !FileManager.default.fileExists(atPath: path.path) {
+                    FileHandle.standardError.write(
+                        "ERROR \(filePath): not found\n".data(using: .utf8)!
+                    )
+                    exitCode = 1
+                    continue
+                }
+
+                if Paths.relative(of: path) == nil {
+                    FileHandle.standardError.write(
+                        "ERROR \(filePath): outside brain home \(Paths.brainRoot.path)\n"
+                            .data(using: .utf8)!
+                    )
+                    exitCode = 1
+                    continue
+                }
+
+                do {
+                    let noteId = try GRDBStorage.session.write { db in
+                        try Notes.reindexFile(db, path: path)
+                    }
+                    let relativePath = Paths.relative(of: path) ?? path.path
+
+                    print("reindexed: \(noteId) (\(relativePath))")
+                } catch {
+                    FileHandle.standardError.write(
+                        "ERROR \(filePath): \(error)\n".data(using: .utf8)!
+                    )
+                    exitCode = 1
+                }
+            }
+
+            return exitCode
+        }
+    }
+
     static func check(level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
         try check(rawLevel: level.rawValue)
+    }
+
+    public static func build(rebuild: Bool = false) async throws -> BuildResult {
+        try await GRDBStorage.session.run(BuildIndexTransaction(.init(rebuild: rebuild)))
+    }
+
+    @discardableResult
+    public static func reindex(filePaths: [String]) async throws -> Int {
+        try await GRDBStorage.session.run(ReindexNotesTransaction(.init(filePaths: filePaths)))
+    }
+
+    public static func check(level: IntegrityLevel = .l1) async throws -> (ok: Bool, msgs: [String]) {
+        try await GRDBStorage.session.run(CheckIntegrityTransaction(.init(level: level)))
+    }
+
+    public static func buildVectors() async throws -> Vectors.BuildResult {
+        try await GRDBStorage.session.run(BuildVectorsTransaction())
+    }
+
+    public static func verifySources() async throws -> SourcesService.BulkVerifyResult {
+        try await GRDBStorage.session.run(VerifySourcesTransaction())
+    }
+
+    public static func validateTerms(rejectStale: Bool) async throws -> ValidateResult {
+        try await GRDBStorage.session.run(ValidateTermsTransaction(.init(rejectStale: rejectStale)))
     }
     
     public static func initialize(home: String, bare: Bool = false) throws -> InitResult {
@@ -175,7 +251,7 @@ public enum Index {
         let result = try GRDBStorage.session.writeLock { () -> Index.BuildResult in
             try GRDBStorage.session.initialize()
 
-            let built = try Index.build(rebuild: false)
+            let built = try Index.buildLocked(rebuild: false)
 
             try GRDBStorage.session.write { db in try Seeding.describeInnateAxis(db) }
 
@@ -232,7 +308,7 @@ public enum Index {
             // is carried forward here, before anything else touches the connection.
             try GRDBStorage.session.initialize()
 
-            let built = try Index.build(rebuild: false)
+            let built = try Index.buildLocked(rebuild: false)
 
             try GRDBStorage.session.write { db in try Seeding.describeInnateAxis(db) }
 
@@ -357,7 +433,7 @@ public enum Index {
     }
     
     // MARK: - Private
-    private static func check(rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
+    static func check(rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
         let eagerCap = Config.getInt("eager.max_count", default: 20)
         let queue = try GRDBStorage.session.connect()
         

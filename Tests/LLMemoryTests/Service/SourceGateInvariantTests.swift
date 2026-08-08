@@ -119,7 +119,7 @@ struct SourceGateInvariantTests {
     }
     
     @Test("integrate finishes and reports what it could not read, rather than stopping or staying silent")
-    func integrateCompletesAndReportsUnreadableDeclaration() async throws {
+    func integrateCompletesAndReportsUnreadableDeclaration() throws {
         // Given
         let grounding = home.url.appendingPathComponent("g.txt")
         
@@ -136,7 +136,7 @@ struct SourceGateInvariantTests {
             .write(to: path, atomically: true, encoding: .utf8)
         
         // When
-        let output = try await GRDBStorage.session.run(IntegrateTransaction())
+        let output = try Consolidate.integrateLocked()
         
         // Then
         #expect(output.summary.sourcesUnreadable == 1,

@@ -93,7 +93,7 @@ struct ActivationTests {
     }
     
     @Test("integrate derives the trace before compacting the raw events it came from")
-    func integrateDerivesBeforeCompaction() async throws {
+    func integrateDerivesBeforeCompaction() throws {
         // Given
         home.createNote(id: "n1")
         
@@ -103,7 +103,7 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: old, sessionId: nil, hitIds: ["n1"])
         }
         
-        _ = try await GRDBStorage.session.run(IntegrateTransaction())
+        _ = try Consolidate.integrateLocked()
         
         // When
         try home.read { database in
