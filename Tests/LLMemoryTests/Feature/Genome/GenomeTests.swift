@@ -342,18 +342,19 @@ struct GenomeTests {
         }
         
         // When
-        let unchanged = try GenomeFeature.shadow(
-            home: home.path, gene: "priming.alpha",
-            value: Genome.double("priming.alpha"), limit: 10, sampleDiffs: 5
+        let unchanged = try GeneShadowTransaction(
+            .init(gene: "priming.alpha", value: Genome.double("priming.alpha"), limit: 10, sampleDiffs: 5)
         )
+            .perform(home.database())
         
         // Then
         #expect(unchanged.queriesReplayed == 1)
         #expect(unchanged.queriesChanged == 0)
         #expect(throws: Genome.WriteError.self) {
-            _ = try GenomeFeature.shadow(
-                home: home.path, gene: "priming.alpha", value: 99, limit: 10, sampleDiffs: 5
+            _ = try GeneShadowTransaction(
+                .init(gene: "priming.alpha", value: 99, limit: 10, sampleDiffs: 5)
             )
+                .perform(home.database())
         }
         #expect(Genome.source("priming.alpha") == "wild_type", "a shadow run must not write the gene")
     }

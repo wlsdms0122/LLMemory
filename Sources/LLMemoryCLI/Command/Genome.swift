@@ -38,7 +38,7 @@ struct GenomeCommand: ParsableCommand {
     // MARK: - Private
 }
 
-struct GenomeList: ParsableCommand {
+struct GenomeList: AsyncParsableCommand {
     struct Output: Encodable {
         // MARK: - Property
         let genes: [Genome.ListRow]
@@ -71,8 +71,8 @@ struct GenomeList: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let rows = try GenomeFeature.list(home: global.home)
+    func run() async throws {
+        let rows = try await GenomeFeature.list(home: global.home)
         
         render(Output(genes: rows), json: format.json) { output in
             [
@@ -99,7 +99,7 @@ struct GenomeList: ParsableCommand {
     // MARK: - Private
 }
 
-struct GenomeHistory: ParsableCommand {
+struct GenomeHistory: AsyncParsableCommand {
     struct Output: Encodable {
         // MARK: - Property
         let events: [Genome.HistoryRow]
@@ -135,8 +135,8 @@ struct GenomeHistory: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let rows = try GenomeFeature.history(home: global.home, gene: gene, limit: limit)
+    func run() async throws {
+        let rows = try await GenomeFeature.history(home: global.home, gene: gene, limit: limit)
         
         render(Output(events: rows), json: format.json) { output in
             [
@@ -160,7 +160,7 @@ struct GenomeHistory: ParsableCommand {
     // MARK: - Private
 }
 
-struct GenomeShadow: ParsableCommand {
+struct GenomeShadow: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "shadow",
@@ -200,8 +200,8 @@ struct GenomeShadow: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let result = try GenomeFeature.shadow(
+    func run() async throws {
+        let result = try await GenomeFeature.shadow(
             home: global.home,
             gene: gene,
             value: value,

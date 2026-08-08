@@ -31,7 +31,7 @@ struct RulesetCommand: ParsableCommand {
     // MARK: - Private
 }
 
-struct RulesetList: ParsableCommand {
+struct RulesetList: AsyncParsableCommand {
     struct Output: Encodable {
         enum CodingKeys: String, CodingKey {
             case id, name, description
@@ -64,8 +64,8 @@ struct RulesetList: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let items = try RulesetFeature.list(home: global.home).map { summary in
+    func run() async throws {
+        let items = try await RulesetFeature.list(home: global.home).map { summary in
             Output(
                 id: summary.id,
                 name: summary.name,
@@ -93,7 +93,7 @@ struct RulesetList: ParsableCommand {
     // MARK: - Private
 }
 
-struct RulesetShow: ParsableCommand {
+struct RulesetShow: AsyncParsableCommand {
     struct RuleOutput: Encodable {
         // MARK: - Property
         let id: Int64
@@ -135,8 +135,8 @@ struct RulesetShow: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let output: Output? = try RulesetFeature.show(home: global.home, id: id).map { ruleset in
+    func run() async throws {
+        let output: Output? = try await RulesetFeature.show(home: global.home, id: id).map { ruleset in
             Output(
                 id: ruleset.id,
                 name: ruleset.name,
@@ -176,7 +176,7 @@ struct RulesetShow: ParsableCommand {
     // MARK: - Private
 }
 
-struct RulesetEffective: ParsableCommand {
+struct RulesetEffective: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "effective",
@@ -207,8 +207,8 @@ struct RulesetEffective: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        guard let effective = try RulesetFeature.effective(
+    func run() async throws {
+        guard let effective = try await RulesetFeature.effective(
             home: global.home,
             ruleset: ruleset,
             axis: axis
