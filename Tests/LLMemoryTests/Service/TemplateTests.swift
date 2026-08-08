@@ -446,7 +446,7 @@ struct TemplateTests {
         // Then
         #expect(makeTemplate().status == "ok")
         
-        let (note, frame) = try QueryFeature.template(home: home.path, id: "tpl-spec")
+        let (note, frame) = try QueryFeature.template(id: "tpl-spec")
         
         #expect(note.id == "tpl-spec")
         #expect(frame.map(\.title) == ["Background", "Spec", "Reference"])

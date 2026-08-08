@@ -308,7 +308,7 @@ struct ConsolidateReport: AsyncParsableCommand {
     // MARK: - Private
 }
 
-struct ConsolidateCandidates: ParsableCommand {
+struct ConsolidateCandidates: AsyncParsableCommand {
     struct SectionSketch: Encodable {
         enum CodingKeys: String, CodingKey {
             case path, title
@@ -526,7 +526,7 @@ struct ConsolidateCandidates: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         let validKinds = QueryFeature.candidateValidKinds + ["all", "retrieval", "structural"]
         
         if !Set(validKinds).contains(kind) {
@@ -558,7 +558,7 @@ struct ConsolidateCandidates: ParsableCommand {
             groupMode = false
         }
         
-        let batches = try QueryFeature.candidates(home: global.home, kinds: kinds, limit: limit)
+        let batches = try await QueryFeature.candidates(home: global.home, kinds: kinds, limit: limit)
         let result: [String: KindOutput] = batches.mapValues { batch in
             mapBatch(batch, full: verbose)
         }

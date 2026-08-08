@@ -36,7 +36,7 @@ struct QueryCommand: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryTemplate: ParsableCommand {
+struct QueryTemplate: AsyncParsableCommand {
     struct Output: Encodable {
         // MARK: - Property
         let id: String
@@ -79,8 +79,8 @@ struct QueryTemplate: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let (note, frame) = try QueryFeature.template(home: global.home, id: id)
+    func run() async throws {
+        let (note, frame) = try await QueryFeature.template(home: global.home, id: id)
         let output = Output(id: note.id, axis: note.axis, path: note.path, frame: frame)
         
         render(output, json: format.json) { output in
@@ -124,7 +124,7 @@ struct QueryTemplate: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryAxes: ParsableCommand {
+struct QueryAxes: AsyncParsableCommand {
     struct AxisRow: Encodable {
         // MARK: - Property
         let axis: String
@@ -155,8 +155,8 @@ struct QueryAxes: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let axes = try QueryFeature.listAxes(home: global.home)
+    func run() async throws {
+        let axes = try await QueryFeature.listAxes(home: global.home)
         let rows = axes.map { entry in
             AxisRow(axis: entry.axis, count: entry.count, description: entry.description)
         }
@@ -174,7 +174,7 @@ struct QueryAxes: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryEnrichment: ParsableCommand {
+struct QueryEnrichment: AsyncParsableCommand {
     struct TermCount: Encodable {
         // MARK: - Property
         let kind, status: String
@@ -274,8 +274,8 @@ struct QueryEnrichment: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let status = try QueryFeature.enrichment(home: global.home)
+    func run() async throws {
+        let status = try await QueryFeature.enrichment(home: global.home)
         let output = Output(
             retrievalTerms: status.termCounts.map { term in
                 TermCount(kind: term.kind, status: term.status, count: term.count)
@@ -357,7 +357,7 @@ struct QueryEnrichment: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryRelated: ParsableCommand {
+struct QueryRelated: AsyncParsableCommand {
     struct VectorLinkedRow: Encodable {
         // MARK: - Property
         let id, axis, title: String
@@ -545,7 +545,7 @@ struct QueryRelated: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         let payload = try readJSON(input) ?? [:]
         var text = payload["text"] as? String ?? ""
         
@@ -558,7 +558,7 @@ struct QueryRelated: ParsableCommand {
         
         let kind = payload["kind"] as? String
         let includeBodies = (payload["include_bodies"] as? Bool) ?? false
-        let result = try QueryFeature.related(
+        let result = try await QueryFeature.related(
             home: global.home,
             text: text,
             kind: kind,
@@ -847,7 +847,7 @@ struct QueryRelated: ParsableCommand {
     // MARK: - Private
 }
 
-struct QuerySearch: ParsableCommand {
+struct QuerySearch: AsyncParsableCommand {
     struct Row: Encodable {
         // MARK: - Property
         let axis, id, title: String
@@ -939,8 +939,8 @@ struct QuerySearch: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let (rows, extra) = try QueryFeature.search(
+    func run() async throws {
+        let (rows, extra) = try await QueryFeature.search(
             home: global.home,
             query: query,
             axis: axis,
@@ -1044,7 +1044,7 @@ struct QuerySearch: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryGet: ParsableCommand {
+struct QueryGet: AsyncParsableCommand {
     struct Stats: Encodable {
         enum CodingKeys: String, CodingKey {
             case priority
@@ -1202,26 +1202,26 @@ struct QueryGet: ParsableCommand {
         }
     }
     
-    func run() throws {
+    func run() async throws {
         if toc {
-            try runToc()
+            try await runToc()
             
             return
         }
         
         if !section.isEmpty {
-            try runSections()
+            try await runSections()
             
             return
         }
         
         if let budget {
-            try runBudget(budget)
+            try await runBudget(budget)
             
             return
         }
         
-        let (found, missing) = try QueryFeature.get(
+        let (found, missing) = try await QueryFeature.get(
             home: global.home,
             ids: ids,
             cliSessionId: global.sessionId
@@ -1264,8 +1264,8 @@ struct QueryGet: ParsableCommand {
     }
     
     // MARK: - Private
-    private func runSections() throws {
-        let (note, slices) = try QueryFeature.getSections(
+    private func runSections() async throws {
+        let (note, slices) = try await QueryFeature.getSections(
             home: global.home,
             id: ids[0],
             sections: section
@@ -1292,8 +1292,8 @@ struct QueryGet: ParsableCommand {
         }
     }
     
-    private func runBudget(_ budget: Int) throws {
-        let (note, cut) = try QueryFeature.getBudget(
+    private func runBudget(_ budget: Int) async throws {
+        let (note, cut) = try await QueryFeature.getBudget(
             home: global.home,
             id: ids[0],
             budget: budget
@@ -1390,8 +1390,8 @@ struct QueryGet: ParsableCommand {
         }
     }
     
-    private func runToc() throws {
-        let (note, entries) = try QueryFeature.toc(home: global.home, id: ids[0])
+    private func runToc() async throws {
+        let (note, entries) = try await QueryFeature.toc(home: global.home, id: ids[0])
         let output = TocOutput(
             id: note.id,
             axis: note.axis,
@@ -1445,7 +1445,7 @@ struct QueryGet: ParsableCommand {
     }
 }
 
-struct QueryMeta: ParsableCommand {
+struct QueryMeta: AsyncParsableCommand {
     struct ByIdOutput: Encodable {
         // MARK: - Property
         let id: String
@@ -1508,9 +1508,9 @@ struct QueryMeta: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         if let id {
-            let data = try QueryFeature.metaById(
+            let data = try await QueryFeature.metaById(
                 home: global.home,
                 noteId: id,
                 namespace: namespace
@@ -1541,7 +1541,7 @@ struct QueryMeta: ParsableCommand {
             throw ExitCode(2)
         }
         
-        let rows = try QueryFeature.metaByKV(
+        let rows = try await QueryFeature.metaByKV(
             home: global.home,
             namespace: namespace,
             key: key,
@@ -1560,7 +1560,7 @@ struct QueryMeta: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryEntity: ParsableCommand {
+struct QueryEntity: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "entity",
@@ -1586,8 +1586,8 @@ struct QueryEntity: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let rows = try QueryFeature.entity(home: global.home, name: name, limit: limit)
+    func run() async throws {
+        let rows = try await QueryFeature.entity(home: global.home, name: name, limit: limit)
         
         render(rows, json: format.json) { rows in
             [
@@ -1610,7 +1610,7 @@ struct QueryEntity: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryStructure: ParsableCommand {
+struct QueryStructure: AsyncParsableCommand {
     struct AxisRow: Encodable {
         enum CodingKeys: String, CodingKey {
             case axis, description, count
@@ -1718,8 +1718,8 @@ struct QueryStructure: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let structure = try QueryFeature.structure(home: global.home, axis: axis)
+    func run() async throws {
+        let structure = try await QueryFeature.structure(home: global.home, axis: axis)
         let distribution = structure.distribution
         let stats: QueryStats.AxisOutput? = structure.axisStats.map { stats in
             QueryStats.AxisOutput(
@@ -1818,7 +1818,7 @@ struct QueryStructure: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryNeighbors: ParsableCommand {
+struct QueryNeighbors: AsyncParsableCommand {
     struct Item: Encodable {
         // MARK: - Property
         let id: String
@@ -1862,8 +1862,8 @@ struct QueryNeighbors: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let scores = try QueryFeature.neighbors(
+    func run() async throws {
+        let scores = try await QueryFeature.neighbors(
             home: global.home,
             id: id,
             k: k,
@@ -1925,7 +1925,7 @@ struct QueryNeighbors: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryStats: ParsableCommand {
+struct QueryStats: AsyncParsableCommand {
     struct NoteOutput: Encodable {
         enum CodingKeys: String, CodingKey {
             case id, axis, title, summary, priority, stale
@@ -2053,9 +2053,9 @@ struct QueryStats: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         if let id {
-            guard let stats = try QueryFeature.noteStats(home: global.home, id: id) else {
+            guard let stats = try await QueryFeature.noteStats(home: global.home, id: id) else {
                 FileHandle.standardError.write("unknown id: \(id)\n".data(using: .utf8)!)
                 
                 throw ExitCode(1)
@@ -2100,7 +2100,7 @@ struct QueryStats: ParsableCommand {
                 return [.keyValue(pairs)]
             }
         } else if let axis {
-            let stats = try QueryFeature.axisStats(home: global.home, axis: axis)
+            let stats = try await QueryFeature.axisStats(home: global.home, axis: axis)
             let output = AxisOutput(
                 axis: stats.axis,
                 total: stats.total,
@@ -2127,7 +2127,7 @@ struct QueryStats: ParsableCommand {
                 return [.keyValue(pairs)]
             }
         } else {
-            let stats = try QueryFeature.overallStats(home: global.home)
+            let stats = try await QueryFeature.overallStats(home: global.home)
             let output = OverallOutput(
                 total: stats.total,
                 stale: stats.stale,
@@ -2187,7 +2187,7 @@ struct QueryStats: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryList: ParsableCommand {
+struct QueryList: AsyncParsableCommand {
     struct Row: Encodable {
         enum CodingKeys: String, CodingKey {
             case axis, id, title, summary, priority, stale
@@ -2251,8 +2251,8 @@ struct QueryList: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let rows = try QueryFeature.list(
+    func run() async throws {
+        let rows = try await QueryFeature.list(
             home: global.home,
             priority: priority,
             axis: axis,
@@ -2314,7 +2314,7 @@ struct QueryList: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryHistory: ParsableCommand {
+struct QueryHistory: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "history",
@@ -2338,8 +2338,8 @@ struct QueryHistory: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let rows = try QueryFeature.history(home: global.home, noteId: id, limit: limit)
+    func run() async throws {
+        let rows = try await QueryFeature.history(home: global.home, noteId: id, limit: limit)
         
         render(rows, json: format.json) { rows in
             [
@@ -2354,7 +2354,7 @@ struct QueryHistory: ParsableCommand {
     // MARK: - Private
 }
 
-struct QueryLint: ParsableCommand {
+struct QueryLint: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "lint",
@@ -2412,7 +2412,7 @@ struct QueryLint: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         if rules {
             let catalog = Lint.ruleCatalog()
             
@@ -2428,7 +2428,7 @@ struct QueryLint: ParsableCommand {
             return
         }
         
-        let issues = try QueryFeature.lint(
+        let issues = try await QueryFeature.lint(
             home: global.home,
             id: id,
             code: code,

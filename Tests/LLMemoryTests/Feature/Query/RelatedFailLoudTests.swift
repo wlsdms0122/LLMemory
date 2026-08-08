@@ -29,10 +29,11 @@ struct RelatedFailLoudTests {
         let uninitialized = FileManager.default.temporaryDirectory
             .appendingPathComponent("llmemory-related-ghost-\(UUID().uuidString)").path
         
+        Session.configure(home: uninitialized)
+        
         // Then
         #expect(throws: (any Error).self) {
             _ = try QueryFeature.related(
-                home: uninitialized,
                 text: "transfer flow",
                 kind: nil,
                 cliSessionId: "",
@@ -40,7 +41,7 @@ struct RelatedFailLoudTests {
             )
         }
         
-        // The call above rebinds the process to the ghost home; put it back for the fixture's teardown.
+        // Rebind the fixture home so its teardown runs through a working connection.
         Session.configure(home: home.path)
     }
     
@@ -58,7 +59,6 @@ struct RelatedFailLoudTests {
         // Then
         #expect(throws: DBError.self) {
             _ = try QueryFeature.related(
-                home: home.path,
                 text: "gate note",
                 kind: nil,
                 cliSessionId: "",

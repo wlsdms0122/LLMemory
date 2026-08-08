@@ -32,7 +32,7 @@ struct SectionGetTests {
         ).status == "ok")
         
         // When
-        let (note, slices) = try QueryFeature.getSections(home: home.path, id: "doc", sections: ["## A"])
+        let (note, slices) = try QueryFeature.getSections(id: "doc", sections: ["## A"])
         
         // Then
         #expect(note.id == "doc")
@@ -50,7 +50,7 @@ struct SectionGetTests {
         
         // Then
         #expect(throws: SectionError.self) {
-            _ = try QueryFeature.getSections(home: home.path, id: "doc2", sections: ["## Nope"])
+            _ = try QueryFeature.getSections(id: "doc2", sections: ["## Nope"])
         }
     }
     
@@ -63,7 +63,7 @@ struct SectionGetTests {
         ).status == "ok")
         
         // When
-        let (_, entries) = try QueryFeature.toc(home: home.path, id: "doc3")
+        let (_, entries) = try QueryFeature.toc(id: "doc3")
         
         // Then
         #expect(entries.map(\.path) == ["## A", "## A > ### A1"])

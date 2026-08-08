@@ -435,7 +435,7 @@ struct FragmentationLintTests {
     }
     
     private func lint(id: String? = nil, code: String, includeDismissed: Bool = false) throws -> [Lint.Issue] {
-        try QueryFeature.lint(home: home.path, id: id, code: code, includeDismissed: includeDismissed)
+        try QueryFeature.lint(id: id, code: code, includeDismissed: includeDismissed)
     }
     
     private func subjects(of code: String) throws -> [String] {
