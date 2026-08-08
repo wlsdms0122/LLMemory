@@ -35,6 +35,24 @@ enum Vocab {
         )
     }
     
+    // ensureAxis for an axis that only deserves its description once notes
+    // actually live on it — a no-op while the axis is unused.
+    static func describePopulatedAxis(
+        _ db: Database,
+        axis: String,
+        description: String
+    ) throws {
+        let populated = try Int.fetchOne(
+            db,
+            sql: "SELECT 1 FROM notes WHERE axis = ? LIMIT 1",
+            arguments: [axis]
+        ) != nil
+
+        guard populated else { return }
+
+        try ensureAxis(db, axis: axis, description: description)
+    }
+
     static func ensureTag(_ db: Database, tag: String, now: Int? = nil) throws {
         let timestamp = now ?? Int(Date().timeIntervalSince1970)
         

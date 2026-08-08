@@ -202,15 +202,6 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         return try body()
     }
 
-    @discardableResult
-    public func write<T>(_ body: (Database) throws -> T) throws -> T {
-        try writeLock {
-            let connection = try connect()
-
-            return try connection.write(body)
-        }
-    }
-
     // MARK: - Private
     private static func makeConfiguration() -> Configuration {
         var configuration = Configuration()

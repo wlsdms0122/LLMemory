@@ -47,6 +47,26 @@ public final class Session {
         Config.warmCache(storage)
     }
 
+    // The init/update bootstrap — the one lifecycle boundary allowed to touch
+    // storage directly, because it runs *before* the migration gate can pass:
+    // migrate, re-warm the caches, then bring the index up under the write lock.
+    public func bootstrap() throws -> Indexer.BuildResult {
+        try storage.writeLock {
+            try storage.initialize()
+
+            // The constructor may have warmed against a database that was not
+            // there yet — re-warm before anything below reads the caches.
+            rewarm()
+
+            let queue = try storage.connect()
+            let built = try Indexer.buildLocked(queue, rebuild: false)
+
+            try queue.write { db in try Seeding.describeInnateAxis(db) }
+
+            return built
+        }
+    }
+
     public static func retrievalSession(cli: String?) -> String? {
         Env.retrievalSession(cli: cli)
     }

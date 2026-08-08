@@ -24,10 +24,12 @@ struct SessionBindingTests {
     @Test("two sessions in one process own independent storages — neither sees the other's rows")
     func sessionsAreIndependent() throws {
         // Given
-        try home.storage.write { database in
-            try database.execute(
-                sql: "INSERT INTO meta (key, value) VALUES ('binding-probe', 'first')"
-            )
+        try home.storage.writeLock {
+            try home.storage.connect().write { database in
+                try database.execute(
+                    sql: "INSERT INTO meta (key, value) VALUES ('binding-probe', 'first')"
+                )
+            }
         }
 
         let second = try SecondaryHome()
@@ -35,10 +37,12 @@ struct SessionBindingTests {
         try second.storage.initialize()
 
         // When — write through the second session's storage only.
-        try second.storage.write { database in
-            try database.execute(
-                sql: "INSERT INTO meta (key, value) VALUES ('binding-probe', 'second')"
-            )
+        try second.storage.writeLock {
+            try second.storage.connect().write { database in
+                try database.execute(
+                    sql: "INSERT INTO meta (key, value) VALUES ('binding-probe', 'second')"
+                )
+            }
         }
 
         // Then

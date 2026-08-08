@@ -6,8 +6,6 @@
 //
 
 import Foundation
-import GRDB
-import Storage
 
 public struct Consolidate {
     let session: Session
@@ -18,19 +16,19 @@ public struct Consolidate {
     }
     
     public func integrate() async throws -> Consolidation.IntegrateResult {
-        try await session.storage.run(IntegrateTransaction())
+        try await ConsolidateService.integrate(session.storage)
     }
 
     public func homeostasis() async throws -> Homeostasis.Report {
-        try await session.storage.run(HomeostasisTransaction())
+        try await ConsolidateService.homeostasis(session.storage)
     }
 
     public func prune() async throws -> Consolidation.PruneResult {
-        try await session.storage.run(PruneTransaction())
+        try await ConsolidateService.prune(session.storage)
     }
 
     public func report() async throws -> (axis: Consolidation.AxisReport, tag: Consolidation.TagReport) {
-        try await session.storage.run(ConsolidateReportTransaction())
+        try await ConsolidateService.report(session.storage)
     }
 
 }

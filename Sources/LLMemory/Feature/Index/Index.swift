@@ -6,8 +6,6 @@
 //
 
 import Foundation
-import GRDB
-import Storage
 
 public struct Index {
     public struct InitResult {
@@ -50,28 +48,28 @@ public struct Index {
     }
     
     public func build(rebuild: Bool = false) async throws -> Indexer.BuildResult {
-        try await session.storage.run(BuildIndexTransaction(.init(rebuild: rebuild)))
+        try await IndexService.build(session.storage, rebuild: rebuild)
     }
 
     @discardableResult
     public func reindex(filePaths: [String]) async throws -> Int {
-        try await session.storage.run(ReindexNotesTransaction(.init(filePaths: filePaths)))
+        try await IndexService.reindex(session.storage, filePaths: filePaths)
     }
 
     public func check(level: Indexer.IntegrityLevel = .l1) async throws -> (ok: Bool, msgs: [String]) {
-        try await session.storage.run(CheckIntegrityTransaction(.init(level: level)))
+        try await IndexService.check(session.storage, level: level)
     }
 
     public func buildVectors() async throws -> Vectors.BuildResult {
-        try await session.storage.run(BuildVectorsTransaction())
+        try await IndexService.buildVectors(session.storage)
     }
 
     public func verifySources() async throws -> SourcesService.BulkVerifyResult {
-        try await session.storage.run(VerifySourcesTransaction())
+        try await IndexService.verifySources(session.storage)
     }
 
     public func validateTerms(rejectStale: Bool) async throws -> Indexer.ValidateResult {
-        try await session.storage.run(ValidateTermsTransaction(.init(rejectStale: rejectStale)))
+        try await IndexService.validateTerms(session.storage, rejectStale: rejectStale)
     }
     
     public func initialize(bare: Bool = false) throws -> InitResult {
@@ -85,20 +83,7 @@ public struct Index {
         
         // init is deliberate setup — presence of .innate/ is not consulted, only --bare is.
         let seeding = bare ? Seeding.Result() : Seeding.plant(mode: .missingOnly, force: true)
-        let result = try session.storage.writeLock { () -> Indexer.BuildResult in
-            try session.storage.initialize()
-
-            // The constructor may have warmed against a database that was not
-            // there yet — re-warm before anything below reads the caches.
-            session.rewarm()
-
-            let queue = try session.storage.connect()
-            let built = try Indexer.buildLocked(queue, rebuild: false)
-
-            try queue.write { db in try Seeding.describeInnateAxis(db) }
-
-            return built
-        }
+        let result = try session.bootstrap()
         
         try Guide.markdown.write(
             to: Paths.brainRoot.appendingPathComponent("README.md"),
@@ -141,22 +126,10 @@ public struct Index {
             blocked = true
         }
 
-        let result = try session.storage.writeLock {
-            // update is the migration surface: a brain left behind by a binary upgrade
-            // is carried forward here, before anything else touches the connection.
-            try session.storage.initialize()
-
-            // The constructor may have warmed against a database that was not
-            // there yet — re-warm before anything below reads the caches.
-            session.rewarm()
-
-            let queue = try session.storage.connect()
-            let built = try Indexer.buildLocked(queue, rebuild: false)
-
-            try queue.write { db in try Seeding.describeInnateAxis(db) }
-
-            return built
-        }
+        // update is the migration surface: a brain left behind by a binary upgrade
+        // is carried forward by the bootstrap, before anything else touches the
+        // connection.
+        let result = try session.bootstrap()
 
         try Guide.markdown.write(
             to: Paths.brainRoot.appendingPathComponent("README.md"),

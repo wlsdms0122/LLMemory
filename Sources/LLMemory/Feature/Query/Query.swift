@@ -6,12 +6,9 @@
 //
 
 import Foundation
-import GRDB
-import Storage
 
 public struct QueryFeature {
     // MARK: - Property
-    
     let session: Session
 
     // MARK: - Initializer
@@ -19,9 +16,7 @@ public struct QueryFeature {
         self.session = session
     }
 
-    // MARK: - Public
-
-    // MARK: - Public (domain surface — configures the session and runs the matching transaction)
+    // MARK: - Public (domain surface — binds the session and delegates to the service)
     public func search(
         query: String,
         axis: String?,
@@ -32,24 +27,17 @@ public struct QueryFeature {
         excludeAxes: [String],
         raw: Bool
     ) async throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
-        let outcome = try await session.storage.run(
-            SearchNotesTransaction(
-                .init(
-                    query: query,
-                    axis: axis,
-                    limit: limit,
-                    expand: expand,
-                    cliSessionId: cliSessionId,
-                    includeStale: includeStale,
-                    excludeAxes: excludeAxes,
-                    raw: raw
-                )
-            )
+        try await QueryService.search(
+            session.storage,
+            query: query,
+            axis: axis,
+            limit: limit,
+            expand: expand,
+            cliSessionId: cliSessionId,
+            includeStale: includeStale,
+            excludeAxes: excludeAxes,
+            raw: raw
         )
-        
-        try await applyRecord(outcome.record)
-        
-        return (outcome.rows, outcome.extra)
     }
 
     public func related(
@@ -58,125 +46,53 @@ public struct QueryFeature {
         cliSessionId: String,
         includeBodies: Bool
     ) async throws -> Framing.RelatedResult {
-        let outcome = try await session.storage.run(
-            RelatedNotesTransaction(
-                .init(
-                    text: text,
-                    kind: kind,
-                    cliSessionId: cliSessionId,
-                    includeBodies: includeBodies
-                )
-            )
+        try await QueryService.related(
+            session.storage,
+            text: text,
+            kind: kind,
+            cliSessionId: cliSessionId,
+            includeBodies: includeBodies
         )
-        
-        let degraded = try await applyRecord(outcome.record)
-        
-        guard !degraded.isEmpty else { return outcome.result }
-        
-        var snapshot = outcome.result.snapshot
-        snapshot.degraded.append(contentsOf: degraded)
-        
-        return Framing.RelatedResult(snapshot: snapshot, bodies: outcome.result.bodies)
     }
 
     public func get(
         ids: [String],
         cliSessionId: String = ""
     ) async throws -> (found: [Reads.GetNote], missing: [String]) {
-        let outcome = try await session.storage.run(
-            GetNotesTransaction(
-                .init(
-                    ids: ids,
-                    cliSessionId: cliSessionId
-                )
-            )
-        )
-        
-        try await applyRecord(outcome.record)
-        
-        return (outcome.found, outcome.missing)
+        try await QueryService.get(session.storage, ids: ids, cliSessionId: cliSessionId)
     }
 
     public func getSections(
         id: String,
         sections: [String]
     ) async throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice]) {
-        let outcome = try await session.storage.run(
-            GetSectionsTransaction(
-                .init(
-                    id: id,
-                    sections: sections
-                )
-            )
-        )
-        
-        try await applyRecord(outcome.record)
-        
-        return (outcome.note, outcome.slices)
+        try await QueryService.getSections(session.storage, id: id, sections: sections)
     }
 
     public func getBudget(
         id: String,
         budget: Int
     ) async throws -> (note: Reads.GetNote, cut: Reads.BudgetCut) {
-        let outcome = try await session.storage.run(
-            GetBudgetTransaction(
-                .init(
-                    id: id,
-                    budget: budget
-                )
-            )
-        )
-        
-        try await applyRecord(outcome.record)
-        
-        return (outcome.note, outcome.cut)
+        try await QueryService.getBudget(session.storage, id: id, budget: budget)
     }
 
     public func toc(
         id: String
     ) async throws -> (note: Reads.GetNote, entries: [Reads.TocEntry]) {
-        let outcome = try await session.storage.run(
-            NoteTocTransaction(
-                .init(
-                    id: id
-                )
-            )
-        )
-        
-        try await applyRecord(outcome.record)
-        
-        return (outcome.note, outcome.entries)
+        try await QueryService.toc(session.storage, id: id)
     }
 
     public func template(
         id: String
     ) async throws -> (note: Reads.GetNote, frame: [Template.FrameNode]) {
-        let outcome = try await session.storage.run(
-            TemplateFrameTransaction(
-                .init(
-                    id: id
-                )
-            )
-        )
-        
-        try await applyRecord(outcome.record)
-        
-        return (outcome.note, outcome.frame)
+        try await QueryService.template(session.storage, id: id)
     }
 
     public func metaById(
         noteId: String,
         namespace: String?
     ) async throws -> [String: [String: String]] {
-        try await session.storage.run(
-            NoteMetaByIdTransaction(
-                .init(
-                    noteId: noteId,
-                    namespace: namespace
-                )
-            )
-        )
+        try await QueryService.metaById(session.storage, noteId: noteId, namespace: namespace)
     }
 
     public func metaByKV(
@@ -185,15 +101,12 @@ public struct QueryFeature {
         value: String?,
         limit: Int
     ) async throws -> [(noteId: String, value: String)] {
-        try await session.storage.run(
-            NoteMetaByKVTransaction(
-                .init(
-                    namespace: namespace,
-                    key: key,
-                    value: value,
-                    limit: limit
-                )
-            )
+        try await QueryService.metaByKV(
+            session.storage,
+            namespace: namespace,
+            key: key,
+            value: value,
+            limit: limit
         )
     }
 
@@ -201,30 +114,17 @@ public struct QueryFeature {
         name: String?,
         limit: Int
     ) async throws -> [Reads.EntityHit] {
-        try await session.storage.run(
-            EntityNotesTransaction(
-                .init(
-                    name: name,
-                    limit: limit
-                )
-            )
-        )
+        try await QueryService.entity(session.storage, name: name, limit: limit)
     }
 
     public func listAxes() async throws -> [(axis: String, description: String?, count: Int)] {
-        try await session.storage.run(ListAxesTransaction())
+        try await QueryService.listAxes(session.storage)
     }
 
     public func structure(
         axis: String?
     ) async throws -> Reads.StructureResult {
-        try await session.storage.run(
-            StructureReportTransaction(
-                .init(
-                    axis: axis
-                )
-            )
-        )
+        try await QueryService.structure(session.storage, axis: axis)
     }
 
     public func neighbors(
@@ -232,47 +132,23 @@ public struct QueryFeature {
         k: Int,
         cliSessionId: String = ""
     ) async throws -> [Candidates.NeighborScore] {
-        let outcome = try await session.storage.run(
-            NeighborsTransaction(
-                .init(
-                    id: id,
-                    k: k,
-                    cliSessionId: cliSessionId
-                )
-            )
-        )
-        
-        try await applyRecord(outcome.record)
-        
-        return outcome.scores
+        try await QueryService.neighbors(session.storage, id: id, k: k, cliSessionId: cliSessionId)
     }
 
     public func noteStats(
         id: String
     ) async throws -> Stats.NoteStats? {
-        try await session.storage.run(
-            NoteStatsTransaction(
-                .init(
-                    id: id
-                )
-            )
-        )
+        try await QueryService.noteStats(session.storage, id: id)
     }
 
     public func axisStats(
         axis: String
     ) async throws -> Stats.AxisStats {
-        try await session.storage.run(
-            AxisStatsTransaction(
-                .init(
-                    axis: axis
-                )
-            )
-        )
+        try await QueryService.axisStats(session.storage, axis: axis)
     }
 
     public func overallStats() async throws -> Stats.OverallStats {
-        try await session.storage.run(OverallStatsTransaction())
+        try await QueryService.overallStats(session.storage)
     }
 
     public func list(
@@ -282,16 +158,13 @@ public struct QueryFeature {
         sourceStale: Bool,
         limit: Int?
     ) async throws -> [Reads.ListRow] {
-        try await session.storage.run(
-            ListNotesTransaction(
-                .init(
-                    priority: priority,
-                    axis: axis,
-                    stale: stale,
-                    sourceStale: sourceStale,
-                    limit: limit
-                )
-            )
+        try await QueryService.list(
+            session.storage,
+            priority: priority,
+            axis: axis,
+            stale: stale,
+            sourceStale: sourceStale,
+            limit: limit
         )
     }
 
@@ -299,14 +172,7 @@ public struct QueryFeature {
         noteId: String,
         limit: Int
     ) async throws -> [Reads.HistoryEvent] {
-        try await session.storage.run(
-            NoteHistoryTransaction(
-                .init(
-                    noteId: noteId,
-                    limit: limit
-                )
-            )
-        )
+        try await QueryService.history(session.storage, noteId: noteId, limit: limit)
     }
 
     public func lint(
@@ -316,45 +182,26 @@ public struct QueryFeature {
         limit: Int? = nil,
         includeDismissed: Bool = false
     ) async throws -> [Lint.Issue] {
-        try await session.storage.run(
-            LintTransaction(
-                .init(
-                    id: id,
-                    code: code,
-                    severity: severity,
-                    limit: limit,
-                    includeDismissed: includeDismissed
-                )
-            )
+        try await QueryService.lint(
+            session.storage,
+            id: id,
+            code: code,
+            severity: severity,
+            limit: limit,
+            includeDismissed: includeDismissed
         )
     }
 
     public func enrichment() async throws -> EnrichmentReview.Status {
-        try await session.storage.run(EnrichmentStatusTransaction())
+        try await QueryService.enrichment(session.storage)
     }
 
     public func candidates(
         kinds: [String],
         limit: Int
     ) async throws -> [String: Candidates.Batch] {
-        try await session.storage.run(
-            CandidatesTransaction(
-                .init(
-                    kinds: kinds,
-                    limit: limit
-                )
-            )
-        )
+        try await QueryService.candidates(session.storage, kinds: kinds, limit: limit)
     }
 
     // MARK: - Private
-    // The one place read-derived side effects get applied — surfaces never juggle
-    // the record by hand. Throws when the mandatory state transition (activation)
-    // fails; advisory failures come back as degraded notes.
-    @discardableResult
-    private func applyRecord(_ record: RecordRetrievalTransaction.Parameter?) async throws -> [String] {
-        guard let record else { return [] }
-
-        return try await session.storage.run(RecordRetrievalTransaction(record))
-    }
 }

@@ -6,8 +6,6 @@
 //
 
 import Foundation
-import GRDB
-import Storage
 
 public struct RulesetFeature {
     // MARK: - Property
@@ -20,20 +18,18 @@ public struct RulesetFeature {
 
     // MARK: - Public
     public func list() async throws -> [Ruleset.Summary] {
-        try await session.storage.run(ListRulesetsTransaction())
+        try await RulesetService.list(session.storage)
     }
 
     public func show(id: String) async throws -> Ruleset.ShowResult? {
-        try await session.storage.run(ShowRulesetTransaction(.init(id: id)))
+        try await RulesetService.show(session.storage, id: id)
     }
 
     public func effective(
         ruleset: String,
         axis: String
     ) async throws -> Ruleset.Effective? {
-        try await session.storage.run(
-            EffectiveRulesetTransaction(.init(ruleset: ruleset, axis: axis))
-        )
+        try await RulesetService.effective(session.storage, ruleset: ruleset, axis: axis)
     }
 
     // MARK: - Private

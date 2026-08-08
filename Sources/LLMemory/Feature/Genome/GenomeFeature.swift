@@ -6,8 +6,6 @@
 //
 
 import Foundation
-import GRDB
-import Storage
 
 public struct GenomeFeature {
     // MARK: - Property
@@ -20,14 +18,14 @@ public struct GenomeFeature {
 
     // MARK: - Public
     public func list() async throws -> [Genome.ListRow] {
-        try await session.storage.run(ListGenesTransaction())
+        try await GenomeService.list(session.storage)
     }
 
     public func history(
         gene: String?,
         limit: Int
     ) async throws -> [Genome.HistoryRow] {
-        try await session.storage.run(GeneHistoryTransaction(.init(gene: gene, limit: limit)))
+        try await GenomeService.history(session.storage, gene: gene, limit: limit)
     }
 
     public func shadow(
@@ -36,11 +34,7 @@ public struct GenomeFeature {
         limit: Int,
         sampleDiffs: Int
     ) async throws -> Genome.ShadowResult {
-        try await session.storage.run(
-            GeneShadowTransaction(
-                .init(gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
-            )
-        )
+        try await GenomeService.shadow(session.storage, gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
     }
 
     // MARK: - Private
