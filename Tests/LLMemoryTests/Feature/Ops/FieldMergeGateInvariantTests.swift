@@ -46,7 +46,7 @@ struct FieldMergeGateInvariantTests {
         home.createNote(id: "mf-dry")
         
         // When
-        let result = OpsTransaction.dryRun(home.storage, [
+        let result = OpsEngine.dryRun(home.storage, [
             "ops": [["op": "set_frontmatter", "id": "mf-dry", "fields": ["title": 123]]],
             "rationale": "test"
         ])
@@ -81,8 +81,8 @@ struct FieldMergeGateInvariantTests {
         ]
         
         // Then
-        #expect(OpsTransaction.dryRun(home.storage, dropsAxisTag).status != "ok", "dry-run accepted what apply rejects")
-        #expect(OpsTransaction.apply(home.storage, dropsAxisTag).status != "ok")
+        #expect(OpsEngine.dryRun(home.storage, dropsAxisTag).status != "ok", "dry-run accepted what apply rejects")
+        #expect(OpsEngine.apply(home.storage, dropsAxisTag).status != "ok")
         #expect(home.apply([
             "op": "set_frontmatter", "id": "ax-note", "fields": ["tags": ["flow", "z"]]
         ]).status == "ok", "a tag change that keeps the axis tag is fine")

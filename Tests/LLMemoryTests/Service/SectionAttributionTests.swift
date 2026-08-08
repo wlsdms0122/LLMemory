@@ -130,7 +130,7 @@ struct SectionAttributionTests {
     
     // MARK: - Private
     @discardableResult
-    private func create(_ id: String, title: String, body: String) -> OpsTransaction.Result {
+    private func create(_ id: String, title: String, body: String) -> OpsEngine.Result {
         home.createNote(id: id, axis: "tech", title: title, tags: ["tech"], content: body)
     }
     

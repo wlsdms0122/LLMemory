@@ -181,7 +181,7 @@ struct SplitRoutingTests {
     }
     
     @discardableResult
-    private func split(routing: [[String: Any]]? = nil) -> OpsTransaction.Result {
+    private func split(routing: [[String: Any]]? = nil) -> OpsEngine.Result {
         var operation: [String: Any] = ["op": "split_note", "from_id": "src", "into": children]
         
         if let routing { operation["routing"] = routing }

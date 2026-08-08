@@ -227,8 +227,8 @@ struct TemplateTests {
     }
     
     // ops integration
-    private func makeTemplate(locked: Bool = true) -> OpsTransaction.Result {
-        OpsTransaction.apply(home.storage, ["ops": [[
+    private func makeTemplate(locked: Bool = true) -> OpsEngine.Result {
+        OpsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "tpl-spec", "axis": "template",
             "title": "Spec template", "summary": "s", "tags": ["template"],
             "axis_description": "structured document templates",
@@ -251,7 +251,7 @@ struct TemplateTests {
         // Then
         #expect(makeTemplate().status == "ok")
         
-        let created = OpsTransaction.apply(home.storage, ["ops": [[
+        let created = OpsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "doc-1", "axis": "flow",
             "title": "document", "summary": "s", "tags": ["flow"], "template": "tpl-spec"
         ]], "rationale": "test"])
@@ -276,7 +276,7 @@ struct TemplateTests {
     @Test("a document naming a template that does not exist is refused")
     func unknownTemplateRejected() throws {
         // When
-        let created = OpsTransaction.apply(home.storage, ["ops": [[
+        let created = OpsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "doc-x", "axis": "flow",
             "title": "document", "summary": "s", "tags": ["flow"], "template": "tpl-missing",
             "content": "# Background\nx\n"
@@ -292,7 +292,7 @@ struct TemplateTests {
         // Then
         #expect(makeTemplate().status == "ok")
         
-        let result = OpsTransaction.apply(home.storage, ["ops": [[
+        let result = OpsEngine.apply(home.storage, ["ops": [[
             "op": "patch_section", "id": "tpl-spec",
             "section": "# Background", "action": "append", "content": "x"
         ]], "rationale": "test"])
@@ -306,12 +306,12 @@ struct TemplateTests {
         // Then
         #expect(makeTemplate().status == "ok")
         
-        _ = OpsTransaction.apply(home.storage, ["ops": [[
+        _ = OpsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "doc-2", "axis": "flow",
             "title": "document", "summary": "s", "tags": ["flow"], "template": "tpl-spec"
         ]], "rationale": "test"])
         
-        let result = OpsTransaction.apply(home.storage, ["ops": [[
+        let result = OpsEngine.apply(home.storage, ["ops": [[
             "op": "patch_section", "id": "doc-2",
             "section": "# Spec > ## Task", "action": "append", "content": "- an implementation item"
         ]], "rationale": "test"])
@@ -325,12 +325,12 @@ struct TemplateTests {
         // Then
         #expect(makeTemplate().status == "ok")
         
-        _ = OpsTransaction.apply(home.storage, ["ops": [[
+        _ = OpsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "doc-3", "axis": "flow",
             "title": "document", "summary": "s", "tags": ["flow"], "template": "tpl-spec"
         ]], "rationale": "test"])
         
-        let result = OpsTransaction.apply(home.storage, ["ops": [[
+        let result = OpsEngine.apply(home.storage, ["ops": [[
             "op": "patch_section", "id": "doc-3", "section": "# Spec > ## Task", "action": "remove"
         ]], "rationale": "test"])
         
@@ -344,7 +344,7 @@ struct TemplateTests {
         // Then
         #expect(makeTemplate().status == "ok")
         
-        let created = OpsTransaction.apply(home.storage, ["ops": [[
+        let created = OpsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "doc-4", "axis": "flow",
             "title": "document", "summary": "s", "tags": ["flow"], "template": "tpl-spec",
             "content": "# Background\nx\n# Spec\n## Task\nt\n## API\na\n## Test\nq\n# Chatter\nz\n# Reference\nr\n"
@@ -363,12 +363,12 @@ struct TemplateTests {
         // Then
         #expect(makeTemplate(locked: false).status == "ok")
         
-        _ = OpsTransaction.apply(home.storage, ["ops": [[
+        _ = OpsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "doc-dep", "axis": "flow",
             "title": "document", "summary": "s", "tags": ["flow"], "template": "tpl-spec"
         ]], "rationale": "test"])
         
-        let result = OpsTransaction.apply(home.storage, ["ops": [[
+        let result = OpsEngine.apply(home.storage, ["ops": [[
             "op": "patch_section", "id": "tpl-spec", "section": "# Reference",
             "action": "append", "content": "# Rollout\nthe rollout procedure."
         ]], "rationale": "test"])
@@ -381,12 +381,12 @@ struct TemplateTests {
     @Test("a document that has drifted can still be deleted — the frame guards edits, not exits")
     func deleteDriftedDocumentSucceeds() throws {
         // Then
-        #expect(OpsTransaction.apply(home.storage, ["ops": [[
+        #expect(OpsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "tpl-ab", "axis": "template", "title": "t",
             "summary": "s", "tags": ["template"], "axis_description": "tpl",
             "content": "# A\nguidance A.\n# B\nguidance B.", "locked": true
         ]], "rationale": "t"]).status == "ok")
-        #expect(OpsTransaction.apply(home.storage, ["ops": [[
+        #expect(OpsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "doc-d", "axis": "flow", "title": "d",
             "summary": "s", "tags": ["flow"], "template": "tpl-ab",
             "content": "# A\nx\n# B\ny\n"
@@ -403,7 +403,7 @@ struct TemplateTests {
         
         _ = try home.storage.writeLock { try queue.write { db in try Notes.reindexFile(db, path: templateFile) } }
         
-        let result = OpsTransaction.apply(home.storage, ["ops": [[
+        let result = OpsEngine.apply(home.storage, ["ops": [[
             "op": "delete_note", "id": "doc-d", "reason": "drift cleanup"
         ]], "rationale": "t"])
         
@@ -417,17 +417,17 @@ struct TemplateTests {
         #expect(makeTemplate().status == "ok")
         
         for id in ["cl-n1", "cl-n2"] {
-            #expect(OpsTransaction.apply(home.storage, ["ops": [[
+            #expect(OpsEngine.apply(home.storage, ["ops": [[
                 "op": "create_note", "id": id, "axis": "flow", "title": "t", "summary": "s",
                 "tags": ["flow"], "content": "## A\nx\n", "entities": ["ClusterEnt"]
             ]], "rationale": "t"]).status == "ok")
         }
         
-        #expect(OpsTransaction.apply(home.storage, ["ops": [[
+        #expect(OpsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "cl-doc", "axis": "flow", "title": "d", "summary": "s",
             "tags": ["flow"], "template": "tpl-spec", "entities": ["ClusterEnt"]
         ]], "rationale": "t"]).status == "ok")
-        #expect(OpsTransaction.apply(home.storage, ["ops": [[
+        #expect(OpsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "cl-lk", "axis": "flow", "title": "l", "summary": "s",
             "tags": ["flow"], "content": "## A\ny\n", "locked": true, "entities": ["ClusterEnt"]
         ]], "rationale": "t"]).status == "ok")

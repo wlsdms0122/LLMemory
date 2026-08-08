@@ -78,7 +78,7 @@ enum BodyProjection {
         
         default:
             if try !handler.touches(op, db).isEmpty {
-                for noteId in OpsTransaction.targetIds(op, schema: handler.schema) {
+                for noteId in OpsEngine.targetIds(op, schema: handler.schema) {
                     context.opaqueBodyIds.insert(noteId)
                     context.stagedBodies.removeValue(forKey: noteId)
                 }

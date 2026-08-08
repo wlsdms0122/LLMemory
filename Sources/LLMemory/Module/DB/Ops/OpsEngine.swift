@@ -1,5 +1,5 @@
 //
-//  Transaction.swift
+//  OpsEngine.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-public enum OpsTransaction {
+public enum OpsEngine {
     public struct OpResult: Encodable {
         // MARK: - Property
         public let op: String

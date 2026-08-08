@@ -21,15 +21,15 @@ public struct Ops {
         _ payload: [String: Any],
         sessionId: String? = nil,
         ruleset: String? = nil
-    ) -> OpsTransaction.Result {
-        OpsTransaction.apply(session.storage, payload, sessionId: sessionId, ruleset: ruleset)
+    ) -> OpsEngine.Result {
+        OpsEngine.apply(session.storage, payload, sessionId: sessionId, ruleset: ruleset)
     }
 
     public func dryRun(
         _ payload: [String: Any],
         ruleset: String? = nil
-    ) -> OpsTransaction.DryRunResult {
-        OpsTransaction.dryRun(session.storage, payload, ruleset: ruleset)
+    ) -> OpsEngine.DryRunResult {
+        OpsEngine.dryRun(session.storage, payload, ruleset: ruleset)
     }
 
     // MARK: - Private
