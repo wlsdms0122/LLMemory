@@ -30,7 +30,7 @@ struct OpsCommand: ParsableCommand {
     // MARK: - Private
 }
 
-struct OpsApply: ParsableCommand {
+struct OpsApply: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "apply",
@@ -70,13 +70,13 @@ struct OpsApply: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         let brain = Brain(home: global.home)
         
-        guard let payload = try readJSON(input) else { throw ExitCode(2) }
+        guard let payload = try readJSONText(input) else { throw ExitCode(2) }
         
-        let result = brain.ops.apply(
-            payload,
+        let result = try await brain.ops.apply(
+            payloadJSON: payload,
             sessionId: Session.retrievalSession(cli: global.sessionId),
             ruleset: rulesetOption.rulesetId
         )
@@ -89,7 +89,7 @@ struct OpsApply: ParsableCommand {
     // MARK: - Private
 }
 
-struct OpsDryRun: ParsableCommand {
+struct OpsDryRun: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "dry-run",
@@ -119,12 +119,12 @@ struct OpsDryRun: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         let brain = Brain(home: global.home)
         
-        guard let payload = try readJSON(input) else { throw ExitCode(2) }
+        guard let payload = try readJSONText(input) else { throw ExitCode(2) }
         
-        let result = brain.ops.dryRun(payload, ruleset: rulesetOption.rulesetId)
+        let result = try await brain.ops.dryRun(payloadJSON: payload, ruleset: rulesetOption.rulesetId)
         
         render(result, json: format.json) { result in opsResultBlocks(result) }
         
@@ -190,9 +190,11 @@ struct OpsVocab: ParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
+        let brain = Brain(home: global.home)
+        
         if verbose {
-            let rows = Handlers.opNames().compactMap { name -> VerboseOp? in
-                guard let schema = Handlers.opSchema(name) else { return nil }
+            let rows = brain.ops.opNames().compactMap { name -> VerboseOp? in
+                guard let schema = brain.ops.opSchema(name) else { return nil }
                 
                 return VerboseOp(
                     name: name,
@@ -212,7 +214,7 @@ struct OpsVocab: ParsableCommand {
                 ]
             }
         } else {
-            render(Output(ops: Handlers.opNames()), json: format.json) { output in
+            render(Output(ops: brain.ops.opNames()), json: format.json) { output in
                 [.text(output.ops.joined(separator: "\n"))]
             }
         }
@@ -262,7 +264,9 @@ struct OpsDescribe: ParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        guard let schema = Handlers.opSchema(op) else {
+        let brain = Brain(home: global.home)
+        
+        guard let schema = brain.ops.opSchema(op) else {
             FileHandle.standardError.write(
                 "unknown op: \(op) (see `ops vocab`)\n".data(using: .utf8) ?? Data()
             )

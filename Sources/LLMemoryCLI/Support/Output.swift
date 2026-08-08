@@ -64,11 +64,47 @@ func readJSON(_ raw: String?) throws -> [String: Any]? {
     
     guard let dictionary = object as? [String: Any] else {
         FileHandle.standardError.write("JSON must be an object\n".data(using: .utf8)!)
-        
+
         return nil
     }
-    
+
     return dictionary
+}
+
+// Same gate as readJSON, but hands back the raw text — the ops payload crosses
+// the transaction boundary as a JSON string, so the CLI validates shape here
+// (exit 2 contract) and passes the original bytes through untouched.
+func readJSONText(_ raw: String?) throws -> String? {
+    let text: String
+
+    if let raw, !raw.isEmpty {
+        text = raw
+    } else {
+        if isatty(fileno(stdin)) != 0 {
+            FileHandle.standardError.write(
+                "no input; pass --json '<JSON>' or pipe JSON to stdin\n".data(using: .utf8)!
+            )
+
+            return nil
+        }
+
+        let data = FileHandle.standardInput.readDataToEndOfFile()
+        text = String(data: data, encoding: .utf8) ?? ""
+    }
+
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+    if trimmed.isEmpty {
+        FileHandle.standardError.write(
+            "empty input; pass --json '<JSON>' or pipe JSON to stdin\n".data(using: .utf8)!
+        )
+
+        return nil
+    }
+
+    guard try readJSON(trimmed) != nil else { return nil }
+
+    return trimmed
 }
 
 func emit<T: Encodable>(_ value: T) {

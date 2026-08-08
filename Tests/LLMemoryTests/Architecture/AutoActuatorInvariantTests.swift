@@ -37,10 +37,12 @@ struct AutoActuatorInvariantTests {
     }
     
     // MARK: - Private
-    // The ops feature and the ops command are the transaction's own surface — they are where apply is
-    // supposed to be called from.
+    // The engine's own module and the ops transactions are the only entries — every
+    // other path goes surface → OpsService → ApplyOpsTransaction and sees the status.
     private static func isOwner(_ url: URL) -> Bool {
-        url.path.contains("/Feature/Ops/") || url.path.contains("/Module/DB/Ops/") || url.path.hasSuffix("Command/Ops.swift")
+        url.path.contains("/Module/DB/Ops/")
+            || url.path.hasSuffix("Transaction/ApplyOpsTransaction.swift")
+            || url.path.hasSuffix("Transaction/DryRunOpsTransaction.swift")
     }
     
     private static func callSites(of symbol: String, in url: URL) -> [String] {

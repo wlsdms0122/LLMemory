@@ -137,8 +137,10 @@ public enum OpsEngine {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
+    // Runs on a writer the caller already gated — ApplyOpsTransaction provides
+    // the cross-process write lock via `storage.run`.
     public static func apply(
-        _ storage: GRDBStorage,
+        _ queue: any DatabaseWriter,
         _ payload: [String: Any],
         sessionId: String? = nil,
         ruleset: String? = nil
@@ -180,9 +182,7 @@ public enum OpsEngine {
         }
         
         do {
-            return try storage.writeLock {
-                let queue = try storage.connect()
-                
+            return try { () throws -> Result in
                 if let rulesetId = effectiveRulesetId {
                     let exists = try queue.read { db in
                         try Ruleset.rulesetExists(db, id: rulesetId)
@@ -387,7 +387,7 @@ public enum OpsEngine {
                 }
                 
                 return txResult
-            }
+            }()
         } catch let conflict as SplitConflict {
             return Result(
                 status: "conflict",
@@ -399,7 +399,7 @@ public enum OpsEngine {
                 conflict: conflict
             )
         } catch {
-            if let queue = try? storage.connect() { Genome.warmCache(queue) }
+            Genome.warmCache(queue)
             
             return Result(
                 status: "failed",
@@ -412,7 +412,7 @@ public enum OpsEngine {
         }
     }
     
-    public static func dryRun(_ storage: GRDBStorage, _ payload: [String: Any], ruleset: String? = nil) -> DryRunResult {
+    public static func dryRun(_ queue: any DatabaseReader, _ payload: [String: Any], ruleset: String? = nil) -> DryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return DryRunResult(
                 status: "rejected",
@@ -442,8 +442,6 @@ public enum OpsEngine {
         }
         
         do {
-            let queue = try storage.connect()
-            
             if let rulesetId = effectiveRulesetId {
                 let exists = try queue.read { db in try Ruleset.rulesetExists(db, id: rulesetId) }
                 

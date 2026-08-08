@@ -18,18 +18,31 @@ public struct Ops {
 
     // MARK: - Public
     public func apply(
-        _ payload: [String: Any],
+        payloadJSON: String,
         sessionId: String? = nil,
         ruleset: String? = nil
-    ) -> OpsEngine.Result {
-        OpsEngine.apply(session.storage, payload, sessionId: sessionId, ruleset: ruleset)
+    ) async throws -> OpsEngine.Result {
+        try await OpsService.apply(
+            session.storage,
+            payloadJSON: payloadJSON,
+            sessionId: sessionId,
+            ruleset: ruleset
+        )
     }
 
     public func dryRun(
-        _ payload: [String: Any],
+        payloadJSON: String,
         ruleset: String? = nil
-    ) -> OpsEngine.DryRunResult {
-        OpsEngine.dryRun(session.storage, payload, ruleset: ruleset)
+    ) async throws -> OpsEngine.DryRunResult {
+        try await OpsService.dryRun(session.storage, payloadJSON: payloadJSON, ruleset: ruleset)
+    }
+
+    public func opNames() -> [String] {
+        OpsService.opNames()
+    }
+
+    public func opSchema(_ name: String) -> OpSchema? {
+        OpsService.opSchema(name)
     }
 
     // MARK: - Private
