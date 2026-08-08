@@ -51,68 +51,49 @@ enum Config {
         do {
             let queue = try storage.connect()
             let rows = try queue.read { db in
-                try Row.fetchAll(
-                    db,
-                    sql: "SELECT key, value FROM meta WHERE key LIKE ?",
-                    arguments: [prefix + "%"]
-                )
+                try MetaRecord
+                    .filter(Column("key").like("\(prefix)%"))
+                    .fetchAll(db)
             }
-            
+
             cache.removeAll()
-            
+
             for row in rows {
-                let key: String = row["key"]
-                cache[key] = (row["value"] as String?) ?? nilSentinel
+                cache[row.key] = row.value ?? nilSentinel
             }
-            
+
             warmed = true
             Genome.warmCache(queue)
         } catch { }
     }
-    
+
     static func set(_ queue: any DatabaseWriter, _ key: String, value: Any) {
         let stringValue = "\(value)"
-        
+
         do {
             try queue.write { db in
-                try db.execute(
-                    sql: """
-                    INSERT INTO meta (key, value) VALUES (?, ?)
-                    ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                    """,
-                    arguments: [prefix + key, stringValue]
-                )
+                try MetaRecord(key: prefix + key, value: stringValue).upsert(db)
             }
-            
+
             cache[prefix + key] = stringValue
         } catch { }
     }
-    
+
     static func getStringTx(
         _ key: String,
         default defaultValue: String,
         txDB db: Database
     ) -> String {
-        let value = try? String.fetchOne(
-            db,
-            sql: "SELECT value FROM meta WHERE key = ?",
-            arguments: [prefix + key]
-        )
-        
-        return value ?? defaultValue
+        let value = try? MetaRecord.fetchOne(db, key: prefix + key)?.value
+
+        return (value ?? nil) ?? defaultValue
     }
-    
+
     static func set(_ key: String, value: Any, txDB db: Database) throws {
         let stringValue = "\(value)"
-        
-        try db.execute(
-            sql: """
-            INSERT INTO meta (key, value) VALUES (?, ?)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value
-            """,
-            arguments: [prefix + key, stringValue]
-        )
-        
+
+        try MetaRecord(key: prefix + key, value: stringValue).upsert(db)
+
         cache[prefix + key] = stringValue
     }
     

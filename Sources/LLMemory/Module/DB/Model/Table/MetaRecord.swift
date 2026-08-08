@@ -16,7 +16,7 @@ struct MetaRecord: Codable {
 
     // MARK: - Property
     let key: String
-    let value: String
+    let value: String?
 
     // MARK: - Initializer
     // MARK: - Lifecycle
