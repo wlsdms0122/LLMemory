@@ -119,18 +119,16 @@ struct SourceGateInvariantTests {
     }
     
     @Test("integrate finishes and reports what it could not read, rather than stopping or staying silent")
-    func integrateCompletesAndReportsUnreadableDeclaration() throws {
+    func integrateCompletesAndReportsUnreadableDeclaration() async throws {
         // Given
         let grounding = home.url.appendingPathComponent("g.txt")
         
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote("gate-6", source: "[\"\(grounding.path)\"]")
-        let queue = try GRDBStorage.session.connect()
+        try home.write { db in _ = try Notes.reindexFile(db, path: path) }
         
-        try queue.write { db in _ = try Notes.reindexFile(db, path: path) }
-        
-        let checkedBefore = try queue.read { db in
+        let checkedBefore = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT source_checked_at FROM note_source WHERE note_id = 'gate-6'") ?? -1
         }
         
@@ -138,13 +136,13 @@ struct SourceGateInvariantTests {
             .write(to: path, atomically: true, encoding: .utf8)
         
         // When
-        let output = try Consolidate.integrate()
+        let output = try await GRDBStorage.session.run(IntegrateTransaction())
         
         // Then
         #expect(output.summary.sourcesUnreadable == 1,
             "integrate reported a clean source pass over a note it could not verify")
         
-        let row = try queue.read { db in
+        let row = try home.read { db in
             try Row.fetchOne(db, sql: "SELECT source_checked_at FROM note_source WHERE note_id = 'gate-6'")
         }
         

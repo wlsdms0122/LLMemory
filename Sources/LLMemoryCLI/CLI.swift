@@ -10,7 +10,7 @@ import Foundation
 import LLMemory
 
 @main
-struct LLMemoryCLI: ParsableCommand {
+struct LLMemoryCLI: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "llmemory",

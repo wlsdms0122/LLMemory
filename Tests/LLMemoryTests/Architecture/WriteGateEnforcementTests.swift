@@ -28,13 +28,36 @@ struct WriteGateEnforcementTests {
         // When
         let violations = sources
             .filter { url in url.lastPathComponent != "GRDBStorage.swift" }
+            .filter { url in !url.pathComponents.contains("Transaction") }
             .flatMap { url in Self.foreignWrites(in: url) }
 
         // Then
         #expect(violations.isEmpty, """
-            Raw queue write outside GRDBStorage.swift — route it through GRDBStorage.session.write \
-            (flock + transaction), or take a `Database` parameter when the caller is already inside one:
+            Raw queue write outside GRDBStorage.swift or a Transaction directory — route it \
+            through GRDBStorage.session.write (flock + transaction), convert the caller to a \
+            `GRDBWriteTransaction`, or take a `Database` parameter when the caller is already inside one:
             \(violations.joined(separator: "\n"))
+            """)
+    }
+
+    @Test("a transaction that writes through its connection declares the write marker, which carries the flock")
+    func connectionWritesDeclareWriteMarker() {
+        // Given
+        let transactions = source.files(in: "Sources/LLMemory")
+            .filter { url in url.pathComponents.contains("Transaction") }
+
+        // When — connection.write without GRDBWriteTransaction runs outside the cross-process lock.
+        let violations = transactions.filter { url in
+            guard let text = try? String(contentsOf: url, encoding: .utf8) else { return false }
+
+            return text.contains("connection.write") && !text.contains(": GRDBWriteTransaction")
+        }
+
+        // Then
+        #expect(violations.isEmpty, """
+            connection.write in a transaction without the GRDBWriteTransaction marker — the write \
+            runs outside the cross-process lock:
+            \(violations.map { url in url.lastPathComponent }.joined(separator: "\n"))
             """)
     }
 

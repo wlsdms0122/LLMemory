@@ -8,6 +8,7 @@
 import ArgumentParser
 import Foundation
 import LLMemory
+import Storage
 
 struct IndexCommand: ParsableCommand {
     // MARK: - Property
@@ -60,7 +61,7 @@ struct IndexVerify: ParsableCommand {
     // MARK: - Private
 }
 
-struct IndexVectors: ParsableCommand {
+struct IndexVectors: AsyncParsableCommand {
     struct VectorsOutput: Encodable {
         enum CodingKeys: String, CodingKey {
             case dim, skipped, reason
@@ -120,10 +121,10 @@ struct IndexVectors: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         Session.configure(home: global.home)
         
-        let result = try Index.buildVectors()
+        let result = try await GRDBStorage.session.run(BuildVectorsTransaction())
         let output = VectorsOutput(
             noteCount: result.noteCount,
             dim: result.dim,
@@ -144,7 +145,7 @@ struct IndexVectors: ParsableCommand {
     // MARK: - Private
 }
 
-struct IndexVerifyTerms: ParsableCommand {
+struct IndexVerifyTerms: AsyncParsableCommand {
     struct ValidateOutput: Encodable {
         enum CodingKeys: String, CodingKey {
             case activated, rejected
@@ -214,10 +215,10 @@ struct IndexVerifyTerms: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         Session.configure(home: global.home)
         
-        let validation = try Index.validateTerms(rejectStale: rejectStale)
+        let validation = try await GRDBStorage.session.run(ValidateTermsTransaction(.init(rejectStale: rejectStale)))
         let result = ValidateOutput(
             activated: validation.activated,
             rejected: validation.rejected,
@@ -252,7 +253,7 @@ struct IndexVerifyTerms: ParsableCommand {
     // MARK: - Private
 }
 
-struct IndexBuild: ParsableCommand {
+struct IndexBuild: AsyncParsableCommand {
     struct BuildOutput: Encodable {
         // MARK: - Property
         let count: Int
@@ -323,13 +324,13 @@ struct IndexBuild: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         Session.configure(home: global.home)
         
         if !path.isEmpty {
             if rebuild { throw ValidationError("--path and --rebuild are mutually exclusive") }
             
-            let returnCode = try Index.reindex(filePaths: path)
+            let returnCode = try await GRDBStorage.session.run(ReindexNotesTransaction(.init(filePaths: path)))
             
             render(
                 ReindexOutput(reindexed: path.count, returnCode: Int(returnCode)),
@@ -343,7 +344,7 @@ struct IndexBuild: ParsableCommand {
             return
         }
         
-        let result = try Index.build(rebuild: rebuild)
+        let result = try await GRDBStorage.session.run(BuildIndexTransaction(.init(rebuild: rebuild)))
         
         for error in result.errors {
             FileHandle.standardError.write("ERROR \(error)\n".data(using: .utf8)!)
@@ -353,7 +354,7 @@ struct IndexBuild: ParsableCommand {
         
         if rebuild {
             do {
-                vectors = try Index.buildVectors().noteCount
+                vectors = try await GRDBStorage.session.run(BuildVectorsTransaction()).noteCount
             } catch {
                 FileHandle.standardError.write(
                     "WARN vectors rebuild failed: \(error)\n".data(using: .utf8)!
@@ -383,7 +384,7 @@ struct IndexBuild: ParsableCommand {
     // MARK: - Private
 }
 
-struct IndexVerifyIntegrity: ParsableCommand {
+struct IndexVerifyIntegrity: AsyncParsableCommand {
     struct CheckOutput: Encodable {
         // MARK: - Property
         let ok: Bool
@@ -426,10 +427,10 @@ struct IndexVerifyIntegrity: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         Session.configure(home: global.home)
         
-        let (ok, messages) = try Index.check(level: level)
+        let (ok, messages) = try await GRDBStorage.session.run(CheckIntegrityTransaction(.init(level: level)))
         
         render(
             CheckOutput(ok: ok, level: level.rawValue, messages: messages),
@@ -444,7 +445,7 @@ struct IndexVerifyIntegrity: ParsableCommand {
     // MARK: - Private
 }
 
-struct IndexVerifySources: ParsableCommand {
+struct IndexVerifySources: AsyncParsableCommand {
     struct VerifyOutput: Encodable {
         enum CodingKeys: String, CodingKey {
             case total, rechecked, recovered, missing, unreadable
@@ -496,10 +497,10 @@ struct IndexVerifySources: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         Session.configure(home: global.home)
         
-        let result = try Index.verifySources()
+        let result = try await GRDBStorage.session.run(VerifySourcesTransaction())
         let output = VerifyOutput(
             total: result.total,
             rechecked: result.rechecked,

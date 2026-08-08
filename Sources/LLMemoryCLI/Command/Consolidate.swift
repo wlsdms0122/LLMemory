@@ -8,6 +8,7 @@
 import ArgumentParser
 import Foundation
 import LLMemory
+import Storage
 
 struct ConsolidateCommand: ParsableCommand {
     // MARK: - Property
@@ -65,7 +66,7 @@ struct ConsolidateCommand: ParsableCommand {
     // MARK: - Private
 }
 
-struct ConsolidateIntegrate: ParsableCommand {
+struct ConsolidateIntegrate: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "integrate",
@@ -86,10 +87,10 @@ struct ConsolidateIntegrate: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         Session.configure(home: global.home)
         
-        let result = try Consolidate.integrate()
+        let result = try await GRDBStorage.session.run(IntegrateTransaction())
         
         emitConsolidateSummary(result.summary, json: format.json)
     }
@@ -97,7 +98,7 @@ struct ConsolidateIntegrate: ParsableCommand {
     // MARK: - Private
 }
 
-struct ConsolidateHomeostasis: ParsableCommand {
+struct ConsolidateHomeostasis: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "homeostasis",
@@ -129,10 +130,10 @@ struct ConsolidateHomeostasis: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         Session.configure(home: global.home)
         
-        let result = try Consolidate.homeostasis()
+        let result = try await GRDBStorage.session.run(HomeostasisTransaction())
         
         emitConsolidateSummary(result, json: format.json)
     }
@@ -140,7 +141,7 @@ struct ConsolidateHomeostasis: ParsableCommand {
     // MARK: - Private
 }
 
-struct ConsolidatePrune: ParsableCommand {
+struct ConsolidatePrune: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "prune",
@@ -162,10 +163,10 @@ struct ConsolidatePrune: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         Session.configure(home: global.home)
         
-        let result = try Consolidate.prune()
+        let result = try await GRDBStorage.session.run(PruneTransaction())
         
         emitConsolidateSummary(result, json: format.json)
     }
@@ -173,7 +174,7 @@ struct ConsolidatePrune: ParsableCommand {
     // MARK: - Private
 }
 
-struct ConsolidateReport: ParsableCommand {
+struct ConsolidateReport: AsyncParsableCommand {
     struct AxisRow: Encodable {
         // MARK: - Property
         let axis: String
@@ -235,10 +236,10 @@ struct ConsolidateReport: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
+    func run() async throws {
         Session.configure(home: global.home)
         
-        let (axisReport, tagReport) = try Consolidate.report()
+        let (axisReport, tagReport) = try await GRDBStorage.session.run(ConsolidateReportTransaction())
         let report = ReportOutput(
             axes: axisReport.all.map { entry in
                 AxisRow(axis: entry.axis, count: entry.count, description: entry.description)

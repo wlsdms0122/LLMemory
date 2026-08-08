@@ -100,7 +100,7 @@ public enum Index {
     
     // MARK: - Initializer
     // MARK: - Public
-    public static func build(rebuild: Bool = false) throws -> BuildResult {
+    static func build(rebuild: Bool = false) throws -> BuildResult {
         try GRDBStorage.session.writeLock {
             let now = Int(Date().timeIntervalSince1970)
             let files = Paths.scanNotes()
@@ -155,57 +155,7 @@ public enum Index {
         }
     }
     
-    @discardableResult
-    public static func reindex(filePaths: [String]) throws -> Int {
-        try GRDBStorage.session.writeLock {
-            var exitCode = 0
-            
-            for filePath in filePaths {
-                var path = URL(fileURLWithPath: (filePath as NSString).expandingTildeInPath)
-                
-                if !path.path.hasPrefix("/") {
-                    path = Paths.brainRoot.appendingPathComponent(filePath)
-                }
-                
-                path = path.standardizedFileURL.resolvingSymlinksInPath()
-                
-                if !FileManager.default.fileExists(atPath: path.path) {
-                    FileHandle.standardError.write(
-                        "ERROR \(filePath): not found\n".data(using: .utf8)!
-                    )
-                    exitCode = 1
-                    continue
-                }
-                
-                if Paths.relative(of: path) == nil {
-                    FileHandle.standardError.write(
-                        "ERROR \(filePath): outside brain home \(Paths.brainRoot.path)\n"
-                            .data(using: .utf8)!
-                    )
-                    exitCode = 1
-                    continue
-                }
-                
-                do {
-                    let noteId = try GRDBStorage.session.write { db in
-                        try Notes.reindexFile(db, path: path)
-                    }
-                    let relativePath = Paths.relative(of: path) ?? path.path
-                    
-                    print("reindexed: \(noteId) (\(relativePath))")
-                } catch {
-                    FileHandle.standardError.write(
-                        "ERROR \(filePath): \(error)\n".data(using: .utf8)!
-                    )
-                    exitCode = 1
-                }
-            }
-            
-            return exitCode
-        }
-    }
-    
-    public static func check(level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
+    static func check(level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
         try check(rawLevel: level.rawValue)
     }
     
@@ -306,28 +256,6 @@ public enum Index {
         )
     }
     
-    public static func buildVectors() throws -> Vectors.BuildResult {
-        try Vectors.build()
-    }
-    
-    public static func verifySources() throws -> SourcesService.BulkVerifyResult {
-        try GRDBStorage.session.write { db in try SourcesService.bulkVerify(db) }
-    }
-    
-    public static func validateTerms(rejectStale: Bool) throws -> ValidateResult {
-        try GRDBStorage.session.write { db -> ValidateResult in
-            let pass = try Validation.validatePendingTerms(db, noteIds: nil)
-            let staleRejected = rejectStale ? try Validation.rejectStalePending(db) : 0
-            
-            return ValidateResult(
-                activated: pass.activated,
-                rejected: pass.rejected,
-                stillPending: pass.stillPending,
-                staleRejected: staleRejected,
-                rejectBreakdown: pass.rejectBreakdown
-            )
-        }
-    }
     
     static func reconcile(
         _ db: Database,

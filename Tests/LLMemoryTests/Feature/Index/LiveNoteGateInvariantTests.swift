@@ -37,12 +37,12 @@ struct LiveNoteGateInvariantTests {
     }
     
     @Test("index reindex reports failure for a trashed path instead of quietly doing nothing")
-    func indexReindexReportsFailureForATrashedPath() throws {
+    func indexReindexReportsFailureForATrashedPath() async throws {
         // Given
         let trashed = try trashNote(id: "live-2")
         
         // When
-        let returnCode = try Index.reindex(filePaths: [trashed.path])
+        let returnCode = try await GRDBStorage.session.run(ReindexNotesTransaction(.init(filePaths: [trashed.path])))
         
         // Then
         #expect(returnCode == 1, "index reindex reported success for a trashed path")

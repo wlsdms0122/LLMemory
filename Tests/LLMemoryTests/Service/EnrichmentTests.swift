@@ -423,24 +423,23 @@ struct EnrichmentTests {
     }
     
     @Test("reindexing preserves an entity hit count")
-    func reindexPreservesEntityHitCount() throws {
+    func reindexPreservesEntityHitCount() async throws {
         // Then
         #expect(home.apply([["op": "create_note", "id": "rc-note", "axis": "tech",
             "title": "t", "tags": ["tech"], "summary": "s",
             "content": "## a\nb\n", "entities": ["BAR-9"]]]).status == "ok")
         
-        let queue = try GRDBStorage.session.connect()
-        let path = try queue.read { db in
+        let path = try home.read { db in
             try String.fetchOne(db, sql: "SELECT path FROM notes WHERE id='rc-note'") ?? ""
         }
         
-        try queue.write { db in
+        try home.write { db in
             try db.execute(sql: "UPDATE entity_index SET hit_count=5 WHERE note_id='rc-note' AND entity='BAR-9'")
         }
         
-        _ = try Index.reindex(filePaths: [path])
+        _ = try await GRDBStorage.session.run(ReindexNotesTransaction(.init(filePaths: [path])))
         
-        let hitCount = try queue.read { db in
+        let hitCount = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT hit_count FROM entity_index WHERE note_id='rc-note' AND entity='BAR-9'") ?? -1
         }
         

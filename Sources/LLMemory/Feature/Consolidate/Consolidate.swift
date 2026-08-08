@@ -417,14 +417,6 @@ public enum Consolidate {
         return TagReport(rare: Array(rare), unused: unused)
     }
     
-    public static func report() throws -> (axis: AxisReport, tag: TagReport) {
-        let queue = try GRDBStorage.session.connect()
-        let axisSummary = try queue.read { db in try axisReport(db) }
-        let tagSummary = try queue.read { db in try tagReport(db) }
-        
-        return (axisSummary, tagSummary)
-    }
-    
     public static func markConsolidated(_ db: Database, now: Int) throws {
         let count = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM notes") ?? 0
         
@@ -439,68 +431,8 @@ public enum Consolidate {
         }
     }
     
-    public static func integrate() throws -> IntegrateResult {
-        var result = try GRDBStorage.session.writeLock { try integrateLocked() }
-        let integrity = try GRDBStorage.session.connect().read { db in try integrityL1(db) }
-        result.integrityL1 = IntegrateResult.IntegrityReport(
-            checked: integrity.checked,
-            issues: integrity.issues
-        )
-        result.summary.integrityL1Issues = integrity.issues.count
-        
-        return result
-    }
-    
-    public static func homeostasis() throws -> Homeostasis.Report {
-        try GRDBStorage.session.writeLock {
-            let now = Int(Date().timeIntervalSince1970)
-            var report: Homeostasis.Report!
-            
-            try GRDBStorage.session.write { db in
-                _ = try Activation.deriveWindows(db, now: now)
-                report = try Homeostasis.tick(db, now: now)
-            }
-            
-            Events.record(
-                kind: Events.kindConsolidation,
-                payload: [
-                    "action": "homeostasis",
-                    "windows_processed": report.windowsProcessed,
-                    "adjusted_gene": report.adjustedGene as Any?,
-                    "note": report.note
-                ],
-                ts: now
-            )
-            
-            return report
-        }
-    }
-    
-    public static func prune() throws -> PruneResult {
-        try GRDBStorage.session.writeLock {
-            let now = Int(Date().timeIntervalSince1970)
-            var decay: (decayed: Int, pruned: Int) = (0, 0)
-            
-            try GRDBStorage.session.write { db in
-                decay = try Links.decayAndPrune(db)
-            }
-            
-            Events.record(
-                kind: Events.kindConsolidation,
-                payload: [
-                    "action": "prune",
-                    "links_decayed": decay.decayed,
-                    "links_pruned": decay.pruned
-                ],
-                ts: now
-            )
-            
-            return PruneResult(linksDecayed: decay.decayed, linksPruned: decay.pruned)
-        }
-    }
-    
     // MARK: - Private
-    private static func integrateLocked() throws -> IntegrateResult {
+    static func integrateLocked() throws -> IntegrateResult {
         let now = Int(Date().timeIntervalSince1970)
         var axisSummary: AxisReport!
         var tagSummary: TagReport!

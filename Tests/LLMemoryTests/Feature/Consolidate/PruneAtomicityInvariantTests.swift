@@ -46,17 +46,15 @@ struct PruneAtomicityInvariantTests {
     }
     
     @Test("prune decays learned links and reports the count it committed")
-    func pruneDecaysLinksAndReportsIt() throws {
+    func pruneDecaysLinksAndReportsIt() async throws {
         // Given
-        let queue = try home.database()
-        
-        try queue.write { database in try seedAssocLink(database, weight: 1.0) }
+        try home.write { database in try seedAssocLink(database, weight: 1.0) }
         
         // When
-        let result = try Consolidate.prune()
+        let result = try await GRDBStorage.session.run(PruneTransaction())
         
         // Then
-        let weight = try queue.read { database in try Self.linkWeight(database) }
+        let weight = try home.read { database in try Self.linkWeight(database) }
         
         #expect(weight == 0.9, "the default links.decay_factor of 0.9 applies")
         #expect(result.linksDecayed >= 1, "the result must report the decay it committed")
