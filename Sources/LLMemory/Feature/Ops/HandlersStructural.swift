@@ -942,7 +942,7 @@ public enum HandlersStructural {
                 let uncovered = try uncoveredRouteArtifacts(db, fromId: fromId, routing: routing)
                 
                 if !uncovered.isEmpty {
-                    throw Transaction.SplitConflict(fromId: fromId, unresolved: uncovered)
+                    throw OpsTransaction.SplitConflict(fromId: fromId, unresolved: uncovered)
                 }
             }
             
@@ -1039,7 +1039,7 @@ public enum HandlersStructural {
                 let uncovered = try uncoveredRouteArtifacts(db, fromId: fromId, routing: routing)
                 
                 if !uncovered.isEmpty {
-                    throw Transaction.SplitConflict(fromId: fromId, unresolved: uncovered)
+                    throw OpsTransaction.SplitConflict(fromId: fromId, unresolved: uncovered)
                 }
             }
             

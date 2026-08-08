@@ -16,7 +16,7 @@ struct AutoActuatorInvariantTests {
     
     // MARK: - Initializer
     // MARK: - Test
-    @Test("Transaction.apply has no internal caller — an automatic path must surface its status")
+    @Test("OpsTransaction.apply has no internal caller — an automatic path must surface its status")
     func transactionApplyHasNoInternalCallers() {
         // Given
         let sources = source.files(in: "Sources")
@@ -26,11 +26,11 @@ struct AutoActuatorInvariantTests {
         // When
         let violations = sources
             .filter { url in !Self.isOwner(url) }
-            .flatMap { url in Self.callSites(of: "Transaction.apply", in: url) }
+            .flatMap { url in Self.callSites(of: "OpsTransaction.apply", in: url) }
         
         // Then
         #expect(violations.isEmpty, """
-            Internal Transaction.apply consumer — an automatic path must surface Result.status \
+            Internal OpsTransaction.apply consumer — an automatic path must surface Result.status \
             fail-loud rather than swallow it:
             \(violations.joined(separator: "\n"))
             """)

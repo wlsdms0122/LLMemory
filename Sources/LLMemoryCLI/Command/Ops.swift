@@ -75,7 +75,7 @@ struct OpsApply: ParsableCommand {
         
         guard let payload = try readJSON(input) else { throw ExitCode(2) }
         
-        let result = Transaction.apply(
+        let result = OpsTransaction.apply(
             payload,
             sessionId: Session.retrievalSession(cli: global.sessionId),
             ruleset: rulesetOption.rulesetId
@@ -124,7 +124,7 @@ struct OpsDryRun: ParsableCommand {
         
         guard let payload = try readJSON(input) else { throw ExitCode(2) }
         
-        let result = Transaction.dryRun(payload, ruleset: rulesetOption.rulesetId)
+        let result = OpsTransaction.dryRun(payload, ruleset: rulesetOption.rulesetId)
         
         render(result, json: format.json) { result in opsResultBlocks(result) }
         
@@ -323,7 +323,7 @@ struct OpsDescribe: ParsableCommand {
     // MARK: - Private
 }
 
-private func opsResultBlocks(_ result: Transaction.Result) -> [PlainBlock] {
+private func opsResultBlocks(_ result: OpsTransaction.Result) -> [PlainBlock] {
     var blocks: [PlainBlock] = [
         .text(result.status == "ok"
             ? "ok  (\(result.opResults.count) ops)"
@@ -343,7 +343,7 @@ private func opsResultBlocks(_ result: Transaction.Result) -> [PlainBlock] {
     return blocks
 }
 
-private func opsResultBlocks(_ result: Transaction.DryRunResult) -> [PlainBlock] {
+private func opsResultBlocks(_ result: OpsTransaction.DryRunResult) -> [PlainBlock] {
     let suffix = result.opCount.map { count in "  (\(count) ops)" } ?? ""
     var blocks: [PlainBlock] = []
     

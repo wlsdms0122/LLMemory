@@ -13,7 +13,7 @@ struct RequiredFieldLiteralTests {
     // MARK: - Property
     // Dispatch already enforces the schema's requiredNames(given:). A handler that checks again holds
     // a second copy of the rule, and second copies drift.
-    private static let owners = ["Handlers.swift", "Transaction.swift"]
+    private static let owners = ["Handlers.swift", "OpsTransaction.swift"]
     
     private let source = PackageSource()
     

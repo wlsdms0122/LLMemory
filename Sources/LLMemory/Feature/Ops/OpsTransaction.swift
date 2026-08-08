@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-public enum Transaction {
+public enum OpsTransaction {
     public struct OpResult: Encodable {
         // MARK: - Property
         public let op: String

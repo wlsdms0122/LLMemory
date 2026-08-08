@@ -34,12 +34,12 @@ extension BrainHome {
     }
 
     @discardableResult
-    func apply(_ operations: [[String: Any]], rationale: String = "test") -> Transaction.Result {
-        Transaction.apply(["ops": operations, "rationale": rationale])
+    func apply(_ operations: [[String: Any]], rationale: String = "test") -> OpsTransaction.Result {
+        OpsTransaction.apply(["ops": operations, "rationale": rationale])
     }
 
     @discardableResult
-    func apply(_ operation: [String: Any], rationale: String = "test") -> Transaction.Result {
+    func apply(_ operation: [String: Any], rationale: String = "test") -> OpsTransaction.Result {
         apply([operation], rationale: rationale)
     }
 
@@ -52,7 +52,7 @@ extension BrainHome {
         tags: [String]? = nil,
         content: String = "## A\nbody\n",
         fields: [String: Any] = [:]
-    ) -> Transaction.Result {
+    ) -> OpsTransaction.Result {
         var operation: [String: Any] = [
             "op": "create_note",
             "id": id,

@@ -416,12 +416,12 @@ struct FragmentationLintTests {
     }
     
     @discardableResult
-    private func create(_ id: String, content: String, axis: String = "tech") -> Transaction.Result {
+    private func create(_ id: String, content: String, axis: String = "tech") -> OpsTransaction.Result {
         home.createNote(id: id, axis: axis, tags: [axis, "frag"], content: content)
     }
     
     @discardableResult
-    private func split(from source: String, into children: [(id: String, section: String)]) -> Transaction.Result {
+    private func split(from source: String, into children: [(id: String, section: String)]) -> OpsTransaction.Result {
         home.apply([
             "op": "split_note",
             "from_id": source,

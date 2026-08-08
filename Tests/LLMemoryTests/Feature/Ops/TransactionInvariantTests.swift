@@ -82,7 +82,7 @@ struct TransactionInvariantTests {
     
     // MARK: - Private
     @discardableResult
-    private func createNote(id: String, content: String) -> Transaction.Result {
+    private func createNote(id: String, content: String) -> OpsTransaction.Result {
         home.createNote(id: id, axis: "tech", tags: ["tech", "test"], content: content)
     }
 }
