@@ -9,198 +9,186 @@ import Foundation
 import GRDB
 
 // Read-surface DTOs and the catalog/list/entity/history transactions.
-public enum Reads {
-    struct CatalogNote: Sendable {
-        // MARK: - Property
-        let id: String
-        let path: String
-        let axis: String
-        let title: String
-        let summary: String?
-        let priority: String
-        let hitCount: Int
-        let createdAt: Int
-        let editedAt: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
+// Models are flat top-level types with a domain prefix where the bare
+// name is generic (NoteListRow) — same convention as the service results.
+struct CatalogNote: Sendable {
+    // MARK: - Property
+    let id: String
+    let path: String
+    let axis: String
+    let title: String
+    let summary: String?
+    let priority: String
+    let hitCount: Int
+    let createdAt: Int
+    let editedAt: Int
     
-    public struct ListRow: Encodable, Sendable {
-        enum CodingKeys: String, CodingKey {
-            case id, axis, title, summary, priority, stale
-            case sourceStale = "source_stale"
-            case createdAt = "created_at"
-            case editedAt = "edited_at"
-        }
-        
-        // MARK: - Property
-        public let id: String
-        public let axis: String
-        public let title: String
-        public let summary: String?
-        public let priority: String
-        public let stale: Bool
-        public let sourceStale: Bool
-        public let createdAt: Int
-        public let editedAt: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    struct ListFilter {
-        // MARK: - Property
-        var priority: String?
-        var axis: String?
-        var stale: Bool
-        var sourceStale: Bool
-        var limit: Int?
-        
-        // MARK: - Initializer
-        init(
-            priority: String? = nil,
-            axis: String? = nil,
-            stale: Bool = false,
-            sourceStale: Bool = false,
-            limit: Int? = nil
-        ) {
-            self.priority = priority
-            self.axis = axis
-            self.stale = stale
-            self.sourceStale = sourceStale
-            self.limit = limit
-        }
-        
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    public struct EntityHit: Encodable, Sendable {
-        enum CodingKeys: String, CodingKey {
-            case entity, axis, summary
-            case noteId = "note_id"
-            case lastSeenAt = "last_seen_at"
-            case hitCount = "hit_count"
-        }
-        
-        // MARK: - Property
-        public let entity: String
-        public let noteId: String
-        public let axis: String?
-        public let summary: String?
-        public let lastSeenAt: Int
-        public let hitCount: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    public struct HistoryEvent: Encodable, Sendable {
-        // MARK: - Property
-        public let kind: String
-        public let reason: String?
-        public let at: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct NoteListRow: Encodable, Sendable {
+    enum CodingKeys: String, CodingKey {
+        case id, axis, title, summary, priority, stale
+        case sourceStale = "source_stale"
+        case createdAt = "created_at"
+        case editedAt = "edited_at"
     }
     
     // MARK: - Property
+    public let id: String
+    public let axis: String
+    public let title: String
+    public let summary: String?
+    public let priority: String
+    public let stale: Bool
+    public let sourceStale: Bool
+    public let createdAt: Int
+    public let editedAt: Int
+    
     // MARK: - Initializer
     // MARK: - Public
+    // MARK: - Private
+}
 
+struct NoteListFilter {
+    // MARK: - Property
+    var priority: String?
+    var axis: String?
+    var stale: Bool
+    var sourceStale: Bool
+    var limit: Int?
     
-
+    // MARK: - Initializer
+    init(
+        priority: String? = nil,
+        axis: String? = nil,
+        stale: Bool = false,
+        sourceStale: Bool = false,
+        limit: Int? = nil
+    ) {
+        self.priority = priority
+        self.axis = axis
+        self.stale = stale
+        self.sourceStale = sourceStale
+        self.limit = limit
+    }
     
+    // MARK: - Public
+    // MARK: - Private
+}
 
+public struct EntityQueryHit: Encodable, Sendable {
+    enum CodingKeys: String, CodingKey {
+        case entity, axis, summary
+        case noteId = "note_id"
+        case lastSeenAt = "last_seen_at"
+        case hitCount = "hit_count"
+    }
     
+    // MARK: - Property
+    public let entity: String
+    public let noteId: String
+    public let axis: String?
+    public let summary: String?
+    public let lastSeenAt: Int
+    public let hitCount: Int
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
 
+public struct NoteHistoryEvent: Encodable, Sendable {
+    // MARK: - Property
+    public let kind: String
+    public let reason: String?
+    public let at: Int
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+// MARK: - Initializer
+// MARK: - Private
+
+public struct NoteFrontmatter: Encodable, Sendable {
+    // MARK: - Property
+    private let doc: FrontmatterDoc
+    
+    // MARK: - Initializer
+    init(_ doc: FrontmatterDoc) {
+        self.doc = doc
+    }
+    
+    // MARK: - Public
+    public func encode(to encoder: Encoder) throws {
+        try doc.encode(to: encoder)
+    }
     
     // MARK: - Private
 }
 
-public extension Reads {
-    struct NoteFrontmatter: Encodable, Sendable {
-        // MARK: - Property
-        private let doc: FrontmatterDoc
-        
-        // MARK: - Initializer
-        init(_ doc: FrontmatterDoc) {
-            self.doc = doc
-        }
-        
-        // MARK: - Public
-        public func encode(to encoder: Encoder) throws {
-            try doc.encode(to: encoder)
-        }
-        
-        // MARK: - Private
-    }
+public struct NoteView: Sendable {
+    // MARK: - Property
+    public let id, axis, path: String
+    public let frontmatter: NoteFrontmatter
+    public let body: String
+    public let hitCount, createdAt, editedAt: Int
+    public let priority: String
     
-    struct GetNote: Sendable {
-        // MARK: - Property
-        public let id, axis, path: String
-        public let frontmatter: NoteFrontmatter
-        public let body: String
-        public let hitCount, createdAt, editedAt: Int
-        public let priority: String
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct SectionSlice: Sendable {
+    // MARK: - Property
+    public let path: String
+    public let text: String
     
-    struct SectionSlice: Sendable {
-        // MARK: - Property
-        public let path: String
-        public let text: String
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct TocEntry: Sendable {
+    // MARK: - Property
+    public let path: String
+    public let words: Int
     
-    struct TocEntry: Sendable {
-        // MARK: - Property
-        public let path: String
-        public let words: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct BudgetCut: Sendable {
+    // MARK: - Property
+    public let shown: String
+    public let shownSections: [TocEntry]
+    public let omitted: [TocEntry]
+    public let truncatedWithin: String?
+    public let shownWords: Int
+    public let totalWords: Int
     
-    struct BudgetCut: Sendable {
-        // MARK: - Property
-        public let shown: String
-        public let shownSections: [TocEntry]
-        public let omitted: [TocEntry]
-        public let truncatedWithin: String?
-        public let shownWords: Int
-        public let totalWords: Int
-        
-        public var truncated: Bool { !omitted.isEmpty || truncatedWithin != nil }
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
+    public var truncated: Bool { !omitted.isEmpty || truncatedWithin != nil }
     
-    struct StructureResult: Sendable {
-        // MARK: - Property
-        public let axes: [(axis: String, description: String?, count: Int)]
-        public let distribution: Links.Distribution
-        public let axisStats: AxisStats?
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct StructureResult: Sendable {
+    // MARK: - Property
+    public let axes: [(axis: String, description: String?, count: Int)]
+    public let distribution: LinkDistribution
+    public let axisStats: AxisStats?
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
 }
 
 struct FetchNoteCatalogTransaction: GRDBReadTransaction {
@@ -213,7 +201,7 @@ struct FetchNoteCatalogTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [String: Reads.CatalogNote] {
+    func perform(_ db: Database) throws -> [String: CatalogNote] {
         guard !ids.isEmpty else { return [:] }
         
         let placeholders = ids.map { _ in "?" }.joined(separator: ",")
@@ -224,10 +212,10 @@ struct FetchNoteCatalogTransaction: GRDBReadTransaction {
             FROM notes n LEFT JOIN note_usage u ON u.note_id = n.id
             WHERE n.id IN (\(placeholders))
             """, arguments: StatementArguments(ids))
-        var catalog: [String: Reads.CatalogNote] = [:]
+        var catalog: [String: CatalogNote] = [:]
         
         for row in rows {
-            catalog[row["id"] as String] = Reads.CatalogNote(
+            catalog[row["id"] as String] = CatalogNote(
                 id: row["id"],
                 path: row["path"],
                 axis: row["axis"],
@@ -248,15 +236,15 @@ struct FetchNoteCatalogTransaction: GRDBReadTransaction {
 
 struct ListNoteRowsTransaction: GRDBReadTransaction {
     // MARK: - Property
-    let filter: Reads.ListFilter
+    let filter: NoteListFilter
 
     // MARK: - Initializer
-    init(_ filter: Reads.ListFilter) {
+    init(_ filter: NoteListFilter) {
         self.filter = filter
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Reads.ListRow] {
+    func perform(_ db: Database) throws -> [NoteListRow] {
         var clauses: [String] = []
         var arguments: [DatabaseValueConvertible?] = []
         
@@ -287,7 +275,7 @@ struct ListNoteRowsTransaction: GRDBReadTransaction {
         
         return try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
             .map { row in
-                Reads.ListRow(
+                NoteListRow(
                     id: row["id"],
                     axis: row["axis"],
                     title: row["title"],
@@ -316,7 +304,7 @@ struct LookupEntitiesTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Reads.EntityHit] {
+    func perform(_ db: Database) throws -> [EntityQueryHit] {
         let sql: String
         let arguments: [DatabaseValueConvertible?]
         
@@ -338,7 +326,7 @@ struct LookupEntitiesTransaction: GRDBReadTransaction {
         
         return try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
             .map { row in
-                Reads.EntityHit(
+                EntityQueryHit(
                     entity: row["entity"],
                     noteId: row["note_id"],
                     axis: row["axis"] as String?,
@@ -364,13 +352,13 @@ struct FetchNoteHistoryTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Reads.HistoryEvent] {
+    func perform(_ db: Database) throws -> [NoteHistoryEvent] {
         try Row.fetchAll(db, sql: """
             SELECT kind, reason, created_at FROM note_lifecycle_events
             WHERE note_id = ? ORDER BY id DESC LIMIT ?
             """, arguments: [noteId, limit])
             .map { row in
-                Reads.HistoryEvent(
+                NoteHistoryEvent(
                     kind: row["kind"],
                     reason: row["reason"] as String?,
                     at: row["created_at"]

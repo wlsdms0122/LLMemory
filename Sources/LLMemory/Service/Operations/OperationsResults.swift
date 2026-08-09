@@ -102,7 +102,7 @@ public struct SplitConflict: Error, Encodable, Sendable {
     
     // MARK: - Property
     public let fromId: String
-    public let unresolved: [NoteArtifacts.RouteArtifact]
+    public let unresolved: [RouteArtifact]
     
     // MARK: - Initializer
     // MARK: - Public

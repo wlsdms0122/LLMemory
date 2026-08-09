@@ -1077,7 +1077,7 @@ struct QueryGet: AsyncParsableCommand {
         let id: String
         let axis: String
         let path: String
-        let frontmatter: Reads.NoteFrontmatter
+        let frontmatter: NoteFrontmatter
         let body: String
         var sections: [String]? = nil
         let stats: Stats
@@ -1123,7 +1123,7 @@ struct QueryGet: AsyncParsableCommand {
         let id: String
         let axis: String
         let path: String
-        let frontmatter: Reads.NoteFrontmatter
+        let frontmatter: NoteFrontmatter
         let body: String
         let truncated: Bool
         let shownWords: Int

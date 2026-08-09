@@ -179,7 +179,7 @@ struct FetchAxisReportTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> Consolidation.AxisReport {
+    func perform(_ db: Database) throws -> ConsolidateAxisReport {
         let rows = try Row.fetchAll(db, sql: """
             SELECT a.axis, a.description, COALESCE(COUNT(n.id), 0) AS c
             FROM axes a LEFT JOIN notes n ON n.axis = a.axis
@@ -195,7 +195,7 @@ struct FetchAxisReportTransaction: GRDBReadTransaction {
             .filter { entry in entry.2 >= high }
             .map { entry in (axis: entry.0, count: entry.2) }
         
-        return Consolidation.AxisReport(
+        return ConsolidateAxisReport(
             all: all.map { entry in (axis: entry.0, description: entry.1, count: entry.2) },
             small: small,
             large: large
@@ -217,7 +217,7 @@ struct FetchTagReportTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> Consolidation.TagReport {
+    func perform(_ db: Database) throws -> ConsolidateTagReport {
         let rows = try Row.fetchAll(
             db,
             sql: "SELECT tag, COUNT(*) c FROM tags GROUP BY tag ORDER BY c ASC, tag"
@@ -233,7 +233,7 @@ struct FetchTagReportTransaction: GRDBReadTransaction {
             ORDER BY tv.tag
             """)
         
-        return Consolidation.TagReport(rare: Array(rare), unused: unused)
+        return ConsolidateTagReport(rare: Array(rare), unused: unused)
     }
 
     // MARK: - Private

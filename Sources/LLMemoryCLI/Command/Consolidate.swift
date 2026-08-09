@@ -712,7 +712,7 @@ struct ConsolidateCandidates: AsyncParsableCommand {
         }
     }
     
-    private func mapBatch(_ batch: Candidates.Batch, full: Bool) -> KindOutput {
+    private func mapBatch(_ batch: CandidateBatch, full: Bool) -> KindOutput {
         switch batch {
         case .split(let items):
             return .split(

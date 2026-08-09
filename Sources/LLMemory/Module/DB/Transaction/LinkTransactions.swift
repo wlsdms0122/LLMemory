@@ -10,62 +10,62 @@ import GRDB
 
 // The link-graph vocabulary — edge kinds, their direction/lifecycle
 // classes, and the note_links transactions.
+public struct LinkDistribution: Sendable {
+    // MARK: - Property
+    public let byKind: [(kind: String, count: Int, min: Double, avg: Double, max: Double)]
+    public let weightBuckets: [String: Int]
+    public let topDegree: [(id: String, axis: String, title: String, degree: Int)]
+
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct ExpandedNote: Sendable {
+    // MARK: - Property
+    public let id: String
+    public let axis: String
+    public let title: String
+    public let summary: String?
+    public let path: String
+    public let weight: Double
+    public let rankWeight: Double
+
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+struct LinkEdge {
+    // MARK: - Property
+    let other: String
+    let kind: String
+    let weight: Double
+    let createdAt: Int
+    let lastActivatedAt: Int
+    let provenance: String?
+
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+struct LinkNeighbor {
+    // MARK: - Property
+    let id: String
+    let axis: String
+    let title: String
+    let summary: String?
+    let path: String
+    let kind: String
+    let weight: Double
+
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
 public enum Links {
-    public struct Distribution: Sendable {
-        // MARK: - Property
-        public let byKind: [(kind: String, count: Int, min: Double, avg: Double, max: Double)]
-        public let weightBuckets: [String: Int]
-        public let topDegree: [(id: String, axis: String, title: String, degree: Int)]
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-
-    public struct ExpandedNote: Sendable {
-        // MARK: - Property
-        public let id: String
-        public let axis: String
-        public let title: String
-        public let summary: String?
-        public let path: String
-        public let weight: Double
-        public let rankWeight: Double
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-
-    struct Edge {
-        // MARK: - Property
-        let other: String
-        let kind: String
-        let weight: Double
-        let createdAt: Int
-        let lastActivatedAt: Int
-        let provenance: String?
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-
-    struct Neighbor {
-        // MARK: - Property
-        let id: String
-        let axis: String
-        let title: String
-        let summary: String?
-        let path: String
-        let kind: String
-        let weight: Double
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-
     // MARK: - Property
     static let kindCooccur = "cooccur"
     static let kindReference = "reference"
@@ -203,7 +203,7 @@ struct FetchLinkDistributionTransaction: GRDBReadTransaction {
     init() { }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> Links.Distribution {
+    func perform(_ db: Database) throws -> LinkDistribution {
         let byKindRows = try Row.fetchAll(db, sql: """
             SELECT kind, COUNT(*) AS c, MIN(weight) AS mn, AVG(weight) AS av, MAX(weight) AS mx
             FROM note_links GROUP BY kind ORDER BY kind
@@ -246,7 +246,7 @@ struct FetchLinkDistributionTransaction: GRDBReadTransaction {
             )
         }
 
-        return Links.Distribution(
+        return LinkDistribution(
             byKind: byKind,
             weightBuckets: buckets,
             topDegree: topDegree
@@ -401,7 +401,7 @@ struct FetchLinkFanTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> (outEdges: [Links.Edge], inEdges: [Links.Edge]) {
+    func perform(_ db: Database) throws -> (outEdges: [LinkEdge], inEdges: [LinkEdge]) {
         let outboundRows = try Row.fetchAll(db, sql: """
             SELECT dst, kind, weight, created_at, last_activated_at, provenance
             FROM note_links WHERE src = ?
@@ -410,8 +410,8 @@ struct FetchLinkFanTransaction: GRDBReadTransaction {
             SELECT src, kind, weight, created_at, last_activated_at, provenance
             FROM note_links WHERE dst = ?
             """, arguments: [fromId])
-        let outEdges: [Links.Edge] = outboundRows.map { row in
-            Links.Edge(
+        let outEdges: [LinkEdge] = outboundRows.map { row in
+            LinkEdge(
                 other: row["dst"],
                 kind: row["kind"],
                 weight: row["weight"],
@@ -420,8 +420,8 @@ struct FetchLinkFanTransaction: GRDBReadTransaction {
                 provenance: row["provenance"]
             )
         }
-        let inEdges: [Links.Edge] = inboundRows.map { row in
-            Links.Edge(
+        let inEdges: [LinkEdge] = inboundRows.map { row in
+            LinkEdge(
                 other: row["src"],
                 kind: row["kind"],
                 weight: row["weight"],
@@ -563,7 +563,7 @@ struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Links.Neighbor] {
+    func perform(_ db: Database) throws -> [LinkNeighbor] {
         let floor = minWeight ?? Genes.double("links.neighbor_floor")
         var sql = """
             SELECT n.id, n.axis, n.title, n.summary, n.path, l.kind, l.weight,
@@ -586,7 +586,7 @@ struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
         let rows = try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
 
         return rows.map { row in
-            Links.Neighbor(
+            LinkNeighbor(
                 id: row["id"],
                 axis: row["axis"],
                 title: row["title"],
@@ -625,11 +625,11 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Links.ExpandedNote] {
+    func perform(_ db: Database) throws -> [ExpandedNote] {
         guard !noteIds.isEmpty else { return [] }
 
         let floor = minWeight ?? Genes.double("links.neighbor_floor")
-        var seen: [String: (note: Links.ExpandedNote, rankWeight: Double)] = [:]
+        var seen: [String: (note: ExpandedNote, rankWeight: Double)] = [:]
         var frontier = Set(noteIds)
         var visited = Set(noteIds)
 
@@ -672,7 +672,7 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
                 if let previous = seen[noteId], previous.rankWeight >= rankWeight {
                 } else {
                     seen[noteId] = (
-                        Links.ExpandedNote(
+                        ExpandedNote(
                             id: noteId,
                             axis: row["axis"],
                             title: row["title"],

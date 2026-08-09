@@ -26,7 +26,7 @@ public struct NotesService: Sendable {
     public func get(
         ids: [String],
         cliSessionId: String = ""
-    ) async throws -> (found: [Reads.GetNote], missing: [String]) {
+    ) async throws -> (found: [NoteView], missing: [String]) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try get(scope, ids: ids, sessionId: sessionId)
@@ -41,7 +41,7 @@ public struct NotesService: Sendable {
         id: String,
         sections: [String],
         cliSessionId: String = ""
-    ) async throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice]) {
+    ) async throws -> (note: NoteView, slices: [SectionSlice]) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try getSections(scope, id: id, sections: sections, sessionId: sessionId)
@@ -56,7 +56,7 @@ public struct NotesService: Sendable {
         id: String,
         budget: Int,
         cliSessionId: String = ""
-    ) async throws -> (note: Reads.GetNote, cut: Reads.BudgetCut) {
+    ) async throws -> (note: NoteView, cut: BudgetCut) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try getBudget(scope, id: id, budget: budget, sessionId: sessionId)
@@ -70,7 +70,7 @@ public struct NotesService: Sendable {
     public func toc(
         id: String,
         cliSessionId: String = ""
-    ) async throws -> (note: Reads.GetNote, entries: [Reads.TocEntry]) {
+    ) async throws -> (note: NoteView, entries: [TocEntry]) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in try toc(scope, id: id, sessionId: sessionId) }
 
@@ -82,7 +82,7 @@ public struct NotesService: Sendable {
     public func template(
         id: String,
         cliSessionId: String = ""
-    ) async throws -> (note: Reads.GetNote, frame: [Template.FrameNode]) {
+    ) async throws -> (note: NoteView, frame: [Template.FrameNode]) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in try template(scope, id: id, sessionId: sessionId) }
 
@@ -97,8 +97,8 @@ public struct NotesService: Sendable {
         stale: Bool,
         sourceStale: Bool,
         limit: Int?
-    ) async throws -> [Reads.ListRow] {
-        let filter = Reads.ListFilter(
+    ) async throws -> [NoteListRow] {
+        let filter = NoteListFilter(
             priority: priority,
             axis: axis,
             stale: stale,
@@ -112,7 +112,7 @@ public struct NotesService: Sendable {
     public func history(
         noteId: String,
         limit: Int
-    ) async throws -> [Reads.HistoryEvent] {
+    ) async throws -> [NoteHistoryEvent] {
         try await storage.read { scope in
             try scope.run(FetchNoteHistoryTransaction(noteId: noteId, limit: limit))
         }
@@ -124,7 +124,7 @@ public struct NotesService: Sendable {
 
     public func structure(
         axis: String?
-    ) async throws -> Reads.StructureResult {
+    ) async throws -> StructureResult {
         try await storage.read { scope in try structure(scope, axis: axis) }
     }
 
@@ -162,9 +162,9 @@ public struct NotesService: Sendable {
         _ scope: GRDBReadScope,
         ids: [String],
         sessionId: String?
-    ) throws -> (found: [Reads.GetNote], missing: [String], record: RetrievalRecord?) {
+    ) throws -> (found: [NoteView], missing: [String], record: RetrievalRecord?) {
         let byId = try scope.run(FetchNoteCatalogTransaction(ids: ids))
-        var found: [Reads.GetNote] = []
+        var found: [NoteView] = []
         var missing: [String] = []
 
         for id in ids {
@@ -178,11 +178,11 @@ public struct NotesService: Sendable {
             let (doc, body) = try Frontmatter.parse(text)
 
             found.append(
-                Reads.GetNote(
+                NoteView(
                     id: id,
                     axis: record.axis,
                     path: record.path,
-                    frontmatter: Reads.NoteFrontmatter(doc),
+                    frontmatter: NoteFrontmatter(doc),
                     body: body,
                     hitCount: record.hitCount,
                     createdAt: record.createdAt,
@@ -207,20 +207,20 @@ public struct NotesService: Sendable {
         id: String,
         sections: [String],
         sessionId: String?
-    ) throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice], record: RetrievalRecord?) {
+    ) throws -> (note: NoteView, slices: [SectionSlice], record: RetrievalRecord?) {
         let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
         }
 
-        var slices: [Reads.SectionSlice] = []
+        var slices: [SectionSlice] = []
 
         for raw in sections {
             let path = try SectionEdit.parsePath(raw)
             let text = try SectionEdit.subtreeText(note.body, path: path)
 
-            slices.append(Reads.SectionSlice(path: path.display(), text: text))
+            slices.append(SectionSlice(path: path.display(), text: text))
         }
 
         return (note, slices, record)
@@ -231,7 +231,7 @@ public struct NotesService: Sendable {
         id: String,
         budget: Int,
         sessionId: String?
-    ) throws -> (note: Reads.GetNote, record: RetrievalRecord?, cut: Reads.BudgetCut) {
+    ) throws -> (note: NoteView, record: RetrievalRecord?, cut: BudgetCut) {
         let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
@@ -245,7 +245,7 @@ public struct NotesService: Sendable {
         _ scope: GRDBReadScope,
         id: String,
         sessionId: String?
-    ) throws -> (note: Reads.GetNote, entries: [Reads.TocEntry], record: RetrievalRecord?) {
+    ) throws -> (note: NoteView, entries: [TocEntry], record: RetrievalRecord?) {
         let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
@@ -254,7 +254,7 @@ public struct NotesService: Sendable {
 
         let (_, rows) = SectionEdit.sectionRows(note.body)
         let entries = rows.map { row in
-            Reads.TocEntry(path: row.path, words: SectionEdit.wordCount(row.text))
+            TocEntry(path: row.path, words: SectionEdit.wordCount(row.text))
         }
 
         return (note, entries, record)
@@ -264,7 +264,7 @@ public struct NotesService: Sendable {
         _ scope: GRDBReadScope,
         id: String,
         sessionId: String?
-    ) throws -> (note: Reads.GetNote, frame: [Template.FrameNode], record: RetrievalRecord?) {
+    ) throws -> (note: NoteView, frame: [Template.FrameNode], record: RetrievalRecord?) {
         let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
@@ -274,7 +274,7 @@ public struct NotesService: Sendable {
         return (note, Template.parseFrame(note.body), record)
     }
 
-    func structure(_ scope: GRDBReadScope, axis: String?) throws -> Reads.StructureResult {
+    func structure(_ scope: GRDBReadScope, axis: String?) throws -> StructureResult {
         let axes = try scope.run(FetchAxesWithCountsTransaction())
         let distribution = try scope.run(FetchLinkDistributionTransaction())
         var stats: AxisStats? = nil
@@ -283,13 +283,13 @@ public struct NotesService: Sendable {
             stats = try scope.run(AxisStatsTransaction(axis: axis))
         }
 
-        return Reads.StructureResult(axes: axes, distribution: distribution, axisStats: stats)
+        return StructureResult(axes: axes, distribution: distribution, axisStats: stats)
     }
 
     // MARK: - Private
     // The word-budget cut — always lands on a section boundary; a truncation
     // is stated, never silent.
-    private func budgetCut(of body: String, budget: Int) -> Reads.BudgetCut {
+    private func budgetCut(of body: String, budget: Int) -> BudgetCut {
         let lines = body.unicodeLines()
         let all = SectionEdit.splitSections(body)
         let totalWords = SectionEdit.wordCount(body)
@@ -354,11 +354,11 @@ public struct NotesService: Sendable {
             let shown = lines[..<cut].joined(separator: "\n")
             let name = prefix.isEmpty ? "(preamble)" : prefix
 
-            return Reads.BudgetCut(
+            return BudgetCut(
                 shown: shown,
                 shownSections: [],
                 omitted: tops.map { top in
-                    Reads.TocEntry(
+                    TocEntry(
                         path: top.path,
                         words: SectionEdit.wordCount(
                             lines[top.start..<top.end].joined(separator: "\n")
@@ -372,8 +372,8 @@ public struct NotesService: Sendable {
         }
 
         var running = headWords
-        var shownSections: [Reads.TocEntry] = []
-        var omitted: [Reads.TocEntry] = []
+        var shownSections: [TocEntry] = []
+        var omitted: [TocEntry] = []
         var cutAt: Int? = nil
 
         for top in tops {
@@ -381,16 +381,16 @@ public struct NotesService: Sendable {
 
             if cutAt == nil && running + words <= budget {
                 running += words
-                shownSections.append(Reads.TocEntry(path: top.path, words: words))
+                shownSections.append(TocEntry(path: top.path, words: words))
             } else {
                 if cutAt == nil { cutAt = top.start }
 
-                omitted.append(Reads.TocEntry(path: top.path, words: words))
+                omitted.append(TocEntry(path: top.path, words: words))
             }
         }
 
         guard let cut = cutAt else {
-            return Reads.BudgetCut(
+            return BudgetCut(
                 shown: body,
                 shownSections: shownSections,
                 omitted: [],
@@ -404,7 +404,7 @@ public struct NotesService: Sendable {
             let end = linePrefix(of: first.start..<first.end, cap: budget)
             let shown = lines[..<end].joined(separator: "\n")
 
-            return Reads.BudgetCut(
+            return BudgetCut(
                 shown: shown,
                 shownSections: [],
                 omitted: Array(omitted.dropFirst()),
@@ -414,7 +414,7 @@ public struct NotesService: Sendable {
             )
         }
 
-        return Reads.BudgetCut(
+        return BudgetCut(
             shown: lines[..<cut].joined(separator: "\n"),
             shownSections: shownSections,
             omitted: omitted,

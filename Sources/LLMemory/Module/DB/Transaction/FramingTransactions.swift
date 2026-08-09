@@ -8,52 +8,63 @@
 import Foundation
 import GRDB
 
+public struct AxisInfo: Sendable {
+    // MARK: - Property
+    public let axis: String
+    public let count: Int
+    public let description: String?
+    public let topTags: [String]
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct SimilarNote: Sendable {
+    // MARK: - Property
+    public let id: String
+    public let axis: String
+    public let title: String
+    public let summary: String?
+    public let path: String
+    public let tags: [String]
+    public let section: String?
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct FramingSnapshot: Sendable {
+    // MARK: - Property
+    public var keywords: [String]
+    public var axes: [AxisInfo]
+    public var similar: [SimilarNote]
+    public var linked: [ExpandedNote]
+    public var vectorLinked: [VectorHit]
+    public var topTags: [(String, Int)]
+    public var cooccur: [(String, String, Int)]
+    public var vocab: [String]
+    public var entityHints: [String]
+    public var entityHits: [EntityHit]
+    public var degraded: [String] = []
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct RelatedResult: Sendable {
+    // MARK: - Property
+    public let snapshot: FramingSnapshot
+    public let bodies: [String: String]
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
 public enum Framing {
-    public struct AxisRow: Sendable {
-        // MARK: - Property
-        public let axis: String
-        public let count: Int
-        public let description: String?
-        public let topTags: [String]
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    public struct SimilarNote: Sendable {
-        // MARK: - Property
-        public let id: String
-        public let axis: String
-        public let title: String
-        public let summary: String?
-        public let path: String
-        public let tags: [String]
-        public let section: String?
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    public struct Snapshot: Sendable {
-        // MARK: - Property
-        public var keywords: [String]
-        public var axes: [AxisRow]
-        public var similar: [SimilarNote]
-        public var linked: [Links.ExpandedNote]
-        public var vectorLinked: [VectorHit]
-        public var topTags: [(String, Int)]
-        public var cooccur: [(String, String, Int)]
-        public var vocab: [String]
-        public var entityHints: [String]
-        public var entityHits: [EntityHit]
-        public var degraded: [String] = []
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
     
     // MARK: - Property
     static let stopwords: Set<String> = [
@@ -118,17 +129,6 @@ public enum Framing {
     }
 }
 
-public extension Framing {
-    struct RelatedResult: Sendable {
-        // MARK: - Property
-        public let snapshot: Framing.Snapshot
-        public let bodies: [String: String]
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-}
 
 struct FetchAxesInfoTransaction: GRDBReadTransaction {
     // MARK: - Property
@@ -140,14 +140,14 @@ struct FetchAxesInfoTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Framing.AxisRow] {
+    func perform(_ db: Database) throws -> [AxisInfo] {
         let rows = try Row.fetchAll(db, sql: """
             SELECT a.axis, COALESCE(COUNT(n.id), 0) AS cnt, a.description
             FROM axes a
             LEFT JOIN notes n ON n.axis = a.axis
             GROUP BY a.axis ORDER BY a.axis
             """)
-        var axes: [Framing.AxisRow] = []
+        var axes: [AxisInfo] = []
         
         for row in rows {
             let axis: String = row["axis"]
@@ -158,7 +158,7 @@ struct FetchAxesInfoTransaction: GRDBReadTransaction {
                 """, arguments: [axis, topTagsLimit])
             
             axes.append(
-                Framing.AxisRow(
+                AxisInfo(
                     axis: axis,
                     count: row["cnt"] as Int? ?? 0,
                     description: row["description"] as String?,
@@ -189,7 +189,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Framing.SimilarNote] {
+    func perform(_ db: Database) throws -> [SimilarNote] {
         let matchExpr = Framing.ftsQuery(keywords)
         
         if matchExpr.isEmpty { return [] }
@@ -228,14 +228,14 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
         arguments.append(fetchLimit)
         
         let rows = try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
-        let pool: [Framing.SimilarNote] = rows.map { row in
+        let pool: [SimilarNote] = rows.map { row in
             let tagsCSV = row["tags"] as String? ?? ""
             let tags = tagsCSV.isEmpty ? [] : tagsCSV.split(separator: ",").map(String.init)
             let section = (row["section"] as String?).flatMap { value in
                 value.isEmpty ? nil : value
             }
             
-            return Framing.SimilarNote(
+            return SimilarNote(
                 id: row["id"],
                 axis: row["axis"],
                 title: row["title"],

@@ -31,7 +31,7 @@ public struct RetrievalService: Sendable {
         includeStale: Bool,
         excludeAxes: [String],
         raw: Bool
-    ) async throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
+    ) async throws -> (rows: [Search.SearchRow], extra: [ExpandedNote]) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try search(
@@ -57,7 +57,7 @@ public struct RetrievalService: Sendable {
         kind: String?,
         cliSessionId: String,
         includeBodies: Bool
-    ) async throws -> Framing.RelatedResult {
+    ) async throws -> RelatedResult {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try related(
@@ -76,14 +76,14 @@ public struct RetrievalService: Sendable {
         var snapshot = outcome.result.snapshot
         snapshot.degraded.append(contentsOf: degraded)
 
-        return Framing.RelatedResult(snapshot: snapshot, bodies: outcome.result.bodies)
+        return RelatedResult(snapshot: snapshot, bodies: outcome.result.bodies)
     }
 
     public func neighbors(
         id: String,
         k: Int,
         cliSessionId: String = ""
-    ) async throws -> [Candidates.NeighborScore] {
+    ) async throws -> [NeighborScore] {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try neighbors(scope, id: id, k: k, sessionId: sessionId)
@@ -97,7 +97,7 @@ public struct RetrievalService: Sendable {
     public func entity(
         name: String?,
         limit: Int
-    ) async throws -> [Reads.EntityHit] {
+    ) async throws -> [EntityQueryHit] {
         try await storage.read { scope in
             try scope.run(LookupEntitiesTransaction(name: name, limit: limit))
         }
@@ -115,7 +115,7 @@ public struct RetrievalService: Sendable {
         excludeAxes: [String]? = nil,
         sinceTs: Int? = nil,
         raw: Bool = false
-    ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote], record: RetrievalRecord) {
+    ) throws -> (rows: [Search.SearchRow], extra: [ExpandedNote], record: RetrievalRecord) {
         let rows = try scope.run(
             SearchNotesFTSTransaction(
                 query: query,
@@ -128,7 +128,7 @@ public struct RetrievalService: Sendable {
                 raw: raw
             )
         )
-        var extra: [Links.ExpandedNote] = []
+        var extra: [ExpandedNote] = []
 
         if expand > 0 {
             extra = (try? scope.run(
@@ -171,14 +171,14 @@ public struct RetrievalService: Sendable {
         expandHops: Int? = nil,
         linkKind: String? = nil,
         sessionId: String? = nil
-    ) throws -> Framing.Snapshot {
+    ) throws -> FramingSnapshot {
         let similarLimit = similarLimit ?? Genes.int("related.similar_limit")
         let expandHops = expandHops ?? Genes.int("related.expand_hops")
         let text = "\(userInput)\n\(agentOutput)"
         let keywords = Framing.extractKeywords(text)
         let entityHints = NoteText.extractEntityHints(text)
-        var similarNotes: [Framing.SimilarNote] = []
-        var axes: [Framing.AxisRow] = []
+        var similarNotes: [SimilarNote] = []
+        var axes: [AxisInfo] = []
         var topTagCounts: [(String, Int)] = []
         var cooccurrences: [(String, String, Int)] = []
         var vocabEntries: [String] = []
@@ -200,7 +200,7 @@ public struct RetrievalService: Sendable {
         entityHits = try scope.run(FetchEntityHitsTransaction(entities: entityHints))
         
         var degraded: [String] = []
-        var linked: [Links.ExpandedNote] = []
+        var linked: [ExpandedNote] = []
         
         if !similarNotes.isEmpty {
             do {
@@ -235,7 +235,7 @@ public struct RetrievalService: Sendable {
             }
         }
         
-        return Framing.Snapshot(
+        return FramingSnapshot(
             keywords: keywords,
             axes: axes,
             similar: similarNotes,
@@ -256,7 +256,7 @@ public struct RetrievalService: Sendable {
         kind: String?,
         sessionId: String?,
         includeBodies: Bool
-    ) throws -> (result: Framing.RelatedResult, record: RetrievalRecord) {
+    ) throws -> (result: RelatedResult, record: RetrievalRecord) {
         let snapshot = try snapshot(
             scope,
             userInput: text,
@@ -287,7 +287,7 @@ public struct RetrievalService: Sendable {
             ])
         )
 
-        return (Framing.RelatedResult(snapshot: snapshot, bodies: bodies), record)
+        return (RelatedResult(snapshot: snapshot, bodies: bodies), record)
     }
 
     func neighbors(
@@ -295,7 +295,7 @@ public struct RetrievalService: Sendable {
         id: String,
         k: Int,
         sessionId: String? = nil
-    ) throws -> (scores: [Candidates.NeighborScore], record: RetrievalRecord?) {
+    ) throws -> (scores: [NeighborScore], record: RetrievalRecord?) {
         let scores = try Candidates.neighbors(scope, noteId: id, k: k)
         let record: RetrievalRecord? = scores.isEmpty ? nil : .init(
             sessionId: sessionId,
@@ -349,7 +349,7 @@ public struct RetrievalService: Sendable {
 
     private func searchRanked(
         rows: [Search.SearchRow],
-        extra: [Links.ExpandedNote]
+        extra: [ExpandedNote]
     ) -> [RetrievalRecord.Ranked] {
         let boost = Genes.double("rebirth.search_boost")
         var ranked: [RetrievalRecord.Ranked] = []
@@ -367,7 +367,7 @@ public struct RetrievalService: Sendable {
         return ranked
     }
 
-    private func relatedRanked(snapshot: Framing.Snapshot) -> [RetrievalRecord.Ranked] {
+    private func relatedRanked(snapshot: FramingSnapshot) -> [RetrievalRecord.Ranked] {
         let boost = Genes.double("rebirth.related_boost")
         var ranked: [RetrievalRecord.Ranked] = []
 

@@ -38,7 +38,7 @@ public struct ConsolidateService: Sendable {
     public func candidates(
         kinds: [String],
         limit: Int
-    ) async throws -> [String: Candidates.Batch] {
+    ) async throws -> [String: CandidateBatch] {
         // The string→Kind conversion happens once, at the API boundary — an
         // unknown kind is a caller bug, not an empty result.
         let resolved = try kinds.map { raw in
@@ -60,8 +60,8 @@ public struct ConsolidateService: Sendable {
         _ scope: GRDBReadScope,
         kinds: [Candidates.Kind],
         limit: Int
-    ) throws -> [String: Candidates.Batch] {
-        var batches: [String: Candidates.Batch] = [:]
+    ) throws -> [String: CandidateBatch] {
+        var batches: [String: CandidateBatch] = [:]
 
         for kind in kinds {
             switch kind {
@@ -91,11 +91,11 @@ public struct ConsolidateService: Sendable {
         return batches
     }
 
-    public func integrate() async throws -> Consolidation.IntegrateResult {
+    public func integrate() async throws -> IntegrateResult {
         try await storage.run { scope in
             var result = try integrate(scope)
             let integrity = try scope.run(CheckCorpusIntegrityL1Transaction())
-            result.integrityL1 = Consolidation.IntegrateResult.IntegrityReport(
+            result.integrityL1 = IntegrateResult.IntegrityReport(
                 checked: integrity.checked,
                 issues: integrity.issues
             )
@@ -105,7 +105,7 @@ public struct ConsolidateService: Sendable {
         }
     }
 
-    public func homeostasis() async throws -> Consolidation.HomeostasisReport {
+    public func homeostasis() async throws -> HomeostasisReport {
         let now = Int(Date().timeIntervalSince1970)
         let report = try await storage.run { scope in
             _ = try scope.run(DeriveActivityWindowsTransaction(now: now))
@@ -131,11 +131,11 @@ public struct ConsolidateService: Sendable {
         return report
     }
 
-    public func prune() async throws -> Consolidation.PruneResult {
+    public func prune() async throws -> PruneResult {
         try await storage.run { scope in try prune(scope) }
     }
 
-    public func report() async throws -> (axis: Consolidation.AxisReport, tag: Consolidation.TagReport) {
+    public func report() async throws -> (axis: ConsolidateAxisReport, tag: ConsolidateTagReport) {
         try await storage.read { scope in
             (
                 axis: try scope.run(FetchAxisReportTransaction()),
@@ -148,7 +148,7 @@ public struct ConsolidateService: Sendable {
 
     // B: synaptic pruning — decays the learned edges and cuts those below
     // the floor. Rare by design; structure loss is the point.
-    func prune(_ scope: GRDBScope) throws -> Consolidation.PruneResult {
+    func prune(_ scope: GRDBScope) throws -> PruneResult {
         let now = Int(Date().timeIntervalSince1970)
         let decay = try scope.run(DecayAndPruneLinksTransaction())
 
@@ -164,12 +164,12 @@ public struct ConsolidateService: Sendable {
             )
         )
 
-        return Consolidation.PruneResult(linksDecayed: decay.decayed, linksPruned: decay.pruned)
+        return PruneResult(linksDecayed: decay.decayed, linksPruned: decay.pruned)
     }
 
     // A: non-destructive integration — succession, retention compaction,
     // hygiene prunes, term validation, disagreement review, vector rebuild.
-    func integrate(_ scope: GRDBScope) throws -> Consolidation.IntegrateResult {
+    func integrate(_ scope: GRDBScope) throws -> IntegrateResult {
         let now = Int(Date().timeIntervalSince1970)
         let retentionSec = Config.getInt("events.retention_days", default: 30) * 24 * 60 * 60
 
@@ -237,7 +237,7 @@ public struct ConsolidateService: Sendable {
         case .success(let build): vectorBuild = build
         case .failure(let error): degrade("vector_build", error)
         }
-        let summary = Consolidation.IntegrateResult.Summary(
+        let summary = IntegrateResult.Summary(
             eventsCompacted: eventsCompacted,
             smallAxes: axisSummary.small.count,
             largeAxes: axisSummary.large.count,
@@ -277,9 +277,9 @@ public struct ConsolidateService: Sendable {
             RecordEventTransaction(kind: Events.kindConsolidation, payload: tracePayload, ts: now)
         )
 
-        return Consolidation.IntegrateResult(
+        return IntegrateResult(
             summary: summary,
-            axisReport: Consolidation.IntegrateResult.AxisReportOutput(
+            axisReport: IntegrateResult.AxisReportOutput(
                 all: axisSummary.all.map { entry in
                     .init(axis: entry.axis, description: entry.description, count: entry.count)
                 },
@@ -290,22 +290,22 @@ public struct ConsolidateService: Sendable {
                     .init(axis: entry.axis, count: entry.count)
                 }
             ),
-            tagReport: Consolidation.IntegrateResult.TagReportOutput(
+            tagReport: IntegrateResult.TagReportOutput(
                 rare: tagSummary.rare.map { entry in .init(tag: entry.tag, count: entry.count) },
                 unused: tagSummary.unused
             ),
-            prune: Consolidation.IntegrateResult.PruneReport(
+            prune: IntegrateResult.PruneReport(
                 axes: .init(pruned: prunedAxes, count: prunedAxes.count),
                 tagVocab: .init(pruned: prunedTags, count: prunedTags.count)
             ),
-            integrityL1: Consolidation.IntegrateResult.IntegrityReport(checked: 0, issues: [])
+            integrityL1: IntegrateResult.IntegrityReport(checked: 0, issues: [])
         )
     }
 
     // The deterministic metaplasticity tick — reacts only to measured waste
     // (expand hits that never land), one step, within bounds, wild-type as
     // the ceiling. Windows are consumed exactly once via the watermark.
-    func homeostasisTick(_ scope: GRDBScope, now: Int) throws -> Consolidation.HomeostasisReport {
+    func homeostasisTick(_ scope: GRDBScope, now: Int) throws -> HomeostasisReport {
         let watermark = Int(
             try scope.run(FetchConfigValueTransaction(key: Self.homeostasisWatermarkKey, default: "0"))
         ) ?? 0
@@ -389,7 +389,7 @@ public struct ConsolidateService: Sendable {
         try scope.run(SetConfigValueTransaction(key: Self.homeostasisSeenKey, value: String(remainderSeen)))
         try scope.run(SetConfigValueTransaction(key: Self.homeostasisLandedKey, value: String(remainderLanded)))
 
-        return Consolidation.HomeostasisReport(
+        return HomeostasisReport(
             windowsProcessed: windows.count,
             expandSeen: cohortSeen,
             expandLanded: cohortLanded,

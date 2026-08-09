@@ -27,39 +27,104 @@ public enum CandidatesError: Error, CustomStringConvertible {
     }
 }
 
-public enum Candidates {
-    public struct SplitCandidate: Sendable {
+public struct SplitCandidate: Sendable {
+    // MARK: - Property
+    public let id: String
+    public let axis: String
+    public let title: String
+    public let wordCount: Int
+    public let sectionCount: Int
+    public let tagCount: Int
+    public let sections: [SectionSketch]
+    public let reason: String
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct SectionSketch: Sendable {
+    // MARK: - Property
+    public let path: String
+    public let title: String
+    public let wordCount: Int
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct FlaggedCandidate: Sendable {
+    // MARK: - Property
+    public let id: String
+    public let reason: String?
+    public let createdAt: Int
+    public let axis: String
+    public let title: String
+    public let summary: String?
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct NeighborScore: Sendable {
+    // MARK: - Property
+    public var id: String
+    public var axis: String
+    public var title: String
+    public var summary: String?
+    public var fts: Double
+    public var entity: Double
+    public var link: Double
+    public var score: Double
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct CandidateCluster: Sendable {
+    public struct Member: Sendable {
         // MARK: - Property
-        public let id: String
-        public let axis: String
-        public let title: String
-        public let wordCount: Int
-        public let sectionCount: Int
-        public let tagCount: Int
-        public let sections: [SectionSketch]
-        public let reason: String
+        package let id: String
+        package let axis: String
+        package let title: String
+        package let summary: String?
         
         // MARK: - Initializer
         // MARK: - Public
         // MARK: - Private
     }
     
-    public struct SectionSketch: Sendable {
+    public struct Edge: Sendable {
         // MARK: - Property
-        public let path: String
-        public let title: String
-        public let wordCount: Int
+        public let a: String
+        package let b: String
+        public let fts: Double
+        package let entity: Double
+        package let link: Double
         
         // MARK: - Initializer
         // MARK: - Public
         // MARK: - Private
     }
     
-    public struct FlaggedCandidate: Sendable {
+    // MARK: - Property
+    public let size: Int
+    public let axes: [String]
+    public let members: [Member]
+    public let edges: [Edge]
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct MissingEdge: Sendable {
+    public struct Member: Sendable {
         // MARK: - Property
         public let id: String
-        public let reason: String?
-        public let createdAt: Int
         public let axis: String
         public let title: String
         public let summary: String?
@@ -69,110 +134,72 @@ public enum Candidates {
         // MARK: - Private
     }
     
-    public struct NeighborScore: Sendable {
+    // MARK: - Property
+    public let a: Member
+    public let b: Member
+    public let source: String
+    public let score: Double
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct NearDuplicate: Sendable {
+    public struct Member: Sendable {
         // MARK: - Property
-        public var id: String
-        public var axis: String
-        public var title: String
-        public var summary: String?
-        public var fts: Double
-        public var entity: Double
-        public var link: Double
-        public var score: Double
+        public let id: String
+        public let axis: String
+        public let title: String
+        public let summary: String?
         
         // MARK: - Initializer
         // MARK: - Public
         // MARK: - Private
     }
     
-    public struct Cluster: Sendable {
-        public struct Member: Sendable {
-            // MARK: - Property
-            package let id: String
-            package let axis: String
-            package let title: String
-            package let summary: String?
-            
-            // MARK: - Initializer
-            // MARK: - Public
-            // MARK: - Private
-        }
-        
-        public struct Edge: Sendable {
-            // MARK: - Property
-            public let a: String
-            package let b: String
-            public let fts: Double
-            package let entity: Double
-            package let link: Double
-            
-            // MARK: - Initializer
-            // MARK: - Public
-            // MARK: - Private
-        }
-        
-        // MARK: - Property
-        public let size: Int
-        public let axes: [String]
-        public let members: [Member]
-        public let edges: [Edge]
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
+    // MARK: - Property
+    public let a: Member
+    public let b: Member
+    public let fts: Double
+    public let entity: Double
+    public let link: Double
+    public let jaccard: Double
+    public let containment: Double
     
-    public struct MissingEdge: Sendable {
-        public struct Member: Sendable {
-            // MARK: - Property
-            public let id: String
-            public let axis: String
-            public let title: String
-            public let summary: String?
-            
-            // MARK: - Initializer
-            // MARK: - Public
-            // MARK: - Private
-        }
-        
-        // MARK: - Property
-        public let a: Member
-        public let b: Member
-        public let source: String
-        public let score: Double
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public enum CandidateBatch: Sendable {
+    case split([SplitCandidate])
+    case flagged([FlaggedCandidate])
+    case clusters([CandidateCluster])
+    case missingEdge([MissingEdge])
+    case nearDuplicate([NearDuplicate])
     
-    public struct NearDuplicate: Sendable {
-        public struct Member: Sendable {
-            // MARK: - Property
-            public let id: String
-            public let axis: String
-            public let title: String
-            public let summary: String?
-            
-            // MARK: - Initializer
-            // MARK: - Public
-            // MARK: - Private
+    public var count: Int {
+        switch self {
+        case .split(let items):
+            return items.count
+        
+        case .flagged(let items):
+            return items.count
+        
+        case .clusters(let items):
+            return items.count
+        
+        case .missingEdge(let items):
+            return items.count
+        
+        case .nearDuplicate(let items):
+            return items.count
         }
-        
-        // MARK: - Property
-        public let a: Member
-        public let b: Member
-        public let fts: Double
-        public let entity: Double
-        public let link: Double
-        public let jaccard: Double
-        public let containment: Double
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
     }
-    
+}
+
+public enum Candidates {
     // The closed candidate vocabulary — the compiler owns exhaustiveness;
     // strings exist only at the API boundary.
     public enum Kind: String, CaseIterable, Sendable {
@@ -386,7 +413,7 @@ public enum Candidates {
         minSize: Int = 2,
         maxSize: Int? = nil,
         limit: Int = 20
-    ) throws -> [Cluster] {
+    ) throws -> [CandidateCluster] {
         let cap = maxSize ?? Config.getInt("candidates.cluster.max_size", default: 12)
         let edges = try scope.run(FetchClusterEdgesTransaction())
         
@@ -426,12 +453,12 @@ public enum Candidates {
             groups[find(node), default: []].append(node)
         }
         
-        var clusters: [Cluster] = []
+        var clusters: [CandidateCluster] = []
         
         for (_, members) in groups where members.count >= minSize && members.count <= cap {
             let rows = try scope.run(FetchClusterMemberRowsTransaction(ids: members))
             let memberStructs = rows.map { row in
-                Cluster.Member(
+                CandidateCluster.Member(
                     id: row.id,
                     axis: row.axis,
                     title: row.title,
@@ -442,7 +469,7 @@ public enum Candidates {
             let clusterEdges = try clusterEdges(scope, memberIds: members)
             
             clusters.append(
-                Cluster(
+                CandidateCluster(
                     size: members.count,
                     axes: axes,
                     members: memberStructs,
@@ -740,7 +767,7 @@ public enum Candidates {
     private static func clusterEdges(
         _ scope: GRDBReadScope,
         memberIds: [String]
-    ) throws -> [Cluster.Edge] {
+    ) throws -> [CandidateCluster.Edge] {
         if memberIds.count < 2 { return [] }
         
         let memberSet = Set(memberIds)
@@ -777,13 +804,13 @@ public enum Candidates {
             }
         }
         
-        var edges: [Cluster.Edge] = []
+        var edges: [CandidateCluster.Edge] = []
         
         for (pair, score) in edgesMap where !(score.0 == 0 && score.1 == 0 && score.2 == 0) {
             let parts = pair.split(separator: "|").map(String.init)
             
             edges.append(
-                Cluster.Edge(
+                CandidateCluster.Edge(
                     a: parts[0],
                     b: parts[1],
                     fts: round(score.0 * 1000) / 1000,
@@ -865,31 +892,3 @@ public enum Candidates {
     }
 }
 
-public extension Candidates {
-    enum Batch: Sendable {
-        case split([SplitCandidate])
-        case flagged([FlaggedCandidate])
-        case clusters([Cluster])
-        case missingEdge([MissingEdge])
-        case nearDuplicate([NearDuplicate])
-        
-        public var count: Int {
-            switch self {
-            case .split(let items):
-                return items.count
-            
-            case .flagged(let items):
-                return items.count
-            
-            case .clusters(let items):
-                return items.count
-            
-            case .missingEdge(let items):
-                return items.count
-            
-            case .nearDuplicate(let items):
-                return items.count
-            }
-        }
-    }
-}

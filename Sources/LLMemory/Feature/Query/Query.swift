@@ -43,7 +43,7 @@ public struct Query {
         includeStale: Bool,
         excludeAxes: [String],
         raw: Bool
-    ) async throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
+    ) async throws -> (rows: [Search.SearchRow], extra: [ExpandedNote]) {
         try await retrieval.search(
             query: query,
             axis: axis,
@@ -61,7 +61,7 @@ public struct Query {
         kind: String?,
         cliSessionId: String,
         includeBodies: Bool
-    ) async throws -> Framing.RelatedResult {
+    ) async throws -> RelatedResult {
         try await retrieval.related(
             text: text,
             kind: kind,
@@ -73,7 +73,7 @@ public struct Query {
     public func get(
         ids: [String],
         cliSessionId: String = ""
-    ) async throws -> (found: [Reads.GetNote], missing: [String]) {
+    ) async throws -> (found: [NoteView], missing: [String]) {
         try await notes.get(ids: ids, cliSessionId: cliSessionId)
     }
 
@@ -81,7 +81,7 @@ public struct Query {
         id: String,
         sections: [String],
         cliSessionId: String = ""
-    ) async throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice]) {
+    ) async throws -> (note: NoteView, slices: [SectionSlice]) {
         try await notes.getSections(
             id: id,
             sections: sections,
@@ -93,7 +93,7 @@ public struct Query {
         id: String,
         budget: Int,
         cliSessionId: String = ""
-    ) async throws -> (note: Reads.GetNote, cut: Reads.BudgetCut) {
+    ) async throws -> (note: NoteView, cut: BudgetCut) {
         try await notes.getBudget(
             id: id,
             budget: budget,
@@ -104,14 +104,14 @@ public struct Query {
     public func toc(
         id: String,
         cliSessionId: String = ""
-    ) async throws -> (note: Reads.GetNote, entries: [Reads.TocEntry]) {
+    ) async throws -> (note: NoteView, entries: [TocEntry]) {
         try await notes.toc(id: id, cliSessionId: cliSessionId)
     }
 
     public func template(
         id: String,
         cliSessionId: String = ""
-    ) async throws -> (note: Reads.GetNote, frame: [Template.FrameNode]) {
+    ) async throws -> (note: NoteView, frame: [Template.FrameNode]) {
         try await notes.template(id: id, cliSessionId: cliSessionId)
     }
 
@@ -139,7 +139,7 @@ public struct Query {
     public func entity(
         name: String?,
         limit: Int
-    ) async throws -> [Reads.EntityHit] {
+    ) async throws -> [EntityQueryHit] {
         try await retrieval.entity(name: name, limit: limit)
     }
 
@@ -149,7 +149,7 @@ public struct Query {
 
     public func structure(
         axis: String?
-    ) async throws -> Reads.StructureResult {
+    ) async throws -> StructureResult {
         try await notes.structure(axis: axis)
     }
 
@@ -157,7 +157,7 @@ public struct Query {
         id: String,
         k: Int,
         cliSessionId: String = ""
-    ) async throws -> [Candidates.NeighborScore] {
+    ) async throws -> [NeighborScore] {
         try await retrieval.neighbors(id: id, k: k, cliSessionId: cliSessionId)
     }
 
@@ -183,7 +183,7 @@ public struct Query {
         stale: Bool,
         sourceStale: Bool,
         limit: Int?
-    ) async throws -> [Reads.ListRow] {
+    ) async throws -> [NoteListRow] {
         try await notes.list(
             priority: priority,
             axis: axis,
@@ -196,7 +196,7 @@ public struct Query {
     public func history(
         noteId: String,
         limit: Int
-    ) async throws -> [Reads.HistoryEvent] {
+    ) async throws -> [NoteHistoryEvent] {
         try await notes.history(noteId: noteId, limit: limit)
     }
 
@@ -223,7 +223,7 @@ public struct Query {
     public func candidates(
         kinds: [String],
         limit: Int
-    ) async throws -> [String: Candidates.Batch] {
+    ) async throws -> [String: CandidateBatch] {
         try await consolidate.candidates(kinds: kinds, limit: limit)
     }
 

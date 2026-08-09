@@ -16,19 +16,19 @@ public struct Consolidate {
         self.service = service
     }
     
-    public func integrate() async throws -> Consolidation.IntegrateResult {
+    public func integrate() async throws -> IntegrateResult {
         try await service.integrate()
     }
 
-    public func homeostasis() async throws -> Consolidation.HomeostasisReport {
+    public func homeostasis() async throws -> HomeostasisReport {
         try await service.homeostasis()
     }
 
-    public func prune() async throws -> Consolidation.PruneResult {
+    public func prune() async throws -> PruneResult {
         try await service.prune()
     }
 
-    public func report() async throws -> (axis: Consolidation.AxisReport, tag: Consolidation.TagReport) {
+    public func report() async throws -> (axis: ConsolidateAxisReport, tag: ConsolidateTagReport) {
         try await service.report()
     }
 

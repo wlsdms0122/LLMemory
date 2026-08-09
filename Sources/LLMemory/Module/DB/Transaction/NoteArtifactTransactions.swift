@@ -8,6 +8,36 @@
 import Foundation
 import GRDB
 
+public struct RouteArtifact: Encodable, Equatable, Sendable {
+    enum CodingKeys: String, CodingKey {
+        case type, kind, neighbor, term, namespace, key
+    }
+    
+    // MARK: - Property
+    public let type: String
+    public let kind: String?
+    public let neighbor: String?
+    public let term: String?
+    public let namespace: String?
+    public let key: String?
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(type, forKey: .type)
+        
+        if let kind { try container.encode(kind, forKey: .kind) }
+        if let neighbor { try container.encode(neighbor, forKey: .neighbor) }
+        if let term { try container.encode(term, forKey: .term) }
+        if let namespace { try container.encode(namespace, forKey: .namespace) }
+        if let key { try container.encode(key, forKey: .key) }
+    }
+    
+    // MARK: - Private
+}
+
 public enum NoteArtifacts {
     enum Disposition {
         case reconstructable
@@ -22,36 +52,6 @@ public enum NoteArtifacts {
         case routeRevalidate
         case autoRedistribute
         case autoCopy
-    }
-    
-    public struct RouteArtifact: Encodable, Equatable, Sendable {
-        enum CodingKeys: String, CodingKey {
-            case type, kind, neighbor, term, namespace, key
-        }
-        
-        // MARK: - Property
-        public let type: String
-        public let kind: String?
-        public let neighbor: String?
-        public let term: String?
-        public let namespace: String?
-        public let key: String?
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        public func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            
-            try container.encode(type, forKey: .type)
-            
-            if let kind { try container.encode(kind, forKey: .kind) }
-            if let neighbor { try container.encode(neighbor, forKey: .neighbor) }
-            if let term { try container.encode(term, forKey: .term) }
-            if let namespace { try container.encode(namespace, forKey: .namespace) }
-            if let key { try container.encode(key, forKey: .key) }
-        }
-        
-        // MARK: - Private
     }
     
     // MARK: - Property
@@ -396,8 +396,8 @@ struct FetchSplitRouteTargetsTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [NoteArtifacts.RouteArtifact] {
-        var artifacts: [NoteArtifacts.RouteArtifact] = []
+    func perform(_ db: Database) throws -> [RouteArtifact] {
+        var artifacts: [RouteArtifact] = []
         
         if !NoteArtifacts.routeLinkKinds.isEmpty {
             let kinds = Array(NoteArtifacts.routeLinkKinds)
@@ -410,7 +410,7 @@ struct FetchSplitRouteTargetsTransaction: GRDBReadTransaction {
             
             for row in rows {
                 artifacts.append(
-                    NoteArtifacts.RouteArtifact(
+                    RouteArtifact(
                         type: "link",
                         kind: row["kind"],
                         neighbor: row["neighbor"],
@@ -437,7 +437,7 @@ struct FetchSplitRouteTargetsTransaction: GRDBReadTransaction {
                 
                 for term in terms {
                     artifacts.append(
-                        NoteArtifacts.RouteArtifact(
+                        RouteArtifact(
                             type: "term",
                             kind: nil,
                             neighbor: nil,
@@ -457,7 +457,7 @@ struct FetchSplitRouteTargetsTransaction: GRDBReadTransaction {
                 
                 for row in rows {
                     artifacts.append(
-                        NoteArtifacts.RouteArtifact(
+                        RouteArtifact(
                             type: "meta",
                             kind: nil,
                             neighbor: nil,

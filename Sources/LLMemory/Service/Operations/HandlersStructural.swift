@@ -1043,7 +1043,7 @@ public enum HandlersStructural {
                 child: String,
                 other: String,
                 outbound: Bool,
-                _ edge: Links.Edge,
+                _ edge: LinkEdge,
                 weight: Double
             ) throws {
                 let src = outbound ? child : other
@@ -1060,7 +1060,7 @@ public enum HandlersStructural {
                 ))
             }
             
-            func redistribute(_ edges: [Links.Edge], outbound: Bool) throws {
+            func redistribute(_ edges: [LinkEdge], outbound: Bool) throws {
                 for edge in edges where edge.other != fromId {
                     switch NoteArtifacts.linkKindSplitPolicy[edge.kind] ?? .autoRedistribute {
                     case .rebuild, .drop:
@@ -1417,7 +1417,7 @@ public enum HandlersStructural {
         }
     }
     
-    static func routeArtifactKey(_ artifact: NoteArtifacts.RouteArtifact) -> String {
+    static func routeArtifactKey(_ artifact: RouteArtifact) -> String {
         routingKey(
             type: artifact.type,
             kind: artifact.kind,
@@ -1452,7 +1452,7 @@ public enum HandlersStructural {
         _ scope: GRDBReadScope,
         fromId: String,
         routing: [String: [String]]
-    ) throws -> [NoteArtifacts.RouteArtifact] {
+    ) throws -> [RouteArtifact] {
         try scope.run(FetchSplitRouteTargetsTransaction(noteId: fromId)).filter { artifact in
             routing[routeArtifactKey(artifact)] == nil
         }
