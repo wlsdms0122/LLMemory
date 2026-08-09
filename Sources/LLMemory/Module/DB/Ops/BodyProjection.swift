@@ -17,12 +17,12 @@ enum BodyProjection {
         name: String,
         handler: OpHandler,
         context: inout HandlerContext,
-        db: Database
+        scope: GRDBScope
     ) throws -> String? {
         switch name {
         case "create_note":
             if let noteId = op["id"] as? String, !noteId.isEmpty {
-                context.stagedBodies[noteId] = try Handlers.composeCreateBody(op, db)
+                context.stagedBodies[noteId] = try Handlers.composeCreateBody(op, scope)
                 context.opaqueBodyIds.remove(noteId)
             }
             
@@ -33,7 +33,7 @@ enum BodyProjection {
             
             if context.opaqueBodyIds.contains(noteId) { return nil }
             
-            guard let body = try stagedBody(of: noteId, context: context, db: db) else {
+            guard let body = try stagedBody(of: noteId, context: context, scope: scope) else {
                 context.opaqueBodyIds.insert(noteId)
                 
                 return nil
@@ -77,7 +77,7 @@ enum BodyProjection {
             return nil
         
         default:
-            if try !handler.touches(op, db).isEmpty {
+            if try !handler.touches(op, scope).isEmpty {
                 for noteId in OpsEngine.targetIds(op, schema: handler.schema) {
                     context.opaqueBodyIds.insert(noteId)
                     context.stagedBodies.removeValue(forKey: noteId)
@@ -92,11 +92,11 @@ enum BodyProjection {
     private static func stagedBody(
         of noteId: String,
         context: HandlerContext,
-        db: Database
+        scope: GRDBScope
     ) throws -> String? {
         if let staged = context.stagedBodies[noteId] { return staged }
         
-        guard let path = try FetchNotePathTransaction(nid: noteId).perform(db) else { return nil }
+        guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)) else { return nil }
         
         return (try? Notes.readNoteIfPresent(at: path))??.body
     }

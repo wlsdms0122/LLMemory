@@ -19,9 +19,9 @@ public enum HandlersStructural {
             ],
             example: ##"{"op":"restore","id":"deleted-note","reason":"deleted by mistake"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let noteId = op["id"] as? String ?? ""
-            let state = try Handlers.existingState(db)
+            let state = try Handlers.existingState(scope)
             
             if state.ids.contains(noteId) || context.inFlightIds.contains(noteId) {
                 return "id collision: '\(noteId)' is already a live note — restoring would overwrite it"
@@ -35,7 +35,7 @@ public enum HandlersStructural {
             
             return "not in trash: \(noteId)"
         },
-        write: { op, db in
+        write: { op, scope in
             let noteId = op["id"] as! String
             let now = Int(Date().timeIntervalSince1970)
             
@@ -71,13 +71,13 @@ public enum HandlersStructural {
                 encoding: .utf8
             )
             try FileManager.default.removeItem(at: trashFile)
-            try ReindexNoteFileTransaction(path: destination).perform(db)
-            try TouchNoteUsageTransaction(noteId: noteId, now: now).perform(db)
-            try RecordNoteLifecycleEventTransaction(nid: noteId,
+            try scope.run(ReindexNoteFileTransaction(path: destination))
+            try scope.run(TouchNoteUsageTransaction(noteId: noteId, now: now))
+            try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
                 kind: "restored",
                 reason: op["reason"] as? String,
                 now: now
-            ).perform(db)
+            ))
             
             return [
                 "status": "ok",
@@ -107,16 +107,16 @@ public enum HandlersStructural {
             ],
             example: ##"{"op":"delete_note","id":"obsolete","reason":"merged into newer-note"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let noteId = op["id"] as? String ?? ""
             
-            if let rejection = try Handlers.checkIDKnown(noteId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
                 return rejection
             }
             
             if (op["force"] as? Bool) == true { return nil }
             
-            let inbound = try FetchInboundBlockersTransaction(noteId: noteId).perform(db)
+            let inbound = try scope.run(FetchInboundBlockersTransaction(noteId: noteId))
             
             if !inbound.isEmpty {
                 return "inbound links exist (src: \(inbound.joined(separator: ", "))) — resolve them or set force=true"
@@ -124,21 +124,21 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let noteId = op["id"] as! String
             let now = Int(Date().timeIntervalSince1970)
             
-            guard let src = try FetchNotePathTransaction(nid: noteId).perform(db) else {
+            guard let src = try scope.run(FetchNotePathTransaction(nid: noteId)) else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
                     NSLocalizedDescriptionKey: "unknown id: \(noteId)"
                 ])
             }
             
-            _ = try FlagInboundReferrersTransaction(
+            _ = try scope.run(FlagInboundReferrersTransaction(
                 targetId: noteId,
                 reason: "deleted \(noteId)",
                 now: now
-            ).perform(db)
+            ))
             
             let trashPath = try Handlers.trashNoteFile(
                 src,
@@ -146,9 +146,9 @@ public enum HandlersStructural {
                 now: now
             )
             
-            try DeleteNoteRowTransaction(nid: noteId).perform(db)
-            try DeleteNoteEntitiesTransaction(noteId: noteId).perform(db)
-            try DeleteNoteRippleFlagsTransaction(noteId: noteId).perform(db)
+            try scope.run(DeleteNoteRowTransaction(nid: noteId))
+            try scope.run(DeleteNoteEntitiesTransaction(noteId: noteId))
+            try scope.run(DeleteNoteRippleFlagsTransaction(noteId: noteId))
             
             let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(80)
             
@@ -160,9 +160,9 @@ public enum HandlersStructural {
             ]
         },
         effect: { op in ["removes": [op["id"] as? String ?? ""]] },
-        touches: { op, db in
+        touches: { op, scope in
             guard let noteId = op["id"] as? String,
-                let src = try FetchNotePathTransaction(nid: noteId).perform(db)
+                let src = try scope.run(FetchNotePathTransaction(nid: noteId))
             else {
                 return []
             }
@@ -180,7 +180,7 @@ public enum HandlersStructural {
             ],
             example: ##"{"op":"set_axis_description","axis":"persona","description":"persona/judgement notes about the user"}"##
         ),
-        validate: { op, _, db in
+        validate: { op, _, scope in
             let axis = op["axis"] as? String ?? ""
             let nsAxis = axis as NSString
             
@@ -197,16 +197,16 @@ public enum HandlersStructural {
                 return "description must be non-empty string"
             }
             
-            if !(try AxisExistsTransaction(axis: axis).perform(db)) { return "unknown axis: \(axis)" }
+            if !(try scope.run(AxisExistsTransaction(axis: axis))) { return "unknown axis: \(axis)" }
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let axis = op["axis"] as! String
             let description = (op["description"] as! String)
                 .trimmingCharacters(in: .whitespaces)
             
-            try SetAxisDescriptionTransaction(axis: axis, description: description).perform(db)
+            try scope.run(SetAxisDescriptionTransaction(axis: axis, description: description))
             
             return [
                 "status": "ok",
@@ -229,18 +229,18 @@ public enum HandlersStructural {
             ],
             example: ##"{"op":"migrate_note","id":"my-note","new_axis":"flow","new_id":"my-note-v2"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let noteId = op["id"] as? String ?? ""
             
-            if let rejection = try Handlers.checkIDKnown(noteId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
                 return rejection
             }
             
-            let state = try Handlers.existingState(db)
+            let state = try Handlers.existingState(scope)
             var newAxis = op["new_axis"] as? String ?? ""
             
             if newAxis.isEmpty {
-                guard let currentAxis = try FetchNoteAxisTransaction(nid: noteId).perform(db) else {
+                guard let currentAxis = try scope.run(FetchNoteAxisTransaction(nid: noteId)) else {
                     return "unknown id: \(noteId)"
                 }
                 
@@ -265,11 +265,11 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let targetId = op["id"] as! String
-            let (newAxis, newId, newPath) = try migrateDestination(op, db)
+            let (newAxis, newId, newPath) = try migrateDestination(op, scope)
             
-            guard let srcPath = try FetchNotePathTransaction(nid: targetId).perform(db),
+            guard let srcPath = try scope.run(FetchNotePathTransaction(nid: targetId)),
                 FileManager.default.fileExists(atPath: srcPath.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -303,31 +303,30 @@ public enum HandlersStructural {
             }
             
             let oldEntityHits: [(entity: String, hits: Int)] = (newId != targetId)
-                ? try FetchNoteEntityHitsTransaction(noteId: targetId).perform(db)
+                ? try scope.run(FetchNoteEntityHitsTransaction(noteId: targetId))
                 : []
             
-            try ReindexNoteFileTransaction(path: newPath).perform(db)
+            try scope.run(ReindexNoteFileTransaction(path: newPath))
             
             if newId != targetId {
-                _ = try FlagInboundReferrersTransaction(
+                _ = try scope.run(FlagInboundReferrersTransaction(
                     targetId: targetId,
                     reason: "migrated \(targetId) -> \(newId)",
                     now: now
-                ).perform(db)
-                try ReparentNoteArtifactsTransaction(from: targetId, to: newId).perform(db)
-                try DeleteNoteRowTransaction(nid: targetId).perform(db)
-                try ClearNoteTagsTransaction(noteId: targetId).perform(db)
+                ))
+                try scope.run(ReparentNoteArtifactsTransaction(from: targetId, to: newId))
+                try scope.run(DeleteNoteRowTransaction(nid: targetId))
+                try scope.run(ClearNoteTagsTransaction(noteId: targetId))
                 
                 for hit in oldEntityHits {
-                    try SetEntityHitCountTransaction(noteId: newId, entity: hit.entity, hits: hit.hits)
-                        .perform(db)
+                    try scope.run(SetEntityHitCountTransaction(noteId: newId, entity: hit.entity, hits: hit.hits))
                 }
                 
-                try SyncNoteEnrichTransaction(noteId: newId).perform(db)
-                try NormalizeUndirectedLinksTransaction(nodeId: newId).perform(db)
+                try scope.run(SyncNoteEnrichTransaction(noteId: newId))
+                try scope.run(NormalizeUndirectedLinksTransaction(nodeId: newId))
             }
             
-            try StampNoteLifecycleTransaction(nid: newId, now: now, isNew: false).perform(db)
+            try scope.run(StampNoteLifecycleTransaction(nid: newId, now: now, isNew: false))
             
             return [
                 "status": "ok",
@@ -346,14 +345,14 @@ public enum HandlersStructural {
             
             return [:]
         },
-        touches: { op, db in
+        touches: { op, scope in
             var paths: [URL] = []
             
-            if let noteId = op["id"] as? String, let src = try FetchNotePathTransaction(nid: noteId).perform(db) {
+            if let noteId = op["id"] as? String, let src = try scope.run(FetchNotePathTransaction(nid: noteId)) {
                 paths.append(src)
             }
             
-            paths.append(try migrateDestination(op, db).path)
+            paths.append(try migrateDestination(op, scope).path)
             
             return paths
         }
@@ -368,7 +367,7 @@ public enum HandlersStructural {
             ],
             example: ##"{"op":"rename_axis","from_axis":"oldname","to_axis":"newname"}"##
         ),
-        validate: { op, _, db in
+        validate: { op, _, scope in
             let fromAxis = op["from_axis"] as! String
             let toAxis = op["to_axis"] as! String
             
@@ -383,15 +382,15 @@ public enum HandlersStructural {
                 return "invalid to_axis format: \(toAxis)"
             }
             
-            if !(try AxisExistsTransaction(axis: fromAxis).perform(db)) {
+            if !(try scope.run(AxisExistsTransaction(axis: fromAxis))) {
                 return "unknown from_axis: \(fromAxis)"
             }
             
-            if try AxisExistsTransaction(axis: toAxis).perform(db) {
+            if try scope.run(AxisExistsTransaction(axis: toAxis)) {
                 return "to_axis already exists: \(toAxis) (use migrate_note × N to merge into existing axis)"
             }
             
-            let canonical = try CanonicalizeTagTransaction(tag: toAxis).perform(db)
+            let canonical = try scope.run(CanonicalizeTagTransaction(tag: toAxis))
             
             if canonical != toAxis && canonical != fromAxis {
                 return "to_axis '\(toAxis)' is a tag alias of '\(canonical)' — pick another name or drop the alias first"
@@ -399,12 +398,12 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let fromAxis = op["from_axis"] as! String
             let toAxis = op["to_axis"] as! String
             let now = Int(Date().timeIntervalSince1970)
-            let rows = try ListNotesByAxisTransaction(axis: fromAxis).perform(db)
-            let axisRow = try FetchAxisTransaction(axis: fromAxis).perform(db)
+            let rows = try scope.run(ListNotesByAxisTransaction(axis: fromAxis))
+            let axisRow = try scope.run(FetchAxisTransaction(axis: fromAxis))
             let description = axisRow?.description?.isEmpty == false
                 ? axisRow!.description!
                 : "(auto-created)"
@@ -456,19 +455,19 @@ public enum HandlersStructural {
                 try FileManager.default.removeItem(at: oldPath)
             }
             
-            try CreateAxisTransaction(axis: toAxis, description: description, createdAt: createdAt).perform(db)
+            try scope.run(CreateAxisTransaction(axis: toAxis, description: description, createdAt: createdAt))
             
-            _ = try SetNotesAxisTransaction(fromAxis: fromAxis, toAxis: toAxis).perform(db)
+            _ = try scope.run(SetNotesAxisTransaction(fromAxis: fromAxis, toAxis: toAxis))
             
-            try DeleteAxisTransaction(axis: fromAxis).perform(db)
-            try EnsureTagTransaction(tag: toAxis, now: now).perform(db)
+            try scope.run(DeleteAxisTransaction(axis: fromAxis))
+            try scope.run(EnsureTagTransaction(tag: toAxis, now: now))
             
             for (noteId, _) in rows {
-                try ReplaceNoteTagTransaction(noteId: noteId, fromTag: fromAxis, toTag: toAxis).perform(db)
+                try scope.run(ReplaceNoteTagTransaction(noteId: noteId, fromTag: fromAxis, toTag: toAxis))
             }
             
-            if !(try TagInUseTransaction(tag: fromAxis).perform(db)) {
-                try RetireTagTransaction(tag: fromAxis, successor: toAxis).perform(db)
+            if !(try scope.run(TagInUseTransaction(tag: fromAxis))) {
+                try scope.run(RetireTagTransaction(tag: fromAxis, successor: toAxis))
             }
             
             for (noteId, _) in rows {
@@ -479,11 +478,11 @@ public enum HandlersStructural {
                     (attributes?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
                 )
                 
-                try SetNotePathTransaction(nid: noteId,
+                try scope.run(SetNotePathTransaction(nid: noteId,
                     newRel: newRelativePath,
                     fileMtime: mtime,
                     indexedAt: now
-                ).perform(db)
+                ))
             }
             
             let oldDirectory = Paths.notes.appendingPathComponent(fromAxis)
@@ -504,12 +503,12 @@ public enum HandlersStructural {
             ]
         },
         effect: { _ in [:] },
-        touches: { op, db in
+        touches: { op, scope in
             let fromAxis = op["from_axis"] as! String
             let toAxis = op["to_axis"] as! String
             var paths: [URL] = []
             
-            for (noteId, relativePath) in try ListNotesByAxisTransaction(axis: fromAxis).perform(db) {
+            for (noteId, relativePath) in try scope.run(ListNotesByAxisTransaction(axis: fromAxis)) {
                 paths.append(Paths.brainRoot.appendingPathComponent(relativePath))
                 paths.append(Handlers.pathFor(axis: toAxis, nid: noteId))
             }
@@ -528,7 +527,7 @@ public enum HandlersStructural {
             ],
             example: ##"{"op":"rename_tag","from_tag":"oldtag","to_tag":"newtag","add_alias":true}"##
         ),
-        validate: { op, _, db in
+        validate: { op, _, scope in
             let fromTag = op["from_tag"] as! String
             let toTag = op["to_tag"] as! String
             
@@ -543,16 +542,16 @@ public enum HandlersStructural {
                 return "invalid to_tag format: \(toTag)"
             }
             
-            if try AxisExistsTransaction(axis: fromTag).perform(db) {
+            if try scope.run(AxisExistsTransaction(axis: fromTag)) {
                 return "'\(fromTag)' is an axis name — use rename_axis instead"
             }
             
-            let exists = try TagVocabExistsTransaction(tag: fromTag).perform(db)
-                || (try TagInUseTransaction(tag: fromTag).perform(db))
+            let exists = try scope.run(TagVocabExistsTransaction(tag: fromTag))
+                || (try scope.run(TagInUseTransaction(tag: fromTag)))
             
             if !exists { return "unknown from_tag: \(fromTag)" }
             
-            let canonical = try CanonicalizeTagTransaction(tag: toTag).perform(db)
+            let canonical = try scope.run(CanonicalizeTagTransaction(tag: toTag))
             
             if canonical != toTag && canonical != fromTag {
                 return "to_tag '\(toTag)' is an alias of '\(canonical)' — rename to '\(canonical)' or drop the alias first"
@@ -560,15 +559,15 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let fromTag = op["from_tag"] as! String
             let toTag = op["to_tag"] as! String
             let addAlias = (op["add_alias"] as? Bool) ?? false
             let now = Int(Date().timeIntervalSince1970)
-            let affectedIds = try FetchNotesWithTagTransaction(tag: fromTag).perform(db)
+            let affectedIds = try scope.run(FetchNotesWithTagTransaction(tag: fromTag))
             
             for noteId in affectedIds {
-                guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
+                guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
                     FileManager.default.fileExists(atPath: path.path)
                 else {
                     throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -602,30 +601,30 @@ public enum HandlersStructural {
                 )
             }
             
-            try EnsureTagTransaction(tag: toTag, now: now).perform(db)
+            try scope.run(EnsureTagTransaction(tag: toTag, now: now))
             
             for noteId in affectedIds {
-                try ReplaceNoteTagTransaction(noteId: noteId, fromTag: fromTag, toTag: toTag).perform(db)
+                try scope.run(ReplaceNoteTagTransaction(noteId: noteId, fromTag: fromTag, toTag: toTag))
                 
-                guard let path = try FetchNotePathTransaction(nid: noteId).perform(db) else { continue }
+                guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)) else { continue }
                 
                 let relativePath = try Notes.relativeToBrainRoot(path)
                 let modifiedAt = try FileManager.default
                     .attributesOfItem(atPath: path.path)[.modificationDate] as? Date
                 let mtime = Int(modifiedAt?.timeIntervalSince1970 ?? 0)
                 
-                try SetNotePathTransaction(nid: noteId,
+                try scope.run(SetNotePathTransaction(nid: noteId,
                     newRel: relativePath,
                     fileMtime: mtime,
                     indexedAt: now
-                ).perform(db)
+                ))
             }
             
             if addAlias {
-                try AddTagAliasTransaction(alias: fromTag, canonical: toTag, now: now).perform(db)
+                try scope.run(AddTagAliasTransaction(alias: fromTag, canonical: toTag, now: now))
             }
             
-            try RetireTagTransaction(tag: fromTag, successor: toTag).perform(db)
+            try scope.run(RetireTagTransaction(tag: fromTag, successor: toTag))
             
             let note = "renamed tag \(fromTag) -> \(toTag) (\(affectedIds.count) notes)"
                 + (addAlias ? " + alias" : "")
@@ -633,10 +632,10 @@ public enum HandlersStructural {
             return ["status": "ok", "ids": affectedIds, "note": note]
         },
         effect: { _ in [:] },
-        touches: { op, db in
-            let ids = try FetchNotesWithTagTransaction(tag: op["from_tag"] as! String).perform(db)
+        touches: { op, scope in
+            let ids = try scope.run(FetchNotesWithTagTransaction(tag: op["from_tag"] as! String))
             
-            return try ids.compactMap { noteId in try FetchNotePathTransaction(nid: noteId).perform(db) }
+            return try ids.compactMap { noteId in try scope.run(FetchNotePathTransaction(nid: noteId)) }
         }
     )
     
@@ -651,17 +650,17 @@ public enum HandlersStructural {
             ],
             example: ###"{"op":"relocate_section","from_id":"src-note","to_id":"dst-note","section":"## 부록","position":"end"}"###
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let fromId = op["from_id"] as? String ?? ""
             let toId = op["to_id"] as? String ?? ""
             
             if fromId == toId { return "from_id and to_id must differ" }
             
-            if let rejection = try Handlers.checkIDKnown(fromId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(fromId, context: context, scope: scope) {
                 return rejection
             }
             
-            if let rejection = try Handlers.checkIDKnown(toId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(toId, context: context, scope: scope) {
                 return rejection
             }
             
@@ -685,13 +684,13 @@ public enum HandlersStructural {
             
             return "position must be 'end'/'start' or {after|before: <path>}"
         },
-        write: { op, db in
+        write: { op, scope in
             let fromId = op["from_id"] as! String
             let toId = op["to_id"] as! String
             
-            guard let srcPath = try FetchNotePathTransaction(nid: fromId).perform(db),
+            guard let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
                 FileManager.default.fileExists(atPath: srcPath.path),
-                let dstPath = try FetchNotePathTransaction(nid: toId).perform(db),
+                let dstPath = try scope.run(FetchNotePathTransaction(nid: toId)),
                 FileManager.default.fileExists(atPath: dstPath.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -746,21 +745,21 @@ public enum HandlersStructural {
                 atomically: true,
                 encoding: .utf8
             )
-            try ReindexNoteFileTransaction(path: srcPath).perform(db)
-            try ReindexNoteFileTransaction(path: dstPath).perform(db)
+            try scope.run(ReindexNoteFileTransaction(path: srcPath))
+            try scope.run(ReindexNoteFileTransaction(path: dstPath))
             
             let now = Int(Date().timeIntervalSince1970)
             
-            try StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false).perform(db)
-            try StampNoteLifecycleTransaction(nid: toId, now: now, isNew: false).perform(db)
+            try scope.run(StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false))
+            try scope.run(StampNoteLifecycleTransaction(nid: toId, now: now, isNew: false))
             try Handlers.recordEdit(
-                db,
+                scope,
                 nid: fromId,
                 opLabel: "relocate_section/from→\(toId)",
                 now: now
             )
             try Handlers.recordEdit(
-                db,
+                scope,
                 nid: toId,
                 opLabel: "relocate_section/from←\(fromId)",
                 now: now
@@ -774,15 +773,15 @@ public enum HandlersStructural {
             ]
         },
         effect: { _ in [:] },
-        touches: { op, db in
+        touches: { op, scope in
             var paths: [URL] = []
             
             if let fromId = op["from_id"] as? String,
-                let path = try FetchNotePathTransaction(nid: fromId).perform(db) {
+                let path = try scope.run(FetchNotePathTransaction(nid: fromId)) {
                 paths.append(path)
             }
             
-            if let toId = op["to_id"] as? String, let path = try FetchNotePathTransaction(nid: toId).perform(db) {
+            if let toId = op["to_id"] as? String, let path = try scope.run(FetchNotePathTransaction(nid: toId)) {
                 paths.append(path)
             }
             
@@ -801,10 +800,10 @@ public enum HandlersStructural {
             ],
             example: ###"{"op":"split_note","from_id":"big-note","into":[{"id":"child-a","axis":"persona","title":"A","tags":["persona"],"summary":"...","sections":["## A"]},{"id":"child-b","axis":"persona","title":"B","tags":["persona"],"summary":"...","sections":["## B"]}]}"###
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let fromId = op["from_id"] as? String ?? ""
             
-            if let rejection = try Handlers.checkIDKnown(fromId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(fromId, context: context, scope: scope) {
                 return rejection
             }
             
@@ -813,7 +812,7 @@ public enum HandlersStructural {
             }
             
             var newIds = Set<String>()
-            let state = try Handlers.existingState(db)
+            let state = try Handlers.existingState(scope)
             var normalized: [[String: Any]] = into
             var allPaths: [SectionEdit.SectionPath] = []
             
@@ -895,7 +894,7 @@ public enum HandlersStructural {
                 normalized[index]["sections"] = normalizedSections
             }
             
-            if let srcPath = try FetchNotePathTransaction(nid: fromId).perform(db),
+            if let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
                 let raw = try? String(contentsOf: srcPath, encoding: .utf8) {
                 let (_, srcBody) = try Frontmatter.parse(raw)
                 
@@ -917,7 +916,7 @@ public enum HandlersStructural {
             let keepSrc = (op["remainder"] as? [String: Any])?["keep"] as? Bool ?? false
             
             if !keepSrc {
-                let uncovered = try uncoveredRouteArtifacts(db, fromId: fromId, routing: routing)
+                let uncovered = try uncoveredRouteArtifacts(scope, fromId: fromId, routing: routing)
                 
                 if !uncovered.isEmpty {
                     throw OpsEngine.SplitConflict(fromId: fromId, unresolved: uncovered)
@@ -926,10 +925,10 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let fromId = op["from_id"] as! String
             
-            guard let srcPath = try FetchNotePathTransaction(nid: fromId).perform(db),
+            guard let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
                 FileManager.default.fileExists(atPath: srcPath.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -940,10 +939,10 @@ public enum HandlersStructural {
             let (srcDoc, srcBody) = try Frontmatter.parse(
                 try String(contentsOf: srcPath, encoding: .utf8)
             )
-            let (outboundEdges, inboundEdges) = try FetchLinkFanTransaction(fromId: fromId).perform(db)
+            let (outboundEdges, inboundEdges) = try scope.run(FetchLinkFanTransaction(fromId: fromId))
             let routing = parseRouting(op)
-            let srcTerms = try FetchActiveTermRowsTransaction(noteId: fromId).perform(db)
-            let srcMeta = try FetchNoteMetaRowsTransaction(noteId: fromId).perform(db)
+            let srcTerms = try scope.run(FetchActiveTermRowsTransaction(noteId: fromId))
+            let srcMeta = try scope.run(FetchNoteMetaRowsTransaction(noteId: fromId))
             var written: [URL] = []
             var newIds: [String] = []
             let now = Int(Date().timeIntervalSince1970)
@@ -997,9 +996,9 @@ public enum HandlersStructural {
                     atomically: true,
                     encoding: .utf8
                 )
-                try ReindexNoteFileTransaction(path: childPath).perform(db)
-                try InheritSourceObservationTransaction(from: fromId, to: childId).perform(db)
-                try StampNoteLifecycleTransaction(nid: childId, now: now, isNew: true).perform(db)
+                try scope.run(ReindexNoteFileTransaction(path: childPath))
+                try scope.run(InheritSourceObservationTransaction(from: fromId, to: childId))
+                try scope.run(StampNoteLifecycleTransaction(nid: childId, now: now, isNew: true))
                 
                 written.append(childPath)
                 newIds.append(childId)
@@ -1010,7 +1009,7 @@ public enum HandlersStructural {
                 && !remaining.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             
             if keepRemainder && !sourceSurvives {
-                let uncovered = try uncoveredRouteArtifacts(db, fromId: fromId, routing: routing)
+                let uncovered = try uncoveredRouteArtifacts(scope, fromId: fromId, routing: routing)
                 
                 if !uncovered.isEmpty {
                     throw OpsEngine.SplitConflict(fromId: fromId, unresolved: uncovered)
@@ -1023,15 +1022,15 @@ public enum HandlersStructural {
                     atomically: true,
                     encoding: .utf8
                 )
-                try ReindexNoteFileTransaction(path: srcPath).perform(db)
-                try StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false).perform(db)
+                try scope.run(ReindexNoteFileTransaction(path: srcPath))
+                try scope.run(StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false))
             } else {
-                _ = try FlagInboundReferrersTransaction(
+                _ = try scope.run(FlagInboundReferrersTransaction(
                     targetId: fromId,
                     reason: "split into \(newIds.joined(separator: ", "))",
                     now: now
-                ).perform(db)
-                try DeleteNoteRowTransaction(nid: fromId).perform(db)
+                ))
+                try scope.run(DeleteNoteRowTransaction(nid: fromId))
                 try Handlers.trashNoteFile(
                     srcPath,
                     reason: "split into \(newIds.joined(separator: ", "))",
@@ -1051,7 +1050,7 @@ public enum HandlersStructural {
                 let src = outbound ? child : other
                 let dst = outbound ? other : child
                 
-                try AddLinkTransaction(
+                try scope.run(AddLinkTransaction(
                     src: src,
                     dst: dst,
                     kind: edge.kind,
@@ -1059,8 +1058,7 @@ public enum HandlersStructural {
                     createdAt: edge.createdAt,
                     lastActivatedAt: edge.lastActivatedAt,
                     provenance: edge.provenance
-                )
-                    .perform(db)
+                ))
             }
             
             func redistribute(_ edges: [Links.Edge], outbound: Bool) throws {
@@ -1127,13 +1125,12 @@ public enum HandlersStructural {
             try redistribute(outboundEdges, outbound: true)
             try redistribute(inboundEdges, outbound: false)
             
-            for noteId in newIds { try NormalizeUndirectedLinksTransaction(nodeId: noteId).perform(db) }
+            for noteId in newIds { try scope.run(NormalizeUndirectedLinksTransaction(nodeId: noteId)) }
             
-            try LinkSiblingsTransaction(
+            try scope.run(LinkSiblingsTransaction(
                 ids: sourceSurvives ? newIds + [fromId] : newIds,
                 now: now
-            )
-                .perform(db)
+            ))
             
             if !sourceSurvives {
                 for row in srcTerms {
@@ -1153,14 +1150,13 @@ public enum HandlersStructural {
                     }
                     
                     for noteId in targets {
-                        try InsertPendingTermIfAbsentTransaction(
+                        try scope.run(InsertPendingTermIfAbsentTransaction(
                             noteId: noteId,
                             kind: kind,
                             term: term,
                             provenance: provenance,
                             now: now
-                        )
-                            .perform(db)
+                        ))
                     }
                 }
                 
@@ -1182,18 +1178,17 @@ public enum HandlersStructural {
                     }
                     
                     for noteId in targets {
-                        try InsertNoteMetaIfAbsentTransaction(
+                        try scope.run(InsertNoteMetaIfAbsentTransaction(
                             noteId: noteId,
                             namespace: namespace,
                             key: key,
                             value: value,
                             updatedAt: updated
-                        )
-                            .perform(db)
+                        ))
                     }
                 }
                 
-                try DeleteNoteLinksTransaction(noteId: fromId).perform(db)
+                try scope.run(DeleteNoteLinksTransaction(noteId: fromId))
             }
             
             return [
@@ -1216,10 +1211,10 @@ public enum HandlersStructural {
             
             return effects
         },
-        touches: { op, db in
+        touches: { op, scope in
             var paths: [URL] = []
             
-            if let fromId = op["from_id"] as? String, let src = try FetchNotePathTransaction(nid: fromId).perform(db) {
+            if let fromId = op["from_id"] as? String, let src = try scope.run(FetchNotePathTransaction(nid: fromId)) {
                 paths.append(src)
                 
                 if let trashPath = Handlers.trashDestination(src) { paths.append(trashPath) }
@@ -1250,10 +1245,10 @@ public enum HandlersStructural {
             ],
             example: ##"{"op":"merge_notes","into_id":"umbrella","from_ids":["a","b"],"merged_content":"...","summary":"...","tags":["persona"]}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let intoId = op["into_id"] as? String ?? ""
             
-            if let rejection = try Handlers.checkIDKnown(intoId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(intoId, context: context, scope: scope) {
                 return "merge_notes.into_id must be an *existing* note id (or one created earlier in this transaction): '\(intoId)'. To merge into a fresh umbrella note, prepend a `create_note` op with the same id, then merge. (\(rejection))"
             }
             
@@ -1268,7 +1263,7 @@ public enum HandlersStructural {
             }
             
             for fromId in fromStrings {
-                if let rejection = try Handlers.checkIDKnown(fromId, context: context, db: db) {
+                if let rejection = try Handlers.checkIDKnown(fromId, context: context, scope: scope) {
                     return "from_ids: \(rejection)"
                 }
             }
@@ -1281,11 +1276,11 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let intoId = op["into_id"] as! String
             let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
             
-            guard let intoPath = try FetchNotePathTransaction(nid: intoId).perform(db),
+            guard let intoPath = try scope.run(FetchNotePathTransaction(nid: intoId)),
                 FileManager.default.fileExists(atPath: intoPath.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -1316,7 +1311,7 @@ public enum HandlersStructural {
             var fromPaths: [URL] = []
             
             for fromId in fromIds {
-                if let path = try FetchNotePathTransaction(nid: fromId).perform(db),
+                if let path = try scope.run(FetchNotePathTransaction(nid: fromId)),
                     FileManager.default.fileExists(atPath: path.path) {
                     fromPaths.append(path)
                 }
@@ -1329,21 +1324,21 @@ public enum HandlersStructural {
                 atomically: true,
                 encoding: .utf8
             )
-            try ReindexNoteFileTransaction(path: intoPath).perform(db)
-            try StampNoteLifecycleTransaction(nid: intoId, now: now, isNew: false).perform(db)
+            try scope.run(ReindexNoteFileTransaction(path: intoPath))
+            try scope.run(StampNoteLifecycleTransaction(nid: intoId, now: now, isNew: false))
             
             for fromId in fromIds {
-                _ = try FlagInboundReferrersTransaction(
+                _ = try scope.run(FlagInboundReferrersTransaction(
                     targetId: fromId,
                     reason: "merged into \(intoId)",
                     now: now
-                ).perform(db)
-                try RedirectLinksForMergeTransaction(fromId: fromId, intoId: intoId).perform(db)
-                try AbsorbNoteArtifactsForMergeTransaction(from: fromId, into: intoId).perform(db)
-                try DeleteNoteRowTransaction(nid: fromId).perform(db)
+                ))
+                try scope.run(RedirectLinksForMergeTransaction(fromId: fromId, intoId: intoId))
+                try scope.run(AbsorbNoteArtifactsForMergeTransaction(from: fromId, into: intoId))
+                try scope.run(DeleteNoteRowTransaction(nid: fromId))
             }
             
-            try SyncNoteEnrichTransaction(noteId: intoId).perform(db)
+            try scope.run(SyncNoteEnrichTransaction(noteId: intoId))
             
             for path in fromPaths {
                 try Handlers.trashNoteFile(path, reason: "merged into \(intoId)", now: now)
@@ -1361,17 +1356,17 @@ public enum HandlersStructural {
             
             return ["removes": fromIds]
         },
-        touches: { op, db in
+        touches: { op, scope in
             var paths: [URL] = []
             
-            if let intoId = op["into_id"] as? String, let path = try FetchNotePathTransaction(nid: intoId).perform(db) {
+            if let intoId = op["into_id"] as? String, let path = try scope.run(FetchNotePathTransaction(nid: intoId)) {
                 paths.append(path)
             }
             
             let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
             
             for fromId in fromIds {
-                if let path = try FetchNotePathTransaction(nid: fromId).perform(db) {
+                if let path = try scope.run(FetchNotePathTransaction(nid: fromId)) {
                     paths.append(path)
                     
                     if let trashPath = Handlers.trashDestination(path) { paths.append(trashPath) }
@@ -1386,13 +1381,13 @@ public enum HandlersStructural {
     // MARK: - Public
     static func migrateDestination(
         _ op: [String: Any],
-        _ db: Database
+        _ scope: GRDBScope
     ) throws -> (axis: String, id: String, path: URL) {
         let targetId = op["id"] as? String ?? ""
         var newAxis = op["new_axis"] as? String ?? ""
         
         if newAxis.isEmpty {
-            newAxis = try FetchNoteAxisTransaction(nid: targetId).perform(db) ?? ""
+            newAxis = try scope.run(FetchNoteAxisTransaction(nid: targetId)) ?? ""
         }
         
         let newId = (op["new_id"] as? String) ?? targetId
@@ -1455,11 +1450,11 @@ public enum HandlersStructural {
     }
     
     static func uncoveredRouteArtifacts(
-        _ db: Database,
+        _ scope: GRDBScope,
         fromId: String,
         routing: [String: [String]]
     ) throws -> [NoteArtifacts.RouteArtifact] {
-        try FetchSplitRouteTargetsTransaction(noteId: fromId).perform(db).filter { artifact in
+        try scope.run(FetchSplitRouteTargetsTransaction(noteId: fromId)).filter { artifact in
             routing[routeArtifactKey(artifact)] == nil
         }
     }

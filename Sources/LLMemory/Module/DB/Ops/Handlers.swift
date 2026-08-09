@@ -192,10 +192,10 @@ struct FieldTypeError: Error, CustomStringConvertible {
 public struct OpHandler: @unchecked Sendable {
     // MARK: - Property
     public let schema: OpSchema
-    public let validate: (_ op: [String: Any], _ context: HandlerContext, _ db: Database) throws -> String?
-    public let write: (_ op: [String: Any], _ db: Database) throws -> [String: Any]
+    public let validate: (_ op: [String: Any], _ context: HandlerContext, _ scope: GRDBScope) throws -> String?
+    public let write: (_ op: [String: Any], _ scope: GRDBScope) throws -> [String: Any]
     public let effect: (_ op: [String: Any]) -> [String: [String]]
-    public let touches: (_ op: [String: Any], _ db: Database) throws -> [URL]
+    public let touches: (_ op: [String: Any], _ scope: GRDBScope) throws -> [URL]
     
     // MARK: - Initializer
     // MARK: - Public
@@ -270,10 +270,10 @@ public enum Handlers {
         return Paths.notes.appendingPathComponent(axis).appendingPathComponent("\(nid).md")
     }
     
-    public static func existingState(_ db: Database) throws -> ExistingState {
+    public static func existingState(_ scope: GRDBScope) throws -> ExistingState {
         ExistingState(
-            ids: try FetchNoteIdsTransaction().perform(db),
-            axes: try FetchAxisNamesTransaction().perform(db)
+            ids: try scope.run(FetchNoteIdsTransaction()),
+            axes: try scope.run(FetchAxisNamesTransaction())
         )
     }
     
@@ -303,10 +303,10 @@ public enum Handlers {
     public static func checkIDKnown(
         _ nid: String,
         context: HandlerContext,
-        db: Database
+        scope: GRDBScope
     ) throws -> String? {
         if context.inFlightIds.contains(nid) { return nil }
-        if try NoteExistsTransaction(nid: nid).perform(db) { return nil }
+        if try scope.run(NoteExistsTransaction(nid: nid)) { return nil }
         
         return "unknown id: \(nid)"
     }
@@ -330,16 +330,16 @@ public enum Handlers {
     }
     
     public static func recordEdit(
-        _ db: Database,
+        _ scope: GRDBScope,
         nid: String,
         opLabel: String,
         now: Int
     ) throws {
-        try RecordNoteLifecycleEventTransaction(nid: nid, kind: "edited", reason: opLabel, now: now).perform(db)
+        try scope.run(RecordNoteLifecycleEventTransaction(nid: nid, kind: "edited", reason: opLabel, now: now))
     }
     
-    public static func seedInitialLinks(_ db: Database, nid: String, tags: [String]) throws {
-        try SeedInitialLinksTransaction(nid: nid, tags: tags).perform(db)
+    public static func seedInitialLinks(_ scope: GRDBScope, nid: String, tags: [String]) throws {
+        try scope.run(SeedInitialLinksTransaction(nid: nid, tags: tags))
     }
     
     public static func trashPathFor(_ rel: String) throws -> URL {
@@ -401,13 +401,13 @@ public enum Handlers {
         registry[name]?.schema
     }
     
-    static func composeCreateBody(_ op: [String: Any], _ db: Database) throws -> String {
+    static func composeCreateBody(_ op: [String: Any], _ scope: GRDBScope) throws -> String {
         let raw = op["content"] as? String ?? ""
         var content = String(raw.reversed().drop(while: { character in character.isWhitespace }).reversed())
         let templateId = (op["template"] as? String).flatMap { value in value.isEmpty ? nil : value }
         
         if let templateId, content.isEmpty,
-            let frame = try LoadTemplateFrameTransaction(templateId: templateId).perform(db) {
+            let frame = try scope.run(LoadTemplateFrameTransaction(templateId: templateId)) {
             content = Template.scaffold(frame)
         }
         

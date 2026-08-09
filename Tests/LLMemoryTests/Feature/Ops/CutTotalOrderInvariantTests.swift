@@ -105,7 +105,7 @@ struct CutTotalOrderInvariantTests {
         
         // When
         try home.database().write { database in
-            try Handlers.seedInitialLinks(database, nid: "sd-new", tags: ["shared"])
+            try Handlers.seedInitialLinks(GRDBScope(database), nid: "sd-new", tags: ["shared"])
         }
         
         // Then

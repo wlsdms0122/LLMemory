@@ -21,10 +21,10 @@ public enum HandlersEnrichment {
             ],
             example: ##"{"op":"add_retrieval_terms","id":"my-note","kind":"alias","terms":["검색 동의어","retrieval synonym"],"provenance":"forge:capture:claude-sonnet-4-6"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let noteId = op["id"] as? String ?? ""
             
-            if let rejection = try Handlers.checkIDKnown(noteId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
                 return rejection
             }
             
@@ -52,7 +52,7 @@ public enum HandlersEnrichment {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             let noteId = op["id"] as! String
             let kind = op["kind"] as! String
@@ -65,14 +65,13 @@ public enum HandlersEnrichment {
             var inserted = 0
             
             for term in terms {
-                inserted += try UpsertPendingTermTransaction(
+                inserted += try scope.run(UpsertPendingTermTransaction(
                     noteId: noteId,
                     kind: kind,
                     term: term,
                     provenance: provenance,
                     now: now
-                )
-                    .perform(db)
+                ))
             }
             
             return [
@@ -97,7 +96,7 @@ public enum HandlersEnrichment {
             ],
             example: ##"{"op":"propose_link","src":"note-a","dst":"note-b","kind":"assoc","confidence":0.8,"provenance":"forge:capture:claude-sonnet-4-6"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let src = op["src"] as? String ?? ""
             let dst = op["dst"] as? String ?? ""
             
@@ -111,11 +110,11 @@ public enum HandlersEnrichment {
                 }
             }
             
-            if let rejection = try Handlers.checkIDKnown(src, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(src, context: context, scope: scope) {
                 return "src: \(rejection)"
             }
             
-            if let rejection = try Handlers.checkIDKnown(dst, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(dst, context: context, scope: scope) {
                 return "dst: \(rejection)"
             }
             
@@ -130,7 +129,7 @@ public enum HandlersEnrichment {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             let src = op["src"] as! String
             let dst = op["dst"] as! String
@@ -153,15 +152,14 @@ public enum HandlersEnrichment {
                 return ["status": "ok", "ids": [], "note": "skipped self-loop \(src)"]
             }
             
-            try UpsertAssocLinkTransaction(
+            try scope.run(UpsertAssocLinkTransaction(
                 src: source,
                 dst: destination,
                 kind: kind,
                 weight: weight,
                 now: now,
                 provenance: provenance
-            )
-                .perform(db)
+            ))
             
             return [
                 "status": "ok",
@@ -184,14 +182,13 @@ public enum HandlersEnrichment {
         validate: { _, _, _ in
             nil
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             let provenance = op["provenance"] as! String
-            let (termsPurged, edgesPurged, affected) = try PurgeEnrichmentProvenanceTransaction(
+            let (termsPurged, edgesPurged, affected) = try scope.run(PurgeEnrichmentProvenanceTransaction(
                 provenance: provenance,
                 now: now
-            )
-                .perform(db)
+            ))
             
             return [
                 "status": "ok",
@@ -219,7 +216,7 @@ public enum HandlersEnrichment {
             ],
             example: ##"{"op":"link_lineage","src":"bk-5262-rc1-260524","dst":"deploy-approval-policy","kind":"promoted_to","reason":"회차 반복 패턴을 원리로 추출"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let kind = op["kind"] as? String ?? ""
             
             guard Links.lineageKinds.contains(kind) else {
@@ -231,23 +228,23 @@ public enum HandlersEnrichment {
             
             if src == dst { return "src and dst must differ: \(src)" }
             
-            if let rejection = try Handlers.checkIDKnown(src, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(src, context: context, scope: scope) {
                 return rejection
             }
             
-            return try Handlers.checkIDKnown(dst, context: context, db: db)
+            return try Handlers.checkIDKnown(dst, context: context, scope: scope)
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             let src = op["src"] as! String
             let dst = op["dst"] as! String
             let kind = op["kind"] as! String
             
-            try InsertLineageLinkTransaction(src: src, dst: dst, kind: kind, now: now).perform(db)
+            try scope.run(InsertLineageLinkTransaction(src: src, dst: dst, kind: kind, now: now))
             
             let reason = op["reason"] as? String
             
-            try RecordNoteLifecycleEventTransaction(nid: src, kind: kind, reason: reason, now: now).perform(db)
+            try scope.run(RecordNoteLifecycleEventTransaction(nid: src, kind: kind, reason: reason, now: now))
             
             return [
                 "status": "ok",

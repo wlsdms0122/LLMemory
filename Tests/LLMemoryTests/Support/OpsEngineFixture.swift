@@ -6,13 +6,14 @@
 //
 
 import Foundation
+import GRDB
 @testable import LLMemory
 
 // Fixture adapter over the production entry — the payload is serialized to the
-// JSON string the CLI would send and applied through the ops transactions'
-// sync bodies, so decode and transaction wiring are exercised by every ops
-// test. The write lock rides writeLock (the sync gate) because unit tests
-// stay synchronous; the async `storage.run` gate is covered by the CLI suite.
+// JSON string the CLI would send, decoded through the service's single decode
+// door, and applied through the engine's scope body. The write lock rides
+// writeLock (the sync gate) because unit tests stay synchronous; the async
+// `storage.run` gate is covered by the CLI suite.
 extension OpsEngine {
     static func apply(
         _ storage: GRDBStorage,
@@ -21,16 +22,23 @@ extension OpsEngine {
         ruleset: String? = nil
     ) -> Result {
         do {
-            let transaction = ApplyOpsTransaction(
-                .init(
-                    payloadJSON: try Self.encodePayload(payload),
-                    sessionId: sessionId,
-                    ruleset: ruleset
+            let json = try Self.encodePayload(payload)
+
+            guard let decoded = OpsEngine.decodePayload(json) else {
+                return Result(
+                    status: "rejected",
+                    opResults: [],
+                    error: "payload must be a JSON object",
+                    rejectedIndex: nil,
+                    rationale: "",
+                    recoveryFailed: []
                 )
-            )
+            }
 
             return try storage.writeLock {
-                transaction.perform(try storage.connect())
+                try storage.connect().write { db in
+                    OpsEngine.apply(GRDBScope(db), decoded, sessionId: sessionId, ruleset: ruleset)
+                }
             }
         } catch {
             return Result(
@@ -50,11 +58,20 @@ extension OpsEngine {
         ruleset: String? = nil
     ) -> DryRunResult {
         do {
-            let transaction = DryRunOpsTransaction(
-                .init(payloadJSON: try Self.encodePayload(payload), ruleset: ruleset)
-            )
+            let json = try Self.encodePayload(payload)
 
-            return transaction.perform(try storage.connect())
+            guard let decoded = OpsEngine.decodePayload(json) else {
+                return DryRunResult(
+                    status: "rejected",
+                    opCount: nil,
+                    error: "payload must be a JSON object",
+                    rejectedIndex: nil
+                )
+            }
+
+            return try storage.connect().read { db in
+                OpsEngine.dryRun(GRDBScope(db), decoded, ruleset: ruleset)
+            }
         } catch {
             return DryRunResult(
                 status: "rejected",

@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 public enum OpsEngine {
-    public struct OpResult: Encodable {
+    public struct OpResult: Encodable, Sendable {
         // MARK: - Property
         public let op: String
         public let status: String
@@ -22,7 +22,7 @@ public enum OpsEngine {
         // MARK: - Private
     }
     
-    public struct Result: Encodable {
+    public struct Result: Encodable, Sendable {
         public enum CodingKeys: String, CodingKey {
             case status, rationale, conflict
             case opResults = "ops"
@@ -81,7 +81,7 @@ public enum OpsEngine {
         // MARK: - Private
     }
     
-    public struct SplitConflict: Error, Encodable {
+    public struct SplitConflict: Error, Encodable, Sendable {
         public enum CodingKeys: String, CodingKey {
             case fromId = "from_id"
             case unresolved = "unresolved"
@@ -103,7 +103,7 @@ public enum OpsEngine {
         // MARK: - Private
     }
     
-    public struct DryRunResult: Encodable {
+    public struct DryRunResult: Encodable, Sendable {
         public enum CodingKeys: String, CodingKey {
             case status
             case opCount = "op_count"
@@ -149,10 +149,10 @@ public enum OpsEngine {
         return payload
     }
 
-    // Runs on a writer the caller already gated — ApplyOpsTransaction provides
-    // the cross-process write lock via `storage.run`.
+    // Runs inside the caller's write scope — OperationsService provides the
+    // cross-process write lock via `storage.run`.
     public static func apply(
-        _ queue: any DatabaseWriter,
+        _ scope: GRDBScope,
         _ payload: [String: Any],
         sessionId: String? = nil,
         ruleset: String? = nil
@@ -195,9 +195,7 @@ public enum OpsEngine {
         
         do {
             if let rulesetId = effectiveRulesetId {
-                let exists = try queue.read { db in
-                    try RulesetExistsTransaction(id: rulesetId).perform(db)
-                }
+                let exists = try scope.run(RulesetExistsTransaction(id: rulesetId))
                 
                 if !exists {
                     return Result(
@@ -211,15 +209,14 @@ public enum OpsEngine {
                 }
             }
             
-            let txResult: Result = try queue.write { db in
+            let txResult: Result = try { () throws -> Result in
                 if let (message, index) = try validate(
                     opsRaw,
-                    db: db,
+                    scope: scope,
                     rulesetId: effectiveRulesetId
                 ) {
-                    Events.record(
-                        db,
-                        kind: Events.kindCapture,
+                    try? scope.run(RecordEventTransaction(
+                                                kind: Events.kindCapture,
                         payload: [
                             "tx_status": "rejected",
                             "error": message,
@@ -227,7 +224,7 @@ public enum OpsEngine {
                             "op_count": opsRaw.count
                         ],
                         sessionId: sessionId
-                    )
+                    ))
                     
                     return Result(
                         status: "rejected",
@@ -239,23 +236,22 @@ public enum OpsEngine {
                     )
                 }
                 
-                let affected = try affectedPaths(opsRaw, db: db)
+                let affected = try affectedPaths(opsRaw, scope: scope)
                 let backups: [(URL, String?)]
                 do {
                     backups = try snapshotFiles(affected)
                 } catch {
                     let message = "snapshot failed: \(error)"
                     
-                    Events.record(
-                        db,
-                        kind: Events.kindCapture,
+                    try? scope.run(RecordEventTransaction(
+                                                kind: Events.kindCapture,
                         payload: [
                             "tx_status": "rejected",
                             "error": message,
                             "op_count": opsRaw.count
                         ],
                         sessionId: sessionId
-                    )
+                    ))
                     
                     return Result(
                         status: "rejected",
@@ -270,13 +266,13 @@ public enum OpsEngine {
                 var results: [OpResult] = []
                 var failure: (Int?, String)? = nil
                 var splitConflict: (Int, SplitConflict)? = nil
-                let eagerBefore = (try? CountEagerNotesTransaction().perform(db)) ?? 0
+                let eagerBefore = (try? scope.run(CountEagerNotesTransaction())) ?? 0
                 
                 do {
-                    try db.inSavepoint {
+                    try scope.savepoint {
                         for (index, op) in opsRaw.enumerated() {
                             do {
-                                results.append(try dispatchApply(op, db: db))
+                                results.append(try dispatchApply(op, scope: scope))
                             } catch let conflict as SplitConflict {
                                 splitConflict = (index, conflict)
                                 
@@ -298,13 +294,13 @@ public enum OpsEngine {
                             return .rollback
                         }
                         
-                        if let templateError = checkTemplateFrames(affected: affected, db: db) {
+                        if let templateError = checkTemplateFrames(affected: affected, scope: scope) {
                             failure = (nil, templateError)
                             
                             return .rollback
                         }
                         
-                        if let capError = checkEagerCap(db: db, before: eagerBefore) {
+                        if let capError = checkEagerCap(scope: scope, before: eagerBefore) {
                             failure = (nil, capError)
                             
                             return .rollback
@@ -343,12 +339,11 @@ public enum OpsEngine {
                     
                     if let index { payload["failed_index"] = index }
                     
-                    Events.record(
-                        db,
-                        kind: Events.kindCapture,
+                    try? scope.run(RecordEventTransaction(
+                                                kind: Events.kindCapture,
                         payload: payload,
                         sessionId: sessionId
-                    )
+                    ))
                     
                     return Result(
                         status: "failed",
@@ -364,16 +359,15 @@ public enum OpsEngine {
                     ["op": result.op, "status": result.status, "ids": result.ids]
                 }
                 
-                Events.record(
-                    db,
-                    kind: Events.kindCapture,
+                try? scope.run(RecordEventTransaction(
+                                        kind: Events.kindCapture,
                     payload: [
                         "tx_status": "ok",
                         "op_count": opsRaw.count,
                         "ops": opsSummary
                     ],
                     sessionId: sessionId
-                )
+                ))
                 
                 return Result(
                     status: "ok",
@@ -383,17 +377,15 @@ public enum OpsEngine {
                     rationale: rationale,
                     recoveryFailed: []
                 )
-            }
+            }()
             
-            if txResult.status != "ok" { rewarmGenome(queue) }
+            if txResult.status != "ok" { rewarmGenome(scope) }
             
             if txResult.status == "ok" {
                 let touched = enrichmentTouchedNotes(opsRaw)
                 
                 if !touched.isEmpty {
-                    _ = try? queue.write { db in
-                        try ValidatePendingTermsTransaction(noteIds: touched).perform(db)
-                    }
+                    _ = try? scope.run(ValidatePendingTermsTransaction(noteIds: touched))
                 }
             }
             
@@ -409,7 +401,7 @@ public enum OpsEngine {
                 conflict: conflict
             )
         } catch {
-            rewarmGenome(queue)
+            rewarmGenome(scope)
             
             return Result(
                 status: "failed",
@@ -422,7 +414,7 @@ public enum OpsEngine {
         }
     }
     
-    public static func dryRun(_ queue: any DatabaseReader, _ payload: [String: Any], ruleset: String? = nil) -> DryRunResult {
+    public static func dryRun(_ scope: GRDBScope, _ payload: [String: Any], ruleset: String? = nil) -> DryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return DryRunResult(
                 status: "rejected",
@@ -453,7 +445,7 @@ public enum OpsEngine {
         
         do {
             if let rulesetId = effectiveRulesetId {
-                let exists = try queue.read { db in try RulesetExistsTransaction(id: rulesetId).perform(db) }
+                let exists = try scope.run(RulesetExistsTransaction(id: rulesetId))
                 
                 if !exists {
                     return DryRunResult(
@@ -465,9 +457,7 @@ public enum OpsEngine {
                 }
             }
             
-            let result: (String?, Int?)? = try queue.read { db in
-                try validate(opsRaw, db: db, rulesetId: effectiveRulesetId)
-            }
+            let result: (String?, Int?)? = try validate(opsRaw, scope: scope, rulesetId: effectiveRulesetId)
             
             if let (message, index) = result {
                 return DryRunResult(
@@ -587,7 +577,7 @@ public enum OpsEngine {
     
     private static func validate(
         _ ops: [[String: Any]],
-        db: Database,
+        scope: GRDBScope,
         rulesetId: String?
     ) throws -> (String, Int?)? {
         var context = HandlerContext()
@@ -604,7 +594,7 @@ public enum OpsEngine {
                     op: op,
                     name: name,
                     handler: handler,
-                    db: db,
+                    scope: scope,
                     rulesetId: rulesetId
                 ) {
                 return ("op[\(index)] \(name): \(message)", index)
@@ -615,7 +605,7 @@ public enum OpsEngine {
                 name: name,
                 handler: handler,
                 context: context,
-                db: db
+                scope: scope
             ) {
                 return ("op[\(index)] \(name): \(message)", index)
             }
@@ -627,7 +617,7 @@ public enum OpsEngine {
                 return ("op[\(index)] \(name): \(message)", index)
             }
             
-            if let message = try handler.validate(op, context, db) {
+            if let message = try handler.validate(op, context, scope) {
                 return ("op[\(index)] \(name): \(message)", index)
             }
             
@@ -636,7 +626,7 @@ public enum OpsEngine {
                 name: name,
                 handler: handler,
                 context: &context,
-                db: db
+                scope: scope
             ) {
                 return ("op[\(index)] \(name): \(message)", index)
             }
@@ -664,7 +654,7 @@ public enum OpsEngine {
         name: String,
         handler: OpHandler,
         context: HandlerContext,
-        db: Database
+        scope: GRDBScope
     ) throws -> String? {
         if name != "create_note", !context.lockedInFlightIds.isEmpty {
             for noteId in targetIds(op, schema: handler.schema)
@@ -673,12 +663,12 @@ public enum OpsEngine {
             }
         }
         
-        let urls = try handler.touches(op, db)
+        let urls = try handler.touches(op, scope)
         
         for url in urls {
             guard let relativePath = try? Notes.relativeToBrainRoot(url) else { continue }
             
-            let locked = try NoteLockedAtPathTransaction(relativePath: relativePath).perform(db)
+            let locked = try scope.run(NoteLockedAtPathTransaction(relativePath: relativePath))
             
             if locked {
                 return "note is locked (human-only) — edit the file directly, not via ops: \(relativePath)"
@@ -692,15 +682,15 @@ public enum OpsEngine {
         op: [String: Any],
         name: String,
         handler: OpHandler,
-        db: Database,
+        scope: GRDBScope,
         rulesetId: String
     ) throws -> String? {
-        var axes = try extractAxes(op, schema: handler.schema, db: db)
+        var axes = try extractAxes(op, schema: handler.schema, scope: scope)
         
         if axes.isEmpty { axes = ["*"] }
         
         for axis in axes.sorted() {
-            let effective = try RulesetService.effective(GRDBScope(db), axis: axis, rulesetIds: [rulesetId])
+            let effective = try RulesetService.effective(scope, axis: axis, rulesetIds: [rulesetId])
             let (allowed, reason) = effective.allows(op: name)
             
             if !allowed {
@@ -714,22 +704,22 @@ public enum OpsEngine {
     private static func extractAxes(
         _ op: [String: Any],
         schema: OpSchema,
-        db: Database
+        scope: GRDBScope
     ) throws -> Set<String> {
         var axes = schema.mentionedAxes(in: op)
         
         for noteId in schema.mentionedNoteIds(in: op) {
-            if let axis = try axisOf(noteId, db: db) { axes.insert(axis) }
+            if let axis = try axisOf(noteId, scope: scope) { axes.insert(axis) }
         }
         
         return axes
     }
     
-    private static func axisOf(_ nid: String, db: Database) throws -> String? {
-        try FetchNoteAxisTransaction(nid: nid).perform(db)
+    private static func axisOf(_ nid: String, scope: GRDBScope) throws -> String? {
+        try scope.run(FetchNoteAxisTransaction(nid: nid))
     }
     
-    private static func affectedPaths(_ ops: [[String: Any]], db: Database) throws -> [URL] {
+    private static func affectedPaths(_ ops: [[String: Any]], scope: GRDBScope) throws -> [URL] {
         var seen = Set<String>()
         var paths: [URL] = []
         
@@ -740,7 +730,7 @@ public enum OpsEngine {
                 continue
             }
             
-            for url in try handler.touches(op, db) {
+            for url in try handler.touches(op, scope) {
                 if !seen.contains(url.path) {
                     seen.insert(url.path)
                     paths.append(url)
@@ -809,7 +799,7 @@ public enum OpsEngine {
         return nil
     }
     
-    private static func checkTemplateFrames(affected: [URL], db: Database) -> String? {
+    private static func checkTemplateFrames(affected: [URL], scope: GRDBScope) -> String? {
         var toCheck: [URL] = []
         var seen = Set<String>()
         
@@ -828,8 +818,7 @@ public enum OpsEngine {
         
         if !affectedIds.isEmpty {
             do {
-                let dependentPaths = try FetchTemplateDependentPathsTransaction(templateIds: affectedIds)
-                    .perform(db)
+                let dependentPaths = try scope.run(FetchTemplateDependentPathsTransaction(templateIds: affectedIds))
                 
                 for relativePath in dependentPaths {
                     enqueue(Paths.brainRoot.appendingPathComponent(relativePath))
@@ -860,7 +849,7 @@ public enum OpsEngine {
                 ? path.deletingPathExtension().lastPathComponent
                 : doc.id
             
-            guard let frame = (try? LoadTemplateFrameTransaction(templateId: templateId).perform(db)) ?? nil else {
+            guard let frame = (try? scope.run(LoadTemplateFrameTransaction(templateId: templateId))) ?? nil else {
                 violations.append("\(noteId): unknown template '\(templateId)'")
                 continue
             }
@@ -877,9 +866,9 @@ public enum OpsEngine {
         return nil
     }
     
-    private static func checkEagerCap(db: Database, before: Int) -> String? {
+    private static func checkEagerCap(scope: GRDBScope, before: Int) -> String? {
         let cap = Config.getInt("eager.max_count", default: 20)
-        let after = (try? CountEagerNotesTransaction().perform(db)) ?? 0
+        let after = (try? scope.run(CountEagerNotesTransaction())) ?? 0
         
         if after > cap && after > before {
             return "eager cap exceeded (\(after)/\(cap)) — use priority=lazy (eager is the per-session BOOT working set)"
@@ -888,10 +877,10 @@ public enum OpsEngine {
         return nil
     }
     
-    private static func dispatchApply(_ op: [String: Any], db: Database) throws -> OpResult {
+    private static func dispatchApply(_ op: [String: Any], scope: GRDBScope) throws -> OpResult {
         let name = op["op"] as! String
         let handler = Handlers.registry[name]!
-        let raw = try handler.write(op, db)
+        let raw = try handler.write(op, scope)
         var paths: [String] = []
         
         if let rawPaths = raw["paths"] as? [Any] {
@@ -917,10 +906,8 @@ public enum OpsEngine {
 private extension OpsEngine {
     // A rolled-back transaction may have primed the in-process gene cache —
     // reload it from the committed state, tolerating a dead connection.
-    static func rewarmGenome(_ queue: any DatabaseReader) {
-        guard let values = try? queue.read({ db in
-            try FetchGenomeValuesTransaction().perform(db)
-        }) else { return }
+    static func rewarmGenome(_ scope: GRDBScope) {
+        guard let values = try? scope.run(FetchGenomeValuesTransaction()) else { return }
 
         Genome.warm(values)
     }

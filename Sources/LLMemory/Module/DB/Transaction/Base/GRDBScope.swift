@@ -21,10 +21,30 @@ public struct GRDBScope {
         self.db = db
     }
 
+    public enum SavepointOutcome {
+        case commit
+        case rollback
+    }
+
     // MARK: - Public
     @discardableResult
     public func run<T: GRDBTransaction>(_ transaction: T) throws -> T.Result {
         try transaction.perform(db)
+    }
+
+    // A nested rollback unit inside the scope — the operation engine rolls
+    // an op sequence back while the enclosing scope stays alive to record
+    // the failure.
+    public func savepoint(_ body: () throws -> SavepointOutcome) throws {
+        try db.inSavepoint {
+            switch try body() {
+            case .commit:
+                return .commit
+
+            case .rollback:
+                return .rollback
+            }
+        }
     }
 
     // MARK: - Private

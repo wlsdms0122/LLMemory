@@ -30,7 +30,7 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"create_note","axis":"persona","id":"my-note","title":"...","tags":["persona"],"summary":"...","content":"# body"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let hasTemplate = (op["template"] as? String).map { value in !value.isEmpty } ?? false
             
             if let rawLocked = op["locked"], !(rawLocked is Bool) { return "locked must be bool" }
@@ -38,7 +38,7 @@ public enum HandlersBasic {
             if hasTemplate {
                 let templateId = op["template"] as! String
                 
-                if !(try NoteExistsTransaction(nid: templateId).perform(db))
+                if !(try scope.run(NoteExistsTransaction(nid: templateId)))
                     && !context.inFlightIds.contains(templateId) {
                     return "unknown template note: \(templateId)"
                 }
@@ -72,7 +72,7 @@ public enum HandlersBasic {
             
             if let rejection = Handlers.sourceInputError(op["source"]) { return rejection }
             
-            let state = try Handlers.existingState(db)
+            let state = try Handlers.existingState(scope)
             
             if state.ids.contains(noteId) || context.inFlightIds.contains(noteId) {
                 return "id collision: \(noteId) (use patch_section to update)"
@@ -103,7 +103,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             let axis = op["axis"] as! String
             let noteId = op["id"] as! String
@@ -114,7 +114,7 @@ public enum HandlersBasic {
                 withIntermediateDirectories: true
             )
             
-            let body = try Handlers.composeCreateBody(op, db)
+            let body = try Handlers.composeCreateBody(op, scope)
             var doc = FrontmatterDoc(
                 id: noteId,
                 title: op["title"] as? String ?? "",
@@ -142,17 +142,17 @@ public enum HandlersBasic {
             try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
             
             if let axisDescription = op["axis_description"] as? String, !axisDescription.isEmpty {
-                try EnsureAxisTransaction(axis: axis, description: axisDescription, now: now).perform(db)
+                try scope.run(EnsureAxisTransaction(axis: axis, description: axisDescription, now: now))
             }
             
-            try ReindexNoteFileTransaction(path: path).perform(db)
-            try StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: true).perform(db)
-            try RecordNoteLifecycleEventTransaction(nid: noteId,
+            try scope.run(ReindexNoteFileTransaction(path: path))
+            try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: true))
+            try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
                 kind: "created",
                 reason: op["rationale"] as? String,
                 now: now
-            ).perform(db)
-            try Handlers.seedInitialLinks(db, nid: noteId, tags: doc.tags)
+            ))
+            try Handlers.seedInitialLinks(scope, nid: noteId, tags: doc.tags)
             
             return [
                 "status": "ok",
@@ -181,7 +181,7 @@ public enum HandlersBasic {
             ],
             example: ###"{"op":"patch_section","id":"my-note","section":"## 관련","action":"append","content":"- 새 항목"}"###
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let action = op["action"] as? String ?? ""
             
             if !Handlers.validPatchActions.contains(action) {
@@ -194,7 +194,7 @@ public enum HandlersBasic {
             
             let noteId = op["id"] as? String ?? ""
             
-            if let rejection = try Handlers.checkIDKnown(noteId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
                 return rejection
             }
             
@@ -236,10 +236,10 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let noteId = op["id"] as! String
             
-            guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
+            guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -262,13 +262,13 @@ public enum HandlersBasic {
             )
             
             try (Frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
-            try ReindexNoteFileTransaction(path: path).perform(db)
+            try scope.run(ReindexNoteFileTransaction(path: path))
             
             let now = Int(Date().timeIntervalSince1970)
             
-            try StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false).perform(db)
+            try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
             try Handlers.recordEdit(
-                db,
+                scope,
                 nid: noteId,
                 opLabel: "patch_section/\(action)",
                 now: now
@@ -285,9 +285,9 @@ public enum HandlersBasic {
             ]
         },
         effect: { _ in [:] },
-        touches: { op, db in
+        touches: { op, scope in
             guard let noteId = op["id"] as? String,
-                let path = try FetchNotePathTransaction(nid: noteId).perform(db)
+                let path = try scope.run(FetchNotePathTransaction(nid: noteId))
             else {
                 return []
             }
@@ -305,10 +305,10 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"set_frontmatter","id":"my-note","fields":{"summary":"updated summary","tags":["persona","new-tag"]}}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let noteId = op["id"] as? String ?? ""
             
-            if let rejection = try Handlers.checkIDKnown(noteId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
                 return rejection
             }
             
@@ -338,7 +338,7 @@ public enum HandlersBasic {
             do {
                 var probe = FrontmatterDoc()
                 
-                if let path = try FetchNotePathTransaction(nid: noteId).perform(db),
+                if let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
                     let read = try Notes.readNoteIfPresent(at: path) {
                     probe = read.doc
                 }
@@ -350,10 +350,10 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let noteId = op["id"] as! String
             
-            guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
+            guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -367,15 +367,15 @@ public enum HandlersBasic {
             
             try Handlers.mergeFields(&doc, fields)
             try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-            try ReindexNoteFileTransaction(path: path).perform(db)
+            try scope.run(ReindexNoteFileTransaction(path: path))
             
             let now = Int(Date().timeIntervalSince1970)
             
-            try StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false).perform(db)
+            try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
             
             let keys = fields.keys.sorted().joined(separator: ",")
             
-            try Handlers.recordEdit(db, nid: noteId, opLabel: "set_frontmatter/\(keys)", now: now)
+            try Handlers.recordEdit(scope, nid: noteId, opLabel: "set_frontmatter/\(keys)", now: now)
             
             return [
                 "status": "ok",
@@ -385,9 +385,9 @@ public enum HandlersBasic {
             ]
         },
         effect: { _ in [:] },
-        touches: { op, db in
+        touches: { op, scope in
             guard let noteId = op["id"] as? String,
-                let path = try FetchNotePathTransaction(nid: noteId).perform(db)
+                let path = try scope.run(FetchNotePathTransaction(nid: noteId))
             else {
                 return []
             }
@@ -406,10 +406,10 @@ public enum HandlersBasic {
             ],
             example: ###"{"op":"rename_section","id":"my-note","section":"## 옛제목","new_title":"새제목"}"###
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let noteId = op["id"] as? String ?? ""
             
-            if let rejection = try Handlers.checkIDKnown(noteId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
                 return rejection
             }
             
@@ -421,10 +421,10 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let noteId = op["id"] as! String
             
-            guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
+            guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -439,12 +439,12 @@ public enum HandlersBasic {
             let newBody = try SectionEdit.rename(body, path: sectionPath, newTitle: newTitle)
             
             try (Frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
-            try ReindexNoteFileTransaction(path: path).perform(db)
+            try scope.run(ReindexNoteFileTransaction(path: path))
             
             let now = Int(Date().timeIntervalSince1970)
             
-            try StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false).perform(db)
-            try Handlers.recordEdit(db, nid: noteId, opLabel: "rename_section", now: now)
+            try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
+            try Handlers.recordEdit(scope, nid: noteId, opLabel: "rename_section", now: now)
             
             return [
                 "status": "ok",
@@ -454,9 +454,9 @@ public enum HandlersBasic {
             ]
         },
         effect: { _ in [:] },
-        touches: { op, db in
+        touches: { op, scope in
             guard let noteId = op["id"] as? String,
-                let path = try FetchNotePathTransaction(nid: noteId).perform(db)
+                let path = try scope.run(FetchNotePathTransaction(nid: noteId))
             else {
                 return []
             }
@@ -474,24 +474,24 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"invalidate","id":"my-note","reason":"superseded by newer source"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let noteId = op["id"] as? String ?? ""
             
-            if let rejection = try Handlers.checkIDKnown(noteId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
                 return rejection
             }
             
-            let priority = try FetchNotePriorityTransaction(nid: noteId).perform(db)
+            let priority = try scope.run(FetchNotePriorityTransaction(nid: noteId))
             
             if priority == "eager" { return "cannot invalidate eager note: \(noteId)" }
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             let noteId = op["id"] as! String
             
-            guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
+            guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -508,28 +508,28 @@ public enum HandlersBasic {
             }
             
             try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-            try ReindexNoteFileTransaction(path: path).perform(db)
-            try SetNoteStaleTransaction(nid: noteId, stale: true).perform(db)
-            try RecordNoteLifecycleEventTransaction(nid: noteId,
+            try scope.run(ReindexNoteFileTransaction(path: path))
+            try scope.run(SetNoteStaleTransaction(nid: noteId, stale: true))
+            try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
                 kind: "invalidated",
                 reason: op["reason"] as? String,
                 now: now
-            ).perform(db)
+            ))
             
             let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(100)
             
-            _ = try FlagInboundReferrersTransaction(
+            _ = try scope.run(FlagInboundReferrersTransaction(
                 targetId: noteId,
                 reason: "invalidated: \(reasonShort)",
                 now: now
-            ).perform(db)
+            ))
             
             return ["status": "ok", "path": path.path, "ids": [noteId], "note": "invalidated"]
         },
         effect: { op in ["invalidates": [op["id"] as? String ?? ""]] },
-        touches: { op, db in
+        touches: { op, scope in
             guard let noteId = op["id"] as? String,
-                let path = try FetchNotePathTransaction(nid: noteId).perform(db)
+                let path = try scope.run(FetchNotePathTransaction(nid: noteId))
             else {
                 return []
             }
@@ -547,14 +547,14 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"revalidate","id":"my-note","reason":"verified against current source"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let noteId = op["id"] as? String ?? ""
             
-            if let rejection = try Handlers.checkIDKnown(noteId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
                 return rejection
             }
             
-            guard let stale = try FetchNoteStaleStateTransaction(nid: noteId).perform(db) else {
+            guard let stale = try scope.run(FetchNoteStaleStateTransaction(nid: noteId)) else {
                 return "unknown id: \(noteId)"
             }
             
@@ -562,11 +562,11 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             let noteId = op["id"] as! String
             
-            guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
+            guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -580,20 +580,20 @@ public enum HandlersBasic {
             doc.invalidatedReason = nil
             
             try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-            try ReindexNoteFileTransaction(path: path).perform(db)
-            try SetNoteStaleTransaction(nid: noteId, stale: false).perform(db)
-            try RecordNoteLifecycleEventTransaction(nid: noteId,
+            try scope.run(ReindexNoteFileTransaction(path: path))
+            try scope.run(SetNoteStaleTransaction(nid: noteId, stale: false))
+            try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
                 kind: "revalidated",
                 reason: op["reason"] as? String,
                 now: now
-            ).perform(db)
+            ))
             
             return ["status": "ok", "path": path.path, "ids": [noteId], "note": "revalidated"]
         },
         effect: { _ in [:] },
-        touches: { op, db in
+        touches: { op, scope in
             guard let noteId = op["id"] as? String,
-                let path = try FetchNotePathTransaction(nid: noteId).perform(db)
+                let path = try scope.run(FetchNotePathTransaction(nid: noteId))
             else {
                 return []
             }
@@ -611,34 +611,33 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"rebase_source","id":"my-note","reason":"note updated to reflect the reworked source file"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let noteId = op["id"] as? String ?? ""
             
-            if let rejection = try Handlers.checkIDKnown(noteId, context: context, db: db) {
+            if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
                 return rejection
             }
             
-            if !(try NoteSourceTrackedTransaction(nid: noteId).perform(db)) {
+            if !(try scope.run(NoteSourceTrackedTransaction(nid: noteId))) {
                 return "note has no drift-tracked source: \(noteId)"
             }
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             let noteId = op["id"] as! String
             
-            try RebaseNoteSourceTransaction(
+            try scope.run(RebaseNoteSourceTransaction(
                 noteId: noteId,
-                paths: try FetchNoteSourcePathsTransaction(noteId: noteId).perform(db),
+                paths: try scope.run(FetchNoteSourcePathsTransaction(noteId: noteId)),
                 now: now
-            )
-                .perform(db)
-            try RecordNoteLifecycleEventTransaction(nid: noteId,
+            ))
+            try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
                 kind: "source_rebased",
                 reason: op["reason"] as? String,
                 now: now
-            ).perform(db)
+            ))
             
             return ["status": "ok", "ids": [noteId], "note": "source re-baselined"]
         },
@@ -656,22 +655,22 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"flag","id":"my-note","kind":"reconsolidate","reason":"two near-duplicate notes detected"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let kind = op["kind"] as? String ?? ""
             
             if !Handlers.creatableFlagKinds.contains(kind) { return "invalid flag kind: \(kind)" }
             
-            return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, db: db)
+            return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             
-            try AddRippleFlagTransaction(
+            try scope.run(AddRippleFlagTransaction(
                 noteId: op["id"] as! String,
                 kind: op["kind"] as! String,
                 reason: op["reason"] as? String ?? "",
                 now: now
-            ).perform(db)
+            ))
             
             return ["status": "ok", "ids": [op["id"]!], "note": "flagged \(op["kind"]!)"]
         },
@@ -689,21 +688,21 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"resolve_flag","id":"my-note","kind":"reconsolidate","reason":"merged with sibling"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let kind = op["kind"] as? String ?? ""
             
             if !Handlers.resolvableFlagKinds.contains(kind) { return "invalid flag kind: \(kind)" }
             
-            return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, db: db)
+            return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
-            let resolved = try ResolveRippleFlagTransaction(
+            let resolved = try scope.run(ResolveRippleFlagTransaction(
                 noteId: op["id"] as! String,
                 kind: op["kind"] as! String,
                 reason: op["reason"] as? String,
                 now: now
-            ).perform(db)
+            ))
             
             return [
                 "status": "ok",
@@ -738,7 +737,7 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"dismiss_candidate","id":"my-note","kind":"split","reason":"한 응집 주제 — 크기는 분할 사유 아님"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let kind = op["kind"] as? String ?? ""
             let hasId = !((op["id"] as? String) ?? "").isEmpty
             let hasTarget = !((op["target"] as? String) ?? "").isEmpty
@@ -759,7 +758,7 @@ public enum HandlersBasic {
                 let target: LintTarget = hasTarget
                     ? .corpus(op["target"] as! String)
                     : .note((op["id"] as? String) ?? "")
-                let allFindings = try Lint.lintAll(db).filter { issue in issue.code == code }
+                let allFindings = try scope.run(LintScanTransaction(code: code, includeDismissed: true))
                 let liveFindings = allFindings.filter { issue in issue.target == target }
                 
                 if liveFindings.isEmpty {
@@ -802,9 +801,9 @@ public enum HandlersBasic {
                 return "`target` is for corpus-scope lint warns only — '\(kind)' is a note candidate, use `id`"
             }
             
-            return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, db: db)
+            return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             let target: LintTarget = ((op["target"] as? String)
                 .map { value in value.isEmpty ? nil : value } ?? nil)
@@ -813,9 +812,8 @@ public enum HandlersBasic {
             
             if let code = Dismissals.lintCode(of: kind),
                 Dismissals.lintFingerprint(of: kind) == nil {
-                let liveFindings = try Lint.lintAll(db).filter { issue in
-                    issue.code == code && issue.target == target
-                }
+                let liveFindings = try scope.run(LintScanTransaction(code: code, includeDismissed: true))
+                    .filter { issue in issue.target == target }
                 let selector = (op["finding"] as? String)?
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 let matched = (selector?.isEmpty == false)
@@ -833,10 +831,10 @@ public enum HandlersBasic {
                 kind = Dismissals.lintKind(code, fingerprint: matched.dismissalKey)
             }
             
-            try RecordDismissalTransaction(target: target,
+            try scope.run(RecordDismissalTransaction(target: target,
                 kind: kind,
                 reason: op["reason"] as? String,
-                now: now).perform(db)
+                now: now))
             
             let ids: [String] = {
                 if case .note(let noteId) = target { return [noteId] }
@@ -868,7 +866,7 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"mark_used","ids":["transfer-flow","apigw-routing"],"response":"...최종 응답 본문..."}"##
         ),
-        validate: { op, _, db in
+        validate: { op, _, scope in
             guard let raw = op["ids"] as? [Any], !raw.isEmpty else {
                 return "ids must be a non-empty array of note ids"
             }
@@ -882,12 +880,12 @@ public enum HandlersBasic {
             let label = Env.retrievalSession(cli: nil)
             
             func surfacedCount(_ id: String) throws -> Int {
-                try CountSurfacedHitsTransaction(noteId: id, cutoff: cutoff, label: label).perform(db)
+                try scope.run(CountSurfacedHitsTransaction(noteId: id, cutoff: cutoff, label: label))
             }
             
             for id in ids {
                 if try surfacedCount(id) == 0 {
-                    _ = try? DeriveActivityWindowsTransaction(now: now).perform(db)
+                    _ = try? scope.run(DeriveActivityWindowsTransaction(now: now))
                     
                     if try surfacedCount(id) == 0 {
                         return "note '\(id)' was not surfaced in any recent activity window"
@@ -899,16 +897,15 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let ids = (op["ids"] as! [Any]).compactMap { value in value as? String }
             let now = Int(Date().timeIntervalSince1970)
-            let outcomes = try MarkNotesUsedTransaction(
+            let outcomes = try scope.run(MarkNotesUsedTransaction(
                 ids: ids,
                 response: op["response"] as? String,
                 sessionLabel: Env.retrievalSession(cli: nil),
                 now: now
-            )
-                .perform(db)
+            ))
             let marked = outcomes.filter { outcome in outcome.matched }
             let failed = outcomes.filter { outcome in !outcome.matched }
             var note = "marked \(marked.count) note(s) used"
@@ -955,14 +952,14 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             let id = op["gene"] as! String
             let reason = op["reason"] as? String
             
             if let raw = op["value"], !(raw is NSNull), let value = Handlers.asDouble(raw) {
                 let result = try GenomeService.setGene(
-                    GRDBScope(db),
+                    scope,
                     id: id,
                     value: value,
                     cause: "set_gene",
@@ -978,7 +975,7 @@ public enum HandlersBasic {
                 ]
             }
             
-            let old = try GenomeService.resetGene(GRDBScope(db), id: id, cause: "set_gene", now: now)
+            let old = try GenomeService.resetGene(scope, id: id, cause: "set_gene", now: now)
             
             return ["status": "ok", "ids": [id], "note": "gene \(id): \(old) → wild-type"]
         },
@@ -997,7 +994,7 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"set_note_meta","id":"my-note","namespace":"capture","key":"source_thread","value":"slack://..."}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let namespace = op["namespace"] as? String ?? ""
             let nsNamespace = namespace as NSString
             
@@ -1018,19 +1015,18 @@ public enum HandlersBasic {
                 return "value must be string (plugin encodes JSON if needed)"
             }
             
-            return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, db: db)
+            return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, db in
+        write: { op, scope in
             let now = Int(Date().timeIntervalSince1970)
             
-            try UpsertNoteMetaTransaction(
+            try scope.run(UpsertNoteMetaTransaction(
                 noteId: op["id"] as! String,
                 namespace: op["namespace"] as! String,
                 key: op["key"] as! String,
                 value: op["value"] as! String,
                 now: now
-            )
-                .perform(db)
+            ))
             
             return [
                 "status": "ok",
@@ -1052,7 +1048,7 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"delete_note_meta","id":"my-note","namespace":"capture","key":"source_thread"}"##
         ),
-        validate: { op, context, db in
+        validate: { op, context, scope in
             let namespace = op["namespace"] as? String ?? ""
             let nsNamespace = namespace as NSString
             
@@ -1063,15 +1059,14 @@ public enum HandlersBasic {
                 return "invalid namespace: '\(namespace)'"
             }
             
-            return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, db: db)
+            return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, db in
-            let deleted = try DeleteNoteMetaTransaction(
+        write: { op, scope in
+            let deleted = try scope.run(DeleteNoteMetaTransaction(
                 noteId: op["id"] as! String,
                 namespace: op["namespace"] as! String,
                 key: op["key"] as! String
-            )
-                .perform(db)
+            ))
             
             return ["status": "ok", "ids": [op["id"]!], "note": "deleted \(deleted) meta row(s)"]
         },

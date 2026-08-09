@@ -25,11 +25,20 @@ public enum OpsService {
         ruleset: String? = nil
     ) async -> OpsEngine.Result {
         do {
-            return try await storage.run(
-                ApplyOpsTransaction(
-                    .init(payloadJSON: payloadJSON, sessionId: sessionId, ruleset: ruleset)
-                )
-            )
+            return try await storage.run { scope in
+                guard let payload = OpsEngine.decodePayload(payloadJSON) else {
+                    return OpsEngine.Result(
+                        status: "rejected",
+                        opResults: [],
+                        error: "payload must be a JSON object",
+                        rejectedIndex: nil,
+                        rationale: "",
+                        recoveryFailed: []
+                    )
+                }
+
+                return OpsEngine.apply(scope, payload, sessionId: sessionId, ruleset: ruleset)
+            }
         } catch {
             return OpsEngine.Result(
                 status: "unavailable",
@@ -48,9 +57,18 @@ public enum OpsService {
         ruleset: String? = nil
     ) async -> OpsEngine.DryRunResult {
         do {
-            return try await storage.run(
-                DryRunOpsTransaction(.init(payloadJSON: payloadJSON, ruleset: ruleset))
-            )
+            return try await storage.read { scope in
+                guard let payload = OpsEngine.decodePayload(payloadJSON) else {
+                    return OpsEngine.DryRunResult(
+                        status: "rejected",
+                        opCount: nil,
+                        error: "payload must be a JSON object",
+                        rejectedIndex: nil
+                    )
+                }
+
+                return OpsEngine.dryRun(scope, payload, ruleset: ruleset)
+            }
         } catch {
             return OpsEngine.DryRunResult(
                 status: "unavailable",
