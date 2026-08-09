@@ -17,7 +17,7 @@ public enum IndexService {
         _ storage: GRDBStorage,
         rebuild: Bool = false
     ) async throws -> Indexer.BuildResult {
-        try await storage.run(BuildIndexTransaction(.init(rebuild: rebuild)))
+        try await storage.run { scope in try scope.run(BuildIndexTransaction(rebuild: rebuild)) }
     }
 
     @discardableResult
@@ -25,14 +25,14 @@ public enum IndexService {
         _ storage: GRDBStorage,
         filePaths: [String]
     ) async throws -> Int {
-        try await storage.run(ReindexNotesTransaction(.init(filePaths: filePaths)))
+        try await storage.run { scope in try scope.run(ReindexNotesTransaction(filePaths: filePaths)) }
     }
 
     public static func check(
         _ storage: GRDBStorage,
         level: Indexer.IntegrityLevel = .l1
     ) async throws -> (ok: Bool, msgs: [String]) {
-        try await storage.run(CheckIntegrityTransaction(.init(level: level)))
+        try await storage.read { scope in try scope.run(CheckIntegrityTransaction(level: level)) }
     }
 
     public static func buildVectors(_ storage: GRDBStorage) async throws -> VectorBuildResult {
@@ -47,7 +47,7 @@ public enum IndexService {
         _ storage: GRDBStorage,
         rejectStale: Bool
     ) async throws -> Indexer.ValidateResult {
-        try await storage.run(ValidateTermsTransaction(.init(rejectStale: rejectStale)))
+        try await storage.run { scope in try scope.run(ValidateTermsTransaction(rejectStale: rejectStale)) }
     }
 
     // MARK: - Private

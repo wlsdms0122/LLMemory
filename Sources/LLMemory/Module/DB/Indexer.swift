@@ -26,7 +26,7 @@ enum IndexError: Error, CustomStringConvertible {
 // Index reconciliation mechanics — scanning cortex/, parsing notes and
 // reconciling the projection into the database.
 public enum Indexer {
-    public struct BuildResult {
+    public struct BuildResult: Sendable {
         // MARK: - Property
         public let count: Int
         public let changed: Int
@@ -42,7 +42,7 @@ public enum Indexer {
         case l0 = 0, l1 = 1, l2 = 2, l3 = 3, l4 = 4
     }
 
-    public struct ValidateResult {
+    public struct ValidateResult: Sendable {
         // MARK: - Property
         public let activated, rejected, stillPending, staleRejected: Int
         public let rejectBreakdown: [String: Int]
@@ -127,6 +127,55 @@ public enum Indexer {
 
     }
 
+    // The db-handle body — scans cortex/ and reconciles inside the caller's
+    // transaction scope.
+    static func build(_ db: Database, rebuild: Bool = false) throws -> BuildResult {
+        let now = Int(Date().timeIntervalSince1970)
+        let files = Paths.scanNotes()
+        var scannedRels = Set<String>()
+        var pending: [PendingNote] = []
+        var fileErrors: [String] = []
+
+        for file in files {
+            let relativePath: String
+            do {
+                relativePath = try Notes.relativeToBrainRoot(file)
+            } catch {
+                fileErrors.append("\(file.path): \(error)")
+                continue
+            }
+
+            scannedRels.insert(relativePath)
+
+            do {
+                let text = try String(contentsOf: file, encoding: .utf8)
+                let (fields, body) = try Frontmatter.parse(text)
+
+                pending.append(
+                    PendingNote(
+                        file: file,
+                        rel: relativePath,
+                        raw: text,
+                        contentHash: Notes.contentHash(text),
+                        fields: fields,
+                        body: body
+                    )
+                )
+            } catch {
+                fileErrors.append("\(relativePath): \(error)")
+            }
+        }
+
+        return try reconcile(
+            db,
+            pending: pending,
+            scannedRels: scannedRels,
+            rebuild: rebuild,
+            now: now,
+            fileErrors: fileErrors
+        )
+    }
+
     // Caller holds the write lock (run's write marker or an explicit writeLock).
     @discardableResult
     static func reindexLocked(_ queue: any DatabaseWriter, filePaths: [String]) throws -> Int {
@@ -179,6 +228,52 @@ public enum Indexer {
 
     static func check(_ queue: any DatabaseReader, level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
         try check(queue, rawLevel: level.rawValue)
+    }
+
+    @discardableResult
+    static func reindexFiles(_ db: Database, filePaths: [String]) throws -> Int {
+        var exitCode = 0
+
+        for filePath in filePaths {
+            var path = URL(fileURLWithPath: (filePath as NSString).expandingTildeInPath)
+
+            if !path.path.hasPrefix("/") {
+                path = Paths.brainRoot.appendingPathComponent(filePath)
+            }
+
+            path = path.standardizedFileURL.resolvingSymlinksInPath()
+
+            if !FileManager.default.fileExists(atPath: path.path) {
+                FileHandle.standardError.write(
+                    "ERROR \(filePath): not found\n".data(using: .utf8)!
+                )
+                exitCode = 1
+                continue
+            }
+
+            if Paths.relative(of: path) == nil {
+                FileHandle.standardError.write(
+                    "ERROR \(filePath): outside brain home \(Paths.brainRoot.path)\n"
+                        .data(using: .utf8)!
+                )
+                exitCode = 1
+                continue
+            }
+
+            do {
+                let noteId = try ReindexNoteFileTransaction(path: path).perform(db)
+                let relativePath = Paths.relative(of: path) ?? path.path
+
+                print("reindexed: \(noteId) (\(relativePath))")
+            } catch {
+                FileHandle.standardError.write(
+                    "ERROR \(filePath): \(error)\n".data(using: .utf8)!
+                )
+                exitCode = 1
+            }
+        }
+
+        return exitCode
     }
 
     // MARK: - Private
@@ -281,9 +376,13 @@ public enum Indexer {
 
     // MARK: - Private
     static func check(_ queue: any DatabaseReader, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
+        try queue.read { db in try check(db, rawLevel: level) }
+    }
+
+    static func check(_ db: Database, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
         let eagerCap = Config.getInt("eager.max_count", default: 20)
         
-        return try queue.read { db in
+        return try { () throws -> (ok: Bool, msgs: [String]) in
             var messages: [String] = []
             var ok = true
             let shape = try SchemaShape(migrations: Session.migrations).check(db)
@@ -537,6 +636,6 @@ public enum Indexer {
             if level < 4 { return (ok, messages) }
             
             return (ok, messages)
-        }
+        }()
     }
 }
