@@ -481,11 +481,7 @@ public enum HandlersBasic {
                 return rejection
             }
             
-            let priority = try String.fetchOne(
-                db,
-                sql: "SELECT priority FROM notes WHERE id = ?",
-                arguments: [noteId]
-            )
+            let priority = try FetchNotePriorityTransaction(nid: noteId).perform(db)
             
             if priority == "eager" { return "cannot invalidate eager note: \(noteId)" }
             
@@ -558,17 +554,11 @@ public enum HandlersBasic {
                 return rejection
             }
             
-            let row = try Row.fetchOne(
-                db,
-                sql: "SELECT stale FROM notes WHERE id = ?",
-                arguments: [noteId]
-            )
+            guard let stale = try FetchNoteStaleStateTransaction(nid: noteId).perform(db) else {
+                return "unknown id: \(noteId)"
+            }
             
-            guard let row else { return "unknown id: \(noteId)" }
-            
-            let stale: Int = row["stale"] as Int? ?? 0
-            
-            if stale == 0 { return "note is not stale: \(noteId)" }
+            if !stale { return "note is not stale: \(noteId)" }
             
             return nil
         },
@@ -628,13 +618,9 @@ public enum HandlersBasic {
                 return rejection
             }
             
-            let tracked = try Int.fetchOne(
-                db,
-                sql: "SELECT 1 FROM note_source WHERE note_id = ?",
-                arguments: [noteId]
-            )
-            
-            if tracked == nil { return "note has no drift-tracked source: \(noteId)" }
+            if !(try NoteSourceTrackedTransaction(nid: noteId).perform(db)) {
+                return "note has no drift-tracked source: \(noteId)"
+            }
             
             return nil
         },
@@ -896,17 +882,7 @@ public enum HandlersBasic {
             let label = Env.retrievalSession(cli: nil)
             
             func surfacedCount(_ id: String) throws -> Int {
-                if let label, !label.isEmpty {
-                    return try Int.fetchOne(db, sql: """
-                        SELECT COUNT(*) FROM retrieval_hits h
-                        JOIN activity_windows w ON w.id = h.window_id
-                        WHERE h.note_id = ? AND h.surfaced_at >= ? AND w.label = ?
-                        """, arguments: [id, cutoff, label]) ?? 0
-                }
-                
-                return try Int.fetchOne(db, sql: """
-                    SELECT COUNT(*) FROM retrieval_hits WHERE note_id = ? AND surfaced_at >= ?
-                    """, arguments: [id, cutoff]) ?? 0
+                try CountSurfacedHitsTransaction(noteId: id, cutoff: cutoff, label: label).perform(db)
             }
             
             for id in ids {

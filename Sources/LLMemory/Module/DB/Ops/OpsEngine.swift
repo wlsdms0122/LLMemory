@@ -678,13 +678,9 @@ public enum OpsEngine {
         for url in urls {
             guard let relativePath = try? Notes.relativeToBrainRoot(url) else { continue }
             
-            let locked = try Int.fetchOne(
-                db,
-                sql: "SELECT locked FROM notes WHERE path = ?",
-                arguments: [relativePath]
-            )
+            let locked = try NoteLockedAtPathTransaction(relativePath: relativePath).perform(db)
             
-            if locked == 1 {
+            if locked {
                 return "note is locked (human-only) — edit the file directly, not via ops: \(relativePath)"
             }
         }
@@ -730,7 +726,7 @@ public enum OpsEngine {
     }
     
     private static func axisOf(_ nid: String, db: Database) throws -> String? {
-        try String.fetchOne(db, sql: "SELECT axis FROM notes WHERE id = ?", arguments: [nid])
+        try FetchNoteAxisTransaction(nid: nid).perform(db)
     }
     
     private static func affectedPaths(_ ops: [[String: Any]], db: Database) throws -> [URL] {
@@ -831,14 +827,9 @@ public enum OpsEngine {
         var violations: [String] = []
         
         if !affectedIds.isEmpty {
-            let placeholders = affectedIds.map { _ in "?" }.joined(separator: ",")
-            
             do {
-                let dependentPaths = try String.fetchAll(
-                    db,
-                    sql: "SELECT path FROM notes WHERE template IN (\(placeholders))",
-                    arguments: StatementArguments(affectedIds)
-                )
+                let dependentPaths = try FetchTemplateDependentPathsTransaction(templateIds: affectedIds)
+                    .perform(db)
                 
                 for relativePath in dependentPaths {
                     enqueue(Paths.brainRoot.appendingPathComponent(relativePath))

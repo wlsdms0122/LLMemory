@@ -65,19 +65,14 @@ public enum HandlersEnrichment {
             var inserted = 0
             
             for term in terms {
-                try db.execute(sql: """
-                    INSERT INTO note_retrieval_terms
-                      (note_id, kind, term, status, provenance, created_at)
-                    VALUES (?, ?, ?, 'pending', ?, ?)
-                    ON CONFLICT(note_id, kind, term) DO UPDATE SET
-                      status = 'pending',
-                      provenance = excluded.provenance,
-                      reject_reason = NULL,
-                      validated_at = NULL,
-                      created_at = excluded.created_at
-                    WHERE note_retrieval_terms.status = 'rejected'
-                    """, arguments: [noteId, kind, term, provenance, now])
-                inserted += db.changesCount
+                inserted += try UpsertPendingTermTransaction(
+                    noteId: noteId,
+                    kind: kind,
+                    term: term,
+                    provenance: provenance,
+                    now: now
+                )
+                    .perform(db)
             }
             
             return [
@@ -158,12 +153,15 @@ public enum HandlersEnrichment {
                 return ["status": "ok", "ids": [], "note": "skipped self-loop \(src)"]
             }
             
-            try db.execute(sql: """
-                INSERT INTO note_links (src, dst, kind, weight, created_at, last_activated_at, provenance)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(src, dst, kind) DO UPDATE SET
-                  last_activated_at = excluded.last_activated_at
-                """, arguments: [source, destination, kind, weight, now, now, provenance])
+            try UpsertAssocLinkTransaction(
+                src: source,
+                dst: destination,
+                kind: kind,
+                weight: weight,
+                now: now,
+                provenance: provenance
+            )
+                .perform(db)
             
             return [
                 "status": "ok",
@@ -189,26 +187,11 @@ public enum HandlersEnrichment {
         write: { op, db in
             let now = Int(Date().timeIntervalSince1970)
             let provenance = op["provenance"] as! String
-            let affected = try String.fetchAll(db, sql: """
-                SELECT DISTINCT note_id FROM note_retrieval_terms
-                WHERE provenance = ? AND status != 'rejected'
-                """, arguments: [provenance])
-            
-            try db.execute(sql: """
-                UPDATE note_retrieval_terms
-                SET status = 'rejected', reject_reason = 'purged', validated_at = ?
-                WHERE provenance = ? AND status != 'rejected'
-                """, arguments: [now, provenance])
-            
-            let termsPurged = db.changesCount
-            
-            try db.execute(sql: "DELETE FROM note_links WHERE provenance = ?", arguments: [provenance])
-            
-            let edgesPurged = db.changesCount
-            
-            for noteId in affected {
-                try SyncNoteEnrichTransaction(noteId: noteId).perform(db)
-            }
+            let (termsPurged, edgesPurged, affected) = try PurgeEnrichmentProvenanceTransaction(
+                provenance: provenance,
+                now: now
+            )
+                .perform(db)
             
             return [
                 "status": "ok",

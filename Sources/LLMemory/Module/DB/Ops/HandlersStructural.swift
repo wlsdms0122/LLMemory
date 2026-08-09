@@ -72,11 +72,7 @@ public enum HandlersStructural {
             )
             try FileManager.default.removeItem(at: trashFile)
             try ReindexNoteFileTransaction(path: destination).perform(db)
-            try db.execute(sql: """
-                INSERT INTO note_usage (note_id, hit_count, last_retrieved_at, created_at)
-                VALUES (?, 0, ?, ?)
-                ON CONFLICT(note_id) DO UPDATE SET last_retrieved_at = excluded.last_retrieved_at
-                """, arguments: [noteId, now, now])
+            try TouchNoteUsageTransaction(noteId: noteId, now: now).perform(db)
             try RecordNoteLifecycleEventTransaction(nid: noteId,
                 kind: "restored",
                 reason: op["reason"] as? String,
@@ -244,11 +240,7 @@ public enum HandlersStructural {
             var newAxis = op["new_axis"] as? String ?? ""
             
             if newAxis.isEmpty {
-                guard let currentAxis = try String.fetchOne(
-                    db,
-                    sql: "SELECT axis FROM notes WHERE id = ?",
-                    arguments: [noteId]
-                ) else {
+                guard let currentAxis = try FetchNoteAxisTransaction(nid: noteId).perform(db) else {
                     return "unknown id: \(noteId)"
                 }
                 
@@ -311,11 +303,7 @@ public enum HandlersStructural {
             }
             
             let oldEntityHits: [(entity: String, hits: Int)] = (newId != targetId)
-                ? try Row.fetchAll(
-                    db,
-                    sql: "SELECT entity, hit_count FROM entity_index WHERE note_id = ?",
-                    arguments: [targetId]
-                ).map { row in (entity: row["entity"], hits: row["hit_count"]) }
+                ? try FetchNoteEntityHitsTransaction(noteId: targetId).perform(db)
                 : []
             
             try ReindexNoteFileTransaction(path: newPath).perform(db)
@@ -331,10 +319,8 @@ public enum HandlersStructural {
                 try ClearNoteTagsTransaction(noteId: targetId).perform(db)
                 
                 for hit in oldEntityHits {
-                    try db.execute(
-                        sql: "UPDATE entity_index SET hit_count = ? WHERE note_id = ? AND entity = ?",
-                        arguments: [hit.hits, newId, hit.entity]
-                    )
+                    try SetEntityHitCountTransaction(noteId: newId, entity: hit.entity, hits: hit.hits)
+                        .perform(db)
                 }
                 
                 try SyncNoteEnrichTransaction(noteId: newId).perform(db)
@@ -956,12 +942,8 @@ public enum HandlersStructural {
             )
             let (outboundEdges, inboundEdges) = try FetchLinkFanTransaction(fromId: fromId).perform(db)
             let routing = parseRouting(op)
-            let srcTerms = try Row.fetchAll(db, sql: """
-                SELECT kind, term, provenance FROM note_retrieval_terms WHERE note_id = ? AND status = 'active'
-                """, arguments: [fromId])
-            let srcMeta = try Row.fetchAll(db, sql: """
-                SELECT namespace, key, value, updated_at FROM note_meta WHERE note_id = ?
-                """, arguments: [fromId])
+            let srcTerms = try FetchActiveTermRowsTransaction(noteId: fromId).perform(db)
+            let srcMeta = try FetchNoteMetaRowsTransaction(noteId: fromId).perform(db)
             var written: [URL] = []
             var newIds: [String] = []
             let now = Int(Date().timeIntervalSince1970)
@@ -1155,9 +1137,9 @@ public enum HandlersStructural {
             
             if !sourceSurvives {
                 for row in srcTerms {
-                    let kind: String = row["kind"]
-                    let term: String = row["term"]
-                    let provenance: String? = row["provenance"]
+                    let kind = row.kind
+                    let term = row.term
+                    let provenance = row.provenance
                     
                     guard let targets = routing[routingKey(
                         type: "term",
@@ -1171,19 +1153,22 @@ public enum HandlersStructural {
                     }
                     
                     for noteId in targets {
-                        try db.execute(sql: """
-                            INSERT OR IGNORE INTO note_retrieval_terms
-                              (note_id, kind, term, status, provenance, created_at)
-                            VALUES (?, ?, ?, 'pending', ?, ?)
-                            """, arguments: [noteId, kind, term, provenance, now])
+                        try InsertPendingTermIfAbsentTransaction(
+                            noteId: noteId,
+                            kind: kind,
+                            term: term,
+                            provenance: provenance,
+                            now: now
+                        )
+                            .perform(db)
                     }
                 }
                 
                 for row in srcMeta {
-                    let namespace: String = row["namespace"]
-                    let key: String = row["key"]
-                    let value: String = row["value"]
-                    let updated: Int = row["updated_at"]
+                    let namespace = row.namespace
+                    let key = row.key
+                    let value = row.value
+                    let updated = row.updatedAt
                     
                     guard let targets = routing[routingKey(
                         type: "meta",
@@ -1197,10 +1182,14 @@ public enum HandlersStructural {
                     }
                     
                     for noteId in targets {
-                        try db.execute(sql: """
-                            INSERT OR IGNORE INTO note_meta (note_id, namespace, key, value, updated_at)
-                            VALUES (?, ?, ?, ?, ?)
-                            """, arguments: [noteId, namespace, key, value, updated])
+                        try InsertNoteMetaIfAbsentTransaction(
+                            noteId: noteId,
+                            namespace: namespace,
+                            key: key,
+                            value: value,
+                            updatedAt: updated
+                        )
+                            .perform(db)
                     }
                 }
                 
@@ -1403,11 +1392,7 @@ public enum HandlersStructural {
         var newAxis = op["new_axis"] as? String ?? ""
         
         if newAxis.isEmpty {
-            newAxis = try String.fetchOne(
-                db,
-                sql: "SELECT axis FROM notes WHERE id = ?",
-                arguments: [targetId]
-            ) ?? ""
+            newAxis = try FetchNoteAxisTransaction(nid: targetId).perform(db) ?? ""
         }
         
         let newId = (op["new_id"] as? String) ?? targetId
