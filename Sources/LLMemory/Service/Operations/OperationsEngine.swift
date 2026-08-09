@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum OperationsEngine {
+public struct OperationsEngine: Sendable {
     public struct OperationResult: Encodable, Sendable {
         // MARK: - Property
         public let op: String
@@ -146,7 +146,15 @@ public enum OperationsEngine {
     }
     
     // MARK: - Property
+    let genome: GenomeService
+    let ruleset: RulesetService
+
     // MARK: - Initializer
+    init(genome: GenomeService, ruleset: RulesetService) {
+        self.genome = genome
+        self.ruleset = ruleset
+    }
+
     // MARK: - Public
     // The one place the raw payload string re-enters the [String: Any] world —
     // both ops transactions decode through here.
@@ -162,7 +170,7 @@ public enum OperationsEngine {
 
     // Runs inside the caller's write scope — OperationsService provides the
     // cross-process write lock via `storage.run`.
-    public static func apply(
+    public func apply(
         _ scope: GRDBScope,
         _ payload: [String: Any],
         sessionId: String? = nil,
@@ -262,7 +270,7 @@ public enum OperationsEngine {
     
     // The gated apply sequence — validate, snapshot, savepointed op run,
     // post-checks, and the capture event that records the outcome.
-    private static func applySequence(
+    private func applySequence(
         _ scope: GRDBScope,
         opsRaw: [[String: Any]],
         sessionId: String?,
@@ -270,7 +278,7 @@ public enum OperationsEngine {
         effectiveRulesetId: String?
     ) throws -> Result {
         let now = Int(Date().timeIntervalSince1970)
-        let applyContext = HandlerContext(sessionId: sessionId, now: now)
+        let applyContext = HandlerContext(sessionId: sessionId, now: now, genome: genome)
 
         if let (message, index) = try validate(
             opsRaw,
@@ -349,7 +357,7 @@ public enum OperationsEngine {
                     }
                 }
                 
-                if let sectionError = checkSectionInvariants(
+                if let sectionError = Self.checkSectionInvariants(
                     affected: affected,
                     backups: backups
                 ) {
@@ -469,7 +477,7 @@ public enum OperationsEngine {
         )
 }
 
-    public static func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], sessionId: String? = nil, ruleset: String? = nil) -> DryRunResult {
+    public func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], sessionId: String? = nil, ruleset: String? = nil) -> DryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return DryRunResult(
                 status: "rejected",
@@ -607,7 +615,7 @@ public enum OperationsEngine {
     }
     
     // MARK: - Private
-    private static func enrichmentTouchedNotes(_ ops: [[String: Any]]) -> [String] {
+    private func enrichmentTouchedNotes(_ ops: [[String: Any]]) -> [String] {
         var touched = Set<String>()
         
         for op in ops {
@@ -630,14 +638,14 @@ public enum OperationsEngine {
         return Array(touched)
     }
     
-    private static func validate(
+    private func validate(
         _ ops: [[String: Any]],
         scope: GRDBReadScope,
         rulesetId: String?,
         sessionId: String? = nil,
         now: Int = Int(Date().timeIntervalSince1970)
     ) throws -> (String, Int?)? {
-        var context = HandlerContext(sessionId: sessionId, now: now)
+        var context = HandlerContext(sessionId: sessionId, now: now, genome: genome)
         
         for (index, op) in ops.enumerated() {
             guard let name = op["op"] as? String,
@@ -706,7 +714,7 @@ public enum OperationsEngine {
         return nil
     }
     
-    private static func lockedGate(
+    private func lockedGate(
         op: [String: Any],
         name: String,
         handler: OperationHandler,
@@ -714,7 +722,7 @@ public enum OperationsEngine {
         scope: GRDBReadScope
     ) throws -> String? {
         if name != "create_note", !context.lockedInFlightIds.isEmpty {
-            for noteId in targetIds(op, schema: handler.schema)
+            for noteId in Self.targetIds(op, schema: handler.schema)
             where context.lockedInFlightIds.contains(noteId) {
                 return "note is locked (human-only) — edit the file directly, not via ops: \(noteId)"
             }
@@ -735,7 +743,7 @@ public enum OperationsEngine {
         return nil
     }
     
-    private static func rulesetGate(
+    private func rulesetGate(
         op: [String: Any],
         name: String,
         handler: OperationHandler,
@@ -747,7 +755,7 @@ public enum OperationsEngine {
         if axes.isEmpty { axes = ["*"] }
         
         for axis in axes.sorted() {
-            let effective = try RulesetService.effective(scope, axis: axis, rulesetIds: [rulesetId])
+            let effective = try ruleset.effective(scope, axis: axis, rulesetIds: [rulesetId])
             let (allowed, reason) = effective.allows(op: name)
             
             if !allowed {
@@ -758,7 +766,7 @@ public enum OperationsEngine {
         return nil
     }
     
-    private static func extractAxes(
+    private func extractAxes(
         _ op: [String: Any],
         schema: OperationSchema,
         scope: GRDBReadScope
@@ -772,11 +780,11 @@ public enum OperationsEngine {
         return axes
     }
     
-    private static func axisOf(_ nid: String, scope: GRDBReadScope) throws -> String? {
+    private func axisOf(_ nid: String, scope: GRDBReadScope) throws -> String? {
         try scope.run(FetchNoteAxisTransaction(nid: nid))
     }
     
-    private static func affectedPaths(_ ops: [[String: Any]], scope: GRDBReadScope) throws -> [URL] {
+    private func affectedPaths(_ ops: [[String: Any]], scope: GRDBReadScope) throws -> [URL] {
         var seen = Set<String>()
         var paths: [URL] = []
         
@@ -798,7 +806,7 @@ public enum OperationsEngine {
         return paths
     }
     
-    private static func snapshotFiles(_ targets: [URL]) throws -> [(URL, String?)] {
+    private func snapshotFiles(_ targets: [URL]) throws -> [(URL, String?)] {
         var snapshot: [(URL, String?)] = []
         
         for path in targets {
@@ -820,7 +828,7 @@ public enum OperationsEngine {
         return snapshot
     }
     
-    private static func restoreFiles(_ backups: [(URL, String?)]) -> [String] {
+    private func restoreFiles(_ backups: [(URL, String?)]) -> [String] {
         var failed: [String] = []
         
         for (path, text) in backups {
@@ -856,7 +864,7 @@ public enum OperationsEngine {
         return nil
     }
     
-    private static func checkTemplateFrames(affected: [URL], scope: GRDBReadScope) -> String? {
+    private func checkTemplateFrames(affected: [URL], scope: GRDBReadScope) -> String? {
         var toCheck: [URL] = []
         var seen = Set<String>()
         
@@ -923,7 +931,7 @@ public enum OperationsEngine {
         return nil
     }
     
-    private static func checkEagerCap(scope: GRDBReadScope, before: Int) -> String? {
+    private func checkEagerCap(scope: GRDBReadScope, before: Int) -> String? {
         let cap = Config.getInt("eager.max_count", default: 20)
         let after = (try? scope.run(CountEagerNotesTransaction())) ?? 0
         
@@ -934,7 +942,7 @@ public enum OperationsEngine {
         return nil
     }
     
-    private static func dispatchApply(_ op: [String: Any], context: HandlerContext, scope: GRDBScope) throws -> OperationResult {
+    private func dispatchApply(_ op: [String: Any], context: HandlerContext, scope: GRDBScope) throws -> OperationResult {
         let name = op["op"] as! String
         let handler = Handlers.registry[name]!
         let raw = try handler.write(op, context, scope)
@@ -962,7 +970,7 @@ public enum OperationsEngine {
 
 private extension OperationsEngine {
     // Repairs the in-process gene cache from (effectively) committed state.
-    static func rewarmGenes(_ scope: GRDBScope) {
+    func rewarmGenes(_ scope: GRDBScope) {
         guard let values = try? scope.run(FetchGenomeValuesTransaction()) else { return }
 
         Genes.warm(values)

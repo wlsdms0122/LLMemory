@@ -208,6 +208,9 @@ public struct HandlerContext {
     // requires them: an unseeded context does not compile.
     public let sessionId: String?
     public let now: Int
+    // Collaborators a handler may not construct for itself — the engine
+    // injects them at entry, same discipline as the ambient facts.
+    public let genome: GenomeService
 
     public var inFlightIds: Set<String> = []
     // Axes an earlier op in the same transaction introduces (create_note with axis_description).
@@ -220,9 +223,10 @@ public struct HandlerContext {
     public var opaqueBodyIds: Set<String> = []
     
     // MARK: - Initializer
-    public init(sessionId: String?, now: Int) {
+    public init(sessionId: String?, now: Int, genome: GenomeService) {
         self.sessionId = sessionId
         self.now = now
+        self.genome = genome
     }
 
     // MARK: - Public

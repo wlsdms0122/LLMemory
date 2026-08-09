@@ -9,12 +9,17 @@ import Foundation
 import Storage
 
 // Index-domain service — build/verify surfaces over the write transactions.
-public enum IndexService {
+public struct IndexService: Sendable {
     // MARK: - Property
+    let storage: GRDBStorage
+
     // MARK: - Initializer
+    init(storage: GRDBStorage) {
+        self.storage = storage
+    }
+
     // MARK: - Public
-    public static func build(
-        _ storage: GRDBStorage,
+    public func build(
         rebuild: Bool = false
     ) async throws -> Indexer.BuildResult {
         // The scan runs inside the exclusion boundary — orphan judgement
@@ -34,8 +39,7 @@ public enum IndexService {
         }
     }
 
-    public static func reindex(
-        _ storage: GRDBStorage,
+    public func reindex(
         filePaths: [String]
     ) async throws -> [Indexer.ReindexOutcome] {
         try await storage.run { scope in
@@ -43,23 +47,21 @@ public enum IndexService {
         }
     }
 
-    public static func check(
-        _ storage: GRDBStorage,
+    public func check(
         level: Indexer.IntegrityLevel = .l1
     ) async throws -> (ok: Bool, msgs: [String]) {
         try await storage.read { scope in try scope.run(CheckIntegrityTransaction(level: level)) }
     }
 
-    public static func buildVectors(_ storage: GRDBStorage) async throws -> VectorBuildResult {
+    public func buildVectors() async throws -> VectorBuildResult {
         try await storage.run { scope in try scope.run(BuildVectorsTransaction()) }
     }
 
-    public static func verifySources(_ storage: GRDBStorage) async throws -> SourceVerifyResult {
+    public func verifySources() async throws -> SourceVerifyResult {
         try await storage.run { scope in try scope.run(VerifySourcesTransaction()) }
     }
 
-    public static func validateTerms(
-        _ storage: GRDBStorage,
+    public func validateTerms(
         rejectStale: Bool
     ) async throws -> Indexer.ValidateResult {
         try await storage.run { scope in try scope.run(ValidateTermsTransaction(rejectStale: rejectStale)) }

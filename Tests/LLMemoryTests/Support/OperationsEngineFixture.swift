@@ -37,7 +37,7 @@ extension OperationsEngine {
 
             return try storage.writeLock {
                 try storage.connect().write { db in
-                    OperationsEngine.apply(GRDBScope(db), decoded, sessionId: sessionId, ruleset: ruleset)
+                    Services(storage: storage).operations.engine.apply(GRDBScope(db), decoded, sessionId: sessionId, ruleset: ruleset)
                 }
             }
         } catch {
@@ -70,7 +70,7 @@ extension OperationsEngine {
             }
 
             return try storage.connect().read { db in
-                OperationsEngine.dryRun(GRDBReadScope(db), decoded, ruleset: ruleset)
+                Services(storage: storage).operations.engine.dryRun(GRDBReadScope(db), decoded, ruleset: ruleset)
             }
         } catch {
             return DryRunResult(

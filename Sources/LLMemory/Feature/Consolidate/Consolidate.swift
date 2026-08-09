@@ -8,27 +8,28 @@
 import Foundation
 
 public struct Consolidate {
-    let session: Session
-    
+    // MARK: - Property
+    let consolidate: ConsolidateService
+
     // MARK: - Initializer
-    init(session: Session) {
-        self.session = session
+    init(consolidate: ConsolidateService) {
+        self.consolidate = consolidate
     }
     
     public func integrate() async throws -> Consolidation.IntegrateResult {
-        try await ConsolidateService.integrate(session.storage)
+        try await consolidate.integrate()
     }
 
     public func homeostasis() async throws -> ConsolidateService.HomeostasisReport {
-        try await ConsolidateService.homeostasis(session.storage)
+        try await consolidate.homeostasis()
     }
 
     public func prune() async throws -> Consolidation.PruneResult {
-        try await ConsolidateService.prune(session.storage)
+        try await consolidate.prune()
     }
 
     public func report() async throws -> (axis: Consolidation.AxisReport, tag: Consolidation.TagReport) {
-        try await ConsolidateService.report(session.storage)
+        try await consolidate.report()
     }
 
 }

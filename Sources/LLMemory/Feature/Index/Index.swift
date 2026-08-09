@@ -40,36 +40,40 @@ public struct Index {
     }
     
     // MARK: - Property
+    // Session stays for the lifecycle gates (bootstrap) — init/update are the
+    // migration surface, not a domain service.
     let session: Session
-    
+    let index: IndexService
+
     // MARK: - Initializer
-    init(session: Session) {
+    init(session: Session, index: IndexService) {
         self.session = session
+        self.index = index
     }
     
     public func build(rebuild: Bool = false) async throws -> Indexer.BuildResult {
-        try await IndexService.build(session.storage, rebuild: rebuild)
+        try await index.build(rebuild: rebuild)
     }
 
     @discardableResult
     public func reindex(filePaths: [String]) async throws -> [Indexer.ReindexOutcome] {
-        try await IndexService.reindex(session.storage, filePaths: filePaths)
+        try await index.reindex(filePaths: filePaths)
     }
 
     public func check(level: Indexer.IntegrityLevel = .l1) async throws -> (ok: Bool, msgs: [String]) {
-        try await IndexService.check(session.storage, level: level)
+        try await index.check(level: level)
     }
 
     public func buildVectors() async throws -> VectorBuildResult {
-        try await IndexService.buildVectors(session.storage)
+        try await index.buildVectors()
     }
 
     public func verifySources() async throws -> SourceVerifyResult {
-        try await IndexService.verifySources(session.storage)
+        try await index.verifySources()
     }
 
     public func validateTerms(rejectStale: Bool) async throws -> Indexer.ValidateResult {
-        try await IndexService.validateTerms(session.storage, rejectStale: rejectStale)
+        try await index.validateTerms(rejectStale: rejectStale)
     }
     
     public func initialize(bare: Bool = false) throws -> InitResult {

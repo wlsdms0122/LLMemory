@@ -14,6 +14,7 @@ import Foundation
 public struct Brain {
     // MARK: - Property
     public let session: Session
+    public let services: Services
 
     public let index: Index
     public let query: Query
@@ -25,14 +26,23 @@ public struct Brain {
     // MARK: - Initializer
     public init(home: String) {
         let session = Session(home: home)
+        let services = Services(storage: session.storage)
 
         self.session = session
-        self.index = Index(session: session)
-        self.query = Query(session: session)
-        self.consolidate = Consolidate(session: session)
-        self.genome = Genome(session: session)
-        self.ruleset = Ruleset(session: session)
-        self.operations = Operations(session: session)
+        self.services = services
+        self.index = Index(session: session, index: services.index)
+        self.query = Query(
+            retrieval: services.retrieval,
+            notes: services.notes,
+            stats: services.stats,
+            lint: services.lint,
+            enrichment: services.enrichment,
+            consolidate: services.consolidate
+        )
+        self.consolidate = Consolidate(consolidate: services.consolidate)
+        self.genome = Genome(genome: services.genome)
+        self.ruleset = Ruleset(ruleset: services.ruleset)
+        self.operations = Operations(operations: services.operations)
     }
 
     // MARK: - Public

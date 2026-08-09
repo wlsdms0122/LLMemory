@@ -10,12 +10,17 @@ import Storage
 
 // Lint-domain service — deterministic observation of corpus shape, with
 // habituation suppressing findings the owner has reviewed and kept.
-public enum LintService {
+public struct LintService: Sendable {
     // MARK: - Property
+    let storage: GRDBStorage
+
     // MARK: - Initializer
+    init(storage: GRDBStorage) {
+        self.storage = storage
+    }
+
     // MARK: - Public
-    public static func lint(
-        _ storage: GRDBStorage,
+    public func lint(
         id: String? = nil,
         code: String? = nil,
         severity: String? = nil,

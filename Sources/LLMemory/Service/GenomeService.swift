@@ -12,7 +12,7 @@ import Storage
 // mutability, integer genes) and the observation surfaces. DB touches ride
 // genome transactions; the code-owned catalog and value cache live in the
 // Genome module.
-public enum GenomeService {
+public struct GenomeService: Sendable {
     public enum WriteError: Error, CustomStringConvertible {
         case unknownGene(String)
         case outOfBounds(String, Double, Genes.Gene)
@@ -116,12 +116,20 @@ public enum GenomeService {
     }
 
     // MARK: - Property
+    let storage: GRDBStorage
+    let retrieval: RetrievalService
+
     // MARK: - Initializer
+    init(storage: GRDBStorage, retrieval: RetrievalService) {
+        self.storage = storage
+        self.retrieval = retrieval
+    }
+
     // MARK: - Public
     // Rewarms the value cache from the DB before mapping, so the listing
     // reflects the brain's epigenome (and keeps the connection gate — an
     // uninitialized brain fails loud instead of masquerading as wild-type).
-    public static func list(_ storage: GRDBStorage) async throws -> [ListRow] {
+    public func list() async throws -> [ListRow] {
         try await storage.read { scope in
             Genes.warm(try scope.run(FetchGenomeValuesTransaction()))
 
@@ -129,8 +137,7 @@ public enum GenomeService {
         }
     }
 
-    public static func history(
-        _ storage: GRDBStorage,
+    public func history(
         gene: String?,
         limit: Int
     ) async throws -> [HistoryRow] {
@@ -139,8 +146,7 @@ public enum GenomeService {
         }
     }
 
-    public static func shadow(
-        _ storage: GRDBStorage,
+    public func shadow(
         gene: String,
         value: Double,
         limit: Int,
@@ -152,7 +158,7 @@ public enum GenomeService {
     }
 
     // MARK: - Internal
-    static func list() -> [ListRow] {
+    func list() -> [ListRow] {
         Genes.catalog.map { gene in
             ListRow(
                 id: gene.id,
@@ -167,7 +173,7 @@ public enum GenomeService {
         }
     }
 
-    static func history(
+    func history(
         _ scope: GRDBReadScope,
         gene: String?,
         limit: Int
@@ -189,7 +195,7 @@ public enum GenomeService {
     // Offline reranking — replays the logged retrieval queries against the
     // current corpus under a candidate gene value. The override lives only in
     // the in-process cache for the duration of the replay; nothing commits.
-    static func shadow(
+    func shadow(
         _ scope: GRDBReadScope,
         gene: String,
         value: Double,
@@ -223,7 +229,7 @@ public enum GenomeService {
                     .map { hit in hit.id }
 
             default:
-                let snapshot = try RetrievalService.snapshot(
+                let snapshot = try retrieval.snapshot(
                     scope,
                     userInput: loggedQuery.text,
                     agentOutput: "",
@@ -276,7 +282,7 @@ public enum GenomeService {
     // The one write path for gene values — validates against the code-owned
     // declaration, records provenance, and keeps the in-process cache honest.
     @discardableResult
-    static func setGene(
+    func setGene(
         _ scope: GRDBScope,
         id: String,
         value: Double,
@@ -316,7 +322,7 @@ public enum GenomeService {
     }
 
     @discardableResult
-    static func resetGene(
+    func resetGene(
         _ scope: GRDBScope,
         id: String,
         cause: String,

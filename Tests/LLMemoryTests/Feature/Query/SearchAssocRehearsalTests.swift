@@ -42,7 +42,7 @@ struct SearchAssocRehearsalTests {
         #expect(try assocWeight(between: "areh-a", and: "areh-b") == 0.5)
         
         // When
-        let outcome = try home.database().read { db in try RetrievalService.search(GRDBReadScope(db), query: "zephyrquasar", limit: 5) }
+        let outcome = try home.database().read { db in try home.services.retrieval.search(GRDBReadScope(db), query: "zephyrquasar", limit: 5) }
         
         try home.database().write { db in _ = try RecordRetrievalTransaction(outcome.record).perform(db) }
         

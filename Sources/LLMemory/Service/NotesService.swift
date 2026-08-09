@@ -11,12 +11,19 @@ import Storage
 // Notes-domain service — body reads (whole, sections, budget, toc, frame),
 // enumeration, history, structure, and the note_meta side-table. Body reads
 // derive a retrieval record; RetrievalService applies it.
-public enum NotesService {
+public struct NotesService: Sendable {
     // MARK: - Property
+    let storage: GRDBStorage
+    let retrieval: RetrievalService
+
     // MARK: - Initializer
+    init(storage: GRDBStorage, retrieval: RetrievalService) {
+        self.storage = storage
+        self.retrieval = retrieval
+    }
+
     // MARK: - Public
-    public static func get(
-        _ storage: GRDBStorage,
+    public func get(
         ids: [String],
         cliSessionId: String = ""
     ) async throws -> (found: [Reads.GetNote], missing: [String]) {
@@ -25,13 +32,12 @@ public enum NotesService {
             try get(scope, ids: ids, sessionId: sessionId)
         }
 
-        try await RetrievalService.applyRecord(storage, outcome.record)
+        try await retrieval.applyRecord(outcome.record)
 
         return (outcome.found, outcome.missing)
     }
 
-    public static func getSections(
-        _ storage: GRDBStorage,
+    public func getSections(
         id: String,
         sections: [String],
         cliSessionId: String = ""
@@ -41,13 +47,12 @@ public enum NotesService {
             try getSections(scope, id: id, sections: sections, sessionId: sessionId)
         }
 
-        try await RetrievalService.applyRecord(storage, outcome.record)
+        try await retrieval.applyRecord(outcome.record)
 
         return (outcome.note, outcome.slices)
     }
 
-    public static func getBudget(
-        _ storage: GRDBStorage,
+    public func getBudget(
         id: String,
         budget: Int,
         cliSessionId: String = ""
@@ -57,39 +62,36 @@ public enum NotesService {
             try getBudget(scope, id: id, budget: budget, sessionId: sessionId)
         }
 
-        try await RetrievalService.applyRecord(storage, outcome.record)
+        try await retrieval.applyRecord(outcome.record)
 
         return (outcome.note, outcome.cut)
     }
 
-    public static func toc(
-        _ storage: GRDBStorage,
+    public func toc(
         id: String,
         cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, entries: [Reads.TocEntry]) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in try toc(scope, id: id, sessionId: sessionId) }
 
-        try await RetrievalService.applyRecord(storage, outcome.record)
+        try await retrieval.applyRecord(outcome.record)
 
         return (outcome.note, outcome.entries)
     }
 
-    public static func template(
-        _ storage: GRDBStorage,
+    public func template(
         id: String,
         cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, frame: [Template.FrameNode]) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in try template(scope, id: id, sessionId: sessionId) }
 
-        try await RetrievalService.applyRecord(storage, outcome.record)
+        try await retrieval.applyRecord(outcome.record)
 
         return (outcome.note, outcome.frame)
     }
 
-    public static func list(
-        _ storage: GRDBStorage,
+    public func list(
         priority: String?,
         axis: String?,
         stale: Bool,
@@ -107,8 +109,7 @@ public enum NotesService {
         return try await storage.read { scope in try scope.run(ListNoteRowsTransaction(filter)) }
     }
 
-    public static func history(
-        _ storage: GRDBStorage,
+    public func history(
         noteId: String,
         limit: Int
     ) async throws -> [Reads.HistoryEvent] {
@@ -117,21 +118,17 @@ public enum NotesService {
         }
     }
 
-    public static func listAxes(
-        _ storage: GRDBStorage
-    ) async throws -> [(axis: String, description: String?, count: Int)] {
+    public func listAxes() async throws -> [(axis: String, description: String?, count: Int)] {
         try await storage.read { scope in try scope.run(FetchAxesWithCountsTransaction()) }
     }
 
-    public static func structure(
-        _ storage: GRDBStorage,
+    public func structure(
         axis: String?
     ) async throws -> Reads.StructureResult {
         try await storage.read { scope in try structure(scope, axis: axis) }
     }
 
-    public static func metaById(
-        _ storage: GRDBStorage,
+    public func metaById(
         noteId: String,
         namespace: String?
     ) async throws -> [String: [String: String]] {
@@ -140,8 +137,7 @@ public enum NotesService {
         }
     }
 
-    public static func metaByKV(
-        _ storage: GRDBStorage,
+    public func metaByKV(
         namespace: String,
         key: String,
         value: String?,
@@ -162,7 +158,7 @@ public enum NotesService {
     // MARK: - Internal
     // sessionId is required on purpose — a caller that forgets it loses the
     // event's session attribution silently, so the omission must not compile.
-    static func get(
+    func get(
         _ scope: GRDBReadScope,
         ids: [String],
         sessionId: String?
@@ -206,7 +202,7 @@ public enum NotesService {
         return (found, missing, record)
     }
 
-    static func getSections(
+    func getSections(
         _ scope: GRDBReadScope,
         id: String,
         sections: [String],
@@ -230,7 +226,7 @@ public enum NotesService {
         return (note, slices, record)
     }
 
-    static func getBudget(
+    func getBudget(
         _ scope: GRDBReadScope,
         id: String,
         budget: Int,
@@ -245,7 +241,7 @@ public enum NotesService {
         return (note, record, budgetCut(of: note.body, budget: budget))
     }
 
-    static func toc(
+    func toc(
         _ scope: GRDBReadScope,
         id: String,
         sessionId: String?
@@ -264,7 +260,7 @@ public enum NotesService {
         return (note, entries, record)
     }
 
-    static func template(
+    func template(
         _ scope: GRDBReadScope,
         id: String,
         sessionId: String?
@@ -278,7 +274,7 @@ public enum NotesService {
         return (note, Template.parseFrame(note.body), record)
     }
 
-    static func structure(_ scope: GRDBReadScope, axis: String?) throws -> Reads.StructureResult {
+    func structure(_ scope: GRDBReadScope, axis: String?) throws -> Reads.StructureResult {
         let axes = try scope.run(FetchAxesWithCountsTransaction())
         let distribution = try scope.run(FetchLinkDistributionTransaction())
         var stats: AxisStats? = nil
@@ -293,7 +289,7 @@ public enum NotesService {
     // MARK: - Private
     // The word-budget cut — always lands on a section boundary; a truncation
     // is stated, never silent.
-    private static func budgetCut(of body: String, budget: Int) -> Reads.BudgetCut {
+    private func budgetCut(of body: String, budget: Int) -> Reads.BudgetCut {
         let lines = body.unicodeLines()
         let all = SectionEdit.splitSections(body)
         let totalWords = SectionEdit.wordCount(body)

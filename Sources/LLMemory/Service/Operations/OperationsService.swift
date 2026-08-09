@@ -14,12 +14,19 @@ import Storage
 // errors are normalized here as "unavailable" — a first-class state distinct
 // from "failed" (ran and rolled back) and "rejected" (payload refused),
 // because nothing was executed and the payload was never interpreted.
-public enum OperationsService {
+public struct OperationsService: Sendable {
     // MARK: - Property
+    let storage: GRDBStorage
+    let engine: OperationsEngine
+
     // MARK: - Initializer
+    init(storage: GRDBStorage, engine: OperationsEngine) {
+        self.storage = storage
+        self.engine = engine
+    }
+
     // MARK: - Public
-    public static func apply(
-        _ storage: GRDBStorage,
+    public func apply(
         payloadJSON: String,
         cliSessionId: String = "",
         ruleset: String? = nil
@@ -57,7 +64,7 @@ public enum OperationsService {
                     )
                 }
 
-                return OperationsEngine.apply(scope, payload, sessionId: sessionId, ruleset: ruleset)
+                return engine.apply(scope, payload, sessionId: sessionId, ruleset: ruleset)
             }
 
             return result
@@ -74,8 +81,7 @@ public enum OperationsService {
         }
     }
 
-    public static func dryRun(
-        _ storage: GRDBStorage,
+    public func dryRun(
         payloadJSON: String,
         cliSessionId: String = "",
         ruleset: String? = nil
@@ -93,7 +99,7 @@ public enum OperationsService {
                     )
                 }
 
-                return OperationsEngine.dryRun(scope, payload, sessionId: sessionId, ruleset: ruleset)
+                return engine.dryRun(scope, payload, sessionId: sessionId, ruleset: ruleset)
             }
         } catch {
             return OperationsEngine.DryRunResult(
@@ -107,11 +113,11 @@ public enum OperationsService {
 
     // Code-owned catalog — no connection, no session. Callable directly by any
     // surface (the CLI included).
-    public static func operationNames() -> [String] {
+    public func operationNames() -> [String] {
         Handlers.operationNames()
     }
 
-    public static func operationSchema(_ name: String) -> OperationSchema? {
+    public func operationSchema(_ name: String) -> OperationSchema? {
         Handlers.operationSchema(name)
     }
 

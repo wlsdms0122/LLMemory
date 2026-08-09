@@ -51,7 +51,7 @@ struct PruneAtomicityInvariantTests {
         try home.write { database in try seedAssocLink(database, weight: 1.0) }
         
         // When
-        let result = try home.database().write { db in try ConsolidateService.prune(GRDBScope(db)) }
+        let result = try home.database().write { db in try home.services.consolidate.prune(GRDBScope(db)) }
         
         // Then
         let weight = try home.read { database in try Self.linkWeight(database) }

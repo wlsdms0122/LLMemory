@@ -956,7 +956,7 @@ public enum HandlersBasic {
             let reason = op["reason"] as? String
             
             if let raw = op["value"], !(raw is NSNull), let value = Handlers.asDouble(raw) {
-                let result = try GenomeService.setGene(
+                let result = try context.genome.setGene(
                     scope,
                     id: id,
                     value: value,
@@ -973,7 +973,7 @@ public enum HandlersBasic {
                 ]
             }
             
-            let old = try GenomeService.resetGene(scope, id: id, cause: "set_gene", now: now)
+            let old = try context.genome.resetGene(scope, id: id, cause: "set_gene", now: now)
             
             return ["status": "ok", "ids": [id], "note": "gene \(id): \(old) → wild-type"]
         },

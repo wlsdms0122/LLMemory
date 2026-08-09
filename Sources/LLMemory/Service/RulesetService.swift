@@ -11,7 +11,7 @@ import Storage
 // Ruleset-domain service — owns mutation-policy interpretation: rule params
 // typing, precedence folding into an Effective policy, and the observation
 // surfaces. Row access rides ruleset transactions.
-public enum RulesetService {
+public struct RulesetService: Sendable {
     enum RulesetError: Error, CustomStringConvertible {
         case malformedParams(ruleId: Int64, rulesetId: String, detail: String)
 
@@ -207,9 +207,15 @@ public enum RulesetService {
     }
 
     // MARK: - Property
+    let storage: GRDBStorage
+
     // MARK: - Initializer
+    init(storage: GRDBStorage) {
+        self.storage = storage
+    }
+
     // MARK: - Public
-    public static func list(_ storage: GRDBStorage) async throws -> [Summary] {
+    public func list() async throws -> [Summary] {
         try await storage.read { scope in
             try scope.run(FetchRulesetsTransaction()).map { ruleset in
                 Summary(
@@ -222,7 +228,7 @@ public enum RulesetService {
         }
     }
 
-    public static func show(_ storage: GRDBStorage, id: String) async throws -> ShowResult? {
+    public func show(id: String) async throws -> ShowResult? {
         try await storage.read { scope in
             guard let ruleset = try scope.run(FetchRulesetTransaction(id: id)) else { return nil }
 
@@ -239,8 +245,7 @@ public enum RulesetService {
         }
     }
 
-    public static func effective(
-        _ storage: GRDBStorage,
+    public func effective(
         ruleset: String,
         axis: String
     ) async throws -> Effective? {
@@ -254,7 +259,7 @@ public enum RulesetService {
     // MARK: - Internal
     // Folds the rulesets' rules into one effective policy — precedence is
     // "the stricter wins" per kind.
-    static func effective(
+    func effective(
         _ scope: GRDBReadScope,
         axis: String,
         rulesetIds: [String]
@@ -344,7 +349,7 @@ public enum RulesetService {
         return effective
     }
 
-    static func rules(_ scope: GRDBReadScope, rulesetId: String) throws -> [Rule] {
+    func rules(_ scope: GRDBReadScope, rulesetId: String) throws -> [Rule] {
         try scope.run(FetchRulesTransaction(rulesetId: rulesetId)).map { record in
             let paramsRaw = record.params
 

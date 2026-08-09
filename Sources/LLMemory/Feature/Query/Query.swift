@@ -9,14 +9,31 @@ import Foundation
 
 public struct Query {
     // MARK: - Property
-    let session: Session
+    let retrieval: RetrievalService
+    let notes: NotesService
+    let stats: StatsService
+    let lint: LintService
+    let enrichment: EnrichmentService
+    let consolidate: ConsolidateService
 
     // MARK: - Initializer
-    init(session: Session) {
-        self.session = session
+    init(
+        retrieval: RetrievalService,
+        notes: NotesService,
+        stats: StatsService,
+        lint: LintService,
+        enrichment: EnrichmentService,
+        consolidate: ConsolidateService
+    ) {
+        self.retrieval = retrieval
+        self.notes = notes
+        self.stats = stats
+        self.lint = lint
+        self.enrichment = enrichment
+        self.consolidate = consolidate
     }
 
-    // MARK: - Public (domain surface — binds the session and delegates to the service)
+    // MARK: - Public (domain surface — delegates to the injected services)
     public func search(
         query: String,
         axis: String?,
@@ -27,8 +44,7 @@ public struct Query {
         excludeAxes: [String],
         raw: Bool
     ) async throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
-        try await RetrievalService.search(
-            session.storage,
+        try await retrieval.search(
             query: query,
             axis: axis,
             limit: limit,
@@ -46,8 +62,7 @@ public struct Query {
         cliSessionId: String,
         includeBodies: Bool
     ) async throws -> Framing.RelatedResult {
-        try await RetrievalService.related(
-            session.storage,
+        try await retrieval.related(
             text: text,
             kind: kind,
             cliSessionId: cliSessionId,
@@ -59,7 +74,7 @@ public struct Query {
         ids: [String],
         cliSessionId: String = ""
     ) async throws -> (found: [Reads.GetNote], missing: [String]) {
-        try await NotesService.get(session.storage, ids: ids, cliSessionId: cliSessionId)
+        try await notes.get(ids: ids, cliSessionId: cliSessionId)
     }
 
     public func getSections(
@@ -67,8 +82,7 @@ public struct Query {
         sections: [String],
         cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice]) {
-        try await NotesService.getSections(
-            session.storage,
+        try await notes.getSections(
             id: id,
             sections: sections,
             cliSessionId: cliSessionId
@@ -80,8 +94,7 @@ public struct Query {
         budget: Int,
         cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, cut: Reads.BudgetCut) {
-        try await NotesService.getBudget(
-            session.storage,
+        try await notes.getBudget(
             id: id,
             budget: budget,
             cliSessionId: cliSessionId
@@ -92,21 +105,21 @@ public struct Query {
         id: String,
         cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, entries: [Reads.TocEntry]) {
-        try await NotesService.toc(session.storage, id: id, cliSessionId: cliSessionId)
+        try await notes.toc(id: id, cliSessionId: cliSessionId)
     }
 
     public func template(
         id: String,
         cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, frame: [Template.FrameNode]) {
-        try await NotesService.template(session.storage, id: id, cliSessionId: cliSessionId)
+        try await notes.template(id: id, cliSessionId: cliSessionId)
     }
 
     public func metaById(
         noteId: String,
         namespace: String?
     ) async throws -> [String: [String: String]] {
-        try await NotesService.metaById(session.storage, noteId: noteId, namespace: namespace)
+        try await notes.metaById(noteId: noteId, namespace: namespace)
     }
 
     public func metaByKV(
@@ -115,8 +128,7 @@ public struct Query {
         value: String?,
         limit: Int
     ) async throws -> [(noteId: String, value: String)] {
-        try await NotesService.metaByKV(
-            session.storage,
+        try await notes.metaByKV(
             namespace: namespace,
             key: key,
             value: value,
@@ -128,17 +140,17 @@ public struct Query {
         name: String?,
         limit: Int
     ) async throws -> [Reads.EntityHit] {
-        try await RetrievalService.entity(session.storage, name: name, limit: limit)
+        try await retrieval.entity(name: name, limit: limit)
     }
 
     public func listAxes() async throws -> [(axis: String, description: String?, count: Int)] {
-        try await NotesService.listAxes(session.storage)
+        try await notes.listAxes()
     }
 
     public func structure(
         axis: String?
     ) async throws -> Reads.StructureResult {
-        try await NotesService.structure(session.storage, axis: axis)
+        try await notes.structure(axis: axis)
     }
 
     public func neighbors(
@@ -146,23 +158,23 @@ public struct Query {
         k: Int,
         cliSessionId: String = ""
     ) async throws -> [Candidates.NeighborScore] {
-        try await RetrievalService.neighbors(session.storage, id: id, k: k, cliSessionId: cliSessionId)
+        try await retrieval.neighbors(id: id, k: k, cliSessionId: cliSessionId)
     }
 
     public func noteStats(
         id: String
     ) async throws -> NoteStats? {
-        try await StatsService.noteStats(session.storage, id: id)
+        try await stats.noteStats(id: id)
     }
 
     public func axisStats(
         axis: String
     ) async throws -> AxisStats {
-        try await StatsService.axisStats(session.storage, axis: axis)
+        try await stats.axisStats(axis: axis)
     }
 
     public func overallStats() async throws -> OverallStats {
-        try await StatsService.overallStats(session.storage)
+        try await stats.overallStats()
     }
 
     public func list(
@@ -172,8 +184,7 @@ public struct Query {
         sourceStale: Bool,
         limit: Int?
     ) async throws -> [Reads.ListRow] {
-        try await NotesService.list(
-            session.storage,
+        try await notes.list(
             priority: priority,
             axis: axis,
             stale: stale,
@@ -186,7 +197,7 @@ public struct Query {
         noteId: String,
         limit: Int
     ) async throws -> [Reads.HistoryEvent] {
-        try await NotesService.history(session.storage, noteId: noteId, limit: limit)
+        try await notes.history(noteId: noteId, limit: limit)
     }
 
     public func lint(
@@ -196,8 +207,7 @@ public struct Query {
         limit: Int? = nil,
         includeDismissed: Bool = false
     ) async throws -> [Lint.Issue] {
-        try await LintService.lint(
-            session.storage,
+        try await lint.lint(
             id: id,
             code: code,
             severity: severity,
@@ -207,14 +217,14 @@ public struct Query {
     }
 
     public func enrichment() async throws -> EnrichmentStatus {
-        try await EnrichmentService.status(session.storage)
+        try await enrichment.status()
     }
 
     public func candidates(
         kinds: [String],
         limit: Int
     ) async throws -> [String: Candidates.Batch] {
-        try await ConsolidateService.candidates(session.storage, kinds: kinds, limit: limit)
+        try await consolidate.candidates(kinds: kinds, limit: limit)
     }
 
     // MARK: - Private

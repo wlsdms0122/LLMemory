@@ -10,25 +10,29 @@ import Storage
 
 // Stats-domain service — pure observation of the corpus and its activation
 // traces.
-public enum StatsService {
+public struct StatsService: Sendable {
     // MARK: - Property
+    let storage: GRDBStorage
+
     // MARK: - Initializer
+    init(storage: GRDBStorage) {
+        self.storage = storage
+    }
+
     // MARK: - Public
-    public static func noteStats(
-        _ storage: GRDBStorage,
+    public func noteStats(
         id: String
     ) async throws -> NoteStats? {
         try await storage.read { scope in try scope.run(NoteStatsTransaction(id: id)) }
     }
 
-    public static func axisStats(
-        _ storage: GRDBStorage,
+    public func axisStats(
         axis: String
     ) async throws -> AxisStats {
         try await storage.read { scope in try scope.run(AxisStatsTransaction(axis: axis)) }
     }
 
-    public static func overallStats(_ storage: GRDBStorage) async throws -> OverallStats {
+    public func overallStats() async throws -> OverallStats {
         try await storage.read { scope in try scope.run(OverallStatsTransaction()) }
     }
 

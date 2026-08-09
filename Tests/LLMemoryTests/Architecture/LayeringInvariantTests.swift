@@ -144,6 +144,39 @@ struct LayeringInvariantTests {
             """)
     }
 
+    @Test("services are assembled by the container alone")
+    func serviceConstructionStaysInContainer() {
+        // When
+        // Constructor calls only — `XxxService(` with an open paren is a
+        // construction; type references (return types, nested types) never
+        // carry one. The engine counts too: it is a service collaborator,
+        // not a global.
+        let construction = try! NSRegularExpression(
+            pattern: #"\b\w+Service\(|\bOperationsEngine\("#
+        )
+        let allowed = ["Services.swift"]
+        let violations = sources
+            .filter { file in !allowed.contains(file.url.lastPathComponent) }
+            .flatMap { file in
+                file.codeLines()
+                    .filter { _, text in
+                        construction.firstMatch(
+                            in: text,
+                            range: NSRange(text.startIndex..., in: text)
+                        ) != nil
+                    }
+                    .map { number, _ in file.location(number) }
+            }
+
+        // Then
+        #expect(violations.isEmpty, """
+            service constructed outside the container — instances are wired \
+            once at the composition root and injected; nothing assembles its \
+            own collaborator:
+            \(violations.joined(separator: "\n"))
+            """)
+    }
+
     @Test("the storage gates (connect/writeLock) have named owners only")
     func storageGatesStayInModule() {
         // When

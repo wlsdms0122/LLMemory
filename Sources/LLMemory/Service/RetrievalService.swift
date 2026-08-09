@@ -12,12 +12,17 @@ import Storage
 // neighbors, entity) and the side-effect record they derive. Reads run in a
 // read scope; the record is applied afterwards in its own write scope, so
 // retrieval must not fail because its trace could not be written.
-public enum RetrievalService {
+public struct RetrievalService: Sendable {
     // MARK: - Property
+    let storage: GRDBStorage
+
     // MARK: - Initializer
+    init(storage: GRDBStorage) {
+        self.storage = storage
+    }
+
     // MARK: - Public
-    public static func search(
-        _ storage: GRDBStorage,
+    public func search(
         query: String,
         axis: String?,
         limit: Int,
@@ -42,13 +47,12 @@ public enum RetrievalService {
             )
         }
 
-        try await applyRecord(storage, outcome.record)
+        try await applyRecord(outcome.record)
 
         return (outcome.rows, outcome.extra)
     }
 
-    public static func related(
-        _ storage: GRDBStorage,
+    public func related(
         text: String,
         kind: String?,
         cliSessionId: String,
@@ -65,7 +69,7 @@ public enum RetrievalService {
             )
         }
 
-        let degraded = try await applyRecord(storage, outcome.record)
+        let degraded = try await applyRecord(outcome.record)
 
         guard !degraded.isEmpty else { return outcome.result }
 
@@ -75,8 +79,7 @@ public enum RetrievalService {
         return Framing.RelatedResult(snapshot: snapshot, bodies: outcome.result.bodies)
     }
 
-    public static func neighbors(
-        _ storage: GRDBStorage,
+    public func neighbors(
         id: String,
         k: Int,
         cliSessionId: String = ""
@@ -86,13 +89,12 @@ public enum RetrievalService {
             try neighbors(scope, id: id, k: k, sessionId: sessionId)
         }
 
-        try await applyRecord(storage, outcome.record)
+        try await applyRecord(outcome.record)
 
         return outcome.scores
     }
 
-    public static func entity(
-        _ storage: GRDBStorage,
+    public func entity(
         name: String?,
         limit: Int
     ) async throws -> [Reads.EntityHit] {
@@ -102,7 +104,7 @@ public enum RetrievalService {
     }
 
     // MARK: - Internal
-    static func search(
+    func search(
         _ scope: GRDBReadScope,
         query: String,
         axis: String? = nil,
@@ -161,7 +163,7 @@ public enum RetrievalService {
         return (rows, extra, record)
     }
 
-    static func snapshot(
+    func snapshot(
         _ scope: GRDBReadScope,
         userInput: String,
         agentOutput: String,
@@ -248,7 +250,7 @@ public enum RetrievalService {
         )
     }
 
-    static func related(
+    func related(
         _ scope: GRDBReadScope,
         text: String,
         kind: String?,
@@ -288,7 +290,7 @@ public enum RetrievalService {
         return (Framing.RelatedResult(snapshot: snapshot, bodies: bodies), record)
     }
 
-    static func neighbors(
+    func neighbors(
         _ scope: GRDBReadScope,
         id: String,
         k: Int,
@@ -310,8 +312,7 @@ public enum RetrievalService {
     // juggle the record by hand. Throws when the mandatory state transition
     // (activation) fails; advisory failures come back as degraded notes.
     @discardableResult
-    static func applyRecord(
-        _ storage: GRDBStorage,
+    func applyRecord(
         _ record: RetrievalRecord?
     ) async throws -> [String] {
         guard let record else { return [] }
@@ -324,7 +325,7 @@ public enum RetrievalService {
     // MARK: - Private
     // Pure derivations of the retrieval side effects — applied later by
     // RecordRetrievalTransaction on the write path.
-    private static func cooccurrencePairs(_ ids: [String]) -> [RetrievalRecord.Pair] {
+    private func cooccurrencePairs(_ ids: [String]) -> [RetrievalRecord.Pair] {
         var seen = Set<String>()
         var unique: [String] = []
 
@@ -346,7 +347,7 @@ public enum RetrievalService {
         return pairs
     }
 
-    private static func searchRanked(
+    private func searchRanked(
         rows: [Search.SearchRow],
         extra: [Links.ExpandedNote]
     ) -> [RetrievalRecord.Ranked] {
@@ -366,7 +367,7 @@ public enum RetrievalService {
         return ranked
     }
 
-    private static func relatedRanked(snapshot: Framing.Snapshot) -> [RetrievalRecord.Ranked] {
+    private func relatedRanked(snapshot: Framing.Snapshot) -> [RetrievalRecord.Ranked] {
         let boost = Genes.double("rebirth.related_boost")
         var ranked: [RetrievalRecord.Ranked] = []
 
