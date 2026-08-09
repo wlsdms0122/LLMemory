@@ -1,327 +1,407 @@
 # llmemory
 
-자기성장형 에이전트의 메모리 CLI. `<state-root>/cortex/` 의 markdown 노트를
-`<state-root>/data/memory.db` (SQLite + FTS5) 와 동기화해 검색·연상 탐색·재구조화를 한다.
+Memory CLI for a self-growing agent. It keeps markdown notes under
+`<state-root>/cortex/` in sync with `<state-root>/data/memory.db`
+(SQLite + FTS5), providing search, associative exploration, and restructuring.
 
-llmemory 는 anchor-free — `--home <state-root>` 로 상태 위치만 주면 binary 위치와
-무관하게 동작한다. 상태(사용자 지식)는 이 패키지 밖에 있다.
+llmemory is anchor-free — give it the state location with `--home <state-root>`
+and it works regardless of where the binary lives. State (the user's knowledge)
+lives outside this package.
 
-## 첫 사용
+## First use
 
 ```
 llmemory init --home <state-root>
 ```
 
-`data/` 와 `cortex/` 를 만들고 빈 schema 를 적용한다. idempotent — 기존 상태는 보존된다.
+Creates `data/` and `cortex/` and applies an empty schema. Idempotent —
+existing state is preserved.
 
-함께 두 가지가 심긴다:
-- `<state-root>/README.md` — 이 문서의 파생 카피(뇌 *바깥*의 매뉴얼). 매 init 갱신.
-- **운용 정책 노트** — `cortex/<axis>/<id>.md` 에 `locked: true` 노트로(뇌 *안*의 지식).
-  일반 노트라서 연상 하강으로 인출된다. 이미 있는 씨드 파일은 init 이 건드리지 않는다.
+Two things are planted alongside:
+- `<state-root>/README.md` — a derived copy of this document (the manual
+  *outside* the brain). Refreshed on every init.
+- **Operating-policy notes** — planted as `locked: true` notes at
+  `cortex/<axis>/<id>.md` (knowledge *inside* the brain). They are ordinary
+  notes, so retrieval descent surfaces them. Seed files that already exist are
+  left untouched by init.
 
-바이너리를 올린 뒤 기존 brain 에 이 둘을 다시 심으려면:
+To re-plant both into an existing brain after upgrading the binary:
 
 ```
 llmemory update --home <state-root>
 ```
 
-씨드 노트를 바이너리의 사본으로 덮고 README 를 갱신하고 재색인한다. **범위는 씨드 id 뿐** —
-저작한 노트는 절대 안 건드린다. 사람이 지운 씨드는 되살린다(운용 정책 없는 brain 이
-이 명령이 막으려는 실패다). **씨드 id 는 항상 출고본이다** — 로컬 분기가 필요하면 내용을
-새 id 노트로 복제하라. `locked` 는 "ops 수정 차단" 그 이상을 의미하지 않는다(소유권 아님).
+Overwrites the seed notes with the binary's copy, refreshes the README, and
+reindexes. **Scope is the seed ids only** — authored notes are never touched.
+Seeds deleted by a human are restored (a brain without its operating policy is
+exactly the failure this command exists to prevent). **Seed ids always carry
+the shipped content** — if you need a local fork, duplicate the content into a
+note with a new id. `locked` means nothing more than "ops mutations blocked"
+(it is not ownership).
 
-## 호출 패턴
+## Invocation pattern
 
 ```
 llmemory <subcommand> [options] --home <state-root>
 ```
 
-**중요**: `--home` 은 subcommand 뒤에. swift-argument-parser 가 leaf option 이라
-앞에 두면 `Unknown option '--home'` 으로 거절된다.
+**Important**: `--home` goes after the subcommand. It is a leaf option in
+swift-argument-parser — placed earlier it is rejected with
+`Unknown option '--home'`.
 
-## 명령 그룹
+## Command groups
 
-전부 `--help` 가 가이드이며, 모든 subcommand 에 abstract + discussion + example 이
-들어있다. 첫 표면은 항상 help.
+`--help` is the guide everywhere; every subcommand carries an abstract,
+a discussion, and examples. The first surface is always help.
 
 ```
-llmemory --help                                  # 전체 그룹
-llmemory query --help                            # 그룹 안내
-llmemory query search --help                     # 옵션 + 예시
-llmemory ops vocab --home <state-root>           # 최신 op 카탈로그
-llmemory ops describe <op> --home <state-root>   # op 별 field schema + 예시
+llmemory --help                                  # all groups
+llmemory query --help                            # group overview
+llmemory query search --help                     # options + examples
+llmemory ops vocab --home <state-root>           # current op catalog
+llmemory ops describe <op> --home <state-root>   # per-op field schema + examples
 ```
 
-| 그룹 | 역할 |
+| Group | Role |
 |------|------|
-| `init` | 최초 setup (idempotent) — 스키마 + README + 운용 정책 씨드 |
-| `update` | 기존 brain 에 씨드·README 재적용 (저작 노트 불침범) |
-| `query` | 읽기 — search / get / related / neighbors / entity / meta / structure / stats / list / axes / history / lint / enrichment / template |
-| `ops` | 쓰기 — apply / dry-run (atomic transaction) / vocab / describe |
-| `index` | DB 유지보수 — build / verify (integrity/sources/terms) / vector |
-| `consolidate` | 주기 정리 (관심사 분리) — integrate(A 비파괴) / prune(B 시냅스 가지치기) / homeostasis(H 메타가소성 틱) / candidates / report |
-| `genome` | 가소성 파라미터 — list(카탈로그·현재값·provenance) / history(변이 이력) / shadow(후보값 offline reranking) |
+| `init` | First-time setup (idempotent) — schema + README + operating-policy seeds |
+| `update` | Re-apply seeds and README to an existing brain (authored notes untouched) |
+| `query` | Read — search / get / related / neighbors / entity / meta / structure / stats / list / axes / history / lint / enrichment / template |
+| `ops` | Write — apply / dry-run (atomic transaction) / vocab / describe |
+| `index` | DB maintenance — build / verify (integrity/sources/terms) / vector |
+| `consolidate` | Periodic upkeep (separated concerns) — integrate (A, non-destructive) / prune (B, synaptic pruning) / homeostasis (H, metaplasticity tick) / candidates / report |
+| `genome` | Plasticity parameters — list (catalog, current values, provenance) / history (mutation log) / shadow (offline reranking of candidate values) |
 
-## 인출 표면 — 연상 하강 (retrieval descent)
+## Retrieval surfaces — retrieval descent
 
-읽기 표면은 두 부류다. **연상 표면**(related / search / neighbors / entity)은 다음
-탐색을 결정할 수 있는 정보 — 모든 히트의 `summary`, anchor 의 이웃 — 를 출력에
-동반한다. 나머지(get / list / stats / …)는 각자의 역할(본문 읽기·열거·관측)만 한다.
+Read surfaces come in two kinds. **Associative surfaces** (related / search /
+neighbors / entity) accompany their output with the information needed to
+decide the next hop — a `summary` on every hit, the anchor's neighbors. The
+rest (get / list / stats / …) each do only their own job (read a body,
+enumerate, observe).
 
-표준 하강 루프 — 충분한 지식에 도달할 때까지:
+The standard descent loop — repeat until you have reached sufficient knowledge:
 
 ```
-1. 진입   query related --input '{"text":"<태스크 맥락>"}' --json     # cue 기반 연상
-          (또는 키워드가 명확하면 query search "<키워드>" --json)
-2. 본문   query get <id>                                              # 후보 읽기
-3. 하강   query neighbors --id <id> --json                            # anchor 의 이웃 → 다음 hop
-4. 반복   2–3 을 summary 를 보고 판단하며 반복
+1. Enter    query related --input '{"text":"<task context>"}' --json   # cue-based association
+            (or query search "<keyword>" --json when keywords are clear)
+2. Body     query get <id>                                             # read candidates
+3. Descend  query neighbors --id <id> --json                           # anchor's neighbors → next hop
+4. Repeat   iterate 2–3, judging by the summaries
 ```
 
-출력 파싱은 항상 `--json`. plain 출력은 사람이 읽는 테이블이다.
+Always parse output with `--json`. Plain output is a table for humans.
 
-**대화 맥락에서 관련 노트 찾기** (capture/retrieval agent 의 표준 진입):
+**Finding notes related to a conversational context** (the standard entry for
+capture/retrieval agents):
 ```
 llmemory query related --input '{"text":"..."}' --json --home <state-root>
 ```
-입력은 `--input` 또는 stdin.
+Input via `--input` or stdin.
 
-**키워드 FTS 검색**:
+**Keyword FTS search**:
 ```
 llmemory query search "transfer" --axis tech --home <state-root>
 ```
 
-**노트 본문 읽기** (직접 file Read 대신 — id 로 조회, 여러 개 동시 가능):
+**Reading note bodies** (instead of reading files directly — look up by id,
+several at once):
 ```
 llmemory query get principles --home <state-root>
 llmemory query get identity principles tone --home <state-root>
 ```
 
-**긴 노트의 부분 읽기** (섹션 단위 — search/related 결과의 `section` path 를 그대로 사용):
+**Partial reads of long notes** (section-level — use the `section` path from
+search/related results as-is):
 ```
-llmemory query get <id> --toc --home <state-root>          # 섹션 목차 + 단어수
-llmemory query get <id> --section '## 섹션명' --home <state-root>
-llmemory query get <id> --budget 800 --home <state-root>   # 단어 예산까지만 — 어디를 열지 모를 때
+llmemory query get <id> --toc --home <state-root>          # section TOC + word counts
+llmemory query get <id> --section '## Section name' --home <state-root>
+llmemory query get <id> --budget 800 --home <state-root>   # up to a word budget — when unsure where to open
 ```
-FTS 인덱스도 섹션 단위 — 검색 결과에 매치 섹션 path 가 실리고(head 매치면 비어있음),
-BM25 가 섹션 길이로 정규화돼 긴 멀티토픽 노트가 길이 패널티를 받지 않는다.
+The FTS index is section-level too — search results carry the matched section
+path (empty for a head match), and BM25 is normalized by section length so
+long multi-topic notes take no length penalty.
 
-`--budget` 은 섹션 경계에서만 자른다(문장 중간 절단 없음). 잘리면 **잘렸다는 사실이 명시적으로
-드러난다** — 생략된 섹션 전부가 단어수와 함께 나열되고, 이어 읽을 `--section` 명령이 그대로
-붙는다(JSON 은 `truncated`/`omitted_sections`). 단일 wrapper 헤딩 아래 전부가 들어있는 노트는
-wrapper 의 자식 단위로 내려가 자르고, 헤딩이 아예 없는 본문은 자를 경계가 없으므로 통짜로 나온다
-— 그건 노트 모양의 문제라 lint(`note-oversized`)가 잡는다.
+`--budget` cuts only at section boundaries (no mid-sentence truncation). When
+output is cut, **the cut is made explicit** — every omitted section is listed
+with its word count, followed by the exact `--section` command to continue
+reading (JSON: `truncated`/`omitted_sections`). A note whose entire body sits
+under a single wrapper heading is cut at the wrapper's children; a body with no
+headings has no boundary to cut at and comes out whole — that is a note-shape
+problem, caught by lint (`note-oversized`).
 
-**조건으로 노트 나열** (eager/stale 등 — plain 은 axis/id/title/summary 테이블,
-스크립트에서 id 추출은 `--json` 파싱으로):
+**Listing notes by condition** (eager/stale etc. — plain is an
+axis/id/title/summary table; extract ids in scripts by parsing `--json`):
 ```
 llmemory query list --priority eager --home <state-root>
 llmemory query list --axis skill --json --home <state-root>
 ```
-필터는 AND 조합: `--priority` / `--axis` / `--stale` / `--source-stale` / `--limit`.
+Filters combine with AND: `--priority` / `--axis` / `--stale` /
+`--source-stale` / `--limit`.
 
-**분화·승격의 사실 엣지**: `split_note` 는 자식들 사이에 `sibling` 을 자동으로 심는다.
-승격(낱개 → 요지/면)은 `link_lineage` 로 남긴다 — `propose_link`(감쇠하는 연상 제안)와 달리
-weight 1.0 사실 엣지이고 decay 면제다. 방향은 **`src <kind> dst` 를 문장으로 읽는다** — 하나의
-"새것→옛것" 규약이 아니다: 원본 journal 이 추출된 노트로 `promoted_to` 되고(src=원본), 대체 노트가
-옛것을 `supersedes` 한다(src=새것).
+**Factual edges of fragmentation and promotion**: `split_note` automatically
+plants `sibling` edges among the children. Promotion (piece → gist/facet) is
+recorded with `link_lineage` — unlike `propose_link` (a decaying associative
+proposal), it is a weight-1.0 factual edge exempt from decay. Read direction as
+the sentence **`src <kind> dst`** — there is no single "new→old" convention:
+an original journal entry is `promoted_to` the extracted note (src = original),
+while a replacement note `supersedes` the old one (src = the new note).
 
-단 **사실성과 랭킹 발언권은 분리**돼 있다: `sibling` 은 저장 weight 1.0 그대로 가족 인식·삭제
-가드·decay 면제에 쓰이지만, 연상 표면(related 확장·neighbors)의 랭킹에는 할인돼 들어간다
-(`links.sibling_rank_weight`, 기본 0.3). N-clique 의 구성원마다 N-1개 만점 엣지가 생겨 형제가
-연상을 도배하고 요지를 밀어내기 때문 — 사실은 남기고 확성기만 뺏는다.
+Note that **facthood and ranking voice are separated**: `sibling` keeps its
+stored weight of 1.0 for family recognition, delete guards, and decay
+exemption, but enters the ranking of associative surfaces (related expansion,
+neighbors) discounted (`links.sibling_rank_weight`, default 0.3). In an
+N-clique every member gets N−1 full-score edges, so siblings flood association
+and crowd out the gist — the fact stays, the megaphone is taken away.
 
 ```
-llmemory ops apply --input '{"ops":[{"op":"link_lineage","src":"<원본 회차>","dst":"<추출된 원리>","kind":"promoted_to","reason":"..."}],"rationale":"..."}' --home <state-root>
+llmemory ops apply --input '{"ops":[{"op":"link_lineage","src":"<original entry>","dst":"<extracted principle>","kind":"promoted_to","reason":"..."}],"rationale":"..."}' --home <state-root>
 ```
 
-**transaction 쓰기**:
+**Transactional writes**:
 ```
 llmemory ops apply --input '{"ops":[...],"rationale":"..."}' --json --home <state-root>
 ```
-입력은 `--input` 또는 stdin (heredoc).
+Input via `--input` or stdin (heredoc).
 
-**주기 정리** (LLM 0) — 관심사별로 분리됨. cadence 가 다르니 따로 호출:
+**Periodic upkeep** (LLM 0) — separated by concern. Cadences differ, so call
+them separately:
 ```
-llmemory consolidate integrate --home <state-root>   # A: 비파괴 정리·벡터 재생성 (자주, 복구용)
-llmemory consolidate prune --home <state-root>       # B: 시냅스 가지치기 — 학습 엣지 감쇠 (드물게)
+llmemory consolidate integrate --home <state-root>   # A: non-destructive upkeep, vector rebuild (frequent; also for recovery)
+llmemory consolidate prune --home <state-root>       # B: synaptic pruning — learned-edge decay (rare)
 ```
 
-## 구조화 문서 (document / template / locked)
+## Structured documents (document / template / locked)
 
-대부분 노트는 포맷 없는 지식이지만, *문서*(테크스펙 등)는 정해진 뼈대를 따른다. 동작은
-**frontmatter 2필드**가 운반한다 (axis 무관):
+Most notes are free-form knowledge, but *documents* (tech specs and the like)
+follow a fixed skeleton. The behavior is carried by **two frontmatter fields**
+(axis-independent):
 
-- `template: <id>` — 이 노트는 그 템플릿 노트의 heading **frame** 을 따른다. ops mutation 이
-  frame 을 깨면(필수 섹션 삭제·개명·외래 섹션·순서) 거부된다. 내용·빈 섹션·더 깊은 하위 heading 은 자유.
-  정리(split/merge) 후보에서 제외되되 검색·랭킹은 일반 노트와 동일.
-- `locked: true` — 봇 전용 ops mutation 차단(사람이 파일 직접 수정). `flag` 등 DB-only 신호는 허용.
-  템플릿 노트가 대표 사례. 범용 — 아무 노트에나 붙는다.
+- `template: <id>` — this note follows the heading **frame** of that template
+  note. Ops mutations that would break the frame (deleting or renaming a
+  required section, foreign sections, reordering) are rejected. Content, empty
+  sections, and deeper sub-headings are free. Excluded from upkeep candidates
+  (split/merge) but searched and ranked like any note.
+- `locked: true` — blocks bot-side ops mutations (humans edit the file
+  directly). DB-only signals such as `flag` are still allowed. Template notes
+  are the canonical case. General-purpose — attach to any note.
 
 ```
-llmemory query template <template-id> --home <state-root>      # 뼈대 + 섹션별 가이드
-# 문서 생성 (content 비우면 frame 이 빈 섹션으로 scaffold):
+llmemory query template <template-id> --home <state-root>      # skeleton + per-section guidance
+# Creating a document (empty content scaffolds the frame as empty sections):
 llmemory ops apply --input '{"ops":[{"op":"create_note","axis":"spec","id":"...","title":"...","summary":"...","tags":["spec"],"template":"<template-id>"}],"rationale":"..."}' --json --home <state-root>
 ```
 
-템플릿 frame: 선언된 모든 heading 이 필수다(마커 없음). 선언 레벨은 닫힘(외래 섹션 거부)·순서
-보존, 잎 아래(`###`+) 와 섹션 내용은 자유(빈 섹션 OK). heading 매칭은 정규화(NFC·소문자·선행
-번호/불릿 제거). 템플릿을 사람이 고쳐 frame 이 바뀌면 `query lint` 의 `template-drift` 가
-어긋난 문서를 표면화한다.
+Template frame: every declared heading is required (no markers). Declared
+levels are closed (foreign sections rejected) and order-preserving; below the
+leaves (`###`+) and inside sections everything is free (empty sections OK).
+Heading matching is normalized (NFC, lowercase, leading numbers/bullets
+stripped). If a human edits the template and the frame changes,
+`query lint`'s `template-drift` surfaces the documents now out of line.
 
-## 출력 / Exit code — 레벨 × 포맷 직교
+## Output / exit codes — level × format, orthogonal
 
-출력은 두 직교 축의 곱이다. **레벨**(데이터 양)과 **포맷**(표현식)은 독립이며,
-같은 레벨이면 plain 이든 `--json` 이든 **같은 데이터**를 담는다.
+Output is the product of two orthogonal axes. **Level** (how much data) and
+**format** (how it is expressed) are independent; at the same level, plain and
+`--json` carry **the same data**.
 
-- 레벨: 기본 = 의미 코어(axis/id/title/summary + 랭킹 점수). `--verbose` = +메타데이터
-  (타임스탬프·path·tags·라이프사이클 플래그·점수 성분·candidates 상세·related 의
-  axes/cooccur/vocab 섹션). 레벨은 모델 구성 단계에서 결정 — 기본 레벨의 JSON 엔
-  detail 키 자체가 없다. `--verbose` 는 레벨 차가 실존하는 커맨드에만 있다
-  (list / search / get / neighbors / related / candidates).
-- 포맷: 기본 = 사람이 읽는 plain 테이블, `--json` = JSON 한 줄 (mutating 명령은
-  결과 요약, query 는 데이터). 예외: `query axes`, `consolidate report` 은 plain 전용.
-- 디테일이 필요한 소비자는 `--verbose --json` (capture/consolidate 워크플로우가 이 형태).
-- stderr: 에러·진단.
-- exit code: `0` 정상, `1` 검증 실패 또는 결과 status≠ok, `2` 옵션 누락.
+- Level: default = the semantic core (axis/id/title/summary + ranking scores).
+  `--verbose` = + metadata (timestamps, path, tags, lifecycle flags, score
+  components, candidate details, related's axes/cooccur/vocab sections). The
+  level is decided at model-construction time — default-level JSON has no
+  detail keys at all. `--verbose` exists only on commands where a level
+  difference actually exists (list / search / get / neighbors / related /
+  candidates).
+- Format: default = a plain table for humans; `--json` = one line of JSON
+  (mutating commands: a result summary; query: data). Exceptions:
+  `query axes` and `consolidate report` are plain-only.
+- Consumers that need detail use `--verbose --json` (the capture/consolidate
+  workflows take this form).
+- stderr: errors and diagnostics.
+- Exit codes: `0` OK, `1` validation failure or result status ≠ ok,
+  `2` missing option.
 
-## lint — 유도하는 관측층
+## lint — an observation layer that guides
 
-`query lint` 는 결정론적 관측이다. **error** = 무결성 위반(고쳐야 함), **warn** = 판단 요청.
-llmemory 는 강제하지 않는다 — 규칙을 세워도 운용은 전적으로 agent 가 하므로, 할 수 있는 일은
-*큰 범위의 가이드와 가드*, 즉 "이건 문제로 보인다"를 짚고 **다음 hop 을 손에 쥐여주는 것**이다.
-그래서 warn 메시지는 판정 근거 수치와 다음 명령을 같이 싣는다("too large" 로 끝나는 경고는
-매번 다시 읽히고 매번 무시된다).
+`query lint` is deterministic observation. **error** = integrity violation
+(must fix); **warn** = request for judgment. llmemory does not enforce — even
+with rules in place, operation is entirely the agent's, so all it can do is
+*broad guidance and guards*: point out "this looks like a problem" and **put
+the next hop in your hand**. That is why warn messages carry both the numbers
+behind the verdict and the next command (a warning that ends at "too large"
+gets re-read every cycle and ignored every cycle).
 
-분화 정책(brain `knowledge-fragmentation`)을 살리는 룰 셋:
+The rule set that keeps the fragmentation policy (brain
+`knowledge-fragmentation`) alive:
 
-| code | 무엇을 본다 | 왜 |
+| code | What it looks at | Why |
 |------|-----------|-----|
-| `note-oversized` | 절대 크기 | 한 질문에 답하려 통째로 로드하는 낭비 |
-| `growth-unbounded` | 날짜 섹션이 쌓이는 성장 *구조* | 크기와 무관 — 시점 문제일 뿐이고, 커진 뒤엔 푸는 비용이 크다. 이미 기간을 id 에 박은 노트(봉인된 버킷)는 제외 |
-| `fragment-unlinked` | 파편 가족에 요지·형제 링크가 없음 | 분화가 손실로 끝난 상태. 링크 없는 분할은 정리가 아니다. 가족당 1건으로 보고 |
+| `note-oversized` | Absolute size | The waste of loading a whole note to answer one question |
+| `growth-unbounded` | The growth *structure* of accumulating dated sections | Size-independent — it is only a matter of time, and untangling is expensive once it has grown. Notes that already bake the period into their id (sealed buckets) are excluded |
+| `fragment-unlinked` | A fragment family with no gist/sibling links | Fragmentation that ended in loss. A split without links is not upkeep. Reported once per family |
 
-> 가족 인식은 **`sibling` 엣지의 연결 컴포넌트가 1차**다(도구가 심은 사실 — 엣지가 증거라 2개면
-> 성립). 어느 컴포넌트에도 안 속한 노트만 이름 stem 으로 묶는다(작명 관례 오라클 — 약하지만 우리
-> 관례). 순서가 오탐을 막는다: 한 가족 안에서 더 긴 접두를 공유하는 구성원들이 유령 하위 가족으로
-> 재해석되지 않는다. 도구로 쪼갠 가족은 `sibling` 이 직접 심기므로 고립된 채로 태어날 수 없다.
+> Family recognition is **primarily by connected components of `sibling`
+> edges** (facts planted by the tool — the edge is the evidence, so two
+> members suffice). Only notes belonging to no component are grouped by name
+> stem (a naming-convention oracle — weak, but it is our convention). The
+> ordering prevents false positives: members sharing a longer prefix within
+> one family are not reinterpreted as a phantom sub-family. Families split by
+> the tool get `sibling` planted directly, so they cannot be born isolated.
 
-**warn 은 닫을 수 있다 (습관화).** 검토하고 그대로 두기로 했으면
-`dismiss_candidate kind="lint:<code>"`. 기각은 **finding 하나에 묶인다** — 한 노트에 같은 코드
-finding 이 여럿이면 `finding` 필드로 어느 것인지 지목해야 하고(안 하면 거부), 그 하나만 노트
-형태가 의미 있게 달라지거나 corpus 재편이 재개방할 때까지 조용해진다. 코드째 닫히면 나머지 진짜
-결함과 나중에 생길 것까지 묻히기 때문이다. 살아있는 finding 이 없는 기각도 거부된다(조용한 no-op
-방지). 닫을 방법이 없으면 같은 오탐을 매 사이클 재심하게 된다
-(실측: cleaner 가 dangling-ref 59건을 네 회차 연속 전수 재심해 동일 결론에 도달). 억제된 것을
-보려면 `--include-dismissed`. **error 는 기각 불가** — 무결성 위반은 의견의 문제가 아니다.
+**Warns can be closed (habituation).** If you reviewed and decided to leave it,
+`dismiss_candidate kind="lint:<code>"`. A dismissal is **bound to one
+finding** — if a note has several findings of the same code, you must point at
+one via the `finding` field (otherwise rejected), and only that one goes quiet
+until the note's shape meaningfully diverges or a corpus reshape reopens it.
+Closing a whole code would bury the remaining real defects and future ones
+too. Dismissals with no live finding are also rejected (prevents silent
+no-ops). Without a way to close, the same false positive gets re-tried every
+cycle (measured: a cleaner re-examined all 59 dangling-ref findings four
+cycles in a row, reaching the same conclusion). To see what is suppressed,
+`--include-dismissed`. **Errors cannot be dismissed** — integrity violations
+are not a matter of opinion.
 
-**finding 의 대상은 두 종류다 (`target_scope`/`subject`).** `target_scope=note` 면 `subject` 가 노트 id 이고
-`id` 로 기각한다 — 재개방은 그 노트의 형태 발산(탈습관화) 또는 corpus 재편. `target_scope=corpus` 면
-어떤 노트도 소유하지 않는 사실(예: 태그 쌍 `tag-pair:금리|금융`)이고 `target` 으로 기각한다 —
-노트 형태는 코퍼스 사실의 증거가 아니므로 **재개방은 corpus 재편뿐**이다. 둘을 하나의 note id
-슬롯에 밀어넣었던 시절엔 corpus warn 이 `note_id:""` 로 흘러 억제도 기각도 불가능했다 — 카탈로그는
-dismissible 이라 광고하는데 문은 닫혀 있는, 습관화가 막으려던 바로 그 상태.
+**Findings target two kinds of subject (`target_scope`/`subject`).** With
+`target_scope=note`, `subject` is a note id and you dismiss by `id` — reopened
+by that note's shape diverging (dishabituation) or a corpus reshape. With
+`target_scope=corpus`, the finding is a fact owned by no note (e.g. the tag
+pair `tag-pair:rates|finance`) and you dismiss by `target` — note shape is no
+evidence for a corpus fact, so **only a corpus reshape reopens it**. Back when
+both were squeezed into the single note-id slot, corpus warns flowed out with
+`note_id:""` — impossible to suppress or dismiss: the catalog advertised
+dismissible while the door was shut, exactly the state habituation exists to
+prevent.
 
-## 원칙
+## Principles
 
-- **Single source of truth**: cortex/ 의 markdown 이 진실. DB 는 파생.
-- **본문 통째 덮어쓰기 없음**: 모든 mutation 은 `ops apply` 의 op vocabulary 안에서.
-  가장 거친 단위는 `patch_section`.
-- **Atomic transaction**: 다중 op 은 한 transaction 으로 묶여 validate → snapshot →
-  apply → rollback. 부분 실패 시 새로 만든 파일·DB row 까지 cleanup.
-- **Anchor-free**: `--home` 만 받음. 외부 경로 가정 없음.
-- **차가움은 비용이 아니다**: 활성 사다리도, "보관하되 숨기는" 층도 없다 — 안 불리는 노트는
-  인출 비용을 만들지 않으므로 감출 이유가 없다. `hit_count`/`last_retrieved_at` 은 순수
-  관측값이고 **노트의 생애주기를 파생하지 않는다** (활성화 기록이 조정하는 것은 아래 genome 의
-  read-path 파라미터뿐, 노트가 아니다). 인출 품질의 전제는 망각이 아니라 **분화** — 비대한
-  지식은 숨기지 말고 쪼갠다 (요지/면/낱개). 폐기는 판단으로 `delete_note`(→ `.trash/`).
-- **연상 동반**: 연상 표면(related/search/neighbors/entity)의 모든 히트는 summary 를
-  싣는다 — 출력은 답이 아니라 다음 하강을 결정하는 경유지다.
+- **Single source of truth**: the markdown in cortex/ is the truth; the DB is
+  derived.
+- **No whole-body overwrites**: every mutation goes through the op vocabulary
+  of `ops apply`. The coarsest unit is `patch_section`.
+- **Atomic transactions**: multiple ops are bundled into one transaction —
+  validate → snapshot → apply → rollback. On partial failure, cleanup covers
+  even newly created files and DB rows.
+- **Anchor-free**: takes only `--home`. No assumptions about external paths.
+- **Cold is not a cost**: no activity ladder, no "keep but hide" tier — a note
+  that is never recalled creates no retrieval cost, so there is no reason to
+  hide it. `hit_count`/`last_retrieved_at` are pure observations and **derive
+  nothing about a note's lifecycle** (what activation records tune is only the
+  genome's read-path parameters below — not notes). The premise of retrieval
+  quality is not forgetting but **fragmentation** — don't hide bloated
+  knowledge, split it (gist/facet/piece). Disposal is a judgment call via
+  `delete_note` (→ `.trash/`).
+- **Association carries company**: every hit on an associative surface
+  (related/search/neighbors/entity) carries a summary — output is not the
+  answer but a waypoint for deciding the next descent.
 
-## 활성화 기록 + Genome (기질의 자기 관측과 가소성 파라미터)
+## Activation records + Genome (the substrate's self-observation and plasticity parameters)
 
-뇌는 발화 로그를 원본으로 남기지 않는다 — 발화는 구조에 흔적을 남기고 신호는 사라진다.
-같은 원리로 raw `events` 는 retention(기본 30일) 후 폐기되되, 폐기 전에 영속 흔적으로
-**승계**된다 (integrate 가 순서를 강제):
+The brain keeps no raw firing log — firing leaves traces in structure and the
+signal disappears. By the same principle, raw `events` are discarded after
+retention (default 30 days), but **inherited** into persistent traces before
+disposal (integrate enforces the order):
 
-- `activity_windows` — 태스크 세션의 *추정*. 호출자 correlation id(`--session-id`,
-  `MEMORY_SESSION_ID`)가 있으면 그 라벨로, 없으면 시간 근접(gap)으로 묶는다. 추정임을
-  타입 이름에 남긴다 — retrieval_session 이 아니다. gap 은 라벨에도 적용된다(닫힌
-  윈도는 다시 열리지 않는다 — exactly-once 가 라벨 연속성보다 우선).
-- `retrieval_hits` — surfaced(무엇이 떠올랐나) + `used_signal`(약한 사용 신호:
-  reported=호출자 신고 / content_overlap=응답 겹침 휴리스틱 — 인과 증명이 아니다).
-  used 마킹은 `mark_used` op 로, 최근 윈도에 출현한 노트만 수용한다.
+- `activity_windows` — an *estimate* of task sessions. With a caller
+  correlation id (`--session-id`, `MEMORY_SESSION_ID`) they group under that
+  label; without one, by temporal proximity (gap). The estimate stays in the
+  type name — it is not a retrieval_session. The gap applies to labels too
+  (a closed window never reopens — exactly-once beats label continuity).
+- `retrieval_hits` — surfaced (what came to mind) + `used_signal` (weak usage
+  signals: reported = caller-declared / content_overlap = response-overlap
+  heuristic — not proof of causation). Marking used goes through the
+  `mark_used` op, which accepts only notes that appeared in a recent window.
 
-**Genome** — 가소성 파라미터의 카탈로그를 데이터로 만든 층. *선언*(유전자 목록·bounds·
-wild-type·mutable 여부)은 코드가 SSoT — 종-수준이고 바이너리와 함께 버전된다. *브레인별
-현재값*(epigenome)만 DB 에 있고, 행이 없는 유전자는 wild-type 로 동작한다. 같은 바이너리의
-두 브레인이 파라미터까지 다른 뇌가 되는 자리다.
+**Genome** — the layer that turns the catalog of plasticity parameters into
+data. The *declaration* (gene list, bounds, wild-type, mutability) has code as
+its SSoT — species-level, versioned with the binary. Only the *per-brain
+current values* (the epigenome) live in the DB; a gene with no row behaves as
+wild-type. This is where two brains on the same binary become different brains
+down to their parameters.
 
-쓰기 문은 둘뿐:
-- **`set_gene` op** — 직접 값 설정. 전 유전자, bounds 검증, value 생략 = wild-type 리셋.
-  모든 변경은 genome_events 에 provenance 로 남는다.
-- **`consolidate homeostasis`** — 결정론 메타가소성 틱 (LLM 0). mutable(read-path)
-  유전자만, 활성화 기록의 낭비 신호에만 반응하고(분포 미학 금지 — 특정 축이 많이 발화하는
-  것은 전문성이지 불균형이 아니다), 조정은 1스텝·bounds 안·wild-type 상한. 윈도는
-  watermark 로 정확히 한 번 소비되고 증거는 min_sample 까지 누적되므로 호출 빈도는 숨은
-  파라미터가 아니다. get 추적 도입 이전의 윈도는 증거에서 제외된다(눈먼 코호트 가드 —
-  계측 없던 시절의 0 은 낭비의 증거가 아니라 관측의 부재다).
+There are only two write doors:
+- **`set_gene` op** — direct value setting. All genes, bounds-validated;
+  omitting the value = reset to wild-type. Every change lands in
+  genome_events as provenance.
+- **`consolidate homeostasis`** — a deterministic metaplasticity tick (LLM 0).
+  Mutable (read-path) genes only; reacts only to waste signals in the
+  activation records (no distribution aesthetics — an axis firing a lot is
+  expertise, not imbalance); adjustments are one step, within bounds, capped
+  at wild-type. Windows are consumed exactly once via a watermark and evidence
+  accumulates to min_sample, so call frequency is not a hidden parameter.
+  Windows predating get-tracking are excluded from evidence (the blind-cohort
+  guard — a zero from the uninstrumented era is absence of observation, not
+  evidence of waste).
 
-관찰 표면: `genome list`(카탈로그·현재값·source), `genome history`(변이 provenance),
-`genome shadow`(보존창 내 search/related 로그를 현 corpus 에서 후보값으로 A/B 재실행 —
-offline reranking 이지 반사실이 아니다), `query stats` 의 activation 섹션.
+Observation surfaces: `genome list` (catalog, current values, source),
+`genome history` (mutation provenance), `genome shadow` (replays the retention
+window's search/related logs against the current corpus under candidate
+values — offline reranking, not a counterfactual), and the activation section
+of `query stats`.
 
-## Semantic enrichment (retrieval 의미층)
+## Semantic enrichment (the retrieval semantic layer)
 
-lexical(BM25)·그래프 위에 *의미층* 을 더한다. 두 갈래 — ① LLM 이 capture 때 심는
-의미 데이터(alias·cue·`assoc` edge), ② 그래프에서 유도한 알고리즘 벡터
-(`note_vectors`, PPMI+SVD). retrieval 은 계속 **LLM 0**.
+Adds a *semantic layer* on top of lexical (BM25) and graph. Two branches —
+① semantic data an LLM plants at capture time (alias, cue, `assoc` edges),
+② algorithmic vectors derived from the graph (`note_vectors`, PPMI+SVD).
+Retrieval stays **LLM 0**.
 
-**경계** — llmemory 가 슬롯·검증·retrieval 의 SSoT, 외부는 LLM artifact 를
-*생성* 만 하는 교체 가능 client. 검증은 llmemory 안에 있어, 약한 모델이 노이즈를 줘도
-인덱스를 오염시키지 않는다 (graceful degradation — 최악이 no-op).
+**The boundary** — llmemory is the SSoT for slots, validation, and retrieval;
+the outside is a replaceable client that only *produces* LLM artifacts.
+Validation lives inside llmemory, so a weak model feeding noise cannot pollute
+the index (graceful degradation — the worst case is a no-op).
 
-**write 계약** (`ops describe <op>`):
-- `add_retrieval_terms` — alias/cue 텍스트. round-trip + IDF 검증 후 `notes_fts` 의
-  `enrich` 컬럼에 색인 (동의어·한글 조사 사각지대를 메움).
-- `propose_link` — LLM 의미 연상 edge (`assoc`). 낮은 weight 로 들어가 decay/strengthen
-  루프가 곧 validator.
-- `purge_enrichment` — provenance 단위 회수.
+**Write contracts** (`ops describe <op>`):
+- `add_retrieval_terms` — alias/cue text. After round-trip + IDF validation,
+  indexed into the `enrich` column of `notes_fts` (fills the blind spots of
+  synonyms and Korean particles).
+- `propose_link` — an LLM semantic-association edge (`assoc`). Enters at low
+  weight; the decay/strengthen loop is itself the validator.
+- `purge_enrichment` — retraction by provenance.
 
-**상태 관찰**: `query enrichment` — term active/pending/rejected, `assoc` edge,
-벡터 커버리지, provenance 별 모델 노이즈율.
+**State observation**: `query enrichment` — term active/pending/rejected,
+`assoc` edges, vector coverage, per-provenance model noise rates.
 
-**알고리즘 벡터**: `index vector` — `note_links` 그래프를 PPMI+SVD 로 분해해
-`note_vectors` 를 빌드 (`index build --rebuild` 이 끝에 자동 재생성). `query related` 가
-`vector_linked` 로 키워드를 안 공유하는 의미상 가까운 노트를 확장. `consolidate integrate` 가
-주기적으로 refactorize (호출 시 항상 재분해).
+**Algorithmic vectors**: `index vector` — factorizes the `note_links` graph
+with PPMI+SVD to build `note_vectors` (`index build --rebuild` regenerates it
+at the end automatically). `query related` uses `vector_linked` to expand to
+semantically close notes that share no keywords. `consolidate integrate`
+refactorizes periodically (always re-factorizes when called).
 
-**스키마 버전**: binary 가 기대하는 schema 와 DB 의 `user_version` 이 어긋나면 모든
-명령이 fast-fail 한다. 하위 호환(마이그레이션)은 없다 — `data/memory.db` 를 지우고
-`init` 하면 cortex/ markdown 에서 재구성된다.
+**Schema version**: if the schema the binary expects and the DB's
+`user_version` disagree, every command fast-fails. There is no backward
+compatibility (no migrations) — delete `data/memory.db` and `init` to
+reconstruct from the cortex/ markdown.
 
-> **주의 — DB 삭제는 "cortex 에서 재구성"이 아니라 "의미층 폐기"다.** markdown 이 SSoT 인 것은
-> `notes`(+tags/entities/source) 뿐이고, **의미층과 이력은 DB 에만 있다** — assoc/cooccur 엣지,
-> retrieval terms(alias·cue), `note_meta`, ripple flag, candidate dismissal, lifecycle 이벤트,
-> hit 관측값. 지우면 전부 사라지고 재구성되지 않는다(enrich 가 시간을 들여 다시 쌓아야 한다).
-> 스키마가 바뀌어 재구성이 불가피하면 **먼저 `memory.db` 를 복사해두고**, init 후 그 사본에서
-> 위 테이블을 옮겨 심는다.
+> **Caution — deleting the DB is not "reconstruct from cortex", it is
+> "discard the semantic layer".** Markdown is the SSoT only for `notes`
+> (+tags/entities/source); **the semantic layer and history live only in the
+> DB** — assoc/cooccur edges, retrieval terms (alias/cue), `note_meta`, ripple
+> flags, candidate dismissals, lifecycle events, hit observations. Delete it
+> and they are all gone and do not come back (enrichment has to accumulate
+> again over time). If a schema change makes reconstruction unavoidable,
+> **copy `memory.db` first**, then after init transplant those tables from
+> the copy.
 
-각 op·명령의 계약·검증 규칙은 llmemory 자체 표면이 SSoT — `ops describe <op>`,
-`index <cmd> --help`, `query enrichment`. (별도 설계 문서에 의존하지 않는다.)
+For each op's and command's contracts and validation rules, llmemory's own
+surfaces are the SSoT — `ops describe <op>`, `index <cmd> --help`,
+`query enrichment`. (No separate design document to depend on.)
 
-## 데이터 위치
+## Data layout
 
 ```
 <state-root>/
   data/
-    memory.db         — catalog, FTS5 index, events(30일) + 영속 활성화 흔적
-                        (activity_windows/retrieval_hits) + genome(epigenome)
+    memory.db         — catalog, FTS5 index, events (30 days) + persistent
+                        activation traces (activity_windows/retrieval_hits)
+                        + genome (epigenome)
   cortex/
-    <axis>/<id>.md    — flat 노트 (axis-agnostic)
-    <axis>/YYYY/MM/<id>.md  — 시간순 thread (id 끝이 YYMMDD)
-    .innate/          — 선천 지식 (axis: innate, locked). 배포본과 다르면(내용 변경·
-                        파일 없음·외부 파일) update 가 경고만 하고 안 건드림 — `--override` 만이
-                        배포본 그대로 되돌린다. 디렉터리째 지우면 손뗀 것(스킵). `--check` 로 확인.
-    .trash/           — soft-deleted (사람 검토 대기)
+    <axis>/<id>.md    — flat notes (axis-agnostic)
+    <axis>/YYYY/MM/<id>.md  — chronological threads (id ends in YYMMDD)
+    .innate/          — innate knowledge (axis: innate, locked). If it differs
+                        from the shipped copy (edited content, missing file,
+                        foreign file), update only warns and touches nothing —
+                        only `--override` restores the shipped state. Deleting
+                        the whole directory means opting out (skipped).
+                        Inspect with `--check`.
+    .trash/           — soft-deleted (awaiting human review)
 ```
