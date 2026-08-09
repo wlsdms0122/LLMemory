@@ -70,7 +70,17 @@ public enum ConsolidateService {
     }
 
     public static func integrate(_ storage: GRDBStorage) async throws -> Consolidation.IntegrateResult {
-        try await storage.run(IntegrateTransaction())
+        try await storage.run { scope in
+            var result = try integrate(scope)
+            let integrity = try scope.run(CheckCorpusIntegrityL1Transaction())
+            result.integrityL1 = Consolidation.IntegrateResult.IntegrityReport(
+                checked: integrity.checked,
+                issues: integrity.issues
+            )
+            result.summary.integrityL1Issues = integrity.issues.count
+
+            return result
+        }
     }
 
     public static func homeostasis(_ storage: GRDBStorage) async throws -> HomeostasisReport {
@@ -100,16 +110,148 @@ public enum ConsolidateService {
     }
 
     public static func prune(_ storage: GRDBStorage) async throws -> Consolidation.PruneResult {
-        try await storage.run(PruneTransaction())
+        try await storage.run { scope in try prune(scope) }
     }
 
     public static func report(
         _ storage: GRDBStorage
     ) async throws -> (axis: Consolidation.AxisReport, tag: Consolidation.TagReport) {
-        try await storage.run(ConsolidateReportTransaction())
+        try await storage.read { scope in
+            (
+                axis: try scope.run(FetchAxisReportTransaction()),
+                tag: try scope.run(FetchTagReportTransaction())
+            )
+        }
     }
 
     // MARK: - Internal
+
+    // B: synaptic pruning — decays the learned edges and cuts those below
+    // the floor. Rare by design; structure loss is the point.
+    static func prune(_ scope: GRDBScope) throws -> Consolidation.PruneResult {
+        let now = Int(Date().timeIntervalSince1970)
+        let decay = try scope.run(DecayAndPruneLinksTransaction())
+
+        try scope.run(
+            RecordEventTransaction(
+                kind: Events.kindConsolidation,
+                payload: [
+                    "action": "prune",
+                    "links_decayed": decay.decayed,
+                    "links_pruned": decay.pruned
+                ],
+                ts: now
+            )
+        )
+
+        return Consolidation.PruneResult(linksDecayed: decay.decayed, linksPruned: decay.pruned)
+    }
+
+    // A: non-destructive integration — succession, retention compaction,
+    // hygiene prunes, term validation, disagreement review, vector rebuild.
+    static func integrate(_ scope: GRDBScope) throws -> Consolidation.IntegrateResult {
+        let now = Int(Date().timeIntervalSince1970)
+        let retentionSec = Config.getInt("events.retention_days", default: 30) * 24 * 60 * 60
+
+        _ = try scope.run(DeriveActivityWindowsTransaction(now: now))
+
+        let eventsCompacted = try scope.run(
+            CompactOldEventsTransaction(now: now, retentionSec: retentionSec)
+        ).compacted
+        let axisSummary = try scope.run(FetchAxisReportTransaction())
+        let tagSummary = try scope.run(FetchTagReportTransaction())
+        let sourceVerify = try scope.run(VerifySourcesTransaction(now: now))
+
+        let prunedAxes = try scope.run(PruneEmptyAxesTransaction())
+        let prunedTags = try scope.run(PruneUnusedVocabTagsTransaction())
+        let prunedRippleFlags = try scope.run(
+            PruneResolvedRippleFlagsTransaction(now: now)
+        )
+
+        _ = try scope.run(
+            PruneOldLifecycleEventsTransaction(
+                now: now,
+                retentionDays: Config.getInt("lifecycle.retention_days", default: 180)
+            )
+        )
+
+        let ftsPrune = try scope.run(PruneFtsOrphansTransaction())
+
+        let validationPass = (try? scope.run(ValidatePendingTermsTransaction(noteIds: nil)))
+            ?? TermValidationPass()
+        let termsActivated = validationPass.activated
+        let termsRejected = validationPass.rejected
+            + ((try? scope.run(RejectStalePendingTermsTransaction())) ?? 0)
+        let reviewPass = (try? scope.run(FlagEnrichmentDisagreementsTransaction(now: now))) ?? .init()
+
+        try scope.run(MarkConsolidatedTransaction(now: now))
+
+        let decay: (decayed: Int, pruned: Int) = (0, 0)
+        let vectorBuild = try? scope.run(BuildVectorsTransaction())
+        let summary = Consolidation.IntegrateResult.Summary(
+            eventsCompacted: eventsCompacted,
+            smallAxes: axisSummary.small.count,
+            largeAxes: axisSummary.large.count,
+            rareTags: tagSummary.rare.count,
+            unusedVocabTags: tagSummary.unused.count,
+            emptyAxesPruned: prunedAxes.count,
+            unusedVocabPruned: prunedTags.count,
+            resolvedRipplePruned: prunedRippleFlags,
+            ftsOrphansPruned: ftsPrune.orphansPruned,
+            ftsRefilled: ftsPrune.refilled,
+            integrityL1Issues: 0,
+            linksDecayed: decay.decayed,
+            linksPruned: decay.pruned,
+            sourcesRechecked: sourceVerify.rechecked,
+            sourcesBecameStale: sourceVerify.becameStale,
+            sourcesRecovered: sourceVerify.recovered,
+            sourcesMissing: sourceVerify.missing,
+            sourcesUnreadable: sourceVerify.unreadable.count,
+            termsActivated: termsActivated,
+            termsRejected: termsRejected,
+            enrichReviewFlagged: reviewPass.flagged,
+            enrichReviewResolved: reviewPass.resolved,
+            vectorsBuilt: (vectorBuild?.skipped == false) ? (vectorBuild?.noteCount ?? 0) : 0
+        )
+        var tracePayload: [String: Any?] = [
+            "action": "integrate",
+            "events_compacted": eventsCompacted
+        ]
+
+        if let data = try? JSONEncoder().encode(summary),
+            let dictionary = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            for (key, value) in dictionary { tracePayload[key] = value }
+        }
+
+        try scope.run(
+            RecordEventTransaction(kind: Events.kindConsolidation, payload: tracePayload, ts: now)
+        )
+
+        return Consolidation.IntegrateResult(
+            summary: summary,
+            axisReport: Consolidation.IntegrateResult.AxisReportOutput(
+                all: axisSummary.all.map { entry in
+                    .init(axis: entry.axis, description: entry.description, count: entry.count)
+                },
+                small: axisSummary.small.map { entry in
+                    .init(axis: entry.axis, count: entry.count)
+                },
+                large: axisSummary.large.map { entry in
+                    .init(axis: entry.axis, count: entry.count)
+                }
+            ),
+            tagReport: Consolidation.IntegrateResult.TagReportOutput(
+                rare: tagSummary.rare.map { entry in .init(tag: entry.tag, count: entry.count) },
+                unused: tagSummary.unused
+            ),
+            prune: Consolidation.IntegrateResult.PruneReport(
+                axes: .init(pruned: prunedAxes, count: prunedAxes.count),
+                tagVocab: .init(pruned: prunedTags, count: prunedTags.count)
+            ),
+            integrityL1: Consolidation.IntegrateResult.IntegrityReport(checked: 0, issues: [])
+        )
+    }
+
     // The deterministic metaplasticity tick — reacts only to measured waste
     // (expand hits that never land), one step, within bounds, wild-type as
     // the ceiling. Windows are consumed exactly once via the watermark.

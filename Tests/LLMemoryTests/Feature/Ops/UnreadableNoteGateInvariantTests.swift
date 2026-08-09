@@ -88,7 +88,7 @@ struct UnreadableNoteGateInvariantTests {
         _ = try corrupt(id: "il1-bad", body: "garbage, no frontmatter\n")
         
         // When
-        let issues = try home.read { database in try Consolidation.integrityL1(database).issues }
+        let issues = try home.read { database in try CheckCorpusIntegrityL1Transaction().perform(database).issues }
         
         // Then
         #expect(issues.contains { issue in issue.contains("il1-bad") && issue.contains("unreadable") },
@@ -109,7 +109,7 @@ struct UnreadableNoteGateInvariantTests {
             try home.database().write { database -> (orphansPruned: Int, refilled: Int, unreadable: [String]) in
                 try database.execute(sql: "DELETE FROM notes_fts WHERE id IN ('fts-ok','fts-bad')")
                 
-                return try Consolidation.pruneFtsOrphans(database)
+                return try PruneFtsOrphansTransaction().perform(database)
             }
         }
         

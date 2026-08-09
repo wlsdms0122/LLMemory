@@ -136,7 +136,7 @@ struct SourceGateInvariantTests {
             .write(to: path, atomically: true, encoding: .utf8)
         
         // When
-        let output = try Consolidation.integrateLocked(home.database())
+        let output = try home.database().write { db in try ConsolidateService.integrate(GRDBScope(db)) }
         
         // Then
         #expect(output.summary.sourcesUnreadable == 1,

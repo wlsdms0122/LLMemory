@@ -103,7 +103,7 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: old, sessionId: nil, hitIds: ["n1"])
         }
         
-        _ = try Consolidation.integrateLocked(home.database())
+        _ = try home.database().write { db in try ConsolidateService.integrate(GRDBScope(db)) }
         
         // When
         try home.read { database in

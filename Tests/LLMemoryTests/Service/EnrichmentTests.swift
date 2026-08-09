@@ -412,7 +412,7 @@ struct EnrichmentTests {
         try queue.write { db in
             try db.execute(sql: "UPDATE note_lifecycle_events SET created_at = 1 WHERE note_id='lc-note'")
             
-            _ = try Consolidation.pruneOldLifecycleEvents(db, now: 1_000_000_000, retentionDays: 180)
+            _ = try PruneOldLifecycleEventsTransaction(now: 1_000_000_000, retentionDays: 180).perform(db)
         }
         
         let after = try queue.read { db in
