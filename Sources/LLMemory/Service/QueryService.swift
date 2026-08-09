@@ -311,8 +311,8 @@ public enum QueryService {
         )
     }
 
-    public static func enrichment(_ storage: GRDBStorage) async throws -> EnrichmentReview.Status {
-        try await storage.run(EnrichmentStatusTransaction())
+    public static func enrichment(_ storage: GRDBStorage) async throws -> EnrichmentStatus {
+        try await storage.read { scope in try scope.run(EnrichmentStatusTransaction()) }
     }
 
     public static func candidates(

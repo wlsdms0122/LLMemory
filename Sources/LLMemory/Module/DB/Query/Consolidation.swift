@@ -479,7 +479,7 @@ public enum Consolidation {
         var ftsPrune: (orphansPruned: Int, refilled: Int, unreadable: [String]) = (0, 0, [])
         var termsActivated = 0
         var termsRejected = 0
-        var reviewPass = EnrichmentReview.ReviewPass()
+        var reviewPass = EnrichmentReviewPass()
         
         try queue.write { db in
             _ = try DeriveActivityWindowsTransaction(now: now).perform(db)
@@ -509,18 +509,18 @@ public enum Consolidation {
             prunedTags = tagPrune.pruned
             prunedTagsCount = tagPrune.count
             
-            let validationPass = (try? Validation.validatePendingTerms(db, noteIds: nil))
-                ?? Validation.PassResult()
+            let validationPass = (try? ValidatePendingTermsTransaction(noteIds: nil).perform(db))
+                ?? TermValidationPass()
             termsActivated = validationPass.activated
             termsRejected = validationPass.rejected
-                + ((try? Validation.rejectStalePending(db)) ?? 0)
-            reviewPass = (try? EnrichmentReview.flagDisagreements(db, now: now)) ?? .init()
+                + ((try? RejectStalePendingTermsTransaction().perform(db)) ?? 0)
+            reviewPass = (try? FlagEnrichmentDisagreementsTransaction(now: now).perform(db)) ?? .init()
             
             try markConsolidated(db, now: now)
         }
         
         let decay: (decayed: Int, pruned: Int) = (0, 0)
-        let vectorBuild = (try? Vectors.build(queue))
+        let vectorBuild = (try? queue.write { db in try BuildVectorsTransaction().perform(db) })
         let summary = IntegrateResult.Summary(
             eventsCompacted: eventsCompacted,
             smallAxes: axisSummary.small.count,

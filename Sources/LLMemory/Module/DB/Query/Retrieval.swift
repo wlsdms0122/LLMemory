@@ -471,8 +471,8 @@ public enum Retrieval {
         }
     }
     
-    static func enrichment(_ queue: any DatabaseReader) throws -> EnrichmentReview.Status {
-        return try queue.read { db in try EnrichmentReview.status(db) }
+    static func enrichment(_ queue: any DatabaseReader) throws -> EnrichmentStatus {
+        return try queue.read { db in try EnrichmentStatusTransaction().perform(db) }
     }
     
     static func candidates(

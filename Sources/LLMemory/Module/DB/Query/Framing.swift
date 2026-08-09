@@ -42,7 +42,7 @@ public enum Framing {
         public var axes: [AxisRow]
         public var similar: [SimilarNote]
         public var linked: [Links.ExpandedNote]
-        public var vectorLinked: [Vectors.VectorHit]
+        public var vectorLinked: [VectorHit]
         public var topTags: [(String, Int)]
         public var cooccur: [(String, String, Int)]
         public var vocab: [String]
@@ -269,19 +269,21 @@ public enum Framing {
             }
         }
         
-        var vectorLinked: [Vectors.VectorHit] = []
+        var vectorLinked: [VectorHit] = []
         
         if !similarNotes.isEmpty {
             let already = Set(similarNotes.map { note in note.id })
                 .union(linked.map { note in note.id })
             
             do {
-                vectorLinked = try Vectors.expand(
-                    queue,
-                    seedIds: similarNotes.map { note in note.id },
-                    limit: similarLimit,
-                    excludeIds: already
-                )
+                vectorLinked = try queue.read { db in
+                    try ExpandByVectorsTransaction(
+                        seedIds: similarNotes.map { note in note.id },
+                        limit: similarLimit,
+                        excludeIds: already
+                    )
+                        .perform(db)
+                }
             } catch {
                 degraded.append("vector_linked: \(error)")
             }

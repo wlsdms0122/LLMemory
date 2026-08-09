@@ -60,7 +60,7 @@ public struct Index {
         try await IndexService.check(session.storage, level: level)
     }
 
-    public func buildVectors() async throws -> Vectors.BuildResult {
+    public func buildVectors() async throws -> VectorBuildResult {
         try await IndexService.buildVectors(session.storage)
     }
 

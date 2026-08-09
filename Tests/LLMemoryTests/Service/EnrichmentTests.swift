@@ -786,7 +786,7 @@ struct EnrichmentTests {
         let rejected = try home.storage.writeLock { () -> Int in
             let writeQueue = try home.storage.connect()
             
-            return try writeQueue.write { db in try Validation.rejectStalePending(db, maxAgeSec: 0) }
+            return try writeQueue.write { db in try RejectStalePendingTermsTransaction(maxAgeSec: 0).perform(db) }
         }
         
         #expect(rejected >= 1)

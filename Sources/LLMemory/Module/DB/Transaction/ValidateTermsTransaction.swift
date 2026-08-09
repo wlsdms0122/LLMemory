@@ -26,8 +26,8 @@ public struct ValidateTermsTransaction: LegacyWriteTransaction {
     // MARK: - Private
     private func perform(_ connection: Connection) throws -> Result {
         try connection.write { db -> Result in
-            let pass = try Validation.validatePendingTerms(db, noteIds: nil)
-            let staleRejected = parameter.rejectStale ? try Validation.rejectStalePending(db) : 0
+            let pass = try ValidatePendingTermsTransaction(noteIds: nil).perform(db)
+            let staleRejected = parameter.rejectStale ? try RejectStalePendingTermsTransaction().perform(db) : 0
 
             return Indexer.ValidateResult(
                 activated: pass.activated,

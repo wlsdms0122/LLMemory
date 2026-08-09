@@ -27,7 +27,7 @@ struct VectorsTests {
         home.createNote(id: "vec-only1")
         
         // When
-        let result = try Vectors.build(home.database())
+        let result = try home.database().write { db in try BuildVectorsTransaction().perform(db) }
         
         // Then
         #expect(result.skipped)
@@ -42,7 +42,7 @@ struct VectorsTests {
         }
         
         // When
-        let result = try Vectors.build(home.database())
+        let result = try home.database().write { db in try BuildVectorsTransaction().perform(db) }
         
         // Then
         #expect(!result.skipped)
@@ -84,10 +84,10 @@ struct VectorsTests {
                 content: "## A\nbeta cluster body \(index)\n")
         }
         
-        _ = try Vectors.build(home.database())
+        _ = try home.database().write { db in try BuildVectorsTransaction().perform(db) }
         
         // When
-        let hits = try Vectors.expand(home.database(), seedIds: ["vec-a0"], limit: 8)
+        let hits = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vec-a0"], limit: 8).perform(db) }
         
         // Then
         #expect(!hits.isEmpty)
@@ -104,7 +104,7 @@ struct VectorsTests {
         home.createNote(id: "vec-x2")
         
         // When
-        let hits = try Vectors.expand(home.database(), seedIds: ["vec-x1"], limit: 5)
+        let hits = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vec-x1"], limit: 5).perform(db) }
         
         // Then
         #expect(hits.isEmpty)
@@ -118,7 +118,7 @@ struct VectorsTests {
             2, 0, 3,
             1, 3, 0
         ]
-        let ppmi = Vectors.computePPMI(matrix, n: 3)
+        let ppmi = VectorMath.computePPMI(matrix, n: 3)
         
         // Then
         #expect(ppmi.allSatisfy { value in value >= 0 })
@@ -134,7 +134,7 @@ struct VectorsTests {
             0.1, 0.2, 1.0, 0.6,
             0.0, 0.1, 0.6, 1.0
         ]
-        let decomposed = try Vectors.truncatedSVD(matrix, n: dimension, k: rank)
+        let decomposed = try VectorMath.truncatedSVD(matrix, n: dimension, k: rank)
         
         // Then
         #expect(decomposed.count == dimension * rank)
@@ -164,10 +164,10 @@ struct VectorsTests {
             try db.execute(sql: "UPDATE notes SET stale = 1 WHERE id = 'vg-stl-0'")
         }
         
-        _ = try Vectors.build(home.database())
+        _ = try home.database().write { db in try BuildVectorsTransaction().perform(db) }
         
         // When
-        let hits = try Vectors.expand(home.database(), seedIds: ["vg-act-0"], limit: 5)
+        let hits = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vg-act-0"], limit: 5).perform(db) }
         
         // Then
         #expect(hits.count == 4)
@@ -199,7 +199,7 @@ struct VectorsTests {
         }
         
         // When
-        let got = try Vectors.expand(home.database(), seedIds: ["vt-n0"], limit: 3).map { hit in hit.id }
+        let got = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vt-n0"], limit: 3).perform(db) }.map { hit in hit.id }
         
         // Then
         #expect(got == ["vt-n1", "vt-n2", "vt-n3"],
@@ -227,7 +227,7 @@ struct VectorsTests {
         }
         
         // When
-        let result = try Vectors.build(home.database())
+        let result = try home.database().write { db in try BuildVectorsTransaction().perform(db) }
         
         // Then
         #expect(result.noteCount == 4)

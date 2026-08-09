@@ -577,7 +577,7 @@ public enum Candidates {
         }
         
         do {
-            let raw = try EnrichmentReview.loadVectors(db)
+            let raw = try FetchNoteVectorsTransaction().perform(db)
             var vectors: [String: [Float]] = [:]
             
             for (id, vector) in raw where vector.count > 1 {
@@ -596,7 +596,7 @@ public enum Candidates {
                 for other in connected where other != anchor {
                     guard let otherVector = vectors[other] else { continue }
                     
-                    let cosine = EnrichmentReview.cosine(anchorVector, otherVector)
+                    let cosine = VectorMath.cosine(anchorVector, otherVector)
                     
                     if cosine >= cosineThreshold { scored.append((other, cosine)) }
                 }

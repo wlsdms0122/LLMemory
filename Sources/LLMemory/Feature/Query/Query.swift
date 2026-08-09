@@ -192,7 +192,7 @@ public struct QueryFeature {
         )
     }
 
-    public func enrichment() async throws -> EnrichmentReview.Status {
+    public func enrichment() async throws -> EnrichmentStatus {
         try await QueryService.enrichment(session.storage)
     }
 

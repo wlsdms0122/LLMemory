@@ -392,7 +392,7 @@ public enum OpsEngine {
                 
                 if !touched.isEmpty {
                     _ = try? queue.write { db in
-                        try Validation.validatePendingTerms(db, noteIds: touched)
+                        try ValidatePendingTermsTransaction(noteIds: touched).perform(db)
                     }
                 }
             }
