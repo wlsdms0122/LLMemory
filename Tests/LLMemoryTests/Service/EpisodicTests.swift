@@ -126,7 +126,7 @@ struct EpisodicTests {
     
     // MARK: - Private
     @discardableResult
-    private func create(_ noteId: String, content: String = "b") -> OpsEngine.Result {
+    private func create(_ noteId: String, content: String = "b") -> OperationsEngine.Result {
         home.createNote(id: noteId, axis: "tech", title: "x", tags: ["tech", "test"], content: content)
     }
     

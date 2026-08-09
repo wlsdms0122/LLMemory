@@ -170,7 +170,7 @@ struct IndexVerifyTerms: AsyncParsableCommand {
         commandName: "terms",
         abstract: "Run llmemory's own validation pass over pending retrieval terms.",
         discussion: """
-            Retrieval terms (alias/cue) emitted by `ops apply add_retrieval_terms`
+            Retrieval terms (alias/cue) emitted by `operations apply add_retrieval_terms`
             land as status=pending. This pass is the gate that promotes them —
             llmemory decides, never the LLM:
 
@@ -196,7 +196,7 @@ struct IndexVerifyTerms: AsyncParsableCommand {
             age cutoff as rejected (aging is how an unsubstantiated quarantine
             resolves).
 
-            `ops apply` already runs this immediately for terms it just inserted;
+            `operations apply` already runs this immediately for terms it just inserted;
             `consolidate integrate` runs it periodically. Use this command to
             force a pass (e.g. after a bulk reindex changed the corpus).
 

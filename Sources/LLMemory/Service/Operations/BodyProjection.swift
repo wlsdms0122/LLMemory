@@ -14,7 +14,7 @@ enum BodyProjection {
     static func advance(
         op: [String: Any],
         name: String,
-        handler: OpHandler,
+        handler: OperationHandler,
         context: inout HandlerContext,
         scope: GRDBScope
     ) throws -> String? {
@@ -77,7 +77,7 @@ enum BodyProjection {
         
         default:
             if try !handler.touches(op, scope).isEmpty {
-                for noteId in OpsEngine.targetIds(op, schema: handler.schema) {
+                for noteId in OperationsEngine.targetIds(op, schema: handler.schema) {
                     context.opaqueBodyIds.insert(noteId)
                     context.stagedBodies.removeValue(forKey: noteId)
                 }

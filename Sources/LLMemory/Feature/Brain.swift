@@ -20,7 +20,7 @@ public struct Brain {
     public let consolidate: Consolidate
     public let genome: GenomeFeature
     public let ruleset: RulesetFeature
-    public let ops: Ops
+    public let operations: Operations
 
     // MARK: - Initializer
     public init(home: String) {
@@ -32,7 +32,7 @@ public struct Brain {
         self.consolidate = Consolidate(session: session)
         self.genome = GenomeFeature(session: session)
         self.ruleset = RulesetFeature(session: session)
-        self.ops = Ops(session: session)
+        self.operations = Operations(session: session)
     }
 
     // MARK: - Public

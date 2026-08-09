@@ -176,7 +176,7 @@ struct UnreadableNoteGateInvariantTests {
         let file = try corrupt(id: "sg-note", body: "garbage\n")
         
         // When
-        let violation = OpsEngine.checkSectionInvariants(affected: [file], backups: [(file, nil)])
+        let violation = OperationsEngine.checkSectionInvariants(affected: [file], backups: [(file, nil)])
         
         // Then
         #expect(violation?.contains("sg-note") == true, "unexpected: \(violation ?? "nil")")
@@ -189,7 +189,7 @@ struct UnreadableNoteGateInvariantTests {
         let absent = home.url.appendingPathComponent("cortex/flow/deleted.md")
         
         // Then
-        #expect(OpsEngine.checkSectionInvariants(affected: [absent], backups: [(absent, nil)]) == nil)
+        #expect(OperationsEngine.checkSectionInvariants(affected: [absent], backups: [(absent, nil)]) == nil)
     }
     
     @Test("the lifecycle stamp refuses to record a shape it could not measure")

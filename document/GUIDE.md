@@ -28,7 +28,7 @@ llmemory update --home <state-root>
 씨드 노트를 바이너리의 사본으로 덮고 README 를 갱신하고 재색인한다. **범위는 씨드 id 뿐** —
 저작한 노트는 절대 안 건드린다. 사람이 지운 씨드는 되살린다(운용 정책 없는 brain 이
 이 명령이 막으려는 실패다). **씨드 id 는 항상 출고본이다** — 로컬 분기가 필요하면 내용을
-새 id 노트로 복제하라. `locked` 는 "ops 수정 차단" 그 이상을 의미하지 않는다(소유권 아님).
+새 id 노트로 복제하라. `locked` 는 "operations 수정 차단" 그 이상을 의미하지 않는다(소유권 아님).
 
 ## 호출 패턴
 
@@ -48,8 +48,8 @@ llmemory <subcommand> [options] --home <state-root>
 llmemory --help                                  # 전체 그룹
 llmemory query --help                            # 그룹 안내
 llmemory query search --help                     # 옵션 + 예시
-llmemory ops vocab --home <state-root>           # 최신 op 카탈로그
-llmemory ops describe <op> --home <state-root>   # op 별 field schema + 예시
+llmemory operations vocab --home <state-root>           # 최신 op 카탈로그
+llmemory operations describe <op> --home <state-root>   # op 별 field schema + 예시
 ```
 
 | 그룹 | 역할 |
@@ -57,7 +57,7 @@ llmemory ops describe <op> --home <state-root>   # op 별 field schema + 예시
 | `init` | 최초 setup (idempotent) — 스키마 + README + 운용 정책 씨드 |
 | `update` | 기존 brain 에 씨드·README 재적용 (저작 노트 불침범) |
 | `query` | 읽기 — search / get / related / neighbors / entity / meta / structure / stats / list / axes / history / lint / enrichment / template |
-| `ops` | 쓰기 — apply / dry-run (atomic transaction) / vocab / describe |
+| `operations` | 쓰기 — apply / dry-run (atomic transaction) / vocab / describe |
 | `index` | DB 유지보수 — build / verify (integrity/sources/terms) / vector |
 | `consolidate` | 주기 정리 (관심사 분리) — integrate(A 비파괴) / prune(B 시냅스 가지치기) / homeostasis(H 메타가소성 틱) / candidates / report |
 | `genome` | 가소성 파라미터 — list(카탈로그·현재값·provenance) / history(변이 이력) / shadow(후보값 offline reranking) |
@@ -132,12 +132,12 @@ weight 1.0 사실 엣지이고 decay 면제다. 방향은 **`src <kind> dst` 를
 연상을 도배하고 요지를 밀어내기 때문 — 사실은 남기고 확성기만 뺏는다.
 
 ```
-llmemory ops apply --input '{"ops":[{"op":"link_lineage","src":"<원본 회차>","dst":"<추출된 원리>","kind":"promoted_to","reason":"..."}],"rationale":"..."}' --home <state-root>
+llmemory operations apply --input '{"ops":[{"op":"link_lineage","src":"<원본 회차>","dst":"<추출된 원리>","kind":"promoted_to","reason":"..."}],"rationale":"..."}' --home <state-root>
 ```
 
 **transaction 쓰기**:
 ```
-llmemory ops apply --input '{"ops":[...],"rationale":"..."}' --json --home <state-root>
+llmemory operations apply --input '{"ops":[...],"rationale":"..."}' --json --home <state-root>
 ```
 입력은 `--input` 또는 stdin (heredoc).
 
@@ -152,16 +152,16 @@ llmemory consolidate prune --home <state-root>       # B: 시냅스 가지치기
 대부분 노트는 포맷 없는 지식이지만, *문서*(테크스펙 등)는 정해진 뼈대를 따른다. 동작은
 **frontmatter 2필드**가 운반한다 (axis 무관):
 
-- `template: <id>` — 이 노트는 그 템플릿 노트의 heading **frame** 을 따른다. ops mutation 이
+- `template: <id>` — 이 노트는 그 템플릿 노트의 heading **frame** 을 따른다. operations mutation 이
   frame 을 깨면(필수 섹션 삭제·개명·외래 섹션·순서) 거부된다. 내용·빈 섹션·더 깊은 하위 heading 은 자유.
   정리(split/merge) 후보에서 제외되되 검색·랭킹은 일반 노트와 동일.
-- `locked: true` — 봇 전용 ops mutation 차단(사람이 파일 직접 수정). `flag` 등 DB-only 신호는 허용.
+- `locked: true` — 봇 전용 operations mutation 차단(사람이 파일 직접 수정). `flag` 등 DB-only 신호는 허용.
   템플릿 노트가 대표 사례. 범용 — 아무 노트에나 붙는다.
 
 ```
 llmemory query template <template-id> --home <state-root>      # 뼈대 + 섹션별 가이드
 # 문서 생성 (content 비우면 frame 이 빈 섹션으로 scaffold):
-llmemory ops apply --input '{"ops":[{"op":"create_note","axis":"spec","id":"...","title":"...","summary":"...","tags":["spec"],"template":"<template-id>"}],"rationale":"..."}' --json --home <state-root>
+llmemory operations apply --input '{"ops":[{"op":"create_note","axis":"spec","id":"...","title":"...","summary":"...","tags":["spec"],"template":"<template-id>"}],"rationale":"..."}' --json --home <state-root>
 ```
 
 템플릿 frame: 선언된 모든 heading 이 필수다(마커 없음). 선언 레벨은 닫힘(외래 섹션 거부)·순서
@@ -225,7 +225,7 @@ dismissible 이라 광고하는데 문은 닫혀 있는, 습관화가 막으려�
 ## 원칙
 
 - **Single source of truth**: cortex/ 의 markdown 이 진실. DB 는 파생.
-- **본문 통째 덮어쓰기 없음**: 모든 mutation 은 `ops apply` 의 op vocabulary 안에서.
+- **본문 통째 덮어쓰기 없음**: 모든 mutation 은 `operations apply` 의 op vocabulary 안에서.
   가장 거친 단위는 `patch_section`.
 - **Atomic transaction**: 다중 op 은 한 transaction 으로 묶여 validate → snapshot →
   apply → rollback. 부분 실패 시 새로 만든 파일·DB row 까지 cleanup.
@@ -281,7 +281,7 @@ lexical(BM25)·그래프 위에 *의미층* 을 더한다. 두 갈래 — ① LL
 *생성* 만 하는 교체 가능 client. 검증은 llmemory 안에 있어, 약한 모델이 노이즈를 줘도
 인덱스를 오염시키지 않는다 (graceful degradation — 최악이 no-op).
 
-**write 계약** (`ops describe <op>`):
+**write 계약** (`operations describe <op>`):
 - `add_retrieval_terms` — alias/cue 텍스트. round-trip + IDF 검증 후 `notes_fts` 의
   `enrich` 컬럼에 색인 (동의어·한글 조사 사각지대를 메움).
 - `propose_link` — LLM 의미 연상 edge (`assoc`). 낮은 weight 로 들어가 decay/strengthen
@@ -311,7 +311,7 @@ DB 안의 migration 원장에 남는다. brain 이 binary 보다 뒤처져 있�
 > 재구성이 불가피하면 **먼저 `memory.db` 를 복사해두고**, init 후 그 사본에서 위 테이블을
 > 옮겨 심는다.
 
-각 op·명령의 계약·검증 규칙은 llmemory 자체 표면이 SSoT — `ops describe <op>`,
+각 op·명령의 계약·검증 규칙은 llmemory 자체 표면이 SSoT — `operations describe <op>`,
 `index <cmd> --help`, `query enrichment`. (별도 설계 문서에 의존하지 않는다.)
 
 ## 데이터 위치

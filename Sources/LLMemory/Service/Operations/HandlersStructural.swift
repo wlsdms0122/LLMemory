@@ -9,8 +9,8 @@ import Foundation
 
 public enum HandlersStructural {
     // MARK: - Property
-    public static let restore = OpHandler(
-        schema: OpSchema(
+    public static let restore = OperationHandler(
+        schema: OperationSchema(
             summary: "restore a trashed note (cortex/.trash/) back to its axis with a fresh DB row",
             fields: [
                 .required("id", role: .noteId, "target note id; must exist in cortex/.trash/"),
@@ -96,8 +96,8 @@ public enum HandlersStructural {
         }
     )
     
-    public static let deleteNote = OpHandler(
-        schema: OpSchema(
+    public static let deleteNote = OperationHandler(
+        schema: OperationSchema(
             summary: "soft-delete a note: file moves to cortex/.trash/, DB row removed; refuses if deliberate inbound links exist (reference/lineage — learned cooccur/assoc do not block)",
             fields: [
                 .required("id", role: .noteId, "target note id"),
@@ -170,8 +170,8 @@ public enum HandlersStructural {
         }
     )
     
-    public static let setAxisDescription = OpHandler(
-        schema: OpSchema(
+    public static let setAxisDescription = OperationHandler(
+        schema: OperationSchema(
             summary: "update the description of an existing axis in the vocab",
             fields: [
                 .required("axis", role: .axis, "axis name; must already exist"),
@@ -218,8 +218,8 @@ public enum HandlersStructural {
         touches: { _, _ in [] }
     )
     
-    public static let migrateNote = OpHandler(
-        schema: OpSchema(
+    public static let migrateNote = OperationHandler(
+        schema: OperationSchema(
             summary: "move a note to a different axis and/or rename its id (file relocates, frontmatter rewrites)",
             fields: [
                 .required("id", role: .noteId, "current note id"),
@@ -357,8 +357,8 @@ public enum HandlersStructural {
         }
     )
     
-    public static let renameAxis = OpHandler(
-        schema: OpSchema(
+    public static let renameAxis = OperationHandler(
+        schema: OperationSchema(
             summary: "rename an axis across all notes (frontmatter, tags, files relocated)",
             fields: [
                 .required("from_axis", role: .axis, "current axis name; must exist"),
@@ -516,8 +516,8 @@ public enum HandlersStructural {
         }
     )
     
-    public static let renameTag = OpHandler(
-        schema: OpSchema(
+    public static let renameTag = OperationHandler(
+        schema: OperationSchema(
             summary: "rename a tag across all notes (refuses if from_tag is an axis — use rename_axis instead)",
             fields: [
                 .required("from_tag", "current tag; must exist (in vocab or in use)"),
@@ -638,8 +638,8 @@ public enum HandlersStructural {
         }
     )
     
-    public static let relocateSection = OpHandler(
-        schema: OpSchema(
+    public static let relocateSection = OperationHandler(
+        schema: OperationSchema(
             summary: "move a section from one note to another (extract from src + insert into dst)",
             fields: [
                 .required("from_id", role: .noteId, "source note id"),
@@ -788,8 +788,8 @@ public enum HandlersStructural {
         }
     )
     
-    public static let splitNote = OpHandler(
-        schema: OpSchema(
+    public static let splitNote = OperationHandler(
+        schema: OperationSchema(
             summary: "split a note into ≥2 children by section paths; routes the source's links/aliases/meta across new ids",
             fields: [
                 .required("from_id", role: .noteId, "source note id"),
@@ -918,7 +918,7 @@ public enum HandlersStructural {
                 let uncovered = try uncoveredRouteArtifacts(scope, fromId: fromId, routing: routing)
                 
                 if !uncovered.isEmpty {
-                    throw OpsEngine.SplitConflict(fromId: fromId, unresolved: uncovered)
+                    throw OperationsEngine.SplitConflict(fromId: fromId, unresolved: uncovered)
                 }
             }
             
@@ -1011,7 +1011,7 @@ public enum HandlersStructural {
                 let uncovered = try uncoveredRouteArtifacts(scope, fromId: fromId, routing: routing)
                 
                 if !uncovered.isEmpty {
-                    throw OpsEngine.SplitConflict(fromId: fromId, unresolved: uncovered)
+                    throw OperationsEngine.SplitConflict(fromId: fromId, unresolved: uncovered)
                 }
             }
             
@@ -1229,8 +1229,8 @@ public enum HandlersStructural {
         }
     )
     
-    public static let mergeNotes = OpHandler(
-        schema: OpSchema(
+    public static let mergeNotes = OperationHandler(
+        schema: OperationSchema(
             summary: "merge several notes into one (existing) target; from_ids are deleted, links redirected",
             fields: [
                 .required("into_id", role: .noteId, "target note id; must exist (pre-create with create_note in the same txn for fresh umbrella)"),
@@ -1462,7 +1462,7 @@ public enum HandlersStructural {
 }
 
 public enum HandlersRegistry {
-    public static func build() -> [String: OpHandler] {
+    public static func build() -> [String: OperationHandler] {
         [
             "create_note": HandlersBasic.createNote,
             "patch_section": HandlersBasic.patchSection,

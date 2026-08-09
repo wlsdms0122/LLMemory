@@ -1,5 +1,5 @@
 //
-//  OpsEngine.swift
+//  OperationsEngine.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -7,8 +7,8 @@
 
 import Foundation
 
-public enum OpsEngine {
-    public struct OpResult: Encodable, Sendable {
+public enum OperationsEngine {
+    public struct OperationResult: Encodable, Sendable {
         // MARK: - Property
         public let op: String
         public let status: String
@@ -32,7 +32,7 @@ public enum OpsEngine {
         
         // MARK: - Property
         public let status: String
-        public let opResults: [OpResult]
+        public let opResults: [OperationResult]
         public let error: String
         public let rejectedIndex: Int?
         public let rationale: String
@@ -42,7 +42,7 @@ public enum OpsEngine {
         // MARK: - Initializer
         public init(
             status: String,
-            opResults: [OpResult],
+            opResults: [OperationResult],
             error: String,
             rejectedIndex: Int?,
             rationale: String,
@@ -262,7 +262,7 @@ public enum OpsEngine {
                     )
                 }
                 
-                var results: [OpResult] = []
+                var results: [OperationResult] = []
                 var failure: (Int?, String)? = nil
                 var splitConflict: (Int, SplitConflict)? = nil
                 let eagerBefore = (try? scope.run(CountEagerNotesTransaction())) ?? 0
@@ -490,7 +490,7 @@ public enum OpsEngine {
         }
     }
     
-    static func targetIds(_ op: [String: Any], schema: OpSchema) -> Set<String> {
+    static func targetIds(_ op: [String: Any], schema: OperationSchema) -> Set<String> {
         schema.mentionedNoteIds(in: op)
     }
     
@@ -651,7 +651,7 @@ public enum OpsEngine {
     private static func lockedGate(
         op: [String: Any],
         name: String,
-        handler: OpHandler,
+        handler: OperationHandler,
         context: HandlerContext,
         scope: GRDBScope
     ) throws -> String? {
@@ -680,7 +680,7 @@ public enum OpsEngine {
     private static func rulesetGate(
         op: [String: Any],
         name: String,
-        handler: OpHandler,
+        handler: OperationHandler,
         scope: GRDBScope,
         rulesetId: String
     ) throws -> String? {
@@ -702,7 +702,7 @@ public enum OpsEngine {
     
     private static func extractAxes(
         _ op: [String: Any],
-        schema: OpSchema,
+        schema: OperationSchema,
         scope: GRDBScope
     ) throws -> Set<String> {
         var axes = schema.mentionedAxes(in: op)
@@ -876,7 +876,7 @@ public enum OpsEngine {
         return nil
     }
     
-    private static func dispatchApply(_ op: [String: Any], scope: GRDBScope) throws -> OpResult {
+    private static func dispatchApply(_ op: [String: Any], scope: GRDBScope) throws -> OperationResult {
         let name = op["op"] as! String
         let handler = Handlers.registry[name]!
         let raw = try handler.write(op, scope)
@@ -892,7 +892,7 @@ public enum OpsEngine {
         
         let ids = (raw["ids"] as? [Any])?.compactMap { id in id as? String } ?? []
         
-        return OpResult(
+        return OperationResult(
             op: name,
             status: raw["status"] as? String ?? "ok",
             note: raw["note"] as? String ?? "",
@@ -902,7 +902,7 @@ public enum OpsEngine {
     }
 }
 
-private extension OpsEngine {
+private extension OperationsEngine {
     // A rolled-back transaction may have primed the in-process gene cache —
     // reload it from the committed state, tolerating a dead connection.
     static func rewarmGenome(_ scope: GRDBScope) {

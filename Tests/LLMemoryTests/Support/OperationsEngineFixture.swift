@@ -1,5 +1,5 @@
 //
-//  OpsEngineFixture.swift
+//  OperationsEngineFixture.swift
 //  LLMemoryTests
 //
 //  Created by JSilver on 8/9/26.
@@ -14,7 +14,7 @@ import GRDB
 // door, and applied through the engine's scope body. The write lock rides
 // writeLock (the sync gate) because unit tests stay synchronous; the async
 // `storage.run` gate is covered by the CLI suite.
-extension OpsEngine {
+extension OperationsEngine {
     static func apply(
         _ storage: GRDBStorage,
         _ payload: [String: Any],
@@ -24,7 +24,7 @@ extension OpsEngine {
         do {
             let json = try Self.encodePayload(payload)
 
-            guard let decoded = OpsEngine.decodePayload(json) else {
+            guard let decoded = OperationsEngine.decodePayload(json) else {
                 return Result(
                     status: "rejected",
                     opResults: [],
@@ -37,7 +37,7 @@ extension OpsEngine {
 
             return try storage.writeLock {
                 try storage.connect().write { db in
-                    OpsEngine.apply(GRDBScope(db), decoded, sessionId: sessionId, ruleset: ruleset)
+                    OperationsEngine.apply(GRDBScope(db), decoded, sessionId: sessionId, ruleset: ruleset)
                 }
             }
         } catch {
@@ -60,7 +60,7 @@ extension OpsEngine {
         do {
             let json = try Self.encodePayload(payload)
 
-            guard let decoded = OpsEngine.decodePayload(json) else {
+            guard let decoded = OperationsEngine.decodePayload(json) else {
                 return DryRunResult(
                     status: "rejected",
                     opCount: nil,
@@ -70,7 +70,7 @@ extension OpsEngine {
             }
 
             return try storage.connect().read { db in
-                OpsEngine.dryRun(GRDBScope(db), decoded, ruleset: ruleset)
+                OperationsEngine.dryRun(GRDBScope(db), decoded, ruleset: ruleset)
             }
         } catch {
             return DryRunResult(

@@ -164,7 +164,7 @@ struct SourceGateInvariantTests {
                 "title": "t", "summary": "s", "tags": ["flow"], "content": "# body",
                 "axis_description": "(test)", "source": bad
             ]
-            let dryRun = OpsEngine.dryRun(home.storage, ["ops": [op], "rationale": "test"])
+            let dryRun = OperationsEngine.dryRun(home.storage, ["ops": [op], "rationale": "test"])
         
         // Then
             #expect(dryRun.status == "rejected", "dry-run accepted malformed source \(bad)")

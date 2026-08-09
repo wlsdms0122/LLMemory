@@ -16,7 +16,7 @@ struct AutoActuatorInvariantTests {
     
     // MARK: - Initializer
     // MARK: - Test
-    @Test("OpsEngine.apply has no internal caller — an automatic path must surface its status")
+    @Test("OperationsEngine.apply has no internal caller — an automatic path must surface its status")
     func transactionApplyHasNoInternalCallers() {
         // Given
         let sources = source.files(in: "Sources")
@@ -26,11 +26,11 @@ struct AutoActuatorInvariantTests {
         // When
         let violations = sources
             .filter { url in !Self.isOwner(url) }
-            .flatMap { url in Self.callSites(of: "OpsEngine.apply", in: url) }
+            .flatMap { url in Self.callSites(of: "OperationsEngine.apply", in: url) }
         
         // Then
         #expect(violations.isEmpty, """
-            Internal OpsEngine.apply consumer — an automatic path must surface Result.status \
+            Internal OperationsEngine.apply consumer — an automatic path must surface Result.status \
             fail-loud rather than swallow it:
             \(violations.joined(separator: "\n"))
             """)
@@ -38,7 +38,7 @@ struct AutoActuatorInvariantTests {
     
     // MARK: - Private
     // The engine's own module and the ops transactions are the only entries — every
-    // other path goes surface → OpsService (the one decode door) and sees the status.
+    // other path goes surface → OperationsService (the one decode door) and sees the status.
     private static func isOwner(_ url: URL) -> Bool {
         url.path.contains("/Service/Operations/")
     }

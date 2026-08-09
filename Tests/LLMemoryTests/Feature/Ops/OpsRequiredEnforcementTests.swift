@@ -100,7 +100,7 @@ struct OpsRequiredEnforcementTests {
         return isIdShaped || isAxisShaped || isSpecShaped
     }
     
-    private func schema(of op: String) throws -> OpSchema {
+    private func schema(of op: String) throws -> OperationSchema {
         guard let handler = Handlers.registry[op] else { throw TestFailure("no handler registered for \(op)") }
         
         return handler.schema

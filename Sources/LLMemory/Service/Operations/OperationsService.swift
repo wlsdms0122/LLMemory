@@ -1,5 +1,5 @@
 //
-//  OpsService.swift
+//  OperationsService.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/9/26.
@@ -14,7 +14,7 @@ import Storage
 // errors are normalized here as "unavailable" — a first-class state distinct
 // from "failed" (ran and rolled back) and "rejected" (payload refused),
 // because nothing was executed and the payload was never interpreted.
-public enum OpsService {
+public enum OperationsService {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
@@ -23,11 +23,11 @@ public enum OpsService {
         payloadJSON: String,
         sessionId: String? = nil,
         ruleset: String? = nil
-    ) async -> OpsEngine.Result {
+    ) async -> OperationsEngine.Result {
         do {
             return try await storage.run { scope in
-                guard let payload = OpsEngine.decodePayload(payloadJSON) else {
-                    return OpsEngine.Result(
+                guard let payload = OperationsEngine.decodePayload(payloadJSON) else {
+                    return OperationsEngine.Result(
                         status: "rejected",
                         opResults: [],
                         error: "payload must be a JSON object",
@@ -37,10 +37,10 @@ public enum OpsService {
                     )
                 }
 
-                return OpsEngine.apply(scope, payload, sessionId: sessionId, ruleset: ruleset)
+                return OperationsEngine.apply(scope, payload, sessionId: sessionId, ruleset: ruleset)
             }
         } catch {
-            return OpsEngine.Result(
+            return OperationsEngine.Result(
                 status: "unavailable",
                 opResults: [],
                 error: "\(error)",
@@ -55,11 +55,11 @@ public enum OpsService {
         _ storage: GRDBStorage,
         payloadJSON: String,
         ruleset: String? = nil
-    ) async -> OpsEngine.DryRunResult {
+    ) async -> OperationsEngine.DryRunResult {
         do {
             return try await storage.read { scope in
-                guard let payload = OpsEngine.decodePayload(payloadJSON) else {
-                    return OpsEngine.DryRunResult(
+                guard let payload = OperationsEngine.decodePayload(payloadJSON) else {
+                    return OperationsEngine.DryRunResult(
                         status: "rejected",
                         opCount: nil,
                         error: "payload must be a JSON object",
@@ -67,10 +67,10 @@ public enum OpsService {
                     )
                 }
 
-                return OpsEngine.dryRun(scope, payload, ruleset: ruleset)
+                return OperationsEngine.dryRun(scope, payload, ruleset: ruleset)
             }
         } catch {
-            return OpsEngine.DryRunResult(
+            return OperationsEngine.DryRunResult(
                 status: "unavailable",
                 opCount: nil,
                 error: "\(error)",
@@ -81,12 +81,12 @@ public enum OpsService {
 
     // Code-owned catalog — no connection, no session. Callable directly by any
     // surface (the CLI included).
-    public static func opNames() -> [String] {
-        Handlers.opNames()
+    public static func operationNames() -> [String] {
+        Handlers.operationNames()
     }
 
-    public static func opSchema(_ name: String) -> OpSchema? {
-        Handlers.opSchema(name)
+    public static func operationSchema(_ name: String) -> OperationSchema? {
+        Handlers.operationSchema(name)
     }
 
     // MARK: - Private

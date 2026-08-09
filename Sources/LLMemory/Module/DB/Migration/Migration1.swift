@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS notes (
   -- 구조화 문서: 따르는 템플릿 노트 id (frontmatter 파생, nullable).
   -- locked 와 함께 망각 면제(consolidate 후보 제외)의 SSoT 신호. derive 라벨 없음.
   template TEXT,
-  -- 사람 전용 편집 — ops mutation 차단, 파일 직접 수정만 (frontmatter 파생).
+  -- 사람 전용 편집 — operations mutation 차단, 파일 직접 수정만 (frontmatter 파생).
   locked INTEGER NOT NULL DEFAULT 0 CHECK (locked IN (0,1)),
   word_count INTEGER NOT NULL DEFAULT 0,
   section_count INTEGER NOT NULL DEFAULT 0,

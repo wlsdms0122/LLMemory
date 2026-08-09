@@ -9,8 +9,8 @@ import Foundation
 
 public enum HandlersEnrichment {
     // MARK: - Property
-    public static let addRetrievalTerms = OpHandler(
-        schema: OpSchema(
+    public static let addRetrievalTerms = OperationHandler(
+        schema: OperationSchema(
             summary: "attach LLM-emitted retrieval terms (alias/cue) to a note — inserted as status=pending, then promoted to active/rejected by llmemory's own round-trip + IDF validation pass (LLM never decides). 'alias' = synonym/abbrev/한↔영 짝/조사 뗀 어근 covering BM25 synonymy blind spots; 'cue' = a question this note would answer (write-time HyDE). Active terms are indexed into notes_fts.enrich and become searchable with no read-time cost.",
             fields: [
                 .required("id", role: .noteId, "target note id"),
@@ -83,8 +83,8 @@ public enum HandlersEnrichment {
         touches: { _, _ in [] }
     )
     
-    public static let proposeLink = OpHandler(
-        schema: OpSchema(
+    public static let proposeLink = OperationHandler(
+        schema: OperationSchema(
             summary: "propose an LLM semantic-association edge (kind=assoc) between two notes at a low dormant weight. No separate validation: the edge starts BELOW the traversal floor (links.neighbor_floor 0.5) so retrieval ignores it until co-retrieval strengthens it past 0.5; if never used, decay prunes it. The existing Hebbian decay/strengthen loop IS the validator (synaptic pruning).",
             fields: [
                 .required("src", role: .noteId, "source note id"),
@@ -170,8 +170,8 @@ public enum HandlersEnrichment {
         touches: { _, _ in [] }
     )
     
-    public static let purgeEnrichment = OpHandler(
-        schema: OpSchema(
+    public static let purgeEnrichment = OperationHandler(
+        schema: OperationSchema(
             summary: "recall path for a noisy model/batch: reject every retrieval term and delete every assoc edge carrying the given provenance. Goes through the same transaction/ruleset gate as any op. Not a durable ban — a later re-proposal of a purged term re-opens it as pending (rows describe the latest proposal; validation re-judges it).",
             fields: [
                 .required("provenance", "producer id to purge (matches note_retrieval_terms.provenance and note_links.provenance exactly)")
@@ -199,8 +199,8 @@ public enum HandlersEnrichment {
         touches: { _, _ in [] }
     )
     
-    public static let linkLineage = OpHandler(
-        schema: OpSchema(
+    public static let linkLineage = OperationHandler(
+        schema: OperationSchema(
             summary: "record a lineage fact between two notes (promoted_to / supersedes / merge_ancestor) "
             + "at full weight, decay-exempt. Use when a note was extracted from, replaces, or "
             + "descends from another — not for semantic association (that is propose_link).",

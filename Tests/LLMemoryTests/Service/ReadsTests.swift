@@ -91,7 +91,7 @@ struct ReadsTests {
         home.createNote(id: "list-lazy", content: "## S\nb\n")
         home.createNote(id: "list-eager", content: "## S\nb\n")
         
-        _ = OpsEngine.apply(home.storage, ["ops": [["op": "set_frontmatter", "id": "list-eager",
+        _ = OperationsEngine.apply(home.storage, ["ops": [["op": "set_frontmatter", "id": "list-eager",
             "fields": ["priority": "eager"]]], "rationale": "t"])
         
         let queue = try home.storage.connect()
@@ -231,7 +231,7 @@ struct ReadsTests {
         // Given
         home.createNote(id: "hist-b", content: "## S\nb\n")
         
-        _ = OpsEngine.apply(home.storage, ["ops": [["op": "flag", "id": "hist-b", "kind": "reconsolidate",
+        _ = OperationsEngine.apply(home.storage, ["ops": [["op": "flag", "id": "hist-b", "kind": "reconsolidate",
             "reason": "x"]], "rationale": "t"])
         
         let queue = try home.storage.connect()
@@ -247,7 +247,7 @@ struct ReadsTests {
     
     // MARK: - Private
     @discardableResult
-    private func createWithEntities(id: String, entities: [String]) -> OpsEngine.Result {
+    private func createWithEntities(id: String, entities: [String]) -> OperationsEngine.Result {
         home.createNote(id: id, content: "## S\nbody\n", fields: ["entities": entities])
     }
 }

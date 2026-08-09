@@ -348,12 +348,12 @@ struct LintTests {
     
     // MARK: - Private
     @discardableResult
-    private func create(_ id: String, content: String, axis: String = "tech") -> OpsEngine.Result {
+    private func create(_ id: String, content: String, axis: String = "tech") -> OperationsEngine.Result {
         home.createNote(id: id, axis: axis, tags: [axis, "test"], content: content)
     }
     
     @discardableResult
-    private func createTagged(_ id: String, tags: [String]) -> OpsEngine.Result {
+    private func createTagged(_ id: String, tags: [String]) -> OperationsEngine.Result {
         home.createNote(id: id, axis: "tech", tags: ["tech"] + tags, content: "## A\nx body\n")
     }
     

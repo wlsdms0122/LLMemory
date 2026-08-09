@@ -22,7 +22,7 @@ struct GenomeCommand: ParsableCommand {
             a row runs at wild-type.
 
             Two write doors only:
-              · set_gene op (`ops apply`) — direct value set, all genes.
+              · set_gene op (`operations apply`) — direct value set, all genes.
               · consolidate homeostasis — deterministic loop, mutable
                 (read-path) genes only.
 

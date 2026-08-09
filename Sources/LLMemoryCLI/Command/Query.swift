@@ -55,7 +55,7 @@ struct QueryTemplate: AsyncParsableCommand {
         abstract: "Parse a template note's heading frame + per-section guidance.",
         discussion: """
             A *document* note (frontmatter `template: <id>`) must keep this heading
-            frame; ops apply rejects any mutation that breaks it. This command shows
+            frame; operations apply rejects any mutation that breaks it. This command shows
             the frame the bot fills in — each node carries the guidance prose authored
             under that heading, so the author knows what each section is for.
 

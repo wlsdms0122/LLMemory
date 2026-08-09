@@ -1,5 +1,5 @@
 //
-//  Ops.swift
+//  Operations.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/9/26.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Ops {
+public struct Operations {
     // MARK: - Property
     let session: Session
 
@@ -21,8 +21,8 @@ public struct Ops {
         payloadJSON: String,
         sessionId: String? = nil,
         ruleset: String? = nil
-    ) async -> OpsEngine.Result {
-        await OpsService.apply(
+    ) async -> OperationsEngine.Result {
+        await OperationsService.apply(
             session.storage,
             payloadJSON: payloadJSON,
             sessionId: sessionId,
@@ -33,20 +33,20 @@ public struct Ops {
     public func dryRun(
         payloadJSON: String,
         ruleset: String? = nil
-    ) async -> OpsEngine.DryRunResult {
-        await OpsService.dryRun(session.storage, payloadJSON: payloadJSON, ruleset: ruleset)
+    ) async -> OperationsEngine.DryRunResult {
+        await OperationsService.dryRun(session.storage, payloadJSON: payloadJSON, ruleset: ruleset)
     }
 
     // Catalog reads are code-owned and connection-free; they live on the facade
     // so the CLI has one entry per domain. Constructing Brain for them costs a
     // silently-tolerated warm attempt — lightening the constructor rides the
     // Paths/Config globals debt.
-    public func opNames() -> [String] {
-        OpsService.opNames()
+    public func operationNames() -> [String] {
+        OperationsService.operationNames()
     }
 
-    public func opSchema(_ name: String) -> OpSchema? {
-        OpsService.opSchema(name)
+    public func operationSchema(_ name: String) -> OperationSchema? {
+        OperationsService.operationSchema(name)
     }
 
     // MARK: - Private

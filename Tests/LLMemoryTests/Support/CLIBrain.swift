@@ -7,7 +7,7 @@
 
 import Foundation
 
-// A state root built the way a user builds one — `llmemory init` plus `ops apply`, through the real
+// A state root built the way a user builds one — `llmemory init` plus `operations apply`, through the real
 // binary. Every CLI test gets its own, so no test can depend on what an earlier one left behind.
 final class CLIBrain {
     // MARK: - Property
@@ -47,7 +47,7 @@ final class CLIBrain {
     
     @discardableResult
     func applyOps(_ input: String) -> CLIResult {
-        run(["ops", "apply", "--input", input, "--json"])
+        run(["operations", "apply", "--input", input, "--json"])
     }
     
     func file(_ relativePath: String) -> URL {
@@ -64,7 +64,7 @@ final class CLIBrain {
         
         guard result.succeeded else {
             throw TestFailure("""
-                seed ops apply failed (\(result.exitCode))
+                seed operations apply failed (\(result.exitCode))
                 out: \(result.standardOutput)
                 err: \(result.standardError)
                 """)

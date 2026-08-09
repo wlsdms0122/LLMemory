@@ -18,7 +18,7 @@ struct LLMemoryCLI: AsyncParsableCommand {
         discussion: """
             Manages a brain home: data/memory.db (catalog, FTS5 index, events)
             and cortex/<axis>/<id>.md note files. All file and DB mutations go
-            through `ops apply` — no API for direct edits.
+            through `operations apply` — no API for direct edits.
 
             GLOBAL OPTIONS
                 Accepted by every leaf subcommand; place AFTER the subcommand.
@@ -26,7 +26,7 @@ struct LLMemoryCLI: AsyncParsableCommand {
                     --session-id <id>     Override MEMORY_SESSION_ID for this call.
 
                 --ruleset <id> is NOT global — it is carried only by the mutators
-                (ops apply, ops dry-run), since it is inert everywhere else.
+                (operations apply, operations dry-run), since it is inert everywhere else.
 
                 ok:   llmemory query search foo --home brain
                 bad:  llmemory --home brain query search foo
@@ -45,13 +45,13 @@ struct LLMemoryCLI: AsyncParsableCommand {
                 JSON on stdout, one line per command, unless noted.
 
             SEE ALSO
-                ops apply, ops vocab, ruleset list
+                operations apply, operations vocab, ruleset list
             """,
         subcommands: [
             InitCommand.self,
             UpdateCommand.self,
             QueryCommand.self,
-            OpsCommand.self,
+            OperationsCommand.self,
             RulesetCommand.self,
             IndexCommand.self,
             ConsolidateCommand.self,

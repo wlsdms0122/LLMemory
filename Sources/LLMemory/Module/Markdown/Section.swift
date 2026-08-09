@@ -103,7 +103,7 @@ enum SectionEdit {
         options: []
     )
     
-    private static let parsePathHint = ###"(hint: section path must start with a markdown heading marker (#..######), e.g. "## 제목" or "## A > ### B" — see `ops describe patch_section`)"###
+    private static let parsePathHint = ###"(hint: section path must start with a markdown heading marker (#..######), e.g. "## 제목" or "## A > ### B" — see `operations describe patch_section`)"###
     
     // MARK: - Initializer
     // MARK: - Public

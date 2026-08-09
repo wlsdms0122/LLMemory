@@ -27,7 +27,7 @@ struct NoteLifecycle {
         axis: String,
         axisDescription: String = "(test axis)",
         extraTags: [String] = []
-    ) -> OpsEngine.Result {
+    ) -> OperationsEngine.Result {
         home.createNote(
             id: noteId,
             axis: axis,

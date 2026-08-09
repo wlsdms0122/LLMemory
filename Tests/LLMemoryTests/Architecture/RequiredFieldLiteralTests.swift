@@ -13,7 +13,7 @@ struct RequiredFieldLiteralTests {
     // MARK: - Property
     // Dispatch already enforces the schema's requiredNames(given:). A handler that checks again holds
     // a second copy of the rule, and second copies drift.
-    private static let owners = ["Handlers.swift", "OpsEngine.swift"]
+    private static let owners = ["Handlers.swift", "OperationsEngine.swift"]
     
     private let source = PackageSource()
     
@@ -37,7 +37,7 @@ struct RequiredFieldLiteralTests {
         
         // Then
         #expect(violations.isEmpty, """
-            per-handler required-field literal — declare it in the OpSchema instead, dispatch \
+            per-handler required-field literal — declare it in the OperationSchema instead, dispatch \
             enforces requiredNames(given:): \(violations.joined(separator: ", "))
             """)
     }

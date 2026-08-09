@@ -200,7 +200,7 @@ struct RulesetEffective: AsyncParsableCommand {
             """
     )
     
-    @Argument(help: ArgumentHelp("Ruleset id to inspect (positional; the --ruleset mutation-gate (on ops apply etc.) is unrelated and ignored here).", valueName: "id"))
+    @Argument(help: ArgumentHelp("Ruleset id to inspect (positional; the --ruleset mutation-gate (on operations apply etc.) is unrelated and ignored here).", valueName: "id"))
     var ruleset: String
     
     @Argument(help: ArgumentHelp("Axis name (e.g. `skill`, `spec`). Use `*` to see axis-agnostic rules only.", valueName: "axis"))

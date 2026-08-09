@@ -8,7 +8,7 @@
 import Testing
 import Foundation
 
-@Suite("OpsCommand Tests", .serialized)
+@Suite("OperationsCommand Tests", .serialized)
 struct OpsCommandTests {
     // MARK: - Property
     private let brain: CLIBrain
@@ -22,7 +22,7 @@ struct OpsCommandTests {
     @Test("dry-run validates the transaction and writes nothing")
     func dryRunValidatesWithoutPersisting() {
         // When
-        let result = brain.run(["ops", "dry-run", "--json", "--input", """
+        let result = brain.run(["operations", "dry-run", "--json", "--input", """
             {"ops":[{"op":"create_note","id":"dry-x","axis":"tech","title":"title","summary":"summary",\
             "tags":["tech"],"content":"## A\\nbody\\n"}],"rationale":"test"}
             """])

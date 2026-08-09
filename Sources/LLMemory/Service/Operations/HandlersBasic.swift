@@ -9,8 +9,8 @@ import Foundation
 
 public enum HandlersBasic {
     // MARK: - Property
-    public static let createNote = OpHandler(
-        schema: OpSchema(
+    public static let createNote = OperationHandler(
+        schema: OperationSchema(
             summary: "create a new note (file + DB row)",
             fields: [
                 .required("axis", role: .axis, "axis name; must also appear in tags"),
@@ -23,7 +23,7 @@ public enum HandlersBasic {
                 .optional("source", "string or list of source refs. Local absolute paths are drift-tracked (source_stale); URLs/dates/relative refs are kept as provenance only."),
                 .optional("entities", "string list of named entities"),
                 .optional("template", "id of a template note this note follows (structured document). body must conform to the template frame; empty content is scaffolded"),
-                .optional("locked", "bool. true → human-only: subsequent ops mutation is refused, file is edited directly"),
+                .optional("locked", "bool. true → human-only: subsequent operations mutation is refused, file is edited directly"),
                 .optional("axis_description", "required only when axis is brand new"),
                 .optional("rationale", "lifecycle event reason recorded on creation")
             ],
@@ -168,8 +168,8 @@ public enum HandlersBasic {
         }
     )
     
-    public static let patchSection = OpHandler(
-        schema: OpSchema(
+    public static let patchSection = OperationHandler(
+        schema: OperationSchema(
             summary: "section-level surgical edit (replace/append/prepend/remove)",
             fields: [
                 .required("id", role: .noteId, "target note id"),
@@ -295,8 +295,8 @@ public enum HandlersBasic {
         }
     )
     
-    public static let setFrontmatter = OpHandler(
-        schema: OpSchema(
+    public static let setFrontmatter = OperationHandler(
+        schema: OperationSchema(
             summary: "merge frontmatter fields (mutable subset only)",
             fields: [
                 .required("id", role: .noteId, "target note id"),
@@ -395,8 +395,8 @@ public enum HandlersBasic {
         }
     )
     
-    public static let renameSection = OpHandler(
-        schema: OpSchema(
+    public static let renameSection = OperationHandler(
+        schema: OperationSchema(
             summary: "rename a section heading in place (level preserved)",
             fields: [
                 .required("id", role: .noteId, "target note id"),
@@ -464,8 +464,8 @@ public enum HandlersBasic {
         }
     )
     
-    public static let invalidate = OpHandler(
-        schema: OpSchema(
+    public static let invalidate = OperationHandler(
+        schema: OperationSchema(
             summary: "mark a note stale (frontmatter + DB) and ripple-flag inbound links",
             fields: [
                 .required("id", role: .noteId, "target note id"),
@@ -537,8 +537,8 @@ public enum HandlersBasic {
         }
     )
     
-    public static let revalidate = OpHandler(
-        schema: OpSchema(
+    public static let revalidate = OperationHandler(
+        schema: OperationSchema(
             summary: "clear stale flag on a previously-invalidated note",
             fields: [
                 .required("id", role: .noteId, "target note id; must currently be stale=true"),
@@ -601,8 +601,8 @@ public enum HandlersBasic {
         }
     )
     
-    public static let rebaseSource = OpHandler(
-        schema: OpSchema(
+    public static let rebaseSource = OperationHandler(
+        schema: OperationSchema(
             summary: "assert the note was verified against its current source files (no file edit): re-baseline the source fingerprint and clear source_stale",
             fields: [
                 .required("id", role: .noteId, "target note id; must have a drift-tracked source"),
@@ -644,8 +644,8 @@ public enum HandlersBasic {
         touches: { _, _ in [] }
     )
     
-    public static let flag = OpHandler(
-        schema: OpSchema(
+    public static let flag = OperationHandler(
+        schema: OperationSchema(
             summary: "attach a maintenance flag to a note (no file edit). re-flagging same kind increments flag_count + bumps last_flagged_at + clears resolved_at.",
             fields: [
                 .required("id", role: .noteId, "target note id"),
@@ -677,8 +677,8 @@ public enum HandlersBasic {
         touches: { _, _ in [] }
     )
     
-    public static let resolveFlag = OpHandler(
-        schema: OpSchema(
+    public static let resolveFlag = OperationHandler(
+        schema: OperationSchema(
             summary: "mark a ripple_flag as resolved (sets resolved_at). idempotent — already-resolved flags are no-op.",
             fields: [
                 .required("id", role: .noteId, "target note id"),
@@ -715,8 +715,8 @@ public enum HandlersBasic {
         touches: { _, _ in [] }
     )
     
-    public static let dismissCandidate = OpHandler(
-        schema: OpSchema(
+    public static let dismissCandidate = OperationHandler(
+        schema: OperationSchema(
             summary: "record a *keep* decision for a consolidation candidate — \"reviewed, leave this note as-is\". "
             + "Habituation: the candidate stops re-surfacing until the note's shape diverges past an accumulating "
             + "threshold (each dismissal deepens it) or a corpus-wide reorg reopens it. No file edit; affects only "
@@ -851,8 +851,8 @@ public enum HandlersBasic {
         touches: { _, _ in [] }
     )
     
-    public static let markUsed = OpHandler(
-        schema: OpSchema(
+    public static let markUsed = OperationHandler(
+        schema: OperationSchema(
             summary: "mark recently surfaced notes as used in the caller's response — a *weak* usage "
             + "signal, never a proof of causal use. With `response` text each note must pass a "
             + "content-overlap heuristic and is recorded as `content_overlap`; without it the mark "
@@ -922,8 +922,8 @@ public enum HandlersBasic {
         touches: { _, _ in [] }
     )
     
-    public static let setGene = OpHandler(
-        schema: OpSchema(
+    public static let setGene = OperationHandler(
+        schema: OperationSchema(
             summary: "set a gene's per-brain value directly. Works on every cataloged gene (locked "
             + "write-path genes included; the lock only bars the homeostasis loop). Bounds-checked; "
             + "recorded in genome_events with provenance. Pass value=null to reset to wild-type.",
@@ -982,8 +982,8 @@ public enum HandlersBasic {
         touches: { _, _ in [] }
     )
     
-    public static let setNoteMeta = OpHandler(
-        schema: OpSchema(
+    public static let setNoteMeta = OperationHandler(
+        schema: OperationSchema(
             summary: "upsert a (namespace, key, value) row in note_meta side-table",
             fields: [
                 .required("id", role: .noteId, "target note id"),
@@ -1037,8 +1037,8 @@ public enum HandlersBasic {
         touches: { _, _ in [] }
     )
     
-    public static let deleteNoteMeta = OpHandler(
-        schema: OpSchema(
+    public static let deleteNoteMeta = OperationHandler(
+        schema: OperationSchema(
             summary: "delete a (namespace, key) row from note_meta side-table",
             fields: [
                 .required("id", role: .noteId, "target note id"),

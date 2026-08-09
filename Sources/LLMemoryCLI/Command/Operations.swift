@@ -1,5 +1,5 @@
 //
-//  Ops.swift
+//  Operations.swift
 //  LLMemoryCLI
 //
 //  Created by JSilver on 8/7/26.
@@ -9,10 +9,10 @@ import ArgumentParser
 import Foundation
 import LLMemory
 
-struct OpsCommand: ParsableCommand {
+struct OperationsCommand: ParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
-        commandName: "ops",
+        commandName: "operations",
         abstract: "Atomic write transactions — all mutations go through here.",
         discussion: """
             All file and DB writes go through `apply`. Each transaction validates
@@ -22,7 +22,7 @@ struct OpsCommand: ParsableCommand {
             SEE ALSO
                 ops apply, ops vocab, ops describe
             """,
-        subcommands: [OpsApply.self, OpsDryRun.self, OpsVocab.self, OpsDescribe.self]
+        subcommands: [OperationsApply.self, OperationsDryRun.self, OperationsVocab.self, OperationsDescribe.self]
     )
     
     // MARK: - Initializer
@@ -30,7 +30,7 @@ struct OpsCommand: ParsableCommand {
     // MARK: - Private
 }
 
-struct OpsApply: AsyncParsableCommand {
+struct OperationsApply: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "apply",
@@ -43,7 +43,7 @@ struct OpsApply: AsyncParsableCommand {
                 {"ops": [<op>, ...], "rationale": "..."}
 
                 Each <op> is a dict whose `op` field names a handler.
-                Run `ops vocab` for handlers; `ops describe <op>` for fields.
+                Run `operations vocab` for handlers; `operations describe <op>` for fields.
 
             EXIT STATUS
                 0   status == "ok"
@@ -52,9 +52,9 @@ struct OpsApply: AsyncParsableCommand {
 
             EXAMPLES
                 echo '{"ops":[{"op":"invalidate","id":"old","reason":"superseded"}],"rationale":"stale"}' \\
-                    | llmemory ops apply --home brain
+                    | llmemory operations apply --home brain
 
-                llmemory ops apply --home brain --input "$(cat plan.json)"
+                llmemory operations apply --home brain --input "$(cat plan.json)"
 
             SEE ALSO
                 ops dry-run, ops vocab, ops describe
@@ -75,7 +75,7 @@ struct OpsApply: AsyncParsableCommand {
         
         guard let payload = try readJSONText(input) else { throw ExitCode(2) }
         
-        let result = await brain.ops.apply(
+        let result = await brain.operations.apply(
             payloadJSON: payload,
             sessionId: Session.retrievalSession(cli: global.sessionId),
             ruleset: rulesetOption.rulesetId
@@ -89,7 +89,7 @@ struct OpsApply: AsyncParsableCommand {
     // MARK: - Private
 }
 
-struct OpsDryRun: AsyncParsableCommand {
+struct OperationsDryRun: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "dry-run",
@@ -103,7 +103,7 @@ struct OpsDryRun: AsyncParsableCommand {
                 2   missing or invalid JSON
 
             EXAMPLES
-                llmemory ops dry-run --home brain --json '<payload>'
+                llmemory operations dry-run --home brain --json '<payload>'
 
             SEE ALSO
                 ops apply
@@ -124,7 +124,7 @@ struct OpsDryRun: AsyncParsableCommand {
         
         guard let payload = try readJSONText(input) else { throw ExitCode(2) }
         
-        let result = await brain.ops.dryRun(payloadJSON: payload, ruleset: rulesetOption.rulesetId)
+        let result = await brain.operations.dryRun(payloadJSON: payload, ruleset: rulesetOption.rulesetId)
         
         render(result, json: format.json) { result in opsResultBlocks(result) }
         
@@ -134,7 +134,7 @@ struct OpsDryRun: AsyncParsableCommand {
     // MARK: - Private
 }
 
-struct OpsVocab: ParsableCommand {
+struct OperationsVocab: ParsableCommand {
     struct Output: Encodable {
         // MARK: - Property
         let ops: [String]
@@ -173,8 +173,8 @@ struct OpsVocab: ParsableCommand {
             summary and required fields.
 
             EXAMPLES
-                llmemory ops vocab --home brain
-                llmemory ops vocab --verbose --home brain
+                llmemory operations vocab --home brain
+                llmemory operations vocab --verbose --home brain
 
             SEE ALSO
                 ops describe
@@ -193,8 +193,8 @@ struct OpsVocab: ParsableCommand {
         let brain = Brain(home: global.home)
         
         if verbose {
-            let rows = brain.ops.opNames().compactMap { name -> VerboseOp? in
-                guard let schema = brain.ops.opSchema(name) else { return nil }
+            let rows = brain.operations.operationNames().compactMap { name -> VerboseOp? in
+                guard let schema = brain.operations.operationSchema(name) else { return nil }
                 
                 return VerboseOp(
                     name: name,
@@ -214,7 +214,7 @@ struct OpsVocab: ParsableCommand {
                 ]
             }
         } else {
-            render(Output(ops: brain.ops.opNames()), json: format.json) { output in
+            render(Output(ops: brain.operations.operationNames()), json: format.json) { output in
                 [.text(output.ops.joined(separator: "\n"))]
             }
         }
@@ -223,7 +223,7 @@ struct OpsVocab: ParsableCommand {
     // MARK: - Private
 }
 
-struct OpsDescribe: ParsableCommand {
+struct OperationsDescribe: ParsableCommand {
     struct Output: Encodable {
         // MARK: - Property
         let name: String
@@ -247,8 +247,8 @@ struct OpsDescribe: ParsableCommand {
             {"ops":[<example>]} before passing to `apply`).
 
             EXAMPLES
-                llmemory ops describe patch_section --home brain
-                llmemory ops describe patch_section --json --home brain
+                llmemory operations describe patch_section --home brain
+                llmemory operations describe patch_section --json --home brain
 
             SEE ALSO
                 ops apply, ops vocab
@@ -258,7 +258,7 @@ struct OpsDescribe: ParsableCommand {
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
     
-    @Argument(help: "Op name (must appear in `ops vocab`).")
+    @Argument(help: "Op name (must appear in `operations vocab`).")
     var op: String
     
     // MARK: - Initializer
@@ -266,9 +266,9 @@ struct OpsDescribe: ParsableCommand {
     func run() throws {
         let brain = Brain(home: global.home)
         
-        guard let schema = brain.ops.opSchema(op) else {
+        guard let schema = brain.operations.operationSchema(op) else {
             FileHandle.standardError.write(
-                "unknown op: \(op) (see `ops vocab`)\n".data(using: .utf8) ?? Data()
+                "unknown op: \(op) (see `operations vocab`)\n".data(using: .utf8) ?? Data()
             )
             
             throw ExitCode(1)
@@ -323,7 +323,7 @@ struct OpsDescribe: ParsableCommand {
     // MARK: - Private
 }
 
-private func opsResultBlocks(_ result: OpsEngine.Result) -> [PlainBlock] {
+private func opsResultBlocks(_ result: OperationsEngine.Result) -> [PlainBlock] {
     var blocks: [PlainBlock] = [
         .text(result.status == "ok"
             ? "ok  (\(result.opResults.count) ops)"
@@ -343,7 +343,7 @@ private func opsResultBlocks(_ result: OpsEngine.Result) -> [PlainBlock] {
     return blocks
 }
 
-private func opsResultBlocks(_ result: OpsEngine.DryRunResult) -> [PlainBlock] {
+private func opsResultBlocks(_ result: OperationsEngine.DryRunResult) -> [PlainBlock] {
     let suffix = result.opCount.map { count in "  (\(count) ops)" } ?? ""
     var blocks: [PlainBlock] = []
     

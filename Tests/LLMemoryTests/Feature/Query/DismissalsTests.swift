@@ -323,7 +323,7 @@ struct DismissalsTests {
         _ id: String,
         sections: Int = 4,
         wordsPerSection: Int = 120
-    ) -> OpsEngine.Result {
+    ) -> OperationsEngine.Result {
         home.createNote(
             id: id,
             axis: "tech",
@@ -335,7 +335,7 @@ struct DismissalsTests {
     }
     
     @discardableResult
-    private func createTagged(_ id: String, tags: [String]) -> OpsEngine.Result {
+    private func createTagged(_ id: String, tags: [String]) -> OperationsEngine.Result {
         home.createNote(
             id: id,
             axis: "tech",
@@ -351,12 +351,12 @@ struct DismissalsTests {
     }
     
     @discardableResult
-    private func dismiss(_ id: String, kind: String = "split") -> OpsEngine.Result {
+    private func dismiss(_ id: String, kind: String = "split") -> OperationsEngine.Result {
         home.apply(["op": "dismiss_candidate", "id": id, "kind": kind])
     }
     
     @discardableResult
-    private func append(to id: String, section: String, words: Int) -> OpsEngine.Result {
+    private func append(to id: String, section: String, words: Int) -> OperationsEngine.Result {
         home.apply([
             "op": "patch_section", "id": id, "section": section, "action": "append",
             "content": Array(repeating: "filler", count: words).joined(separator: " ")

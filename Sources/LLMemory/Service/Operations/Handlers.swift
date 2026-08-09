@@ -90,7 +90,7 @@ public enum OpFieldRole: Sendable, Equatable {
     case childSpecs
 }
 
-public struct OpSchema: Sendable, Encodable {
+public struct OperationSchema: Sendable, Encodable {
     // MARK: - Property
     public let summary: String
     public let fields: [OpField]
@@ -188,9 +188,9 @@ struct FieldTypeError: Error, CustomStringConvertible {
     // MARK: - Private
 }
 
-public struct OpHandler: @unchecked Sendable {
+public struct OperationHandler: @unchecked Sendable {
     // MARK: - Property
-    public let schema: OpSchema
+    public let schema: OperationSchema
     public let validate: (_ op: [String: Any], _ context: HandlerContext, _ scope: GRDBScope) throws -> String?
     public let write: (_ op: [String: Any], _ scope: GRDBScope) throws -> [String: Any]
     public let effect: (_ op: [String: Any]) -> [String: [String]]
@@ -245,7 +245,7 @@ public enum Handlers {
         "title", "summary", "tags", "priority", "source", "promoted_from"
     ]
     
-    static let registry: [String: OpHandler] = HandlersRegistry.build()
+    static let registry: [String: OperationHandler] = HandlersRegistry.build()
     
     // MARK: - Initializer
     // MARK: - Public
@@ -392,11 +392,11 @@ public enum Handlers {
         return try? resolveTrashPath(relativePath)
     }
     
-    public static func opNames() -> [String] {
+    public static func operationNames() -> [String] {
         registry.keys.sorted()
     }
     
-    public static func opSchema(_ name: String) -> OpSchema? {
+    public static func operationSchema(_ name: String) -> OperationSchema? {
         registry[name]?.schema
     }
     

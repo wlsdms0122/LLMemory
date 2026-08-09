@@ -122,7 +122,7 @@ struct SearchTests {
     }
     
     // MARK: - Private
-    private func create(id: String, title: String, body: String) -> OpsEngine.Result {
+    private func create(id: String, title: String, body: String) -> OperationsEngine.Result {
         home.createNote(id: id, axis: "tech", title: title, tags: ["tech"], content: body)
     }
 }
