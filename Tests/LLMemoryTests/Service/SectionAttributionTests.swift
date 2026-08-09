@@ -119,7 +119,7 @@ struct SectionAttributionTests {
         
         // When
         let hit = try home.read { database in
-            try Framing.similar(database, keywords: ["qwombat"], limit: 5)
+            try FetchSimilarNotesTransaction(keywords: ["qwombat"], limit: 5).perform(database)
                 .first { similar in similar.id == "sim-note" }
         }
         
