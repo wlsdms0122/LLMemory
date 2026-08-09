@@ -208,7 +208,65 @@ public enum OperationsEngine {
                 }
             }
             
-            let txResult: Result = try { () throws -> Result in
+            let txResult = try applySequence(
+                scope,
+                opsRaw: opsRaw,
+                sessionId: sessionId,
+                rationale: rationale,
+                effectiveRulesetId: effectiveRulesetId
+            )
+            
+            if txResult.status == "ok" {
+                let touched = enrichmentTouchedNotes(opsRaw)
+                
+                if !touched.isEmpty {
+                    // Best-effort, but atomically so — a failed validation
+                    // pass rolls back rather than half-committing.
+                    try? scope.savepoint {
+                        do {
+                            _ = try scope.run(ValidatePendingTermsTransaction(noteIds: touched))
+
+                            return .commit
+                        } catch {
+                            return .rollback
+                        }
+                    }
+                }
+            }
+            
+            return txResult
+        } catch let conflict as SplitConflict {
+            return Result(
+                status: "conflict",
+                opResults: [],
+                error: "split_note '\(conflict.fromId)' has \(conflict.unresolved.count) artifact(s) whose ownership across the new notes is a semantic call — re-issue with `routing` assigning each to children (to:[\"id\"]), copying (to:[\"a\",\"b\"]), or dropping (to:[]). Omitted artifacts are dropped; cooccur/reference are auto-handled.",
+                rejectedIndex: nil,
+                rationale: rationale,
+                recoveryFailed: [],
+                conflict: conflict
+            )
+        } catch {
+            return Result(
+                status: "failed",
+                opResults: [],
+                error: "\(error)",
+                rejectedIndex: nil,
+                rationale: rationale,
+                recoveryFailed: []
+            )
+        }
+    }
+    
+
+    // The gated apply sequence — validate, snapshot, savepointed op run,
+    // post-checks, and the capture event that records the outcome.
+    private static func applySequence(
+        _ scope: GRDBScope,
+        opsRaw: [[String: Any]],
+        sessionId: String?,
+        rationale: String,
+        effectiveRulesetId: String?
+    ) throws -> Result {
                 if let (message, index) = try validate(
                     opsRaw,
                     scope: scope.readOnly,
@@ -376,39 +434,8 @@ public enum OperationsEngine {
                     rationale: rationale,
                     recoveryFailed: []
                 )
-            }()
-            
-            if txResult.status == "ok" {
-                let touched = enrichmentTouchedNotes(opsRaw)
-                
-                if !touched.isEmpty {
-                    _ = try? scope.run(ValidatePendingTermsTransaction(noteIds: touched))
-                }
-            }
-            
-            return txResult
-        } catch let conflict as SplitConflict {
-            return Result(
-                status: "conflict",
-                opResults: [],
-                error: "split_note '\(conflict.fromId)' has \(conflict.unresolved.count) artifact(s) whose ownership across the new notes is a semantic call — re-issue with `routing` assigning each to children (to:[\"id\"]), copying (to:[\"a\",\"b\"]), or dropping (to:[]). Omitted artifacts are dropped; cooccur/reference are auto-handled.",
-                rejectedIndex: nil,
-                rationale: rationale,
-                recoveryFailed: [],
-                conflict: conflict
-            )
-        } catch {
-            return Result(
-                status: "failed",
-                opResults: [],
-                error: "\(error)",
-                rejectedIndex: nil,
-                rationale: rationale,
-                recoveryFailed: []
-            )
-        }
     }
-    
+
     public static func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], ruleset: String? = nil) -> DryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return DryRunResult(

@@ -194,17 +194,58 @@ public enum ConsolidateService {
 
         let ftsPrune = try scope.run(PruneFtsOrphansTransaction())
 
-        let validationPass = (try? scope.run(ValidatePendingTermsTransaction(noteIds: nil)))
-            ?? TermValidationPass()
+        // Best-effort passes run as savepoints — a failure rolls its own
+        // statements back instead of leaving a half-applied pass inside the
+        // enclosing scope's commit.
+        var validationPass = TermValidationPass()
+        var staleRejected = 0
+        var reviewPass = EnrichmentReviewPass()
+
+        try scope.savepoint {
+            do {
+                validationPass = try scope.run(ValidatePendingTermsTransaction(noteIds: nil))
+
+                return .commit
+            } catch {
+                return .rollback
+            }
+        }
+        try scope.savepoint {
+            do {
+                staleRejected = try scope.run(RejectStalePendingTermsTransaction())
+
+                return .commit
+            } catch {
+                return .rollback
+            }
+        }
+        try scope.savepoint {
+            do {
+                reviewPass = try scope.run(FlagEnrichmentDisagreementsTransaction(now: now))
+
+                return .commit
+            } catch {
+                return .rollback
+            }
+        }
+
         let termsActivated = validationPass.activated
-        let termsRejected = validationPass.rejected
-            + ((try? scope.run(RejectStalePendingTermsTransaction())) ?? 0)
-        let reviewPass = (try? scope.run(FlagEnrichmentDisagreementsTransaction(now: now))) ?? .init()
+        let termsRejected = validationPass.rejected + staleRejected
 
         try scope.run(MarkConsolidatedTransaction(now: now))
 
         let decay: (decayed: Int, pruned: Int) = (0, 0)
-        let vectorBuild = try? scope.run(BuildVectorsTransaction())
+        var vectorBuild: VectorBuildResult?
+
+        try scope.savepoint {
+            do {
+                vectorBuild = try scope.run(BuildVectorsTransaction())
+
+                return .commit
+            } catch {
+                return .rollback
+            }
+        }
         let summary = Consolidation.IntegrateResult.Summary(
             eventsCompacted: eventsCompacted,
             smallAxes: axisSummary.small.count,

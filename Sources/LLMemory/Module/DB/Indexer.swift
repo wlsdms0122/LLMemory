@@ -74,57 +74,7 @@ public enum Indexer {
     // MARK: - Public
     // Caller holds the write lock (run's write marker or an explicit writeLock).
     static func buildLocked(_ queue: any DatabaseWriter, rebuild: Bool = false) throws -> BuildResult {
-        let now = Int(Date().timeIntervalSince1970)
-        let files = Paths.scanNotes()
-        var scannedRels = Set<String>()
-        var pending: [PendingNote] = []
-        var fileErrors: [String] = []
-            
-        func parseInto(_ list: inout [PendingNote], _ urls: [URL]) {
-            for file in urls {
-                let relativePath: String
-                do {
-                    relativePath = try Notes.relativeToBrainRoot(file)
-                } catch {
-                    fileErrors.append("\(file.path): \(error)")
-                    continue
-                }
-                    
-                scannedRels.insert(relativePath)
-                    
-                do {
-                    let text = try String(contentsOf: file, encoding: .utf8)
-                    let (fields, body) = try Frontmatter.parse(text)
-                        
-                    list.append(
-                        PendingNote(
-                            file: file,
-                            rel: relativePath,
-                            raw: text,
-                            contentHash: Notes.contentHash(text),
-                            fields: fields,
-                            body: body
-                        )
-                    )
-                } catch {
-                    fileErrors.append("\(relativePath): \(error)")
-                }
-            }
-        }
-            
-        parseInto(&pending, files)
-            
-        return try queue.write { db in
-            try reconcile(
-                db,
-                pending: pending,
-                scannedRels: scannedRels,
-                rebuild: rebuild,
-                now: now,
-                fileErrors: fileErrors
-            )
-        }
-
+        try queue.write { db in try build(db, rebuild: rebuild) }
     }
 
     // The db-handle body — scans cortex/ and reconciles inside the caller's
@@ -179,51 +129,7 @@ public enum Indexer {
     // Caller holds the write lock (run's write marker or an explicit writeLock).
     @discardableResult
     static func reindexLocked(_ queue: any DatabaseWriter, filePaths: [String]) throws -> Int {
-        var exitCode = 0
-
-        for filePath in filePaths {
-            var path = URL(fileURLWithPath: (filePath as NSString).expandingTildeInPath)
-
-            if !path.path.hasPrefix("/") {
-                path = Paths.brainRoot.appendingPathComponent(filePath)
-            }
-
-            path = path.standardizedFileURL.resolvingSymlinksInPath()
-
-            if !FileManager.default.fileExists(atPath: path.path) {
-                FileHandle.standardError.write(
-                    "ERROR \(filePath): not found\n".data(using: .utf8)!
-                )
-                exitCode = 1
-                continue
-            }
-
-            if Paths.relative(of: path) == nil {
-                FileHandle.standardError.write(
-                    "ERROR \(filePath): outside brain home \(Paths.brainRoot.path)\n"
-                        .data(using: .utf8)!
-                )
-                exitCode = 1
-                continue
-            }
-
-            do {
-                let noteId = try queue.write { db in
-                    try ReindexNoteFileTransaction(path: path).perform(db)
-                }
-                let relativePath = Paths.relative(of: path) ?? path.path
-
-                print("reindexed: \(noteId) (\(relativePath))")
-            } catch {
-                FileHandle.standardError.write(
-                    "ERROR \(filePath): \(error)\n".data(using: .utf8)!
-                )
-                exitCode = 1
-            }
-        }
-
-        return exitCode
-
+        try queue.write { db in try reindexFiles(db, filePaths: filePaths) }
     }
 
     static func check(_ queue: any DatabaseReader, level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
@@ -260,14 +166,32 @@ public enum Indexer {
                 continue
             }
 
-            do {
-                let noteId = try ReindexNoteFileTransaction(path: path).perform(db)
-                let relativePath = Paths.relative(of: path) ?? path.path
+            // One file = one rollback unit — a failed file leaves nothing of
+            // itself behind while the batch continues.
+            var failure: Error? = nil
 
-                print("reindexed: \(noteId) (\(relativePath))")
+            do {
+                try db.inSavepoint {
+                    do {
+                        let noteId = try ReindexNoteFileTransaction(path: path).perform(db)
+                        let relativePath = Paths.relative(of: path) ?? path.path
+
+                        print("reindexed: \(noteId) (\(relativePath))")
+
+                        return .commit
+                    } catch {
+                        failure = error
+
+                        return .rollback
+                    }
+                }
             } catch {
+                failure = failure ?? error
+            }
+
+            if let failure {
                 FileHandle.standardError.write(
-                    "ERROR \(filePath): \(error)\n".data(using: .utf8)!
+                    "ERROR \(filePath): \(failure)\n".data(using: .utf8)!
                 )
                 exitCode = 1
             }
@@ -382,7 +306,7 @@ public enum Indexer {
     static func check(_ db: Database, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
         let eagerCap = Config.getInt("eager.max_count", default: 20)
         
-        return try { () throws -> (ok: Bool, msgs: [String]) in
+
             var messages: [String] = []
             var ok = true
             let shape = try SchemaShape(migrations: Session.migrations).check(db)
@@ -636,6 +560,5 @@ public enum Indexer {
             if level < 4 { return (ok, messages) }
             
             return (ok, messages)
-        }()
     }
 }
