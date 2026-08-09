@@ -9,27 +9,27 @@ import Foundation
 
 public struct Ruleset {
     // MARK: - Property
-    let ruleset: RulesetService
+    let service: RulesetService
 
     // MARK: - Initializer
-    init(ruleset: RulesetService) {
-        self.ruleset = ruleset
+    init(service: RulesetService) {
+        self.service = service
     }
 
     // MARK: - Public
     public func list() async throws -> [RulesetService.Summary] {
-        try await ruleset.list()
+        try await service.list()
     }
 
     public func show(id: String) async throws -> RulesetService.ShowResult? {
-        try await ruleset.show(id: id)
+        try await service.show(id: id)
     }
 
     public func effective(
         ruleset: String,
         axis: String
     ) async throws -> RulesetService.Effective? {
-        try await self.ruleset.effective(ruleset: ruleset, axis: axis)
+        try await service.effective(ruleset: ruleset, axis: axis)
     }
 
     // MARK: - Private

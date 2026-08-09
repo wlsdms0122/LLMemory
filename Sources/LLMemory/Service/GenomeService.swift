@@ -133,7 +133,7 @@ public struct GenomeService: Sendable {
         try await storage.read { scope in
             Genes.warm(try scope.run(FetchGenomeValuesTransaction()))
 
-            return list()
+            return catalogRows()
         }
     }
 
@@ -158,7 +158,9 @@ public struct GenomeService: Sendable {
     }
 
     // MARK: - Internal
-    func list() -> [ListRow] {
+    // Catalog mapping only — no rewarm, no connection gate. The gated,
+    // rewarming read is the public async `list`.
+    func catalogRows() -> [ListRow] {
         Genes.catalog.map { gene in
             ListRow(
                 id: gene.id,

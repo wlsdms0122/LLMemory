@@ -30,7 +30,7 @@ public struct Brain {
 
         self.session = session
         self.services = services
-        self.index = Index(session: session, index: services.index)
+        self.index = Index(session: session, service: services.index)
         self.query = Query(
             retrieval: services.retrieval,
             notes: services.notes,
@@ -39,10 +39,10 @@ public struct Brain {
             enrichment: services.enrichment,
             consolidate: services.consolidate
         )
-        self.consolidate = Consolidate(consolidate: services.consolidate)
-        self.genome = Genome(genome: services.genome)
-        self.ruleset = Ruleset(ruleset: services.ruleset)
-        self.operations = Operations(operations: services.operations)
+        self.consolidate = Consolidate(service: services.consolidate)
+        self.genome = Genome(service: services.genome)
+        self.ruleset = Ruleset(service: services.ruleset)
+        self.operations = Operations(service: services.operations)
     }
 
     // MARK: - Public

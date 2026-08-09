@@ -9,27 +9,27 @@ import Foundation
 
 public struct Consolidate {
     // MARK: - Property
-    let consolidate: ConsolidateService
+    let service: ConsolidateService
 
     // MARK: - Initializer
-    init(consolidate: ConsolidateService) {
-        self.consolidate = consolidate
+    init(service: ConsolidateService) {
+        self.service = service
     }
     
     public func integrate() async throws -> Consolidation.IntegrateResult {
-        try await consolidate.integrate()
+        try await service.integrate()
     }
 
     public func homeostasis() async throws -> ConsolidateService.HomeostasisReport {
-        try await consolidate.homeostasis()
+        try await service.homeostasis()
     }
 
     public func prune() async throws -> Consolidation.PruneResult {
-        try await consolidate.prune()
+        try await service.prune()
     }
 
     public func report() async throws -> (axis: Consolidation.AxisReport, tag: Consolidation.TagReport) {
-        try await consolidate.report()
+        try await service.report()
     }
 
 }

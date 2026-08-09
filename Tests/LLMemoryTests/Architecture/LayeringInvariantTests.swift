@@ -152,9 +152,11 @@ struct LayeringInvariantTests {
         // carry one. The engine counts too: it is a service collaborator,
         // not a global.
         let construction = try! NSRegularExpression(
-            pattern: #"\b\w+Service\(|\bOperationsEngine\("#
+            pattern: #"\b\w+Service\(|\bOperationsEngine\(|\bServices\("#
         )
-        let allowed = ["Services.swift"]
+        // Services.swift assembles the services; Brain.swift assembles the
+        // container itself — the two halves of the composition root.
+        let allowed = ["Services.swift", "Brain.swift"]
         let violations = sources
             .filter { file in !allowed.contains(file.url.lastPathComponent) }
             .flatMap { file in

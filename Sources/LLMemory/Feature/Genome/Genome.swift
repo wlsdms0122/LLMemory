@@ -9,23 +9,23 @@ import Foundation
 
 public struct Genome {
     // MARK: - Property
-    let genome: GenomeService
+    let service: GenomeService
 
     // MARK: - Initializer
-    init(genome: GenomeService) {
-        self.genome = genome
+    init(service: GenomeService) {
+        self.service = service
     }
 
     // MARK: - Public
     public func list() async throws -> [GenomeService.ListRow] {
-        try await genome.list()
+        try await service.list()
     }
 
     public func history(
         gene: String?,
         limit: Int
     ) async throws -> [GenomeService.HistoryRow] {
-        try await genome.history(gene: gene, limit: limit)
+        try await service.history(gene: gene, limit: limit)
     }
 
     public func shadow(
@@ -34,7 +34,7 @@ public struct Genome {
         limit: Int,
         sampleDiffs: Int
     ) async throws -> GenomeService.ShadowResult {
-        try await genome.shadow(gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
+        try await service.shadow(gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
     }
 
     // MARK: - Private

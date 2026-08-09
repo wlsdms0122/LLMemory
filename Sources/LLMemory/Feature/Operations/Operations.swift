@@ -9,11 +9,11 @@ import Foundation
 
 public struct Operations {
     // MARK: - Property
-    let operations: OperationsService
+    let service: OperationsService
 
     // MARK: - Initializer
-    init(operations: OperationsService) {
-        self.operations = operations
+    init(service: OperationsService) {
+        self.service = service
     }
 
     // MARK: - Public
@@ -22,7 +22,7 @@ public struct Operations {
         cliSessionId: String = "",
         ruleset: String? = nil
     ) async -> OperationsEngine.Result {
-        await operations.apply(
+        await service.apply(
             payloadJSON: payloadJSON,
             cliSessionId: cliSessionId,
             ruleset: ruleset
@@ -34,7 +34,7 @@ public struct Operations {
         cliSessionId: String = "",
         ruleset: String? = nil
     ) async -> OperationsEngine.DryRunResult {
-        await operations.dryRun(
+        await service.dryRun(
             payloadJSON: payloadJSON,
             cliSessionId: cliSessionId,
             ruleset: ruleset
@@ -46,11 +46,11 @@ public struct Operations {
     // silently-tolerated warm attempt — lightening the constructor rides the
     // Paths/Config globals debt.
     public func operationNames() -> [String] {
-        operations.operationNames()
+        service.operationNames()
     }
 
     public func operationSchema(_ name: String) -> OperationSchema? {
-        operations.operationSchema(name)
+        service.operationSchema(name)
     }
 
     // MARK: - Private
