@@ -7,9 +7,10 @@
 
 import Foundation
 
-// The operations result vocabulary — top-level models, owned by the domain
-// rather than nested in the engine that produces them.
-public struct OperationResult: Encodable, Sendable {
+// The operations result vocabulary — flat top-level models with a domain
+// prefix (owner call). OperationOutcome is one op's verdict inside an
+// OperationsResult batch — the names differ by role, not by one letter.
+public struct OperationOutcome: Encodable, Sendable {
     // MARK: - Property
     public let op: String
     public let status: String
@@ -34,7 +35,7 @@ public struct OperationsResult: Encodable, Sendable {
     
     // MARK: - Property
     public let status: String
-    public let opResults: [OperationResult]
+    public let opResults: [OperationOutcome]
     public let error: String
     public let rejectedIndex: Int?
     public let rationale: String
@@ -49,7 +50,7 @@ public struct OperationsResult: Encodable, Sendable {
     // MARK: - Initializer
     public init(
         status: String,
-        opResults: [OperationResult],
+        opResults: [OperationOutcome],
         error: String,
         rejectedIndex: Int?,
         rationale: String,

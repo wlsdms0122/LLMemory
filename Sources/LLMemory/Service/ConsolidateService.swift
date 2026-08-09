@@ -11,7 +11,6 @@ import Storage
 // Consolidation-domain service — the periodic hygiene passes.
 public struct ConsolidateService: Sendable {
 
-
     // MARK: - Property
     static let homeostasisWatermarkKey = "homeostasis.window_watermark"
     static let homeostasisSeenKey = "homeostasis.expand_seen"
@@ -268,7 +267,6 @@ public struct ConsolidateService: Sendable {
             "action": "integrate",
             "events_compacted": eventsCompacted
         ]
-
 
         if let data = try? JSONEncoder().encode(summary),
             let dictionary = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {

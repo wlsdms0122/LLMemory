@@ -7,12 +7,13 @@
 
 import Foundation
 
-// The ruleset surface vocabulary — top-level models, not nested in the
-// service that produces them.
-public enum RulesetError: Error, CustomStringConvertible {
+// The ruleset surface vocabulary — flat top-level models with a domain
+// prefix (owner call: a caller must not need the service's name to spell
+// a return type).
+enum RulesetError: Error, CustomStringConvertible {
     case malformedParams(ruleId: Int64, rulesetId: String, detail: String)
 
-    public var description: String {
+    var description: String {
         switch self {
         case .malformedParams(let ruleId, let rulesetId, let detail):
             return "rule #\(ruleId) in ruleset '\(rulesetId)' is malformed: \(detail) — "

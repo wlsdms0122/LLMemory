@@ -23,7 +23,7 @@ struct RulesetCommand: ParsableCommand {
             SEE ALSO
                 ruleset list, ruleset show, ruleset effective
             """,
-        subcommands: [RulesetList.self, RulesetShow.self, RulesetEffective.self]
+        subcommands: [RulesetList.self, RulesetShow.self, RulesetEffectiveCommand.self]
     )
     
     // MARK: - Initializer
@@ -180,7 +180,7 @@ struct RulesetShow: AsyncParsableCommand {
     // MARK: - Private
 }
 
-struct RulesetEffective: AsyncParsableCommand {
+struct RulesetEffectiveCommand: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "effective",

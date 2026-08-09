@@ -211,7 +211,7 @@ public struct OperationsEngine: Sendable {
             )
         }
         
-        var results: [OperationResult] = []
+        var results: [OperationOutcome] = []
         var failure: (Int?, String)? = nil
         var splitConflict: (Int, SplitConflict)? = nil
         let eagerBefore = (try? scope.run(CountEagerNotesTransaction())) ?? 0
@@ -818,7 +818,7 @@ public struct OperationsEngine: Sendable {
         return nil
     }
     
-    private func dispatchApply(_ op: [String: Any], context: HandlerContext, scope: GRDBScope) throws -> OperationResult {
+    private func dispatchApply(_ op: [String: Any], context: HandlerContext, scope: GRDBScope) throws -> OperationOutcome {
         let name = op["op"] as! String
         let handler = registry[name]!
         let raw = try handler.write(op, context, scope)
@@ -834,7 +834,7 @@ public struct OperationsEngine: Sendable {
         
         let ids = (raw["ids"] as? [Any])?.compactMap { id in id as? String } ?? []
         
-        return OperationResult(
+        return OperationOutcome(
             op: name,
             status: raw["status"] as? String ?? "ok",
             note: raw["note"] as? String ?? "",

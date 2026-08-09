@@ -7,8 +7,9 @@
 
 import Foundation
 
-// The genome surface vocabulary — top-level models, not nested in the
-// service that produces them.
+// The genome surface vocabulary — flat top-level models with a domain
+// prefix (owner call: a caller must not need the service's name to spell
+// a return type). Errors are flat too, like CandidatesError.
 public enum GenomeWriteError: Error, CustomStringConvertible {
     case unknownGene(String)
     case outOfBounds(String, Double, Genes.Gene)
