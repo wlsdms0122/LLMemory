@@ -173,6 +173,41 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         }
     }
 
+    // The write scope — one flock + one BEGIN/COMMIT around the whole body.
+    // Services orchestrate domain work inside; every DB touch goes through
+    // scope.run(transaction). Throwing rolls the entire scope back.
+    @discardableResult
+    public func run<T: Sendable>(_ body: @escaping @Sendable (GRDBScope) throws -> T) async throws -> T {
+        let connection = try connect()
+
+        // In-process exclusion first — flock cannot separate two tasks of one
+        // process (they share the descriptor, and the depth counter presumes an
+        // outer mutex), so the async gate is what makes the counter sound here.
+        // The flock wait and the scope body still block this thread — accepted
+        // for the single-shot CLI; a dedicated queue is the recorded way out if
+        // embedding ever needs it.
+        await writeGate.acquire()
+
+        defer { writeGate.release() }
+
+        try acquireLock(as: .gate)
+
+        defer { releaseLock() }
+
+        return try await connection.write { db in
+            try body(GRDBScope(db))
+        }
+    }
+
+    // The read scope — no lock, no write transaction; SQLite rejects writes
+    // issued through it at runtime.
+    @discardableResult
+    public func read<T: Sendable>(_ body: @escaping @Sendable (GRDBScope) throws -> T) async throws -> T {
+        try await connect().read { db in
+            try body(GRDBScope(db))
+        }
+    }
+
     @discardableResult
     public func run<T: LegacyWriteTransaction>(_ transaction: T) async throws -> T.Result {
         let connection = try connect()
