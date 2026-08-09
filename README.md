@@ -1,73 +1,128 @@
 # llmemory
 
-자기성장형 에이전트의 메모리 CLI 패키지. markdown 노트(`cortex/`)를 SQLite+FTS5
-(`data/memory.db`)와 동기화해 검색·연상 탐색·재구조화를 제공한다.
+A memory CLI for self-growing agents. llmemory keeps a *brain* — markdown
+notes under `cortex/` — in sync with a SQLite + FTS5 database
+(`data/memory.db`), and provides search, associative exploration, and
+restructuring over it.
 
-**사용법(에이전트 가이드)은 [`document/GUIDE.md`](document/GUIDE.md)** —
-이 README 는 패키지(레포지토리) 설명만 담는다. GUIDE.md 는 바이너리에 임베드되어
-`llmemory init` 시 `<state-root>/README.md` 로 복사된다 — 모든 brain 이 자기 매뉴얼을
-갖고 다닌다.
+**Usage (the agent guide) lives in [`document/embed/GUIDE.md`](document/embed/GUIDE.md)** —
+this README covers the package itself: what it is, the philosophy it is built
+on, and the basics of building and deploying it. The GUIDE is embedded in the
+binary and copied to `<state-root>/README.md` on `llmemory init` — every brain
+carries its own manual. For installing the binary and wiring it into an agent
+environment, see [`document/INTEGRATION.md`](document/INTEGRATION.md). The
+judgment-driven maintenance loops (consolidate / cleaner / enrich) ship as
+forge workflows under [`document/forge/`](document/forge/).
 
-## 셋업
+## Philosophy
 
-클론 직후 한 번 (tuist `generate` 처럼):
+llmemory is built on a neuroscience foundation — it mimics how a brain holds
+and recalls knowledge rather than how a database stores records. The design
+principles below all follow from that stance.
+
+**The agent grows; the tool only provides the substrate.** A freshly
+initialized brain is almost empty: one axis (`innate`) and the innate
+knowledge under `cortex/.innate/`. Axes, tags, notes, and links all come into
+being through use. llmemory knows things about *itself* (its operating policy,
+its plasticity parameters, its lint rules) and nothing about *the world* — no
+domain vocabulary, no seeded taxonomy. Hardcoded world-knowledge would
+contradict the tool's own nature.
+
+**Markdown is the truth; the database is derived.** Notes are plain files a
+human can read and edit. The DB is an index over them — but note that the
+*semantic layer* (association edges, retrieval terms, dismissals, activation
+traces) lives only in the DB and is not reconstructible from markdown, so the
+DB is disposable only for the note catalog, not for what the brain has
+learned. Deleting `data/memory.db` discards that learning.
+
+**Retrieval is association, not lookup.** The primary read surface is a
+*descent*: enter with a cue (`query related`), read candidates (`query get`),
+follow neighbors (`query neighbors`), repeat. Every hit on an associative
+surface carries a summary — output is not the answer but a waypoint for
+deciding the next hop.
+
+**Forgetting is not the tool for retrieval quality; fragmentation is.** There
+is no activity ladder and no archive tier. A note that is never recalled
+creates no retrieval cost, so there is no reason to hide it. Bloated knowledge
+is split (gist/facet/piece), not buried. Disposal is always an explicit
+judgment (`delete_note` → `.trash/`).
+
+**LLM 0.** Every query and every consolidation pass is algorithmic. LLMs
+produce artifacts (captured notes, aliases, proposed links) as replaceable
+outside clients; llmemory owns the slots, the validation, and the retrieval.
+A weak model feeding noise cannot pollute the index — the worst case is a
+no-op.
+
+**Guidance over enforcement.** Operation is entirely the agent's. What the
+tool can do is observe deterministically (`query lint`), say "this looks like
+a problem" with the numbers behind the verdict, and put the next command in
+the agent's hand. Warnings can be dismissed per finding (habituation);
+integrity errors cannot.
+
+**Anchor-free.** State location comes only from `--home <state-root>`. The
+binary is a single file with its documents embedded — no sidecar resources,
+no assumptions about where it or anything else lives.
+
+**Mutation is transactional and never wholesale.** All writes go through the
+op vocabulary of `ops apply`; the coarsest unit is `patch_section`. Multiple
+ops bundle into one atomic transaction — validate → snapshot → apply →
+rollback, with cleanup covering even newly created files and DB rows.
+
+## Setup
+
+Once after cloning (like tuist `generate`):
 
 ```
 tool/set-up.sh
 ```
 
-`document/` 의 markdown 을 `Sources/LLMemory/Resource/{Guide,Innate}.swift` 로
-임베드한다. `Resource/` 는 gitignore 된 로컬 산출물(`.build` 와 같은 성격)이라
-**setup 없이는 컴파일되지 않는다.** `document/` 를 수정했으면 다시 실행한다 —
-markdown 과 임베드 사본의 drift 는 byte-equality 테스트가 fail-loud 로 잡는다.
+Embeds the markdown under `document/embed/` into
+`Sources/LLMemory/Resource/{Guide,Innate}.swift`. `Resource/` is a gitignored
+local artifact (same nature as `.build`), so **the package does not compile
+without setup.** Re-run it after editing `document/embed/` — the rest of
+`document/` is plain documentation with no pipeline attached. Drift between the
+markdown and the embedded copies is caught fail-loud by byte-equality tests.
 
-## 구조
+## Structure
 
 ```
 Sources/
-  LLMemory/           — 코어 라이브러리 (Feature: Query/Ops/Index/Consolidate/…, Service, Module)
-    Resource/         — set-up.sh 생성물 (gitignored): Guide.swift, Innate.swift
-  LLMemoryCLI/        — CLI (swift-argument-parser), 실행 파일 llmemory
+  LLMemory/           — core library (Feature: Query/Ops/Index/Consolidate/…, Service, Module)
+    Resource/         — set-up.sh artifacts (gitignored): Guide.swift, Innate.swift
+  LLMemoryCLI/        — CLI (swift-argument-parser), executable llmemory
 Tests/
-  LLMemoryTests/      — 유닛 + 실바이너리 CLI 통합 테스트
+  LLMemoryTests/      — unit + real-binary CLI integration tests
 document/
-  GUIDE.md         — 에이전트용 사용 가이드 (SSoT)
-  innate/*.md         — 선천 지식 (SSoT) — init/update 시 cortex/.innate/ 에 심긴다
+  INTEGRATION.md      — installing and wiring llmemory into an environment
+  forge/              — maintenance workflows + prompts (consolidate/cleaner/enrich) for forge
+  embed/              — sources embedded into the binary (editing requires tool/set-up.sh)
+    GUIDE.md          — agent-facing usage guide (SSoT)
+    innate/*.md       — innate knowledge (SSoT) — planted into cortex/.innate/ on init/update
 tool/
-  set-up.sh            — document/ → Sources/LLMemory/Resource/ 임베드 생성
-  deploy.sh           — setup → release 빌드 → build/llmemory
+  set-up.sh           — document/embed/ → Sources/LLMemory/Resource/ embed generation
+  deploy.sh           — setup → release build → build/llmemory
 ```
 
-## 빌드 / 테스트
+## Build / test
 
 ```
-tool/set-up.sh   # 최초 1회 (또는 document/ 수정 후)
+tool/set-up.sh   # once after clone (or after editing document/embed/)
 swift build
 swift test
 ```
 
-의존성: GRDB(SQLite), swift-argument-parser, Yams. `note_vectors`(PPMI+SVD)는
-Accelerate(LAPACK) 링크.
+Dependencies: GRDB (SQLite), swift-argument-parser, Yams. `note_vectors`
+(PPMI+SVD) links Accelerate (LAPACK).
 
-## 배포
+## Deploy
 
 ```
 tool/deploy.sh   # → build/llmemory
 ```
 
-setup 을 먼저 돌려 임베드를 최신으로 만든 뒤 release 빌드한다. 바이너리는 단일
-파일로 배포된다(사이드카 리소스 없음 — 가이드가 임베드인 이유). `build/llmemory`
-를 어디로 가져가느냐는 소비자의 일이다.
+Runs setup first so the embeds are current, then release-builds. The binary
+ships as a single file (no sidecar resources — which is why the guide is
+embedded). Where `build/llmemory` goes from there is the consumer's business.
 
-## 설계 원칙 (요약)
-
-- **Anchor-free**: 상태 위치는 `--home` 으로만. 바이너리 위치·외부 경로 가정 없음.
-- **SSoT**: cortex/ markdown 이 진실, DB 는 파생 — `data/memory.db` 를 지우고
-  `init` 하면 재구성된다.
-- **탈 하드코딩**: llmemory 는 자기 자신에 대한 것만 갖는다. 갓 init 한 brain 은
-  축·태그 0개에서 시작해 ops 로 자란다. 선천적인 것은 `innate` 축 하나와
-  `cortex/.innate/` 의 선천 지식뿐.
-- **LLM 0**: 모든 query/consolidate 는 알고리즘. LLM artifact(enrichment)는
-  외부 client 가 생성하고 llmemory 가 검증한다.
-
-상세 계약은 각 명령의 `--help` 와 `ops describe <op>` 가 SSoT.
+For detailed contracts, each command's `--help` and `ops describe <op>` are
+the SSoT.

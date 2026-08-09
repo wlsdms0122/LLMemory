@@ -44,8 +44,8 @@ struct InitCommand: ParsableCommand {
             everything grows through ops.
 
             Also writes <home>/README.md from the embedded agent guide
-            (document/GUIDE.md) — a derived copy, refreshed on every init — and
-            plants the innate notes (document/innate/*.md) as `locked: true`
+            (document/embed/GUIDE.md) — a derived copy, refreshed on every init — and
+            plants the innate notes (document/embed/innate/*.md) as `locked: true`
             notes under cortex/.innate/. Existing seed files are left alone here;
             use `llmemory update` to restate them from the binary. `--bare` skips
             the innate space entirely — a brain born with nothing at all.
