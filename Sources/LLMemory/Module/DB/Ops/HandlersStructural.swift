@@ -328,7 +328,7 @@ public enum HandlersStructural {
                     reason: "migrated \(targetId) -> \(newId)",
                     now: now
                 ).perform(db)
-                try NoteArtifacts.reparent(db, from: targetId, to: newId)
+                try ReparentNoteArtifactsTransaction(from: targetId, to: newId).perform(db)
                 try Notes.delete(db, nid: targetId)
                 try ClearNoteTagsTransaction(noteId: targetId).perform(db)
                 
@@ -1356,7 +1356,7 @@ public enum HandlersStructural {
                     now: now
                 ).perform(db)
                 try RedirectLinksForMergeTransaction(fromId: fromId, intoId: intoId).perform(db)
-                try NoteArtifacts.absorbForMerge(db, from: fromId, into: intoId)
+                try AbsorbNoteArtifactsForMergeTransaction(from: fromId, into: intoId).perform(db)
                 try Notes.delete(db, nid: fromId)
             }
             
@@ -1480,7 +1480,7 @@ public enum HandlersStructural {
         fromId: String,
         routing: [String: [String]]
     ) throws -> [NoteArtifacts.RouteArtifact] {
-        try NoteArtifacts.splitRouteTargets(db, noteId: fromId).filter { artifact in
+        try FetchSplitRouteTargetsTransaction(noteId: fromId).perform(db).filter { artifact in
             routing[routeArtifactKey(artifact)] == nil
         }
     }

@@ -130,7 +130,7 @@ struct DismissalsTests {
         
         // When
         let targets = try home.read { database in
-            try NoteArtifacts.splitRouteTargets(database, noteId: "big-6")
+            try FetchSplitRouteTargetsTransaction(noteId: "big-6").perform(database)
         }
         
         // Then

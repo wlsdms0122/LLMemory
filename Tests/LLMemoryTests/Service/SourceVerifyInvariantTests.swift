@@ -318,12 +318,12 @@ struct SourceVerifyInvariantTests {
         #expect(try Self.sourceRow(queue, "src-rb")?.stale == 1)
         
         try queue.write { db in
-            try NoteArtifacts.snapshotForRebuild(db)
+            try SnapshotArtifactsForRebuildTransaction().perform(db)
             try db.execute(sql: "DELETE FROM notes")
             
             _ = try Notes.reindexFile(db, path: notePath)
             
-            try NoteArtifacts.restoreAfterRebuild(db)
+            try RestoreArtifactsAfterRebuildTransaction().perform(db)
         }
         
         let after = try Self.sourceRow(queue, "src-rb")

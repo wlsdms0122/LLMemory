@@ -191,7 +191,7 @@ public enum Indexer {
         fileErrors: [String] = []
     ) throws -> BuildResult {
         if rebuild {
-            try NoteArtifacts.snapshotForRebuild(db)
+            try SnapshotArtifactsForRebuildTransaction().perform(db)
             try db.execute(sql: "DELETE FROM notes")
             try db.execute(sql: "DELETE FROM tags")
             try db.execute(sql: "DELETE FROM notes_fts")
@@ -256,7 +256,7 @@ public enum Indexer {
         }
         
         if rebuild {
-            try NoteArtifacts.restoreAfterRebuild(db)
+            try RestoreArtifactsAfterRebuildTransaction().perform(db)
             try Dismissals.bumpGeneration(db)
         }
         
