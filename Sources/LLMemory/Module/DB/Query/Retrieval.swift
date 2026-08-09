@@ -502,9 +502,7 @@ public enum Retrieval {
         raw: Bool = false
     ) throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote], record: Retrieval.Record) {
         let rows: [Search.SearchRow] = try queue.read { db in
-            try Search.fts(
-                db,
-                query: query,
+            try SearchNotesFTSTransaction(query: query,
                 axis: axis,
                 limit: limit,
                 includeStale: includeStale,
@@ -512,7 +510,7 @@ public enum Retrieval {
                 sinceTs: sinceTs,
                 sessionId: sessionId,
                 raw: raw
-            )
+            ).perform(db)
         }
         var extra: [Links.ExpandedNote] = []
         

@@ -1,5 +1,5 @@
 //
-//  Search.swift
+//  SearchTransactions.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -35,7 +35,7 @@ public enum Search {
     // MARK: - Property
     static let noteAggregationSQL = " GROUP BY n.id ORDER BY best_rank, n.id LIMIT ?"
     
-    private static let rowSQL = """
+    static let rowSQL = """
         SELECT n.path, n.axis, n.id, n.title, n.summary,
                (SELECT group_concat(tag, ',') FROM tags WHERE note_id = n.id) AS tags,
                (COALESCE(n.stale, 0) OR COALESCE((SELECT source_stale FROM note_source WHERE note_id = n.id), 0)) AS is_stale,
@@ -61,82 +61,7 @@ public enum Search {
         return parts.isEmpty ? nil : parts.joined(separator: " OR ")
     }
     
-    static func fts(
-        _ db: Database,
-        query: String,
-        axis: String? = nil,
-        limit: Int = 5,
-        includeStale: Bool = false,
-        excludeAxes: [String]? = nil,
-        sinceTs: Int? = nil,
-        sessionId: String? = nil,
-        raw: Bool = false
-    ) throws -> [SearchRow] {
-        guard let matchExpr = ftsMatchExpr(query, raw: raw) else { return [] }
-        
-        var sql = rowSQL + """
-             FROM notes_fts f JOIN notes n ON n.id = f.id
-             LEFT JOIN note_usage u ON u.note_id = n.id
-             WHERE notes_fts MATCH ?
-            """
-        var arguments: [DatabaseValueConvertible?] = [matchExpr]
-        
-        if let axis {
-            sql += " AND n.axis = ?"
-            arguments.append(axis)
-        }
-        
-        if let excludeAxes, !excludeAxes.isEmpty {
-            let placeholders = Array(repeating: "?", count: excludeAxes.count).joined(separator: ",")
-            sql += " AND n.axis NOT IN (\(placeholders))"
-            arguments.append(contentsOf: excludeAxes)
-        }
-        
-        let now = Int(Date().timeIntervalSince1970)
-        
-        if let sinceTs {
-            sql += " AND COALESCE(u.last_retrieved_at, 0) >= ?"
-            arguments.append(sinceTs)
-        }
-        
-        sql += staleClause(includeStale)
-        
-        let prior: [String: Double]
-        if let sessionId, !sessionId.isEmpty {
-            let windowMin = Genome.int("priming.window_min")
-            prior = (try? ComputeAxisPriorTransaction(
-                sessionId: sessionId,
-                windowSec: windowMin * 60,
-                now: now
-            )
-                .perform(db)) ?? [:]
-        } else {
-            prior = [:]
-        }
-        
-        let needsRerank = !prior.isEmpty
-        let fetchLimit = Self.fetchPoolSize(limit: limit, needsRerank: needsRerank)
-        sql += Self.noteAggregationSQL
-        
-        do {
-            arguments.append(fetchLimit)
-            
-            let rawRows: [SearchRow]
-            do {
-                rawRows = try fetchRows(db, sql: sql, arguments: arguments)
-            } catch {
-                if raw { throw SearchError.invalidRawQuery(matchExpr) }
-                
-                throw error
-            }
-            
-            if !needsRerank {
-                return Array(rawRows.prefix(limit))
-            }
-            
-            return Self.rerank(rawRows, prior: prior, limit: limit) { row in row.axis }
-        }
-    }
+
     
     static func rerank<T>(
         _ pool: [T],
@@ -165,11 +90,11 @@ public enum Search {
     }
     
     // MARK: - Private
-    private static func staleClause(_ includeStale: Bool) -> String {
+    static func staleClause(_ includeStale: Bool) -> String {
         includeStale ? "" : " AND \(Policy.fresh())"
     }
     
-    private static func fetchRows(
+    static func fetchRows(
         _ db: Database,
         sql: String,
         arguments: [DatabaseValueConvertible?]
@@ -194,4 +119,107 @@ public enum Search {
             extra: hasExtra ? (row["shared"] as Int?) : nil
         )
     }
+}
+
+struct SearchNotesFTSTransaction: GRDBTransaction {
+    // MARK: - Property
+    let query: String
+    let axis: String?
+    let limit: Int
+    let includeStale: Bool
+    let excludeAxes: [String]?
+    let sinceTs: Int?
+    let sessionId: String?
+    let raw: Bool
+
+    // MARK: - Initializer
+    init(
+        query: String,
+        axis: String? = nil,
+        limit: Int = 5,
+        includeStale: Bool = false,
+        excludeAxes: [String]? = nil,
+        sinceTs: Int? = nil,
+        sessionId: String? = nil,
+        raw: Bool = false
+    ) {
+        self.query = query
+        self.axis = axis
+        self.limit = limit
+        self.includeStale = includeStale
+        self.excludeAxes = excludeAxes
+        self.sinceTs = sinceTs
+        self.sessionId = sessionId
+        self.raw = raw
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> [Search.SearchRow] {
+        guard let matchExpr = Search.ftsMatchExpr(query, raw: raw) else { return [] }
+        
+        var sql = Search.rowSQL + """
+             FROM notes_fts f JOIN notes n ON n.id = f.id
+             LEFT JOIN note_usage u ON u.note_id = n.id
+             WHERE notes_fts MATCH ?
+            """
+        var arguments: [DatabaseValueConvertible?] = [matchExpr]
+        
+        if let axis {
+            sql += " AND n.axis = ?"
+            arguments.append(axis)
+        }
+        
+        if let excludeAxes, !excludeAxes.isEmpty {
+            let placeholders = Array(repeating: "?", count: excludeAxes.count).joined(separator: ",")
+            sql += " AND n.axis NOT IN (\(placeholders))"
+            arguments.append(contentsOf: excludeAxes)
+        }
+        
+        let now = Int(Date().timeIntervalSince1970)
+        
+        if let sinceTs {
+            sql += " AND COALESCE(u.last_retrieved_at, 0) >= ?"
+            arguments.append(sinceTs)
+        }
+        
+        sql += Search.staleClause(includeStale)
+        
+        let prior: [String: Double]
+        if let sessionId, !sessionId.isEmpty {
+            let windowMin = Genome.int("priming.window_min")
+            prior = (try? ComputeAxisPriorTransaction(
+                sessionId: sessionId,
+                windowSec: windowMin * 60,
+                now: now
+            )
+                .perform(db)) ?? [:]
+        } else {
+            prior = [:]
+        }
+        
+        let needsRerank = !prior.isEmpty
+        let fetchLimit = Search.fetchPoolSize(limit: limit, needsRerank: needsRerank)
+        sql += Search.noteAggregationSQL
+        
+        do {
+            arguments.append(fetchLimit)
+            
+            let rawRows: [Search.SearchRow]
+            do {
+                rawRows = try Search.fetchRows(db, sql: sql, arguments: arguments)
+            } catch {
+                if raw { throw Search.SearchError.invalidRawQuery(matchExpr) }
+                
+                throw error
+            }
+            
+            if !needsRerank {
+                return Array(rawRows.prefix(limit))
+            }
+            
+            return Search.rerank(rawRows, prior: prior, limit: limit) { row in row.axis }
+        }
+    }
+
+    // MARK: - Private
 }

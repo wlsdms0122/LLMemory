@@ -48,7 +48,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try Search.fts(database, query: "log masking transformer")
+            try SearchNotesFTSTransaction(query: "log masking transformer").perform(database)
         }
         
         // Then
@@ -63,7 +63,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try Search.fts(database, query: "transfer NOT giro", raw: true)
+            try SearchNotesFTSTransaction(query: "transfer NOT giro", raw: true).perform(database)
         }
         
         // Then
@@ -82,7 +82,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try Search.fts(database, query: "quixotic pool", limit: 40)
+            try SearchNotesFTSTransaction(query: "quixotic pool", limit: 40).perform(database)
         }
         
         // Then
@@ -104,7 +104,7 @@ struct SearchTests {
         // Then
         try home.read { database in
             #expect(throws: Search.SearchError.self) {
-                _ = try Search.fts(database, query: "transfer \"", raw: true)
+                _ = try SearchNotesFTSTransaction(query: "transfer \"", raw: true).perform(database)
             }
         }
     }
@@ -115,7 +115,7 @@ struct SearchTests {
         #expect(create(id: "safe-note", title: "transfer", body: "## A\ntransfer\n").status == "ok")
         
         // When
-        let hits = try home.read { database in try Search.fts(database, query: "transfer \"") }
+        let hits = try home.read { database in try SearchNotesFTSTransaction(query: "transfer \"").perform(database) }
         
         // Then
         #expect(hits.contains { hit in hit.id == "safe-note" })

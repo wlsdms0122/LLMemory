@@ -116,7 +116,7 @@ struct DismissalsTests {
         #expect(dismiss("big-5").status == "ok")
         
         // Then
-        let hits = try home.read { database in try Search.fts(database, query: "zephyrquark") }
+        let hits = try home.read { database in try SearchNotesFTSTransaction(query: "zephyrquark").perform(database) }
         
         #expect(!(try splitCandidateIds().contains("big-5")))
         #expect(hits.contains { hit in hit.id == "big-5" }, "a dismissal must not affect search")

@@ -99,13 +99,11 @@ public struct GeneShadowTransaction: LegacyReadTransaction {
             switch loggedQuery.command {
             case "search":
                 return try connection.read { db in
-                    try Search.fts(
-                        db,
-                        query: loggedQuery.text,
+                    try SearchNotesFTSTransaction(query: loggedQuery.text,
                         axis: loggedQuery.axis,
                         limit: loggedQuery.limit,
                         sessionId: loggedQuery.sessionId
-                    ).map { hit in hit.id }
+                    ).perform(db).map { hit in hit.id }
                 }
             
             default:

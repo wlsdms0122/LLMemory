@@ -135,7 +135,7 @@ struct SectionAttributionTests {
     }
     
     private func search(_ query: String) throws -> [Search.SearchRow] {
-        try home.read { database in try Search.fts(database, query: query) }
+        try home.read { database in try SearchNotesFTSTransaction(query: query).perform(database) }
     }
     
     private func hit(for query: String, in noteId: String) throws -> Search.SearchRow? {
