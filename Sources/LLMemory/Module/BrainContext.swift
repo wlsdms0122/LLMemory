@@ -13,17 +13,19 @@ import Foundation
 // of every scope, so two live brains in one process no longer share caches.
 //
 // Resolution order: the task-local binding (set by storage.run/read/writeLock
-// while a scope executes) wins; outside any scope the process fallback — the
-// most recently constructed Session — answers, which preserves single-brain
-// ambient flows (file walks before a scope opens, CLI startup). Multi-brain
-// correctness therefore holds exactly where state changes happen: inside the
-// bound scopes.
+// while a scope executes, and by the Index lifecycle surfaces around their
+// file work) wins; outside any binding the process fallback — the most
+// recently constructed, still-living Session — answers, which preserves
+// single-brain ambient flows. The fallback is weak: a dead brain does not
+// keep answering. Every state change (DB scope, cache warm/repair, lifecycle
+// file work) runs under an explicit binding.
 public final class BrainContext: @unchecked Sendable {
     // MARK: - Property
     @TaskLocal static var current: BrainContext?
 
-    // The single-brain ambient default — written at Session construction only.
-    nonisolated(unsafe) private static var fallback: BrainContext?
+    // The single-brain ambient default — written at Session construction only,
+    // weak so a released Session's brain stops answering instead of living on.
+    nonisolated(unsafe) private static weak var fallback: BrainContext?
 
     static var resolved: BrainContext {
         guard let context = current ?? fallback else {
@@ -35,8 +37,9 @@ public final class BrainContext: @unchecked Sendable {
 
     let home: URL
 
-    // The parameter caches — mutated only under the storage gates (the same
-    // discipline the former statics relied on).
+    // The parameter caches — mutated only under an explicit binding that also
+    // holds a storage gate (write scope, writeLock, or the warm/repair
+    // loaders); read scopes may read but never mutate.
     var configCache: [String: String] = [:]
     var configWarmed = false
     var genesCache: [String: Double] = [:]

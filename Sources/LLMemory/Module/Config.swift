@@ -54,6 +54,13 @@ enum Config {
         warmed = false
         Genes.invalidateCache()
     }
+
+    // The binding norm: cache APIs reachable from outside a scope take the
+    // storage and bind its context themselves; the ambient variants above
+    // assume an already-bound scope.
+    static func invalidateCache(_ storage: GRDBStorage) {
+        storage.context.bind { invalidateCache() }
+    }
     
     // Boot-time warm — best-effort by contract, and swap-only: a failed read
     // leaves the existing caches untouched. At construction there is nothing
@@ -74,18 +81,6 @@ enum Config {
                 invalidateCache()
             }
         }
-    }
-
-    static func set(_ queue: any DatabaseWriter, _ key: String, value: Any) {
-        let stringValue = "\(value)"
-
-        do {
-            try queue.write { db in
-                try MetaRecord(key: prefix + key, value: stringValue).upsert(db)
-            }
-
-            cache[prefix + key] = stringValue
-        } catch { }
     }
 
     static func getStringTx(

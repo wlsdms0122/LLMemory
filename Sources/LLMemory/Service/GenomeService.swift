@@ -126,14 +126,13 @@ public struct GenomeService: Sendable {
     }
 
     // MARK: - Public
-    // Rewarms the value cache from the DB before mapping, so the listing
-    // reflects the brain's epigenome (and keeps the connection gate — an
-    // uninitialized brain fails loud instead of masquerading as wild-type).
+    // Maps the catalog against values fetched in this scope — no cache
+    // mutation on the read path (read scopes read; only gated writers warm).
+    // The connection gate stays: an uninitialized brain fails loud instead
+    // of masquerading as wild-type.
     public func list() async throws -> [ListRow] {
         try await storage.read { scope in
-            Genes.warm(try scope.run(FetchGenomeValuesTransaction()))
-
-            return catalogRows()
+            catalogRows(values: try scope.run(FetchGenomeValuesTransaction()))
         }
     }
 
@@ -332,18 +331,22 @@ public struct GenomeService: Sendable {
     }
 
     // MARK: - Private
-    // Catalog mapping only — no rewarm, no connection gate. The gated,
-    // rewarming read (the public async `list`) is the one entry point.
-    private func catalogRows() -> [ListRow] {
+    // Catalog mapping over an explicit value snapshot — same value/source
+    // semantics as Genes.double/source, without touching the process cache.
+    private func catalogRows(values: [String: Double]) -> [ListRow] {
         Genes.catalog.map { gene in
-            ListRow(
+            let configValue = Config.getDouble(gene.id, default: gene.wildType)
+
+            return ListRow(
                 id: gene.id,
-                value: Genes.double(gene.id),
+                value: values[gene.id] ?? configValue,
                 wildType: gene.wildType,
                 min: gene.min,
                 max: gene.max,
                 mutable: gene.mutable,
-                source: Genes.source(gene.id),
+                source: values[gene.id] != nil
+                    ? "genome"
+                    : (configValue == gene.wildType ? "wild_type" : "config"),
                 summary: gene.summary
             )
         }

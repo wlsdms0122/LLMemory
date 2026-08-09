@@ -40,7 +40,7 @@ public final class Session {
             context: context
         )
 
-        context.bind { Config.invalidateCache() }
+        Config.invalidateCache(storage)
         Config.warmCache(storage)
     }
 
@@ -49,7 +49,7 @@ public final class Session {
     // database first comes into existence or migrates (init/update), since the
     // constructor may have warmed against a database that was not there yet.
     public func rewarm() {
-        context.bind { Config.invalidateCache() }
+        Config.invalidateCache(storage)
         Config.warmCache(storage)
     }
 

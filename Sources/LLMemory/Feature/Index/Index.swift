@@ -76,7 +76,14 @@ public struct Index {
         try await service.validateTerms(rejectStale: rejectStale)
     }
     
+    // Lifecycle work touches the filesystem outside any scope — the session's
+    // context is bound explicitly so a second live brain cannot steal these
+    // writes through the ambient fallback.
     public func initialize(bare: Bool = false) throws -> InitResult {
+        try session.context.bind { try initializeBound(bare: bare) }
+    }
+
+    private func initializeBound(bare: Bool) throws -> InitResult {
         let fileManager = FileManager.default
         let dataExisted = fileManager.fileExists(atPath: Paths.dataDirectory.path)
         let cortexExisted = fileManager.fileExists(atPath: Paths.cortexRoot.path)
@@ -110,10 +117,14 @@ public struct Index {
     // Report-only classification of the innate space against the shipped copy — what
     // update would plant/refresh/relocate/skip — without touching a single file.
     public func checkSeeds(force: Bool = false) -> Seeding.Result {
-        Seeding.plant(mode: .overwrite, force: force, dryRun: true)
+        session.context.bind { Seeding.plant(mode: .overwrite, force: force, dryRun: true) }
     }
 
     public func update(override: Bool = false) throws -> UpdateResult {
+        try session.context.bind { try updateBound(override: override) }
+    }
+
+    private func updateBound(override: Bool) throws -> UpdateResult {
         // Classify first without writing. Any drift means human state is in the way —
         // update warns and leaves the innate space alone; only --override restates it
         // to exactly the shipped set (removing foreign files too). An absent space
