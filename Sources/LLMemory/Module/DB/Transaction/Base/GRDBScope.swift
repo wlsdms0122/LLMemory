@@ -27,8 +27,8 @@ public struct GRDBScope {
     }
 
     // MARK: - Public
-    // Every transaction is its own atomic unit — a SAVEPOINT wraps perform,
-    // so a failure a caller swallows (try?) cannot leave half the
+    // Every write transaction is its own atomic unit — a SAVEPOINT wraps
+    // perform, so a failure a caller swallows (try?) cannot leave half the
     // transaction's statements behind in the scope's commit. The scope
     // remains the outer rollback boundary; savepoints nest freely.
     @discardableResult
@@ -42,6 +42,13 @@ public struct GRDBScope {
         }
 
         return result
+    }
+
+    // A read transaction has nothing to roll back — the atomicity marker
+    // stays on writes; the more specific overload wins for read conformers.
+    @discardableResult
+    public func run<T: GRDBReadTransaction>(_ transaction: T) throws -> T.Result {
+        try transaction.perform(db)
     }
 
     // A nested rollback unit inside the scope — the operation engine rolls

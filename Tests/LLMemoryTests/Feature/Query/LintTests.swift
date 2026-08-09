@@ -118,10 +118,10 @@ struct LintTests {
         try home.overwriteBody(of: "lf-broken", with: "## A\nx\n## A\ny\n")
         
         // When
-        let all = try home.read { db in try home.container.lint.scan(GRDBReadScope(db)) }
-        let errors = try home.read { db in try home.container.lint.scan(GRDBReadScope(db), severity: "error") }
-        let onlyEnrich = try home.read { db in try home.container.lint.scan(GRDBReadScope(db), code: "enrich-thin") }
-        let capped = try home.read { db in try home.container.lint.scan(GRDBReadScope(db), limit: 1) }
+        let all = try home.readScope { scope in try Lint.scan(scope) }
+        let errors = try home.readScope { scope in try Lint.scan(scope, severity: "error") }
+        let onlyEnrich = try home.readScope { scope in try Lint.scan(scope, code: "enrich-thin") }
+        let capped = try home.readScope { scope in try Lint.scan(scope, limit: 1) }
         
         // Then
         #expect(all.contains { issue in issue.severity == "error" })
@@ -358,7 +358,7 @@ struct LintTests {
     }
     
     private func issues(of noteId: String) throws -> [Lint.Issue] {
-        try home.read { database in try Lint.lintNote(GRDBReadScope(database), nid: noteId) }
+        try home.readScope { scope in try Lint.lintNote(scope, nid: noteId) }
     }
     
     private func codes(of noteId: String) throws -> Set<String> {
@@ -366,10 +366,10 @@ struct LintTests {
     }
     
     private func allIssues() throws -> [Lint.Issue] {
-        try home.read { database in try Lint.lintAll(GRDBReadScope(database)) }
+        try home.readScope { scope in try Lint.lintAll(scope) }
     }
     
     private func isolatedSubjects() throws -> [String] {
-        try home.read { db in try home.container.lint.scan(GRDBReadScope(db), code: "isolated") }.map(\.target.subject)
+        try home.readScope { scope in try Lint.scan(scope, code: "isolated") }.map(\.target.subject)
     }
 }

@@ -222,7 +222,7 @@ struct UnreadableNoteGateInvariantTests {
         
         // Then
         #expect(throws: (any Error).self) {
-            try home.read { database in try Candidates.neighbors(GRDBReadScope(database), noteId: "an-note", k: 3) }
+            try home.readScope { scope in try Candidates.neighbors(scope, noteId: "an-note", k: 3) }
         }
     }
     
@@ -238,8 +238,8 @@ struct UnreadableNoteGateInvariantTests {
         _ = try corrupt(id: "sw-bad", body: "garbage\n")
         
         // When
-        try home.read { database in
-            let split = try Candidates.splitCandidates(GRDBReadScope(database))
+        try home.readScope { scope in
+            let split = try Candidates.splitCandidates(scope)
             
             // Then
             #expect(split.contains { candidate in candidate.id == "sw-ok" },
@@ -247,9 +247,9 @@ struct UnreadableNoteGateInvariantTests {
             #expect(!split.contains { candidate in candidate.id == "sw-bad" },
                 "an unreadable note was sketched anyway")
             
-            _ = try Candidates.clusters(GRDBReadScope(database))
-            _ = try Candidates.missingEdges(GRDBReadScope(database))
-            _ = try Candidates.nearDuplicates(GRDBReadScope(database))
+            _ = try Candidates.clusters(scope)
+            _ = try Candidates.missingEdges(scope)
+            _ = try Candidates.nearDuplicates(scope)
         }
     }
     

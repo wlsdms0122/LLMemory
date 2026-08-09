@@ -117,8 +117,8 @@ struct RippleTests {
     }
     
     private func candidateIds() throws -> Set<String> {
-        try home.read { database in
-            Set(try Candidates.rippleCandidates(GRDBReadScope(database), limit: 50).map(\.id))
+        try home.readScope { scope in
+            Set(try Candidates.rippleCandidates(scope, limit: 50).map(\.id))
         }
     }
 }

@@ -446,7 +446,7 @@ struct TemplateTests {
         // Then
         #expect(makeTemplate().status == "ok")
         
-        let (note, frame, _) = try home.database().read { db in try home.container.notes.template(GRDBReadScope(db), id: "tpl-spec", sessionId: nil) }
+        let (note, frame, _) = try home.readScope { scope in try home.container.notes.template(scope, id: "tpl-spec", sessionId: nil) }
         
         #expect(note.id == "tpl-spec")
         #expect(frame.map(\.title) == ["Background", "Spec", "Reference"])

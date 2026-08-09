@@ -385,23 +385,14 @@ struct FetchSurfaceLinkPairsTransaction: GRDBReadTransaction {
 }
 
 struct FetchSurfaceMetaRowsTransaction: GRDBReadTransaction {
-    // MARK: - Property
-    let notEager: Bool
-
     // MARK: - Initializer
-    init(notEager: Bool) {
-        self.notEager = notEager
-    }
+    init() { }
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [MetaRow] {
-        let condition = notEager
-            ? Policy.all(Policy.surface(""), Policy.notEager(""))
-            : Policy.surface("")
-
-        return try Row.fetchAll(
+        try Row.fetchAll(
             db,
-            sql: "SELECT id, axis, title, summary FROM notes WHERE \(condition)"
+            sql: "SELECT id, axis, title, summary FROM notes WHERE \(Policy.all(Policy.surface(""), Policy.notEager("")))"
         ).map { row in
             MetaRow(
                 id: row["id"],

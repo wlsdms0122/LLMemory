@@ -54,9 +54,9 @@ struct RelatedFailLoudTests {
 
         // Then
         #expect(throws: DBError.self) {
-            _ = try home.database().read { db in
+            _ = try home.readScope { scope in
                 try home.container.retrieval.related(
-                    GRDBReadScope(db),
+                    scope,
                     text: "gate note",
                     kind: nil,
                     sessionId: nil,

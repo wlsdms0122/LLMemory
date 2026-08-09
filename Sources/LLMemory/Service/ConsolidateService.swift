@@ -71,47 +71,52 @@ public struct ConsolidateService: Sendable {
         kinds: [String],
         limit: Int
     ) async throws -> [String: Candidates.Batch] {
-        try await storage.read { scope in
-            try candidateBatches(scope, kinds: kinds, limit: limit)
+        // The string→Kind conversion happens once, at the API boundary — an
+        // unknown kind is a caller bug, not an empty result.
+        let resolved = try kinds.map { raw in
+            guard let kind = Candidates.Kind(rawValue: raw) else {
+                throw CandidatesError.unknownKind(raw)
+            }
+
+            return kind
+        }
+
+        return try await storage.read { scope in
+            try candidateBatches(scope, kinds: resolved, limit: limit)
         }
     }
 
-    // The detector dispatch — one batch per requested kind, all policy in
-    // the Candidates catalog.
+    // The detector dispatch — one batch per requested kind; the closed enum
+    // makes the switch exhaustive, so a new kind cannot be forgotten here.
     func candidateBatches(
         _ scope: GRDBReadScope,
-        kinds: [String],
+        kinds: [Candidates.Kind],
         limit: Int
     ) throws -> [String: Candidates.Batch] {
         var batches: [String: Candidates.Batch] = [:]
 
         for kind in kinds {
             switch kind {
-            case "split":
-                batches[kind] = .split(try Candidates.splitCandidates(scope, limit: limit))
+            case .split:
+                batches[kind.rawValue] = .split(try Candidates.splitCandidates(scope, limit: limit))
 
-            case "reconsolidate":
-                batches[kind] = .flagged(try Candidates.reconsolidateCandidates(scope, limit: limit))
+            case .reconsolidate:
+                batches[kind.rawValue] = .flagged(try Candidates.reconsolidateCandidates(scope, limit: limit))
 
-            case "ripple":
-                batches[kind] = .flagged(try Candidates.rippleCandidates(scope, limit: limit))
+            case .ripple:
+                batches[kind.rawValue] = .flagged(try Candidates.rippleCandidates(scope, limit: limit))
 
-            case "enrich_review":
-                batches[kind] = .flagged(try Candidates.enrichReviewCandidates(scope, limit: limit))
+            case .enrichReview:
+                batches[kind.rawValue] = .flagged(try Candidates.enrichReviewCandidates(scope, limit: limit))
 
-            case "clusters":
-                batches[kind] = .clusters(try Candidates.clusters(scope, limit: limit))
+            case .clusters:
+                batches[kind.rawValue] = .clusters(try Candidates.clusters(scope, limit: limit))
 
-            case "missing_edge":
-                batches[kind] = .missingEdge(try Candidates.missingEdges(scope, limit: limit))
+            case .missingEdge:
+                batches[kind.rawValue] = .missingEdge(try Candidates.missingEdges(scope, limit: limit))
 
-            case "near_duplicate":
-                batches[kind] = .nearDuplicate(try Candidates.nearDuplicates(scope, limit: limit))
-
-            default:
-                // The kind vocabulary is closed (candidateValidKinds) — an
-                // unknown kind is a caller bug, not an empty result.
-                throw CandidatesError.unknownKind(kind)
+            case .nearDuplicate:
+                batches[kind.rawValue] = .nearDuplicate(try Candidates.nearDuplicates(scope, limit: limit))
             }
         }
 

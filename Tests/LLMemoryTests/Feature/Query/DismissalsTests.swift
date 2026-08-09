@@ -301,8 +301,8 @@ struct DismissalsTests {
         #expect(createSplitCandidate("big-reg").status == "ok")
         
         // When
-        let untargeted = try home.read { database in
-            try Lint.lintAll(GRDBReadScope(database)).filter { issue in issue.code == "lint-rule-untargeted" }
+        let untargeted = try home.readScope { scope in
+            try Lint.lintAll(scope).filter { issue in issue.code == "lint-rule-untargeted" }
         }
         
         // Then
@@ -364,8 +364,8 @@ struct DismissalsTests {
     }
     
     private func splitCandidateIds() throws -> [String] {
-        try home.read { database in
-            try Candidates.splitCandidates(GRDBReadScope(database), limit: 50).map(\.id)
+        try home.readScope { scope in
+            try Candidates.splitCandidates(scope, limit: 50).map(\.id)
         }
     }
     
@@ -378,9 +378,9 @@ struct DismissalsTests {
     }
     
     private func lintIssues(code: String, includeDismissed: Bool = false) throws -> [Lint.Issue] {
-        try home.read { database in
-            let all = try Lint.lintAll(GRDBReadScope(database))
-            let visible = includeDismissed ? all : try Lint.suppressDismissed(GRDBReadScope(database), all)
+        try home.readScope { scope in
+            let all = try Lint.lintAll(scope)
+            let visible = includeDismissed ? all : try Lint.suppressDismissed(scope, all)
             
             return visible.filter { issue in issue.code == code }
         }

@@ -85,6 +85,50 @@ public enum Lint {
         return rules.sorted { lhs, rhs in (lhs.severity, lhs.code) < (rhs.severity, rhs.code) }
     }
     
+    // The inspector core — runs the rule catalog, suppresses habituated
+    // findings, and sorts for stable output. Stateless judgment over a
+    // scope, callable by any service or handler without wiring.
+    static func scan(
+        _ scope: GRDBReadScope,
+        id: String? = nil,
+        code: String? = nil,
+        severity: String? = nil,
+        limit: Int? = nil,
+        includeDismissed: Bool = false
+    ) throws -> [Issue] {
+        var issues = try id != nil
+            ? lintNote(scope, nid: id!)
+            : lintAll(scope)
+
+        if !includeDismissed {
+            issues = try suppressDismissed(scope, issues)
+        }
+
+        if let code { issues = issues.filter { issue in issue.code == code } }
+
+        if let severity { issues = issues.filter { issue in issue.severity == severity } }
+
+        issues.sort { lhs, rhs in
+            if lhs.severity != rhs.severity { return lhs.severity == "error" }
+
+            if lhs.target != rhs.target {
+                if lhs.target.scope != rhs.target.scope {
+                    return lhs.target.scope < rhs.target.scope
+                }
+
+                return lhs.target.subject < rhs.target.subject
+            }
+
+            if lhs.code != rhs.code { return lhs.code < rhs.code }
+
+            return lhs.message < rhs.message
+        }
+
+        if let limit, issues.count > limit { issues = Array(issues.prefix(limit)) }
+
+        return issues
+    }
+
     static func lintNote(_ scope: GRDBReadScope, nid: String) throws -> [Issue] {
         checked(try lintNote(scope, nid: nid, index: scope.run(FetchLintCorpusIndexTransaction())))
     }

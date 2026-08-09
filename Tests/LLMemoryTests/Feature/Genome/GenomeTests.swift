@@ -64,8 +64,8 @@ struct GenomeTests {
         #expect(accepted.status == "ok")
         #expect(Genes.double("links.sibling_rank_weight") == 0.2)
         
-        let history = try home.read { database in
-            try home.container.genome.history(GRDBReadScope(database), gene: "links.sibling_rank_weight", limit: 5)
+        let history = try home.readScope { scope in
+            try home.container.genome.history(scope, gene: "links.sibling_rank_weight", limit: 5)
         }
         
         #expect(history.first?.cause == "set_gene", "every change must leave provenance")
@@ -144,8 +144,8 @@ struct GenomeTests {
             #expect(again.adjustedGene == nil)
         }
         
-        let history = try home.read { database in
-            try home.container.genome.history(GRDBReadScope(database), gene: "related.expand_hops", limit: 5)
+        let history = try home.readScope { scope in
+            try home.container.genome.history(scope, gene: "related.expand_hops", limit: 5)
         }
         
         #expect(history.first?.cause == "homeostasis:expand_landing")
@@ -342,9 +342,9 @@ struct GenomeTests {
         }
         
         // When
-        let unchanged = try home.database().read { db in
+        let unchanged = try home.readScope { scope in
             try home.container.genome.shadow(
-                GRDBReadScope(db),
+                scope,
                 gene: "priming.alpha", value: Genes.double("priming.alpha"), limit: 10, sampleDiffs: 5
             )
         }
@@ -353,9 +353,9 @@ struct GenomeTests {
         #expect(unchanged.queriesReplayed == 1)
         #expect(unchanged.queriesChanged == 0)
         #expect(throws: GenomeService.WriteError.self) {
-            _ = try home.database().read { db in
+            _ = try home.readScope { scope in
                 try home.container.genome.shadow(
-                    GRDBReadScope(db),
+                    scope,
                     gene: "priming.alpha", value: 99, limit: 10, sampleDiffs: 5
                 )
             }

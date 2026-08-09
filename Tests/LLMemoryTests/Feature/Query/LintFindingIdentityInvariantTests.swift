@@ -77,7 +77,7 @@ struct LintFindingIdentityInvariantTests {
         #expect(result.status == "ok", "setup: \(result.error)")
         
         // When
-        let issues = try home.read { database in try Lint.lintAll(GRDBReadScope(database)) }
+        let issues = try home.readScope { scope in try Lint.lintAll(scope) }
         
         // Then
         #expect(issues.contains { issue in issue.target.subject == "identity-3" },
@@ -123,11 +123,11 @@ struct LintFindingIdentityInvariantTests {
     @Test("a corpus rule that collides with itself is reported as an error, not run anyway")
     func duplicateCorpusIdentitiesAreReportedNotFatal() throws {
         // When
-        let collided = try home.read { database in
-            try Lint.lintAll(GRDBReadScope(database), corpusRules: [CollidingCorpusRule()])
+        let collided = try home.readScope { scope in
+            try Lint.lintAll(scope, corpusRules: [CollidingCorpusRule()])
         }
-        let clean = try home.read { database in
-            try Lint.lintAll(GRDBReadScope(database), corpusRules: [DistinctCorpusRule()])
+        let clean = try home.readScope { scope in
+            try Lint.lintAll(scope, corpusRules: [DistinctCorpusRule()])
         }
         
         // Then
@@ -153,7 +153,7 @@ struct LintFindingIdentityInvariantTests {
         }
         
         // When
-        let issues = try home.read { database in try Lint.lintAll(GRDBReadScope(database)) }
+        let issues = try home.readScope { scope in try Lint.lintAll(scope) }
         
         // Then
         #expect(issues.filter { issue in issue.code == "unknown-field" }.count == 2,

@@ -173,9 +173,24 @@ public enum Candidates {
         // MARK: - Private
     }
     
+    // The closed candidate vocabulary — the compiler owns exhaustiveness;
+    // strings exist only at the API boundary.
+    public enum Kind: String, CaseIterable, Sendable {
+        case clusters
+        case missingEdge = "missing_edge"
+        case nearDuplicate = "near_duplicate"
+        case split
+        case reconsolidate
+        case ripple
+        case enrichReview = "enrich_review"
+
+        public static let retrieval: [Kind] = [.clusters, .missingEdge, .nearDuplicate]
+        public static let structural: [Kind] = [.split, .reconsolidate, .ripple, .enrichReview]
+    }
+
     // MARK: - Property
-    static let retrievalKinds: [String] = ["clusters", "missing_edge", "near_duplicate"]
-    static let structuralKinds: [String] = ["split", "reconsolidate", "ripple", "enrich_review"]
+    static let retrievalKinds: [String] = Kind.retrieval.map { kind in kind.rawValue }
+    static let structuralKinds: [String] = Kind.structural.map { kind in kind.rawValue }
     
     static var validKinds: [String] { retrievalKinds + structuralKinds }
     
@@ -261,29 +276,19 @@ public enum Candidates {
             at: Paths.brainRoot.appendingPathComponent(anchor.path)
         ).body
         
-        return try neighbors(scope, noteId: noteId, searchText: "\(anchor.title) \(body)", k: k)
+        return try neighbors(scope, noteId: noteId, tokens: tokenize("\(anchor.title) \(body)"), k: k)
     }
 
-    // The scoring core — a caller that already holds the body passes its
-    // search text, so nothing re-reads a file it was handed.
-    static func neighbors(
+    // The scoring core — private, so every outside caller passes the anchor
+    // existence gate above; a caller that already holds the body hands the
+    // derived tokens, and nothing re-reads a file or keeps its text alive.
+    private static func neighbors(
         _ scope: GRDBReadScope,
         noteId: String,
-        searchText: String,
+        tokens: Set<String>,
         k: Int
     ) throws -> [NeighborScore] {
         var scores: [String: NeighborScore] = [:]
-        let nsSearchText = searchText as NSString
-        var tokens = Set<String>()
-        
-        wordRegex.enumerateMatches(
-            in: searchText,
-            range: NSRange(location: 0, length: nsSearchText.length)
-        ) { match, _, _ in
-            guard let match else { return }
-            
-            tokens.insert(nsSearchText.substring(with: match.range).lowercased())
-        }
         
         if !tokens.isEmpty {
             let tokenList = tokens.sorted()
@@ -478,7 +483,7 @@ public enum Candidates {
         
         var meta: [String: MissingEdge.Member] = [:]
         
-        for row in try scope.run(FetchSurfaceMetaRowsTransaction(notEager: true)) {
+        for row in try scope.run(FetchSurfaceMetaRowsTransaction()) {
             meta[row.id] = MissingEdge.Member(
                 id: row.id,
                 axis: row.axis,
@@ -599,7 +604,7 @@ public enum Candidates {
         let rows = try scope.run(FetchSurfaceNoteRowsTransaction())
         var tokensById: [String: Set<String>] = [:]
         var summaryById: [String: String?] = [:]
-        var searchTextById: [String: String] = [:]
+        var ftsTokensById: [String: Set<String>] = [:]
         
         for row in rows {
             let bodyPath = Paths.brainRoot.appendingPathComponent(row.path)
@@ -610,9 +615,9 @@ public enum Candidates {
                 continue
             }
             
-            tokensById[row.id] = nearDupTokens(row.title + " " + (row.summary ?? "") + " " + body)
+            tokensById[row.id] = tokenize(row.title + " " + (row.summary ?? "") + " " + body)
             summaryById[row.id] = row.summary
-            searchTextById[row.id] = "\(row.title) \(body)"
+            ftsTokensById[row.id] = tokenize("\(row.title) \(body)")
         }
         
         var seen: Set<String> = []
@@ -625,12 +630,12 @@ public enum Candidates {
             let summary = row.summary
             
             guard let ownTokens = tokensById[id],
-                let searchText = searchTextById[id]
+                let ftsTokens = ftsTokensById[id]
             else {
                 continue
             }
             
-            let neighborScores = try neighbors(scope, noteId: id, searchText: searchText, k: 3)
+            let neighborScores = try neighbors(scope, noteId: id, tokens: ftsTokens, k: 3)
             
             for neighbor in neighborScores {
                 if neighbor.fts < minFts { continue }
@@ -843,7 +848,7 @@ public enum Candidates {
         return Array(hits.prefix(limit))
     }
     
-    private static func nearDupTokens(_ text: String) -> Set<String> {
+    private static func tokenize(_ text: String) -> Set<String> {
         let nsText = text as NSString
         var tokens = Set<String>()
         

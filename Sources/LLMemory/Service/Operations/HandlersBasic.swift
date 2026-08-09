@@ -715,10 +715,7 @@ public enum HandlersBasic {
         touches: { _, _ in [] }
     )
     
-    // A factory — dismissal validation replays the live lint scan, so the
-    // inspector service is captured at wiring time.
-    public static func dismissCandidate(lint: LintService) -> OperationHandler {
-        OperationHandler(
+    public static let dismissCandidate = OperationHandler(
         schema: OperationSchema(
             summary: "record a *keep* decision for a consolidation candidate — \"reviewed, leave this note as-is\". "
             + "Habituation: the candidate stops re-surfacing until the note's shape diverges past an accumulating "
@@ -760,7 +757,7 @@ public enum HandlersBasic {
                 let target: LintTarget = hasTarget
                     ? .corpus(op["target"] as! String)
                     : .note((op["id"] as? String) ?? "")
-                let allFindings = try lint.scan(scope, code: code, includeDismissed: true)
+                let allFindings = try Lint.scan(scope, code: code, includeDismissed: true)
                 let liveFindings = allFindings.filter { issue in issue.target == target }
                 
                 if liveFindings.isEmpty {
@@ -814,7 +811,7 @@ public enum HandlersBasic {
             
             if let code = Dismissals.lintCode(of: kind),
                 Dismissals.lintFingerprint(of: kind) == nil {
-                let liveFindings = try lint.scan(scope.readOnly, code: code, includeDismissed: true)
+                let liveFindings = try Lint.scan(scope.readOnly, code: code, includeDismissed: true)
                     .filter { issue in issue.target == target }
                 let selector = (op["finding"] as? String)?
                     .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -852,8 +849,7 @@ public enum HandlersBasic {
         },
         effect: { _ in [:] },
         touches: { _, _ in [] }
-        )
-    }
+    )
     
     public static let markUsed = OperationHandler(
         schema: OperationSchema(

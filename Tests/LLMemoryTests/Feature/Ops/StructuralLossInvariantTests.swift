@@ -157,11 +157,11 @@ struct StructuralLossInvariantTests {
         let axisless = Handlers.pathFor(axis: "", nid: "mig-dst")
         
         // When
-        let resolved = try home.read { database in
-            try HandlersStructural.migrateDestination(operation, GRDBReadScope(database)).path
+        let resolved = try home.readScope { scope in
+            try HandlersStructural.migrateDestination(operation, scope).path
         }
-        let touched = try home.read { database in
-            try HandlersStructural.migrateNote.touches(operation, GRDBReadScope(database))
+        let touched = try home.readScope { scope in
+            try HandlersStructural.migrateNote.touches(operation, scope)
         }
         
         // Then

@@ -122,7 +122,7 @@ struct FetchFragmentationRowsTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [FragmentationRow] {
         try Row.fetchAll(db, sql: """
-            SELECT n.id, n.priority,
+            SELECT n.id,
                    (SELECT COUNT(*) FROM note_links l
                       JOIN notes o ON o.id = CASE WHEN l.src = n.id THEN l.dst ELSE l.src END
                      WHERE (l.src = n.id OR l.dst = n.id)) AS link_n,

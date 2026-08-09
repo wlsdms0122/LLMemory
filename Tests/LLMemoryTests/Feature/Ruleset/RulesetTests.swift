@@ -225,8 +225,8 @@ struct RulesetTests {
     }
     
     private func resolve(axis: String, rulesetIds: [String]) throws -> RulesetService.Effective {
-        try home.read { database in
-            try home.container.ruleset.effective(GRDBReadScope(database), axis: axis, rulesetIds: rulesetIds)
+        try home.readScope { scope in
+            try home.container.ruleset.effective(scope, axis: axis, rulesetIds: rulesetIds)
         }
     }
 }

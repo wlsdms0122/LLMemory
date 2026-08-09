@@ -206,7 +206,7 @@ struct FragmentationLintTests {
         #expect(result.status == "ok", "\(result.error)")
         
         // When
-        let families = try home.read { database in try FamilyView.families(GRDBReadScope(database)) }
+        let families = try home.readScope { scope in try FamilyView.families(scope) }
         
         // Then
         #expect(families.contains { family in
@@ -435,7 +435,7 @@ struct FragmentationLintTests {
     }
     
     private func lint(id: String? = nil, code: String, includeDismissed: Bool = false) throws -> [Lint.Issue] {
-        try home.read { db in try home.container.lint.scan(GRDBReadScope(db), id: id, code: code, includeDismissed: includeDismissed) }
+        try home.readScope { scope in try Lint.scan(scope, id: id, code: code, includeDismissed: includeDismissed) }
     }
     
     private func subjects(of code: String) throws -> [String] {
