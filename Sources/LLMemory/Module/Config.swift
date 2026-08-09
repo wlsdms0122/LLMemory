@@ -47,6 +47,8 @@ enum Config {
         Genes.invalidateCache()
     }
     
+    // Best-effort by contract, and swap-only: a failed read leaves the
+    // existing caches untouched instead of leaving them empty.
     static func warmCache(_ storage: GRDBStorage) {
         do {
             let queue = try storage.connect()
@@ -55,18 +57,19 @@ enum Config {
                     .filter(Column("key").like("\(prefix)%"))
                     .fetchAll(db)
             }
-
-            cache.removeAll()
+            let genomeValues = try queue.read { db in
+                try FetchGenomeValuesTransaction().perform(db)
+            }
+            var fresh: [String: String] = [:]
 
             for row in rows {
-                cache[row.key] = row.value ?? nilSentinel
+                fresh[row.key] = row.value ?? nilSentinel
             }
 
+            cache = fresh
             warmed = true
 
-            Genes.warm(
-                try queue.read { db in try FetchGenomeValuesTransaction().perform(db) }
-            )
+            Genes.warm(genomeValues)
         } catch { }
     }
 

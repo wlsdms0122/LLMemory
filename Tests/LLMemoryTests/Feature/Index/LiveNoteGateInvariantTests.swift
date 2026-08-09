@@ -42,10 +42,17 @@ struct LiveNoteGateInvariantTests {
         let trashed = try trashNote(id: "live-2")
         
         // When
-        let returnCode = try Indexer.reindexLocked(home.database(), filePaths: [trashed.path])
+        let outcomes = try home.database().write { db in
+            try Indexer.reindexFiles(db, filePaths: [trashed.path])
+        }
+        let failed = outcomes.contains { outcome in
+            if case .failure = outcome.result { return true }
+
+            return false
+        }
         
         // Then
-        #expect(returnCode == 1, "index reindex reported success for a trashed path")
+        #expect(failed, "index reindex reported success for a trashed path")
         #expect(try noteRows(id: "live-2") == 0, "the trashed note came back as a live row")
     }
     

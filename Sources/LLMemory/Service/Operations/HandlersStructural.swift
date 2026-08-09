@@ -34,9 +34,9 @@ public enum HandlersStructural {
             
             return "not in trash: \(noteId)"
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let noteId = op["id"] as! String
-            let now = Int(Date().timeIntervalSince1970)
+            let now = context.now
             
             guard let found = try Handlers.findTrashedFile(noteId) else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -123,9 +123,9 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let noteId = op["id"] as! String
-            let now = Int(Date().timeIntervalSince1970)
+            let now = context.now
             
             guard let src = try scope.run(FetchNotePathTransaction(nid: noteId)) else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -200,7 +200,7 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let axis = op["axis"] as! String
             let description = (op["description"] as! String)
                 .trimmingCharacters(in: .whitespaces)
@@ -264,7 +264,7 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let targetId = op["id"] as! String
             let (newAxis, newId, newPath) = try migrateDestination(op, scope.readOnly)
             
@@ -293,7 +293,7 @@ public enum HandlersStructural {
                 withIntermediateDirectories: true
             )
             
-            let now = Int(Date().timeIntervalSince1970)
+            let now = context.now
             
             try (Frontmatter.dump(doc) + body).write(to: newPath, atomically: true, encoding: .utf8)
             
@@ -397,10 +397,10 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let fromAxis = op["from_axis"] as! String
             let toAxis = op["to_axis"] as! String
-            let now = Int(Date().timeIntervalSince1970)
+            let now = context.now
             let rows = try scope.run(ListNotesByAxisTransaction(axis: fromAxis))
             let axisRow = try scope.run(FetchAxisTransaction(axis: fromAxis))
             let description = axisRow?.description?.isEmpty == false
@@ -558,11 +558,11 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let fromTag = op["from_tag"] as! String
             let toTag = op["to_tag"] as! String
             let addAlias = (op["add_alias"] as? Bool) ?? false
-            let now = Int(Date().timeIntervalSince1970)
+            let now = context.now
             let affectedIds = try scope.run(FetchNotesWithTagTransaction(tag: fromTag))
             
             for noteId in affectedIds {
@@ -683,7 +683,7 @@ public enum HandlersStructural {
             
             return "position must be 'end'/'start' or {after|before: <path>}"
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let fromId = op["from_id"] as! String
             let toId = op["to_id"] as! String
             
@@ -747,7 +747,7 @@ public enum HandlersStructural {
             try scope.run(ReindexNoteFileTransaction(path: srcPath))
             try scope.run(ReindexNoteFileTransaction(path: dstPath))
             
-            let now = Int(Date().timeIntervalSince1970)
+            let now = context.now
             
             try scope.run(StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false))
             try scope.run(StampNoteLifecycleTransaction(nid: toId, now: now, isNew: false))
@@ -924,7 +924,7 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let fromId = op["from_id"] as! String
             
             guard let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
@@ -944,7 +944,7 @@ public enum HandlersStructural {
             let srcMeta = try scope.run(FetchNoteMetaRowsTransaction(noteId: fromId))
             var written: [URL] = []
             var newIds: [String] = []
-            let now = Int(Date().timeIntervalSince1970)
+            let now = context.now
             var remaining = srcBody
             let intoChildren = (op["into"] as? [[String: Any]]) ?? []
             
@@ -1275,7 +1275,7 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let intoId = op["into_id"] as! String
             let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
             
@@ -1316,7 +1316,7 @@ public enum HandlersStructural {
                 }
             }
             
-            let now = Int(Date().timeIntervalSince1970)
+            let now = context.now
             
             try (Frontmatter.dump(intoDoc) + body).write(
                 to: intoPath,

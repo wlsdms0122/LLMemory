@@ -24,6 +24,11 @@ public enum OperationsService {
         sessionId: String? = nil,
         ruleset: String? = nil
     ) async -> OperationsEngine.Result {
+        // Session resolution happens here, below every surface — a caller
+        // that omits the argument still gets the environment fallback, so
+        // the observation policy never silently loses its session filter.
+        let sessionId = sessionId ?? Env.retrievalSession(cli: nil)
+
         // Shape rejection happens before any lock — a malformed payload must
         // not open the write scope. The string is decoded again inside the
         // scope because [String: Any] cannot cross the Sendable wall.
@@ -74,6 +79,8 @@ public enum OperationsService {
         sessionId: String? = nil,
         ruleset: String? = nil
     ) async -> OperationsEngine.DryRunResult {
+        let sessionId = sessionId ?? Env.retrievalSession(cli: nil)
+
         do {
             return try await storage.read { scope in
                 guard let payload = OperationsEngine.decodePayload(payloadJSON) else {

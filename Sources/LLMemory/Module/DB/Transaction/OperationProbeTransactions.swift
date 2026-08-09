@@ -95,25 +95,34 @@ struct NotesSurfacedRecentlyTransaction: GRDBReadTransaction {
         self.label = label
     }
 
+    // MARK: - Property
+    // Keeps each IN (...) under SQLite's bind-variable ceiling — batch size
+    // must not decide the judgement's error path.
+    private static let chunkSize = 500
+
     // MARK: - Public
     func perform(_ db: Database) throws -> Set<String> {
         guard !noteIds.isEmpty else { return [] }
 
         var surfaced = Set<String>()
         let wanted = Set(noteIds)
-        let placeholders = noteIds.map { _ in "?" }.joined(separator: ",")
 
-        if let label, !label.isEmpty {
-            surfaced.formUnion(try String.fetchAll(db, sql: """
-                SELECT DISTINCT h.note_id FROM retrieval_hits h
-                JOIN activity_windows w ON w.id = h.window_id
-                WHERE h.note_id IN (\(placeholders)) AND h.surfaced_at >= ? AND w.label = ?
-                """, arguments: StatementArguments(noteIds + [cutoff, label] as [DatabaseValueConvertible])))
-        } else {
-            surfaced.formUnion(try String.fetchAll(db, sql: """
-                SELECT DISTINCT note_id FROM retrieval_hits
-                WHERE note_id IN (\(placeholders)) AND surfaced_at >= ?
-                """, arguments: StatementArguments(noteIds + [cutoff] as [DatabaseValueConvertible])))
+        for chunk in stride(from: 0, to: noteIds.count, by: Self.chunkSize)
+            .map({ start in Array(noteIds[start..<min(start + Self.chunkSize, noteIds.count)]) }) {
+            let placeholders = chunk.map { _ in "?" }.joined(separator: ",")
+
+            if let label, !label.isEmpty {
+                surfaced.formUnion(try String.fetchAll(db, sql: """
+                    SELECT DISTINCT h.note_id FROM retrieval_hits h
+                    JOIN activity_windows w ON w.id = h.window_id
+                    WHERE h.note_id IN (\(placeholders)) AND h.surfaced_at >= ? AND w.label = ?
+                    """, arguments: StatementArguments(chunk + [cutoff, label] as [DatabaseValueConvertible])))
+            } else {
+                surfaced.formUnion(try String.fetchAll(db, sql: """
+                    SELECT DISTINCT note_id FROM retrieval_hits
+                    WHERE note_id IN (\(placeholders)) AND surfaced_at >= ?
+                    """, arguments: StatementArguments(chunk + [cutoff] as [DatabaseValueConvertible])))
+            }
         }
 
         if surfaced.isSuperset(of: wanted) { return surfaced }
@@ -148,37 +157,6 @@ struct NotesSurfacedRecentlyTransaction: GRDBReadTransaction {
         }
 
         return surfaced
-    }
-
-    // MARK: - Private
-}
-
-struct CountSurfacedHitsTransaction: GRDBReadTransaction {
-    // MARK: - Property
-    let noteId: String
-    let cutoff: Int
-    let label: String?
-
-    // MARK: - Initializer
-    init(noteId: String, cutoff: Int, label: String? = nil) {
-        self.noteId = noteId
-        self.cutoff = cutoff
-        self.label = label
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> Int {
-        if let label, !label.isEmpty {
-            return try Int.fetchOne(db, sql: """
-                SELECT COUNT(*) FROM retrieval_hits h
-                JOIN activity_windows w ON w.id = h.window_id
-                WHERE h.note_id = ? AND h.surfaced_at >= ? AND w.label = ?
-                """, arguments: [noteId, cutoff, label]) ?? 0
-        }
-
-        return try Int.fetchOne(db, sql: """
-            SELECT COUNT(*) FROM retrieval_hits WHERE note_id = ? AND surfaced_at >= ?
-            """, arguments: [noteId, cutoff]) ?? 0
     }
 
     // MARK: - Private

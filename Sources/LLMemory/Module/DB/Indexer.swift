@@ -64,26 +64,6 @@ public enum Indexer {
 
         // MARK: - Initializer
         // MARK: - Public
-        // Prints outcomes and derives the exit code — callers invoke this
-        // only after the enclosing transaction has committed.
-        static func emit(_ outcomes: [ReindexOutcome]) -> Int {
-            var exitCode = 0
-
-            for outcome in outcomes {
-                switch outcome.result {
-                case .reindexed(let noteId, let relativePath):
-                    print("reindexed: \(noteId) (\(relativePath))")
-
-                case .failure(let message):
-                    FileHandle.standardError.write(
-                        "ERROR \(outcome.filePath): \(message)\n".data(using: .utf8)!
-                    )
-                    exitCode = 1
-                }
-            }
-
-            return exitCode
-        }
 
         // MARK: - Private
     }
@@ -177,14 +157,6 @@ public enum Indexer {
         return Scan(pending: pending, scannedRels: scannedRels, errors: fileErrors)
     }
 
-    // Caller holds the write lock (run's write marker or an explicit writeLock).
-    // Emission happens after the write commits, so "printed" means "committed".
-    @discardableResult
-    static func reindexLocked(_ queue: any DatabaseWriter, filePaths: [String]) throws -> Int {
-        let outcomes = try queue.write { db in try reindexFiles(db, filePaths: filePaths) }
-
-        return ReindexOutcome.emit(outcomes)
-    }
 
     static func check(_ queue: any DatabaseReader, level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
         try check(queue, rawLevel: level.rawValue)

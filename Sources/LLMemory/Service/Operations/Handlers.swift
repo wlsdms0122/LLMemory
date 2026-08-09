@@ -204,9 +204,10 @@ public struct OperationHandler: @unchecked Sendable {
 public struct HandlerContext {
     // MARK: - Property
     // The batch's ambient facts — resolved once at the apply/dry-run entry
-    // so no handler re-derives them from process globals.
-    public var sessionId: String? = nil
-    public var now: Int = 0
+    // so no handler re-derives them from process globals. The initializer
+    // requires them: an unseeded context does not compile.
+    public let sessionId: String?
+    public let now: Int
 
     public var inFlightIds: Set<String> = []
     // Axes an earlier op in the same transaction introduces (create_note with axis_description).
@@ -219,6 +220,11 @@ public struct HandlerContext {
     public var opaqueBodyIds: Set<String> = []
     
     // MARK: - Initializer
+    public init(sessionId: String?, now: Int) {
+        self.sessionId = sessionId
+        self.now = now
+    }
+
     // MARK: - Public
     // MARK: - Private
 }

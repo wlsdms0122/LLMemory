@@ -28,6 +28,7 @@ public enum OperationsEngine {
             case error
             case rejectedIndex = "rejected_index"
             case recoveryFailed = "recovery_failed"
+            case degradedPasses = "degraded_passes"
         }
         
         // MARK: - Property
@@ -38,6 +39,10 @@ public enum OperationsEngine {
         public let rationale: String
         public let recoveryFailed: [String]
         public let conflict: SplitConflict?
+        // Best-effort passes that failed and rolled back, by name — the
+        // caller distinguishes "nothing to do" from "pass degraded" without
+        // digging through the event log.
+        public var degradedPasses: [String]
         
         // MARK: - Initializer
         public init(
@@ -47,7 +52,8 @@ public enum OperationsEngine {
             rejectedIndex: Int?,
             rationale: String,
             recoveryFailed: [String],
-            conflict: SplitConflict? = nil
+            conflict: SplitConflict? = nil,
+            degradedPasses: [String] = []
         ) {
             self.status = status
             self.opResults = opResults
@@ -56,6 +62,7 @@ public enum OperationsEngine {
             self.rationale = rationale
             self.recoveryFailed = recoveryFailed
             self.conflict = conflict
+            self.degradedPasses = degradedPasses
         }
         
         // MARK: - Public
@@ -75,6 +82,10 @@ public enum OperationsEngine {
             }
             
             if let conflict { try container.encode(conflict, forKey: .conflict) }
+            
+            if !degradedPasses.isEmpty {
+                try container.encode(degradedPasses, forKey: .degradedPasses)
+            }
         }
         
         // MARK: - Private
@@ -210,7 +221,7 @@ public enum OperationsEngine {
                 }
             }
             
-            let txResult = try applySequence(
+            var txResult = try applySequence(
                 scope,
                 opsRaw: opsRaw,
                 sessionId: sessionId,
@@ -223,10 +234,12 @@ public enum OperationsEngine {
                 
                 if !touched.isEmpty {
                     // Best-effort, but atomically so — a failed validation
-                    // pass rolls back whole, and the degradation leaves a
-                    // trace instead of vanishing.
+                    // pass rolls back whole, and the degradation rides the
+                    // result (plus a trace event) instead of vanishing.
                     if case .failure(let error)? =
                         try? scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: touched)) }) {
+                        txResult.degradedPasses.append("term_validation: \(error)")
+
                         try? scope.run(
                             RecordEventTransaction(
                                 kind: Events.kindCapture,
@@ -284,9 +297,7 @@ public enum OperationsEngine {
         effectiveRulesetId: String?
     ) throws -> Result {
         let now = Int(Date().timeIntervalSince1970)
-        var applyContext = HandlerContext()
-        applyContext.sessionId = sessionId
-        applyContext.now = now
+        let applyContext = HandlerContext(sessionId: sessionId, now: now)
 
         if let (message, index) = try validate(
             opsRaw,
@@ -627,9 +638,7 @@ public enum OperationsEngine {
         sessionId: String? = nil,
         now: Int = Int(Date().timeIntervalSince1970)
     ) throws -> (String, Int?)? {
-        var context = HandlerContext()
-        context.sessionId = sessionId
-        context.now = now
+        var context = HandlerContext(sessionId: sessionId, now: now)
         
         for (index, op) in ops.enumerated() {
             guard let name = op["op"] as? String,

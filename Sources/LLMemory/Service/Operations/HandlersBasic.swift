@@ -102,8 +102,8 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             let axis = op["axis"] as! String
             let noteId = op["id"] as! String
             let path = Handlers.pathFor(axis: axis, nid: noteId)
@@ -235,7 +235,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let noteId = op["id"] as! String
             
             guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
@@ -263,7 +263,7 @@ public enum HandlersBasic {
             try (Frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
             try scope.run(ReindexNoteFileTransaction(path: path))
             
-            let now = Int(Date().timeIntervalSince1970)
+            let now = context.now
             
             try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
             try Handlers.recordEdit(
@@ -349,7 +349,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let noteId = op["id"] as! String
             
             guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
@@ -368,7 +368,7 @@ public enum HandlersBasic {
             try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
             try scope.run(ReindexNoteFileTransaction(path: path))
             
-            let now = Int(Date().timeIntervalSince1970)
+            let now = context.now
             
             try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
             
@@ -420,7 +420,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let noteId = op["id"] as! String
             
             guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
@@ -440,7 +440,7 @@ public enum HandlersBasic {
             try (Frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
             try scope.run(ReindexNoteFileTransaction(path: path))
             
-            let now = Int(Date().timeIntervalSince1970)
+            let now = context.now
             
             try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
             try Handlers.recordEdit(scope, nid: noteId, opLabel: "rename_section", now: now)
@@ -486,8 +486,8 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             let noteId = op["id"] as! String
             
             guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
@@ -561,8 +561,8 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             let noteId = op["id"] as! String
             
             guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
@@ -623,8 +623,8 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             let noteId = op["id"] as! String
             
             try scope.run(RebaseNoteSourceTransaction(
@@ -661,8 +661,8 @@ public enum HandlersBasic {
             
             return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             
             try scope.run(AddRippleFlagTransaction(
                 noteId: op["id"] as! String,
@@ -694,8 +694,8 @@ public enum HandlersBasic {
             
             return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             let resolved = try scope.run(ResolveRippleFlagTransaction(
                 noteId: op["id"] as! String,
                 kind: op["kind"] as! String,
@@ -802,8 +802,8 @@ public enum HandlersBasic {
             
             return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             let target: LintTarget = ((op["target"] as? String)
                 .map { value in value.isEmpty ? nil : value } ?? nil)
                 .map { subject in LintTarget.corpus(subject) } ?? .note(op["id"] as! String)
@@ -950,8 +950,8 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             let id = op["gene"] as! String
             let reason = op["reason"] as? String
             
@@ -1015,8 +1015,8 @@ public enum HandlersBasic {
             
             return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             
             try scope.run(UpsertNoteMetaTransaction(
                 noteId: op["id"] as! String,
@@ -1059,7 +1059,7 @@ public enum HandlersBasic {
             
             return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, _, scope in
+        write: { op, context, scope in
             let deleted = try scope.run(DeleteNoteMetaTransaction(
                 noteId: op["id"] as! String,
                 namespace: op["namespace"] as! String,

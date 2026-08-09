@@ -51,8 +51,8 @@ public enum HandlersEnrichment {
             
             return nil
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             let noteId = op["id"] as! String
             let kind = op["kind"] as! String
             let provenance = (op["provenance"] as? String)
@@ -128,8 +128,8 @@ public enum HandlersEnrichment {
             
             return nil
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             let src = op["src"] as! String
             let dst = op["dst"] as! String
             let kind = (op["kind"] as? String)
@@ -181,8 +181,8 @@ public enum HandlersEnrichment {
         validate: { _, _, _ in
             nil
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             let provenance = op["provenance"] as! String
             let (termsPurged, edgesPurged, affected) = try scope.run(PurgeEnrichmentProvenanceTransaction(
                 provenance: provenance,
@@ -233,8 +233,8 @@ public enum HandlersEnrichment {
             
             return try Handlers.checkIDKnown(dst, context: context, scope: scope)
         },
-        write: { op, _, scope in
-            let now = Int(Date().timeIntervalSince1970)
+        write: { op, context, scope in
+            let now = context.now
             let src = op["src"] as! String
             let dst = op["dst"] as! String
             let kind = op["kind"] as! String

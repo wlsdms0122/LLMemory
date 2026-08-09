@@ -267,14 +267,31 @@ struct IndexBuild: AsyncParsableCommand {
     }
     
     struct ReindexOutput: Encodable {
+        struct File: Encodable {
+            enum CodingKeys: String, CodingKey {
+                case path, error
+                case noteId = "note_id"
+            }
+
+            // MARK: - Property
+            let path: String
+            let noteId: String?
+            let error: String?
+
+            // MARK: - Initializer
+            // MARK: - Public
+            // MARK: - Private
+        }
+
         enum CodingKeys: String, CodingKey {
-            case reindexed
+            case reindexed, files
             case returnCode = "return_code"
         }
         
         // MARK: - Property
         let reindexed: Int
         let returnCode: Int
+        let files: [File]
         
         // MARK: - Initializer
         // MARK: - Public
@@ -330,30 +347,46 @@ struct IndexBuild: AsyncParsableCommand {
             if rebuild { throw ValidationError("--path and --rebuild are mutually exclusive") }
             
             // The scope has committed by the time outcomes return — output
-            // here means committed, and the format owns the rendering.
+            // here means committed, and the format owns the rendering. One
+            // partition feeds stderr, both render formats, and the exit code.
             let outcomes = try await brain.index.reindex(filePaths: path)
-            let failures = outcomes.filter { outcome in
-                if case .failure = outcome.result { return true }
+            let files = outcomes.map { outcome -> ReindexOutput.File in
+                switch outcome.result {
+                case .reindexed(let noteId, let relativePath):
+                    return ReindexOutput.File(
+                        path: relativePath,
+                        noteId: noteId,
+                        error: nil
+                    )
 
-                return false
-            }
-
-            for outcome in outcomes {
-                if case .failure(let message) = outcome.result {
-                    FileHandle.standardError.write(
-                        "ERROR \(outcome.filePath): \(message)\n".data(using: .utf8)!
+                case .failure(let message):
+                    return ReindexOutput.File(
+                        path: outcome.filePath,
+                        noteId: nil,
+                        error: message
                     )
                 }
             }
+            let failures = files.filter { file in file.error != nil }
+
+            for failure in failures {
+                FileHandle.standardError.write(
+                    "ERROR \(failure.path): \(failure.error ?? "")\n".data(using: .utf8)!
+                )
+            }
 
             render(
-                ReindexOutput(reindexed: outcomes.count - failures.count, returnCode: failures.isEmpty ? 0 : 1),
+                ReindexOutput(
+                    reindexed: files.count - failures.count,
+                    returnCode: failures.isEmpty ? 0 : 1,
+                    files: files
+                ),
                 json: format.json
             ) { output in
-                outcomes.compactMap { outcome in
-                    guard case .reindexed(let noteId, let relativePath) = outcome.result else { return nil }
+                output.files.compactMap { file in
+                    guard let noteId = file.noteId else { return nil }
 
-                    return .text("reindexed: \(noteId) (\(relativePath))")
+                    return .text("reindexed: \(noteId) (\(file.path))")
                 }
                 + [.text("reindexed: \(output.reindexed) path(s) (rc=\(output.returnCode))")]
             }

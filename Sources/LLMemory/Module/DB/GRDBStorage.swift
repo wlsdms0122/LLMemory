@@ -178,6 +178,25 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // scope.run(transaction). Throwing rolls the entire scope back.
     @discardableResult
     public func run<T: Sendable>(_ body: @escaping @Sendable (GRDBScope) throws -> T) async throws -> T {
+        do {
+            return try await runGated(body)
+        } catch {
+            // The scope threw — body failure or the commit step itself
+            // (disk/busy). Anything the body primed into the process-global
+            // caches may reflect uncommitted state; rewarm from committed
+            // state before surfacing the error. This is the one place that
+            // knows the commit fact. Runs after the gate/flock are released
+            // (swap-only: a failed rewarm keeps the existing caches). The
+            // root fix — priming caches only after commit — is recorded debt.
+            Config.warmCache(self)
+
+            throw error
+        }
+    }
+
+    private func runGated<T: Sendable>(
+        _ body: @escaping @Sendable (GRDBScope) throws -> T
+    ) async throws -> T {
         let connection = try connect()
 
         // In-process exclusion first — flock cannot separate two tasks of one
@@ -194,20 +213,8 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         defer { releaseLock() }
 
-        do {
-            return try await connection.write { db in
-                try body(GRDBScope(db))
-            }
-        } catch {
-            // The scope threw — body failure or the commit step itself
-            // (disk/busy). Anything the body primed into the process-global
-            // caches may reflect uncommitted state; rewarm from what is
-            // actually committed before surfacing the error. This is the one
-            // place that knows the commit fact, so the repair lives here.
-            Config.invalidateCache()
-            Config.warmCache(self)
-
-            throw error
+        return try await connection.write { db in
+            try body(GRDBScope(db))
         }
     }
 

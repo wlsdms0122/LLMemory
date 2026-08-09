@@ -437,7 +437,7 @@ struct EnrichmentTests {
             try db.execute(sql: "UPDATE entity_index SET hit_count=5 WHERE note_id='rc-note' AND entity='BAR-9'")
         }
         
-        _ = try Indexer.reindexLocked(home.database(), filePaths: [path])
+        _ = try home.database().write { db in try Indexer.reindexFiles(db, filePaths: [path]) }
         
         let hitCount = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT hit_count FROM entity_index WHERE note_id='rc-note' AND entity='BAR-9'") ?? -1
