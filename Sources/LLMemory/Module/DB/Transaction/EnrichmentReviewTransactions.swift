@@ -135,7 +135,7 @@ struct FlagEnrichmentDisagreementsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchProvenanceStatsTransaction: GRDBTransaction {
+struct FetchProvenanceStatsTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -179,7 +179,7 @@ struct FetchProvenanceStatsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct EnrichmentStatusTransaction: GRDBTransaction {
+struct EnrichmentStatusTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 

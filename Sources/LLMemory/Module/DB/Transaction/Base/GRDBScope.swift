@@ -8,8 +8,8 @@
 import Foundation
 import GRDB
 
-// The handle services orchestrate through — runs transactions against the
-// connection bound to the enclosing storage scope. Deliberately not
+// The write handle services orchestrate through — runs transactions against
+// the connection bound to the enclosing storage scope. Deliberately not
 // Sendable: a scope must not outlive the block that owns its rollback
 // boundary.
 public struct GRDBScope {
@@ -45,6 +45,30 @@ public struct GRDBScope {
                 return .rollback
             }
         }
+    }
+
+    // A write scope may always be viewed as a read scope — read cores take
+    // GRDBReadScope and write orchestrators downgrade to call them.
+    public var readOnly: GRDBReadScope { GRDBReadScope(db) }
+
+    // MARK: - Private
+}
+
+// The read handle — accepts read transactions alone, so a write issued
+// from a read path fails at compile time.
+public struct GRDBReadScope {
+    // MARK: - Property
+    private let db: Database
+
+    // MARK: - Initializer
+    init(_ db: Database) {
+        self.db = db
+    }
+
+    // MARK: - Public
+    @discardableResult
+    public func run<T: GRDBReadTransaction>(_ transaction: T) throws -> T.Result {
+        try transaction.perform(db)
     }
 
     // MARK: - Private

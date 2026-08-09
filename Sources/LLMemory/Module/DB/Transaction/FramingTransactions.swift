@@ -130,7 +130,7 @@ public extension Framing {
     }
 }
 
-struct FetchAxesInfoTransaction: GRDBTransaction {
+struct FetchAxesInfoTransaction: GRDBReadTransaction {
     // MARK: - Property
     let topTagsLimit: Int
 
@@ -173,7 +173,7 @@ struct FetchAxesInfoTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchSimilarNotesTransaction: GRDBTransaction {
+struct FetchSimilarNotesTransaction: GRDBReadTransaction {
     // MARK: - Property
     let keywords: [String]
     let limit: Int
@@ -254,7 +254,7 @@ struct FetchSimilarNotesTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchTopTagsTransaction: GRDBTransaction {
+struct FetchTopTagsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let limit: Int
 
@@ -277,7 +277,7 @@ struct FetchTopTagsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchTagVocabTransaction: GRDBTransaction {
+struct FetchTagVocabTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 

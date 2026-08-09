@@ -203,7 +203,7 @@ public extension Reads {
     }
 }
 
-struct FetchNoteCatalogTransaction: GRDBTransaction {
+struct FetchNoteCatalogTransaction: GRDBReadTransaction {
     // MARK: - Property
     let ids: [String]
 
@@ -246,7 +246,7 @@ struct FetchNoteCatalogTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct ListNoteRowsTransaction: GRDBTransaction {
+struct ListNoteRowsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let filter: Reads.ListFilter
 
@@ -304,7 +304,7 @@ struct ListNoteRowsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct LookupEntitiesTransaction: GRDBTransaction {
+struct LookupEntitiesTransaction: GRDBReadTransaction {
     // MARK: - Property
     let name: String?
     let limit: Int
@@ -352,7 +352,7 @@ struct LookupEntitiesTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteHistoryTransaction: GRDBTransaction {
+struct FetchNoteHistoryTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
     let limit: Int

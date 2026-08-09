@@ -37,7 +37,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd", axis: "tech", title: "bd", tags: ["tech"],
             content: body).status == "ok")
         
-        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBScope(db), id: "bd", budget: 15) }
+        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBReadScope(db), id: "bd", budget: 15) }
         
         #expect(cut.truncated)
         #expect(cut.shownSections.map { section in section.path } == ["## A"])
@@ -54,7 +54,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd2", axis: "tech", title: "bd2", tags: ["tech"],
             content: body).status == "ok")
         
-        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBScope(db), id: "bd2", budget: 1) }
+        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBReadScope(db), id: "bd2", budget: 1) }
         
         #expect(cut.truncated)
         #expect(cut.truncatedWithin == "(preamble)")
@@ -74,7 +74,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd6", axis: "tech", title: "bd6", tags: ["tech"],
             content: big).status == "ok")
         
-        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBScope(db), id: "bd6", budget: 10) }
+        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBReadScope(db), id: "bd6", budget: 10) }
         
         #expect(cut.truncated)
         #expect(cut.truncatedWithin == "## A")
@@ -89,7 +89,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd3", axis: "tech", title: "bd3", tags: ["tech"],
             content: body).status == "ok")
         
-        let (note, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBScope(db), id: "bd3", budget: 10_000) }
+        let (note, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBReadScope(db), id: "bd3", budget: 10_000) }
         
         #expect(!cut.truncated)
         #expect(cut.omitted.isEmpty)
@@ -116,7 +116,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd5", axis: "tech", title: "bd5", tags: ["tech"],
             content: wrapped).status == "ok")
         
-        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBScope(db), id: "bd5", budget: 16) }
+        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBReadScope(db), id: "bd5", budget: 16) }
         
         #expect(cut.truncated)
         #expect(cut.shownSections.map { section in section.path } == ["# Report history > ## 2026-07-01"])
@@ -127,7 +127,7 @@ struct BudgetGetTests {
         #expect(!cut.shown.contains("seven"))
         
         let (_, slices, _) = try home.database().read { db in
-            try NotesService.getSections(GRDBScope(db), id: "bd5", sections: [cut.omitted[0].path])
+            try NotesService.getSections(GRDBReadScope(db), id: "bd5", sections: [cut.omitted[0].path])
         }
         
         #expect(slices[0].text.contains("seven eight"))
@@ -144,7 +144,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd7", axis: "tech", title: "bd7", tags: ["tech"],
             content: wrapped).status == "ok")
         
-        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBScope(db), id: "bd7", budget: 30) }
+        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBReadScope(db), id: "bd7", budget: 30) }
         
         #expect(cut.truncated)
         #expect(cut.truncatedWithin == "# Report history")
@@ -160,13 +160,13 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd4", axis: "tech", title: "bd4", tags: ["tech"],
             content: "three words here\nand five more words now\n").status == "ok")
         
-        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBScope(db), id: "bd4", budget: 3) }
+        let (_, _, cut) = try home.database().read { db in try NotesService.getBudget(GRDBReadScope(db), id: "bd4", budget: 3) }
         
         #expect(cut.truncated)
         #expect(cut.truncatedWithin == "(preamble)")
         #expect(cut.shown == "three words here")
         
-        let (note, _, full) = try home.database().read { db in try NotesService.getBudget(GRDBScope(db), id: "bd4", budget: 100) }
+        let (note, _, full) = try home.database().read { db in try NotesService.getBudget(GRDBReadScope(db), id: "bd4", budget: 100) }
         
         #expect(!full.truncated)
         #expect(full.shown == note.body)

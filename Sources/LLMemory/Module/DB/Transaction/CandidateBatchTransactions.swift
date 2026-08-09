@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 // Consolidation candidate surfacing — one batch per requested kind.
-struct FetchCandidateBatchesTransaction: GRDBTransaction {
+struct FetchCandidateBatchesTransaction: GRDBReadTransaction {
     // MARK: - Property
     let kinds: [String]
     let limit: Int

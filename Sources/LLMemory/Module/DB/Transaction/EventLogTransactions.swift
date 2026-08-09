@@ -10,7 +10,7 @@ import GRDB
 
 // Replays the retention-window retrieval log — the offline-reranking input
 // for genome shadow runs.
-struct FetchLoggedRetrievalQueriesTransaction: GRDBTransaction {
+struct FetchLoggedRetrievalQueriesTransaction: GRDBReadTransaction {
     struct LoggedQuery {
         // MARK: - Property
         let command: String

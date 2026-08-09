@@ -16,7 +16,7 @@ enum BodyProjection {
         name: String,
         handler: OperationHandler,
         context: inout HandlerContext,
-        scope: GRDBScope
+        scope: GRDBReadScope
     ) throws -> String? {
         switch name {
         case "create_note":
@@ -91,7 +91,7 @@ enum BodyProjection {
     private static func stagedBody(
         of noteId: String,
         context: HandlerContext,
-        scope: GRDBScope
+        scope: GRDBReadScope
     ) throws -> String? {
         if let staged = context.stagedBodies[noteId] { return staged }
         

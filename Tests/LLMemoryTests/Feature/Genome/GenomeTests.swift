@@ -65,7 +65,7 @@ struct GenomeTests {
         #expect(Genes.double("links.sibling_rank_weight") == 0.2)
         
         let history = try home.read { database in
-            try GenomeService.history(GRDBScope(database), gene: "links.sibling_rank_weight", limit: 5)
+            try GenomeService.history(GRDBReadScope(database), gene: "links.sibling_rank_weight", limit: 5)
         }
         
         #expect(history.first?.cause == "set_gene", "every change must leave provenance")
@@ -145,7 +145,7 @@ struct GenomeTests {
         }
         
         let history = try home.read { database in
-            try GenomeService.history(GRDBScope(database), gene: "related.expand_hops", limit: 5)
+            try GenomeService.history(GRDBReadScope(database), gene: "related.expand_hops", limit: 5)
         }
         
         #expect(history.first?.cause == "homeostasis:expand_landing")
@@ -344,7 +344,7 @@ struct GenomeTests {
         // When
         let unchanged = try home.database().read { db in
             try GenomeService.shadow(
-                GRDBScope(db),
+                GRDBReadScope(db),
                 gene: "priming.alpha", value: Genes.double("priming.alpha"), limit: 10, sampleDiffs: 5
             )
         }
@@ -355,7 +355,7 @@ struct GenomeTests {
         #expect(throws: GenomeService.WriteError.self) {
             _ = try home.database().read { db in
                 try GenomeService.shadow(
-                    GRDBScope(db),
+                    GRDBReadScope(db),
                     gene: "priming.alpha", value: 99, limit: 10, sampleDiffs: 5
                 )
             }

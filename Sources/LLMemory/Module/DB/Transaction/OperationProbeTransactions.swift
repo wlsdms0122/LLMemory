@@ -10,7 +10,7 @@ import GRDB
 
 // Probes and small writes the operation handlers compose — each one row
 // vocabulary the mutation engine validates and applies through.
-struct FetchNotePriorityTransaction: GRDBTransaction {
+struct FetchNotePriorityTransaction: GRDBReadTransaction {
     // MARK: - Property
     let nid: String
 
@@ -31,7 +31,7 @@ struct FetchNotePriorityTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteStaleStateTransaction: GRDBTransaction {
+struct FetchNoteStaleStateTransaction: GRDBReadTransaction {
     // MARK: - Property
     let nid: String
 
@@ -57,7 +57,7 @@ struct FetchNoteStaleStateTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct NoteSourceTrackedTransaction: GRDBTransaction {
+struct NoteSourceTrackedTransaction: GRDBReadTransaction {
     // MARK: - Property
     let nid: String
 
@@ -78,7 +78,7 @@ struct NoteSourceTrackedTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct CountSurfacedHitsTransaction: GRDBTransaction {
+struct CountSurfacedHitsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
     let cutoff: Int
@@ -274,7 +274,7 @@ struct TouchNoteUsageTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteAxisTransaction: GRDBTransaction {
+struct FetchNoteAxisTransaction: GRDBReadTransaction {
     // MARK: - Property
     let nid: String
 
@@ -291,7 +291,7 @@ struct FetchNoteAxisTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteEntityHitsTransaction: GRDBTransaction {
+struct FetchNoteEntityHitsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
 
@@ -337,7 +337,7 @@ struct SetEntityHitCountTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchActiveTermRowsTransaction: GRDBTransaction {
+struct FetchActiveTermRowsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
 
@@ -357,7 +357,7 @@ struct FetchActiveTermRowsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteMetaRowsTransaction: GRDBTransaction {
+struct FetchNoteMetaRowsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
 
@@ -412,7 +412,7 @@ struct InsertNoteMetaIfAbsentTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct NoteLockedAtPathTransaction: GRDBTransaction {
+struct NoteLockedAtPathTransaction: GRDBReadTransaction {
     // MARK: - Property
     let relativePath: String
 
@@ -433,7 +433,7 @@ struct NoteLockedAtPathTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchTemplateDependentPathsTransaction: GRDBTransaction {
+struct FetchTemplateDependentPathsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let templateIds: [String]
 

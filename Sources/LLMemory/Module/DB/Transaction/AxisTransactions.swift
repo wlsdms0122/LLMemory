@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct FetchAxesWithCountsTransaction: GRDBTransaction {
+struct FetchAxesWithCountsTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 

@@ -140,7 +140,7 @@ struct PruneFtsOrphansTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct CheckCorpusIntegrityL1Transaction: GRDBTransaction {
+struct CheckCorpusIntegrityL1Transaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -167,7 +167,7 @@ struct CheckCorpusIntegrityL1Transaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchAxisReportTransaction: GRDBTransaction {
+struct FetchAxisReportTransaction: GRDBReadTransaction {
     // MARK: - Property
     let low: Int
     let high: Int
@@ -205,7 +205,7 @@ struct FetchAxisReportTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchTagReportTransaction: GRDBTransaction {
+struct FetchTagReportTransaction: GRDBReadTransaction {
     // MARK: - Property
     let lowFreq: Int
     let limit: Int

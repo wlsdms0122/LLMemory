@@ -157,7 +157,7 @@ struct ReindexNoteFTSTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteEnrichTextTransaction: GRDBTransaction {
+struct FetchNoteEnrichTextTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
 
@@ -313,7 +313,7 @@ struct DeleteNoteRowTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct NoteExistsTransaction: GRDBTransaction {
+struct NoteExistsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let nid: String
 
@@ -330,7 +330,7 @@ struct NoteExistsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNotePathTransaction: GRDBTransaction {
+struct FetchNotePathTransaction: GRDBReadTransaction {
     // MARK: - Property
     let nid: String
 
@@ -355,7 +355,7 @@ struct FetchNotePathTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct ListNotesByAxisTransaction: GRDBTransaction {
+struct ListNotesByAxisTransaction: GRDBReadTransaction {
     // MARK: - Property
     let axis: String
 
@@ -378,7 +378,7 @@ struct ListNotesByAxisTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteIdsTransaction: GRDBTransaction {
+struct FetchNoteIdsTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -390,7 +390,7 @@ struct FetchNoteIdsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct CountEagerNotesTransaction: GRDBTransaction {
+struct CountEagerNotesTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -402,7 +402,7 @@ struct CountEagerNotesTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchAllNotePathsTransaction: GRDBTransaction {
+struct FetchAllNotePathsTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -606,7 +606,7 @@ struct SetNoteFTSMetaOnlyTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteTransaction: GRDBTransaction {
+struct FetchNoteTransaction: GRDBReadTransaction {
     // MARK: - Property
     let nid: String
 

@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 // meta-table access for services — Config owns the key encoding.
-struct FetchConfigValueTransaction: GRDBTransaction {
+struct FetchConfigValueTransaction: GRDBReadTransaction {
     // MARK: - Property
     let key: String
     let defaultValue: String

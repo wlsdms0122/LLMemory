@@ -68,7 +68,7 @@ public struct OverallStats: Sendable {
     // MARK: - Private
 }
 
-struct NoteStatsTransaction: GRDBTransaction {
+struct NoteStatsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let id: String
 
@@ -119,7 +119,7 @@ struct NoteStatsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct AxisStatsTransaction: GRDBTransaction {
+struct AxisStatsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let axis: String
 
@@ -156,7 +156,7 @@ struct AxisStatsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct OverallStatsTransaction: GRDBTransaction {
+struct OverallStatsTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 

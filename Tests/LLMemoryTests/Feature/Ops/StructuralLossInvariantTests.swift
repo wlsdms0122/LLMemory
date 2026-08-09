@@ -158,10 +158,10 @@ struct StructuralLossInvariantTests {
         
         // When
         let resolved = try home.read { database in
-            try HandlersStructural.migrateDestination(operation, GRDBScope(database)).path
+            try HandlersStructural.migrateDestination(operation, GRDBReadScope(database)).path
         }
         let touched = try home.read { database in
-            try HandlersStructural.migrateNote.touches(operation, GRDBScope(database))
+            try HandlersStructural.migrateNote.touches(operation, GRDBReadScope(database))
         }
         
         // Then

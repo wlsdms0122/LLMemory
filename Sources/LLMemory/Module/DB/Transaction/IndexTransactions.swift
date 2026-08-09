@@ -44,7 +44,7 @@ struct ReindexNotesTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct CheckIntegrityTransaction: GRDBTransaction {
+struct CheckIntegrityTransaction: GRDBReadTransaction {
     // MARK: - Property
     let level: Indexer.IntegrityLevel
 

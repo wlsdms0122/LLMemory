@@ -38,7 +38,7 @@ public struct VectorHit: Sendable {
     // MARK: - Private
 }
 
-struct FetchNoteVectorsTransaction: GRDBTransaction {
+struct FetchNoteVectorsTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -184,7 +184,7 @@ struct BuildVectorsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct ExpandByVectorsTransaction: GRDBTransaction {
+struct ExpandByVectorsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let seedIds: [String]
     let limit: Int

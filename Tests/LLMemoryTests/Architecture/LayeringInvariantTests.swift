@@ -117,11 +117,16 @@ struct LayeringInvariantTests {
     @Test("a scope is constructed by storage alone")
     func scopeConstructionStaysInStorage() {
         // When
+        let allowed = ["GRDBStorage.swift", "GRDBScope.swift"]
         let violations = sources
-            .filter { file in file.url.lastPathComponent != "GRDBStorage.swift" }
+            .filter { file in !allowed.contains(file.url.lastPathComponent) }
             .flatMap { file in
                 file.codeLines()
-                    .filter { _, text in text.contains("GRDBScope(") && !text.contains("(_ scope: GRDBScope") }
+                    .filter { _, text in
+                        (text.contains("GRDBScope(") || text.contains("GRDBReadScope("))
+                            && !text.contains("scope: GRDBScope")
+                            && !text.contains("scope: GRDBReadScope")
+                    }
                     .map { number, _ in file.location(number) }
             }
 

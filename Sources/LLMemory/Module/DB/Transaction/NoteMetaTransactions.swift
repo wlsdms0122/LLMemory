@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 // note_meta side-table transactions — namespaced key/value rows per note.
-struct FetchNoteMetaValueTransaction: GRDBTransaction {
+struct FetchNoteMetaValueTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
     let namespace: String
@@ -35,7 +35,7 @@ struct FetchNoteMetaValueTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteMetaTransaction: GRDBTransaction {
+struct FetchNoteMetaTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
     let namespace: String?
@@ -123,7 +123,7 @@ struct DeleteNoteMetaTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FindNoteMetaByKVTransaction: GRDBTransaction {
+struct FindNoteMetaByKVTransaction: GRDBReadTransaction {
     // MARK: - Property
     let namespace: String
     let key: String

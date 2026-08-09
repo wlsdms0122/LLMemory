@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct FetchNeighborScoresTransaction: GRDBTransaction {
+struct FetchNeighborScoresTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
     let k: Int

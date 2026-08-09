@@ -328,7 +328,7 @@ struct MarkNotesUsedTransaction: GRDBTransaction {
     }
 }
 
-struct FetchActivationStatsTransaction: GRDBTransaction {
+struct FetchActivationStatsTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 

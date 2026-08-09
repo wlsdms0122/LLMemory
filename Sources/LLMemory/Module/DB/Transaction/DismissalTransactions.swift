@@ -148,7 +148,7 @@ enum Dismissals {
     // MARK: - Private
 }
 
-struct FetchCandidateGenerationTransaction: GRDBTransaction {
+struct FetchCandidateGenerationTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -245,7 +245,7 @@ struct RecordDismissalTransaction: GRDBTransaction {
     }
 }
 
-struct FetchLintDismissalsTransaction: GRDBTransaction {
+struct FetchLintDismissalsTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -296,7 +296,7 @@ struct FetchLintDismissalsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchDismissalsByNoteTransaction: GRDBTransaction {
+struct FetchDismissalsByNoteTransaction: GRDBReadTransaction {
     // MARK: - Property
     let kind: String
 

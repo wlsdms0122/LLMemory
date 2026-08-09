@@ -255,7 +255,7 @@ public enum RulesetService {
     // Folds the rulesets' rules into one effective policy — precedence is
     // "the stricter wins" per kind.
     static func effective(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         axis: String,
         rulesetIds: [String]
     ) throws -> Effective {
@@ -344,7 +344,7 @@ public enum RulesetService {
         return effective
     }
 
-    static func rules(_ scope: GRDBScope, rulesetId: String) throws -> [Rule] {
+    static func rules(_ scope: GRDBReadScope, rulesetId: String) throws -> [Rule] {
         try scope.run(FetchRulesTransaction(rulesetId: rulesetId)).map { record in
             let paramsRaw = record.params
 

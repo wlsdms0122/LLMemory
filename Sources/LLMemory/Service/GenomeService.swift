@@ -168,7 +168,7 @@ public enum GenomeService {
     }
 
     static func history(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         gene: String?,
         limit: Int
     ) throws -> [HistoryRow] {
@@ -190,7 +190,7 @@ public enum GenomeService {
     // current corpus under a candidate gene value. The override lives only in
     // the in-process cache for the duration of the replay; nothing commits.
     static func shadow(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         gene: String,
         value: Double,
         limit: Int,

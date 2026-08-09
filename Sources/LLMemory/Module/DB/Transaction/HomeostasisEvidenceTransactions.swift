@@ -10,7 +10,7 @@ import GRDB
 
 // Evidence probes for the homeostatic tick — closed activity windows past
 // the watermark and the expand-landing outcomes inside one window.
-struct FetchClosedActivityWindowsTransaction: GRDBTransaction {
+struct FetchClosedActivityWindowsTransaction: GRDBReadTransaction {
     struct Window {
         // MARK: - Property
         let id: Int
@@ -59,7 +59,7 @@ struct FetchClosedActivityWindowsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchExpandEvidenceTransaction: GRDBTransaction {
+struct FetchExpandEvidenceTransaction: GRDBReadTransaction {
     // MARK: - Property
     let windowId: Int
 

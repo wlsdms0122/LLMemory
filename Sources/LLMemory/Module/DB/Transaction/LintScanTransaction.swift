@@ -10,7 +10,7 @@ import GRDB
 
 // Runs the deterministic lint rule set — filtered, habituation-suppressed,
 // and sorted for stable output.
-struct LintScanTransaction: GRDBTransaction {
+struct LintScanTransaction: GRDBReadTransaction {
     // MARK: - Property
     let id: String?
     let code: String?

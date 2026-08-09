@@ -211,7 +211,7 @@ public enum OperationsEngine {
             let txResult: Result = try { () throws -> Result in
                 if let (message, index) = try validate(
                     opsRaw,
-                    scope: scope,
+                    scope: scope.readOnly,
                     rulesetId: effectiveRulesetId
                 ) {
                     try? scope.run(RecordEventTransaction(
@@ -235,7 +235,7 @@ public enum OperationsEngine {
                     )
                 }
                 
-                let affected = try affectedPaths(opsRaw, scope: scope)
+                let affected = try affectedPaths(opsRaw, scope: scope.readOnly)
                 let backups: [(URL, String?)]
                 do {
                     backups = try snapshotFiles(affected)
@@ -293,13 +293,13 @@ public enum OperationsEngine {
                             return .rollback
                         }
                         
-                        if let templateError = checkTemplateFrames(affected: affected, scope: scope) {
+                        if let templateError = checkTemplateFrames(affected: affected, scope: scope.readOnly) {
                             failure = (nil, templateError)
                             
                             return .rollback
                         }
                         
-                        if let capError = checkEagerCap(scope: scope, before: eagerBefore) {
+                        if let capError = checkEagerCap(scope: scope.readOnly, before: eagerBefore) {
                             failure = (nil, capError)
                             
                             return .rollback
@@ -409,7 +409,7 @@ public enum OperationsEngine {
         }
     }
     
-    public static func dryRun(_ scope: GRDBScope, _ payload: [String: Any], ruleset: String? = nil) -> DryRunResult {
+    public static func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], ruleset: String? = nil) -> DryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return DryRunResult(
                 status: "rejected",
@@ -572,7 +572,7 @@ public enum OperationsEngine {
     
     private static func validate(
         _ ops: [[String: Any]],
-        scope: GRDBScope,
+        scope: GRDBReadScope,
         rulesetId: String?
     ) throws -> (String, Int?)? {
         var context = HandlerContext()
@@ -649,7 +649,7 @@ public enum OperationsEngine {
         name: String,
         handler: OperationHandler,
         context: HandlerContext,
-        scope: GRDBScope
+        scope: GRDBReadScope
     ) throws -> String? {
         if name != "create_note", !context.lockedInFlightIds.isEmpty {
             for noteId in targetIds(op, schema: handler.schema)
@@ -677,7 +677,7 @@ public enum OperationsEngine {
         op: [String: Any],
         name: String,
         handler: OperationHandler,
-        scope: GRDBScope,
+        scope: GRDBReadScope,
         rulesetId: String
     ) throws -> String? {
         var axes = try extractAxes(op, schema: handler.schema, scope: scope)
@@ -699,7 +699,7 @@ public enum OperationsEngine {
     private static func extractAxes(
         _ op: [String: Any],
         schema: OperationSchema,
-        scope: GRDBScope
+        scope: GRDBReadScope
     ) throws -> Set<String> {
         var axes = schema.mentionedAxes(in: op)
         
@@ -710,11 +710,11 @@ public enum OperationsEngine {
         return axes
     }
     
-    private static func axisOf(_ nid: String, scope: GRDBScope) throws -> String? {
+    private static func axisOf(_ nid: String, scope: GRDBReadScope) throws -> String? {
         try scope.run(FetchNoteAxisTransaction(nid: nid))
     }
     
-    private static func affectedPaths(_ ops: [[String: Any]], scope: GRDBScope) throws -> [URL] {
+    private static func affectedPaths(_ ops: [[String: Any]], scope: GRDBReadScope) throws -> [URL] {
         var seen = Set<String>()
         var paths: [URL] = []
         
@@ -794,7 +794,7 @@ public enum OperationsEngine {
         return nil
     }
     
-    private static func checkTemplateFrames(affected: [URL], scope: GRDBScope) -> String? {
+    private static func checkTemplateFrames(affected: [URL], scope: GRDBReadScope) -> String? {
         var toCheck: [URL] = []
         var seen = Set<String>()
         
@@ -861,7 +861,7 @@ public enum OperationsEngine {
         return nil
     }
     
-    private static func checkEagerCap(scope: GRDBScope, before: Int) -> String? {
+    private static func checkEagerCap(scope: GRDBReadScope, before: Int) -> String? {
         let cap = Config.getInt("eager.max_count", default: 20)
         let after = (try? scope.run(CountEagerNotesTransaction())) ?? 0
         

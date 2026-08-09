@@ -121,7 +121,7 @@ public enum Search {
     }
 }
 
-struct SearchNotesFTSTransaction: GRDBTransaction {
+struct SearchNotesFTSTransaction: GRDBReadTransaction {
     // MARK: - Property
     let query: String
     let axis: String?

@@ -202,9 +202,9 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // The read scope — no lock, no write transaction; SQLite rejects writes
     // issued through it at runtime.
     @discardableResult
-    public func read<T: Sendable>(_ body: @escaping @Sendable (GRDBScope) throws -> T) async throws -> T {
+    public func read<T: Sendable>(_ body: @escaping @Sendable (GRDBReadScope) throws -> T) async throws -> T {
         try await connect().read { db in
-            try body(GRDBScope(db))
+            try body(GRDBReadScope(db))
         }
     }
 

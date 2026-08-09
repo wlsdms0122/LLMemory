@@ -191,10 +191,10 @@ struct FieldTypeError: Error, CustomStringConvertible {
 public struct OperationHandler: @unchecked Sendable {
     // MARK: - Property
     public let schema: OperationSchema
-    public let validate: (_ op: [String: Any], _ context: HandlerContext, _ scope: GRDBScope) throws -> String?
+    public let validate: (_ op: [String: Any], _ context: HandlerContext, _ scope: GRDBReadScope) throws -> String?
     public let write: (_ op: [String: Any], _ scope: GRDBScope) throws -> [String: Any]
     public let effect: (_ op: [String: Any]) -> [String: [String]]
-    public let touches: (_ op: [String: Any], _ scope: GRDBScope) throws -> [URL]
+    public let touches: (_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL]
     
     // MARK: - Initializer
     // MARK: - Public
@@ -269,7 +269,7 @@ public enum Handlers {
         return Paths.notes.appendingPathComponent(axis).appendingPathComponent("\(nid).md")
     }
     
-    public static func existingState(_ scope: GRDBScope) throws -> ExistingState {
+    public static func existingState(_ scope: GRDBReadScope) throws -> ExistingState {
         ExistingState(
             ids: try scope.run(FetchNoteIdsTransaction()),
             axes: try scope.run(FetchAxisNamesTransaction())
@@ -302,7 +302,7 @@ public enum Handlers {
     public static func checkIDKnown(
         _ nid: String,
         context: HandlerContext,
-        scope: GRDBScope
+        scope: GRDBReadScope
     ) throws -> String? {
         if context.inFlightIds.contains(nid) { return nil }
         if try scope.run(NoteExistsTransaction(nid: nid)) { return nil }
@@ -400,7 +400,7 @@ public enum Handlers {
         registry[name]?.schema
     }
     
-    static func composeCreateBody(_ op: [String: Any], _ scope: GRDBScope) throws -> String {
+    static func composeCreateBody(_ op: [String: Any], _ scope: GRDBReadScope) throws -> String {
         let raw = op["content"] as? String ?? ""
         var content = String(raw.reversed().drop(while: { character in character.isWhitespace }).reversed())
         let templateId = (op["template"] as? String).flatMap { value in value.isEmpty ? nil : value }

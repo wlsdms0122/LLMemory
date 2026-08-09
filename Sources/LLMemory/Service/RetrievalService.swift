@@ -103,7 +103,7 @@ public enum RetrievalService {
 
     // MARK: - Internal
     static func search(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         query: String,
         axis: String? = nil,
         limit: Int = 5,
@@ -162,7 +162,7 @@ public enum RetrievalService {
     }
 
     static func snapshot(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         userInput: String,
         agentOutput: String,
         similarLimit: Int? = nil,
@@ -249,7 +249,7 @@ public enum RetrievalService {
     }
 
     static func related(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         text: String,
         kind: String?,
         sessionId: String?,
@@ -289,7 +289,7 @@ public enum RetrievalService {
     }
 
     static func neighbors(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         id: String,
         k: Int,
         sessionId: String? = nil

@@ -10,7 +10,7 @@ import GRDB
 
 // Genome-domain transactions — the DB vocabulary for the epigenome
 // (per-brain gene values) and its provenance ledger.
-struct FetchGenomeValuesTransaction: GRDBTransaction {
+struct FetchGenomeValuesTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -23,7 +23,7 @@ struct FetchGenomeValuesTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchGenomeEventsTransaction: GRDBTransaction {
+struct FetchGenomeEventsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let geneId: String?
     let limit: Int

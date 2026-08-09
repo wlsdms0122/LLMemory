@@ -150,7 +150,7 @@ public enum NoteArtifacts {
     }
 }
 
-struct FetchNoteCascadeTablesTransaction: GRDBTransaction {
+struct FetchNoteCascadeTablesTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -386,7 +386,7 @@ struct RestoreArtifactsAfterRebuildTransaction: GRDBTransaction {
 }
 
 
-struct FetchSplitRouteTargetsTransaction: GRDBTransaction {
+struct FetchSplitRouteTargetsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
 

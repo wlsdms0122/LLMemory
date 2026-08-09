@@ -85,7 +85,7 @@ struct ReconcileNoteEntitiesTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchEntityHitsTransaction: GRDBTransaction {
+struct FetchEntityHitsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let entities: [String]
     let limitPerEntity: Int

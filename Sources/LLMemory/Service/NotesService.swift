@@ -153,7 +153,7 @@ public enum NotesService {
 
     // MARK: - Internal
     static func get(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         ids: [String],
         sessionId: String? = nil
     ) throws -> (found: [Reads.GetNote], missing: [String], record: RetrievalRecord?) {
@@ -197,7 +197,7 @@ public enum NotesService {
     }
 
     static func getSections(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         id: String,
         sections: [String]
     ) throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice], record: RetrievalRecord?) {
@@ -220,7 +220,7 @@ public enum NotesService {
     }
 
     static func getBudget(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         id: String,
         budget: Int
     ) throws -> (note: Reads.GetNote, record: RetrievalRecord?, cut: Reads.BudgetCut) {
@@ -234,7 +234,7 @@ public enum NotesService {
     }
 
     static func toc(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         id: String
     ) throws -> (note: Reads.GetNote, entries: [Reads.TocEntry], record: RetrievalRecord?) {
         let (found, missing, record) = try get(scope, ids: [id])
@@ -252,7 +252,7 @@ public enum NotesService {
     }
 
     static func template(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         id: String
     ) throws -> (note: Reads.GetNote, frame: [Template.FrameNode], record: RetrievalRecord?) {
         let (found, missing, record) = try get(scope, ids: [id])
@@ -264,7 +264,7 @@ public enum NotesService {
         return (note, Template.parseFrame(note.body), record)
     }
 
-    static func structure(_ scope: GRDBScope, axis: String?) throws -> Reads.StructureResult {
+    static func structure(_ scope: GRDBReadScope, axis: String?) throws -> Reads.StructureResult {
         let axes = try scope.run(FetchAxesWithCountsTransaction())
         let distribution = try scope.run(FetchLinkDistributionTransaction())
         var stats: AxisStats? = nil

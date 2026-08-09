@@ -10,7 +10,7 @@ import GRDB
 
 // Ruleset-domain transactions — row access for mutation-policy rulesets;
 // rule interpretation (params typing, folding) is RulesetService's.
-struct FetchRulesetsTransaction: GRDBTransaction {
+struct FetchRulesetsTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -22,7 +22,7 @@ struct FetchRulesetsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchRulesetTransaction: GRDBTransaction {
+struct FetchRulesetTransaction: GRDBReadTransaction {
     // MARK: - Property
     let id: String
 
@@ -39,7 +39,7 @@ struct FetchRulesetTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct RulesetExistsTransaction: GRDBTransaction {
+struct RulesetExistsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let id: String
 
@@ -56,7 +56,7 @@ struct RulesetExistsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchRulesTransaction: GRDBTransaction {
+struct FetchRulesTransaction: GRDBReadTransaction {
     // MARK: - Property
     let rulesetId: String
 

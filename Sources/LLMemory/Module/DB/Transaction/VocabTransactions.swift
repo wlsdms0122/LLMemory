@@ -97,7 +97,7 @@ struct EnsureTagTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct CanonicalizeTagTransaction: GRDBTransaction {
+struct CanonicalizeTagTransaction: GRDBReadTransaction {
     // MARK: - Property
     let tag: String
 
@@ -120,7 +120,7 @@ struct CanonicalizeTagTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchAxisNamesTransaction: GRDBTransaction {
+struct FetchAxisNamesTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -132,7 +132,7 @@ struct FetchAxisNamesTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct AxisExistsTransaction: GRDBTransaction {
+struct AxisExistsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let axis: String
 
@@ -149,7 +149,7 @@ struct AxisExistsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchAxisTransaction: GRDBTransaction {
+struct FetchAxisTransaction: GRDBReadTransaction {
     // MARK: - Property
     let axis: String
 
@@ -293,7 +293,7 @@ struct RetireTagTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct TagVocabExistsTransaction: GRDBTransaction {
+struct TagVocabExistsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let tag: String
 
@@ -314,7 +314,7 @@ struct TagVocabExistsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct TagInUseTransaction: GRDBTransaction {
+struct TagInUseTransaction: GRDBReadTransaction {
     // MARK: - Property
     let tag: String
 
@@ -436,7 +436,7 @@ struct ReplaceNoteTagTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNotesWithTagTransaction: GRDBTransaction {
+struct FetchNotesWithTagTransaction: GRDBReadTransaction {
     // MARK: - Property
     let tag: String
 
@@ -457,7 +457,7 @@ struct FetchNotesWithTagTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchPathsWithTagTransaction: GRDBTransaction {
+struct FetchPathsWithTagTransaction: GRDBReadTransaction {
     // MARK: - Property
     let tag: String
 
@@ -476,7 +476,7 @@ struct FetchPathsWithTagTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchTagCooccurrenceTransaction: GRDBTransaction {
+struct FetchTagCooccurrenceTransaction: GRDBReadTransaction {
     // MARK: - Property
     let tags: [String]
     let limit: Int

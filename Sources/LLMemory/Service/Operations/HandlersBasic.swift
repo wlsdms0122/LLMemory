@@ -113,7 +113,7 @@ public enum HandlersBasic {
                 withIntermediateDirectories: true
             )
             
-            let body = try Handlers.composeCreateBody(op, scope)
+            let body = try Handlers.composeCreateBody(op, scope.readOnly)
             var doc = FrontmatterDoc(
                 id: noteId,
                 title: op["title"] as? String ?? "",
@@ -874,31 +874,20 @@ public enum HandlersBasic {
             
             if ids.count != raw.count { return "ids must all be strings" }
             
-            let now = Int(Date().timeIntervalSince1970)
-            let cutoff = now - Activation.usedLookbackSec
-            let label = Env.retrievalSession(cli: nil)
-            
-            func surfacedCount(_ id: String) throws -> Int {
-                try scope.run(CountSurfacedHitsTransaction(noteId: id, cutoff: cutoff, label: label))
-            }
-            
-            for id in ids {
-                if try surfacedCount(id) == 0 {
-                    _ = try? scope.run(DeriveActivityWindowsTransaction(now: now))
-                    
-                    if try surfacedCount(id) == 0 {
-                        return "note '\(id)' was not surfaced in any recent activity window"
-                            + ((label?.isEmpty == false) ? " of session '\(label!)'" : "")
-                            + " (lookback \(Activation.usedLookbackSec)s) — cannot mark unobserved usage"
-                    }
-                }
-            }
-            
+            _ = ids
+
             return nil
         },
         write: { op, scope in
             let ids = (op["ids"] as! [Any]).compactMap { value in value as? String }
             let now = Int(Date().timeIntervalSince1970)
+
+            // Fresh retrieval events may not be succeeded into hits yet —
+            // derive first so a just-surfaced note is markable. Validation is
+            // shape-only (it runs on a read scope and cannot derive); a truly
+            // unsurfaced note fails here with the same loud message.
+            _ = try scope.run(DeriveActivityWindowsTransaction(now: now))
+
             let outcomes = try scope.run(MarkNotesUsedTransaction(
                 ids: ids,
                 response: op["response"] as? String,

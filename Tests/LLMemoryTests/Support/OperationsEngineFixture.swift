@@ -70,7 +70,7 @@ extension OperationsEngine {
             }
 
             return try storage.connect().read { db in
-                OperationsEngine.dryRun(GRDBScope(db), decoded, ruleset: ruleset)
+                OperationsEngine.dryRun(GRDBReadScope(db), decoded, ruleset: ruleset)
             }
         } catch {
             return DryRunResult(

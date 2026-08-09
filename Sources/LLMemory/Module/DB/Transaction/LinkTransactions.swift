@@ -198,7 +198,7 @@ struct DeleteNoteLinksTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchLinkDistributionTransaction: GRDBTransaction {
+struct FetchLinkDistributionTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -355,7 +355,7 @@ struct NormalizeUndirectedLinksTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchInboundBlockersTransaction: GRDBTransaction {
+struct FetchInboundBlockersTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
     let limit: Int
@@ -391,7 +391,7 @@ struct FetchInboundBlockersTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchLinkFanTransaction: GRDBTransaction {
+struct FetchLinkFanTransaction: GRDBReadTransaction {
     // MARK: - Property
     let fromId: String
 
@@ -547,7 +547,7 @@ struct StrengthenLinksTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchLinkNeighborsTransaction: GRDBTransaction {
+struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
     let minWeight: Double?
@@ -601,7 +601,7 @@ struct FetchLinkNeighborsTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct ExpandLinksTransaction: GRDBTransaction {
+struct ExpandLinksTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteIds: [String]
     let hops: Int

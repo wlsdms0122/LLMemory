@@ -266,7 +266,7 @@ public enum HandlersStructural {
         },
         write: { op, scope in
             let targetId = op["id"] as! String
-            let (newAxis, newId, newPath) = try migrateDestination(op, scope)
+            let (newAxis, newId, newPath) = try migrateDestination(op, scope.readOnly)
             
             guard let srcPath = try scope.run(FetchNotePathTransaction(nid: targetId)),
                 FileManager.default.fileExists(atPath: srcPath.path)
@@ -1008,7 +1008,7 @@ public enum HandlersStructural {
                 && !remaining.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             
             if keepRemainder && !sourceSurvives {
-                let uncovered = try uncoveredRouteArtifacts(scope, fromId: fromId, routing: routing)
+                let uncovered = try uncoveredRouteArtifacts(scope.readOnly, fromId: fromId, routing: routing)
                 
                 if !uncovered.isEmpty {
                     throw OperationsEngine.SplitConflict(fromId: fromId, unresolved: uncovered)
@@ -1380,7 +1380,7 @@ public enum HandlersStructural {
     // MARK: - Public
     static func migrateDestination(
         _ op: [String: Any],
-        _ scope: GRDBScope
+        _ scope: GRDBReadScope
     ) throws -> (axis: String, id: String, path: URL) {
         let targetId = op["id"] as? String ?? ""
         var newAxis = op["new_axis"] as? String ?? ""
@@ -1449,7 +1449,7 @@ public enum HandlersStructural {
     }
     
     static func uncoveredRouteArtifacts(
-        _ scope: GRDBScope,
+        _ scope: GRDBReadScope,
         fromId: String,
         routing: [String: [String]]
     ) throws -> [NoteArtifacts.RouteArtifact] {

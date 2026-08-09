@@ -10,7 +10,7 @@ import GRDB
 
 // Loads a template note's body and parses its heading frame — nil when the
 // template note does not exist.
-struct LoadTemplateFrameTransaction: GRDBTransaction {
+struct LoadTemplateFrameTransaction: GRDBReadTransaction {
     // MARK: - Property
     let templateId: String
 

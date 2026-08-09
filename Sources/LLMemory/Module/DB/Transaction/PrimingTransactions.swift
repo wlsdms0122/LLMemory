@@ -10,7 +10,7 @@ import GRDB
 
 // Derives the recent-retrieval axis prior for a session — the frequency
 // distribution of axes among recently surfaced notes.
-struct ComputeAxisPriorTransaction: GRDBTransaction {
+struct ComputeAxisPriorTransaction: GRDBReadTransaction {
     // MARK: - Property
     let sessionId: String
     let windowSec: Int

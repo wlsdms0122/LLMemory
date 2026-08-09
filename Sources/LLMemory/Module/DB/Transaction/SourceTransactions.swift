@@ -26,7 +26,7 @@ public struct SourceVerifyResult: Sendable {
     // MARK: - Private
 }
 
-struct FetchNoteSourcePathsTransaction: GRDBTransaction {
+struct FetchNoteSourcePathsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
 
@@ -236,7 +236,7 @@ struct VerifyNoteSourceTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchStaleSourceNoteIdsTransaction: GRDBTransaction {
+struct FetchStaleSourceNoteIdsTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init() { }
 
@@ -342,7 +342,7 @@ struct VerifySourcesTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteSourceStateTransaction: GRDBTransaction {
+struct FetchNoteSourceStateTransaction: GRDBReadTransaction {
     struct SourceState {
         // MARK: - Property
         let noteId: String
