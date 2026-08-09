@@ -85,7 +85,7 @@ enum Events {
     
     
     // MARK: - Private
-    private static func serializePayload(_ payload: [String: Any?]) -> String {
+    static func serializePayload(_ payload: [String: Any?]) -> String {
         let cleaned = payload.compactMapValues { value in value }
         
         if let data = try? JSONSerialization.data(withJSONObject: cleaned, options: []),

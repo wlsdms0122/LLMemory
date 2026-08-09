@@ -125,7 +125,7 @@ struct GenomeTests {
             _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
             // When
-            let report = try Homeostasis.tick(database, now: home.now)
+            let report = try ConsolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(report.evaluated)
@@ -137,7 +137,7 @@ struct GenomeTests {
         
         // When — a second tick over the same history.
         try home.database().write { database in
-            let again = try Homeostasis.tick(database, now: home.now)
+            let again = try ConsolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(again.windowsProcessed == 0, "a window must not be counted twice")
@@ -172,7 +172,7 @@ struct GenomeTests {
             _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
             // When
-            let report = try Homeostasis.tick(database, now: home.now)
+            let report = try ConsolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(!report.evaluated)
@@ -209,7 +209,7 @@ struct GenomeTests {
             _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
             // When
-            let report = try Homeostasis.tick(database, now: home.now)
+            let report = try ConsolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(report.evaluated)
@@ -228,7 +228,7 @@ struct GenomeTests {
             
             _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
-            let report = try Homeostasis.tick(database, now: home.now)
+            let report = try ConsolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(report.adjustedGene == nil, "wild-type is the ceiling — restoration does not overshoot")
@@ -260,7 +260,7 @@ struct GenomeTests {
             _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
             // When — below the minimum sample.
-            let first = try Homeostasis.tick(database, now: home.now)
+            let first = try ConsolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(!first.evaluated)
@@ -278,7 +278,7 @@ struct GenomeTests {
             
             _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
-            let second = try Homeostasis.tick(database, now: home.now)
+            let second = try ConsolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(second.evaluated)
@@ -290,7 +290,7 @@ struct GenomeTests {
         
         // When — nothing new since.
         try home.database().write { database in
-            let third = try Homeostasis.tick(database, now: home.now)
+            let third = try ConsolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(third.sampleSeen == 0)
