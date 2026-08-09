@@ -5,7 +5,7 @@ notes under `cortex/` — in sync with a SQLite + FTS5 database
 (`data/memory.db`), and provides search, associative exploration, and
 restructuring over it.
 
-**Usage (the agent guide) lives in [`document/GUIDE.md`](document/GUIDE.md)** —
+**Usage (the agent guide) lives in [`document/embed/GUIDE.md`](document/embed/GUIDE.md)** —
 this README covers the package itself: what it is, the philosophy it is built
 on, and the basics of building and deploying it. The GUIDE is embedded in the
 binary and copied to `<state-root>/README.md` on `llmemory init` — every brain
@@ -76,10 +76,11 @@ Once after cloning (like tuist `generate`):
 tool/set-up.sh
 ```
 
-Embeds the markdown under `document/` into
+Embeds the markdown under `document/embed/` into
 `Sources/LLMemory/Resource/{Guide,Innate}.swift`. `Resource/` is a gitignored
 local artifact (same nature as `.build`), so **the package does not compile
-without setup.** Re-run it after editing `document/` — drift between the
+without setup.** Re-run it after editing `document/embed/` — the rest of
+`document/` is plain documentation with no pipeline attached. Drift between the
 markdown and the embedded copies is caught fail-loud by byte-equality tests.
 
 ## Structure
@@ -92,19 +93,20 @@ Sources/
 Tests/
   LLMemoryTests/      — unit + real-binary CLI integration tests
 document/
-  GUIDE.md            — agent-facing usage guide (SSoT)
   INTEGRATION.md      — installing and wiring llmemory into an environment
   forge/              — maintenance workflows + prompts (consolidate/cleaner/enrich) for forge
-  innate/*.md         — innate knowledge (SSoT) — planted into cortex/.innate/ on init/update
+  embed/              — sources embedded into the binary (editing requires tool/set-up.sh)
+    GUIDE.md          — agent-facing usage guide (SSoT)
+    innate/*.md       — innate knowledge (SSoT) — planted into cortex/.innate/ on init/update
 tool/
-  set-up.sh           — document/ → Sources/LLMemory/Resource/ embed generation
+  set-up.sh           — document/embed/ → Sources/LLMemory/Resource/ embed generation
   deploy.sh           — setup → release build → build/llmemory
 ```
 
 ## Build / test
 
 ```
-tool/set-up.sh   # once after clone (or after editing document/)
+tool/set-up.sh   # once after clone (or after editing document/embed/)
 swift build
 swift test
 ```

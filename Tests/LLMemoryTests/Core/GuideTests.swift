@@ -19,11 +19,11 @@ struct GuideTests {
     @Test("the embedded guide is byte-identical to the document it was generated from")
     func embeddedGuideMatchesDocumentFile() throws {
         // When
-        let document = try String(contentsOf: source.file("document/GUIDE.md"), encoding: .utf8)
+        let document = try String(contentsOf: source.file("document/embed/GUIDE.md"), encoding: .utf8)
         
         // Then
         #expect(document == Guide.markdown,
-            "document/GUIDE.md and Guide.swift diverged — run tool/set-up.sh")
+            "document/embed/GUIDE.md and Guide.swift diverged — run tool/set-up.sh")
     }
     
     @Test("init leaves the guide in the state root as its README")

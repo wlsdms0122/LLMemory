@@ -32,7 +32,7 @@ struct InnateTests {
 
             // Then
             #expect(onDisk == seed.markdown,
-                "document/innate/\(seed.id).md and Innate.swift diverged — run tool/set-up.sh")
+                "document/embed/innate/\(seed.id).md and Innate.swift diverged — run tool/set-up.sh")
         }
     }
 
@@ -372,7 +372,7 @@ struct InnateTests {
 
     // MARK: - Private
     private func seedFile(_ id: String) -> URL {
-        source.file("document/innate/\(id).md")
+        source.file("document/embed/innate/\(id).md")
     }
 
     private func firstSeed() throws -> Innate.Seed {

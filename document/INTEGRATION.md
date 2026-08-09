@@ -2,7 +2,7 @@
 
 How to install llmemory and wire it into an agent environment. This document
 is for the person setting things up; the agent-facing usage guide is
-[`GUIDE.md`](GUIDE.md) (planted into every brain as its README).
+[`embed/GUIDE.md`](embed/GUIDE.md) (planted into every brain as its README).
 
 ## 1. Install the binary
 

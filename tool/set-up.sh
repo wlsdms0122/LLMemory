@@ -1,29 +1,29 @@
 #!/bin/bash
-# One-time setup after clone (rerun after editing document/) — like tuist generate.
+# One-time setup after clone (rerun after editing document/embed/) — like tuist generate.
 #
-#   document/GUIDE.md  → Sources/LLMemory/Resource/Guide.swift   (agent usage guide)
-#   document/innate/*.md  → Sources/LLMemory/Resource/Innate.swift  (innate brain notes)
+#   document/embed/GUIDE.md  → Sources/LLMemory/Resource/Guide.swift   (agent usage guide)
+#   document/embed/innate/*.md  → Sources/LLMemory/Resource/Innate.swift  (innate brain notes)
 #
 # Resource/ is gitignored — a persistent local artifact like .build. The package does
 # not compile without it, so a fresh clone runs this first:
 #
 #   git clone … && tool/set-up.sh && swift build
 #
-# Drift between document/ and the generated sources is caught by byte-equality tests.
+# Drift between document/embed/ and the generated sources is caught by byte-equality tests.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 mkdir -p Sources/LLMemory/Resource
 
 {
-  echo "// Generated from document/GUIDE.md by tool/set-up.sh — do not edit by hand."
+  echo "// Generated from document/embed/GUIDE.md by tool/set-up.sh — do not edit by hand."
   echo "// Drift against the markdown is caught by the Guide byte-equality test."
   echo ""
   echo "/// Agent-facing usage guide embedded in the binary. \`init\` copies it to"
   echo "/// \`<state-root>/README.md\` so every brain carries its own manual."
   echo "public enum Guide {"
   echo "    public static let markdown = #\"\"\""
-  cat document/GUIDE.md
+  cat document/embed/GUIDE.md
   echo ""
   echo "\"\"\"#"
   echo "}"
@@ -31,7 +31,7 @@ mkdir -p Sources/LLMemory/Resource
 echo "generated Sources/LLMemory/Resource/Guide.swift"
 
 {
-  echo "// Generated from document/innate/*.md by tool/set-up.sh — do not edit by hand."
+  echo "// Generated from document/embed/innate/*.md by tool/set-up.sh — do not edit by hand."
   echo "// Drift against the markdown is caught by the Innate byte-equality test."
   echo ""
   echo "/// The knowledge llmemory is born with — what an agent needs to run a memory well"
@@ -48,7 +48,7 @@ echo "generated Sources/LLMemory/Resource/Guide.swift"
   echo "    }"
   echo ""
   echo "    public static let seeds: [Seed] = ["
-  for f in document/innate/*.md; do
+  for f in document/embed/innate/*.md; do
     id=$(sed -n 's/^id:[[:space:]]*//p' "$f" | head -1)
     axis=$(sed -n 's/^axis:[[:space:]]*//p' "$f" | head -1)
     if [ -z "$id" ] || [ -z "$axis" ]; then
