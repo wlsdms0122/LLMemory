@@ -27,7 +27,7 @@ struct CandidateDiscoveryTests {
         
         // When
         let clusters = try home.read { database in
-            try Candidates.clusters(database, minSize: 2, maxSize: 50, limit: 20)
+            try Candidates.clusters(GRDBReadScope(database), minSize: 2, maxSize: 50, limit: 20)
         }
         
         // Then
@@ -43,7 +43,7 @@ struct CandidateDiscoveryTests {
         
         // When
         let capped = try home.read { database in
-            try Candidates.clusters(database, maxSize: 3, limit: 20)
+            try Candidates.clusters(GRDBReadScope(database), maxSize: 3, limit: 20)
         }
         
         // Then
@@ -63,7 +63,7 @@ struct CandidateDiscoveryTests {
         
         // When
         let duplicates = try home.read { database in
-            try Candidates.nearDuplicates(database, limit: 20)
+            try Candidates.nearDuplicates(GRDBReadScope(database), limit: 20)
         }
         
         // Then
@@ -101,7 +101,7 @@ struct CandidateDiscoveryTests {
     @Test("neighbors refuses an anchor that does not exist rather than returning nothing")
     func neighborsRefusesAnUnknownAnchor() throws {
         #expect(throws: (any Error).self) {
-            try home.read { database in try Candidates.neighbors(database, noteId: "nonexistent-xyz", k: 5) }
+            try home.read { database in try Candidates.neighbors(GRDBReadScope(database), noteId: "nonexistent-xyz", k: 5) }
         }
     }
     
@@ -132,7 +132,7 @@ struct CandidateDiscoveryTests {
     
     private func missingEdgeHoldsTheSeededPair() throws -> Bool {
         try home.read { database in
-            let edges = try Candidates.missingEdges(database, limit: 20, ftsBm25: 0.0)
+            let edges = try Candidates.missingEdges(GRDBReadScope(database), limit: 20, ftsBm25: 0.0)
             
             return edges.contains { edge in Set([edge.a.id, edge.b.id]) == ["me-a", "me-b"] }
         }

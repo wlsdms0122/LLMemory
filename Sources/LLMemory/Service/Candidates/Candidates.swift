@@ -6,8 +6,10 @@
 //
 
 import Foundation
-import GRDB
 
+// The restructuring detector — what counts as a candidate (split shapes,
+// stale flags, clusters, missing edges, near-duplicates) is decided here;
+// row access rides candidate transactions in Module/DB.
 public enum Candidates {
     public struct SplitCandidate: Sendable {
         // MARK: - Property
@@ -164,35 +166,24 @@ public enum Candidates {
     
     // MARK: - Initializer
     // MARK: - Public
-    static func splitCandidates(_ db: Database, limit: Int = 20) throws -> [SplitCandidate] {
+    static func splitCandidates(_ scope: GRDBReadScope, limit: Int = 20) throws -> [SplitCandidate] {
         let minWords = Config.getInt("split.min_words", default: 400)
         let minSections = Config.getInt("split.min_sections", default: 4)
         let minTagDiversity = Config.getInt("split.min_tag_diversity", default: 3)
-        let rows = try Row.fetchAll(db, sql: """
-            SELECT n.id, n.axis, n.title, n.word_count, n.section_count,
-                   (SELECT COUNT(DISTINCT tag) FROM tags WHERE note_id = n.id) AS tag_count
-            FROM notes n
-            WHERE \(Policy.decayCandidate())
-              AND n.word_count >= ?
-              AND n.section_count >= ?
-            ORDER BY n.word_count DESC, n.id ASC
-            """, arguments: [minWords, minSections])
-        let dismissals = try FetchDismissalsByNoteTransaction(kind: "split").perform(db)
-        let generation = try FetchCandidateGenerationTransaction().perform(db)
+        let rows = try scope.run(
+            FetchSplitShapeRowsTransaction(minWords: minWords, minSections: minSections)
+        )
+        let dismissals = try scope.run(FetchDismissalsByNoteTransaction(kind: "split"))
+        let generation = try scope.run(FetchCandidateGenerationTransaction())
         var candidates: [SplitCandidate] = []
         
         for row in rows {
-            let noteId: String = row["id"]
-            let tagCount: Int = row["tag_count"] as Int? ?? 0
+            if row.tagCount < minTagDiversity { continue }
             
-            if tagCount < minTagDiversity { continue }
-            
-            let wordCount: Int = row["word_count"] as Int? ?? 0
-            let sectionCount: Int = row["section_count"] as Int? ?? 0
             let verdict = Dismissals.gate(
-                dismissals[noteId],
-                currentWords: wordCount,
-                currentSections: sectionCount,
+                dismissals[row.id],
+                currentWords: row.wordCount,
+                currentSections: row.sectionCount,
                 globalGeneration: generation
             )
             
@@ -200,21 +191,21 @@ public enum Candidates {
             
             let sections: [SectionSketch]
             do {
-                sections = try sectionSketch(db, nid: noteId)
+                sections = try sectionSketch(scope, nid: row.id)
             } catch is NoteUnreadable {
                 continue
             }
             
-            let base = "size=\(wordCount)w sections=\(sectionCount) tags=\(tagCount)"
+            let base = "size=\(row.wordCount)w sections=\(row.sectionCount) tags=\(row.tagCount)"
             
             candidates.append(
                 SplitCandidate(
-                    id: noteId,
-                    axis: row["axis"],
-                    title: row["title"],
-                    wordCount: wordCount,
-                    sectionCount: sectionCount,
-                    tagCount: tagCount,
+                    id: row.id,
+                    axis: row.axis,
+                    title: row.title,
+                    wordCount: row.wordCount,
+                    sectionCount: row.sectionCount,
+                    tagCount: row.tagCount,
                     sections: sections,
                     reason: verdict.annotation.map { note in "\(base) · 재부상: \(note)" } ?? base
                 )
@@ -227,35 +218,30 @@ public enum Candidates {
     }
     
     static func reconsolidateCandidates(
-        _ db: Database,
+        _ scope: GRDBReadScope,
         limit: Int = 20
     ) throws -> [FlaggedCandidate] {
-        try flagged(db, flag: "reconsolidate", limit: limit)
+        try flagged(scope, flag: "reconsolidate", limit: limit)
     }
     
-    static func rippleCandidates(_ db: Database, limit: Int = 20) throws -> [FlaggedCandidate] {
-        try flagged(db, flag: "stale_ref", limit: limit)
+    static func rippleCandidates(_ scope: GRDBReadScope, limit: Int = 20) throws -> [FlaggedCandidate] {
+        try flagged(scope, flag: "stale_ref", limit: limit)
     }
     
     static func enrichReviewCandidates(
-        _ db: Database,
+        _ scope: GRDBReadScope,
         limit: Int = 20
     ) throws -> [FlaggedCandidate] {
-        try flagged(db, flag: EnrichmentReview.flagKind, limit: limit)
+        try flagged(scope, flag: EnrichmentReview.flagKind, limit: limit)
     }
     
-    static func neighbors(_ db: Database, noteId: String, k: Int = 10) throws -> [NeighborScore] {
-        guard let targetRow = try Row.fetchOne(
-            db,
-            sql: "SELECT id, axis, title, path FROM notes WHERE id = ?",
-            arguments: [noteId]
-        ) else {
+    static func neighbors(_ scope: GRDBReadScope, noteId: String, k: Int = 10) throws -> [NeighborScore] {
+        guard let anchor = try scope.run(FetchNoteAnchorTransaction(nid: noteId)) else {
             throw NotesError.unknownIds([noteId])
         }
         
-        let targetTitle: String = targetRow["title"]
-        let targetRelativePath: String = targetRow["path"]
-        let targetPath = Paths.brainRoot.appendingPathComponent(targetRelativePath)
+        let targetTitle = anchor.title
+        let targetPath = Paths.brainRoot.appendingPathComponent(anchor.path)
         let body = try Notes.requireNote(at: targetPath).body
         var scores: [String: NeighborScore] = [:]
         let searchText = "\(targetTitle) \(body)"
@@ -274,110 +260,75 @@ public enum Candidates {
         if !tokens.isEmpty {
             let tokenList = tokens.sorted()
             let matchExpr = tokenList.map { token in "\"\(token)\"" }.joined(separator: " OR ")
+            // The match expression is derived text — an unparsable one is a
+            // miss, not a failure (same contract as the inline try? before).
+            let rows = (try? scope.run(
+                SearchFTSNeighborRowsTransaction(matchExpr: matchExpr, excludeId: noteId)
+            )) ?? []
+            let total = max(rows.count, 1)
             
-            if let rows = try? Row.fetchAll(db, sql: """
-                SELECT n.id, n.axis, n.title, n.summary, MIN(rank) AS s
-                FROM notes_fts f JOIN notes n ON n.id = f.id
-                WHERE notes_fts MATCH ? AND n.id != ? AND \(Policy.surface())
-                GROUP BY n.id
-                ORDER BY s, n.id LIMIT 30
-                """, arguments: [matchExpr, noteId]) {
-                let total = max(rows.count, 1)
-                
-                for (rank, row) in rows.enumerated() {
-                    let normalized = 1.0 - Double(rank) / Double(total)
-                    let hitId: String = row["id"]
-                    var score = scores[hitId] ?? NeighborScore(
-                        id: hitId,
-                        axis: row["axis"],
-                        title: row["title"],
-                        summary: row["summary"] as String?,
-                        fts: 0,
-                        entity: 0,
-                        link: 0,
-                        score: 0
-                    )
-                    score.fts = normalized
-                    scores[hitId] = score
-                }
+            for (rank, row) in rows.enumerated() {
+                let normalized = 1.0 - Double(rank) / Double(total)
+                var score = scores[row.id] ?? NeighborScore(
+                    id: row.id,
+                    axis: row.axis,
+                    title: row.title,
+                    summary: row.summary,
+                    fts: 0,
+                    entity: 0,
+                    link: 0,
+                    score: 0
+                )
+                score.fts = normalized
+                scores[row.id] = score
             }
         }
         
-        let targetEntities = Set(
-            try String.fetchAll(
-                db,
-                sql: "SELECT entity FROM entity_index WHERE note_id = ?",
-                arguments: [noteId]
-            )
-        )
+        let targetEntities = try scope.run(FetchNoteEntitySetTransaction(nid: noteId))
         
         if !targetEntities.isEmpty {
-            let rows = try Row.fetchAll(db, sql: """
-                SELECT n.id, n.axis, n.title, n.summary,
-                       (SELECT COUNT(*) FROM entity_index e1
-                         JOIN entity_index e2 ON e1.entity = e2.entity
-                         WHERE e1.note_id = ? AND e2.note_id = n.id) AS inter,
-                       (SELECT COUNT(*) FROM entity_index WHERE note_id = n.id) AS sz
-                FROM notes n
-                WHERE n.id != ? AND \(Policy.surface())
-                """, arguments: [noteId, noteId])
+            let rows = try scope.run(FetchEntityOverlapRowsTransaction(nid: noteId))
             let targetSize = targetEntities.count
             
             for row in rows {
-                let intersection: Int = row["inter"] as Int? ?? 0
+                if row.intersection == 0 { continue }
                 
-                if intersection == 0 { continue }
-                
-                let otherSize: Int = row["sz"] as Int? ?? 0
-                let denominator = max(targetSize + otherSize - intersection, 1)
-                let jaccard = Double(intersection) / Double(denominator)
-                let hitId: String = row["id"]
-                var score = scores[hitId] ?? NeighborScore(
-                    id: hitId,
-                    axis: row["axis"],
-                    title: row["title"],
-                    summary: row["summary"] as String?,
+                let denominator = max(targetSize + row.size - row.intersection, 1)
+                let jaccard = Double(row.intersection) / Double(denominator)
+                var score = scores[row.id] ?? NeighborScore(
+                    id: row.id,
+                    axis: row.axis,
+                    title: row.title,
+                    summary: row.summary,
                     fts: 0,
                     entity: 0,
                     link: 0,
                     score: 0
                 )
                 score.entity = jaccard
-                scores[hitId] = score
+                scores[row.id] = score
             }
         }
         
-        let linkRows = try Row.fetchAll(db, sql: """
-            SELECT n.id, n.axis, n.title, n.summary, SUM(\(Links.rankWeightSQL("l"))) AS w
-            FROM (
-              SELECT dst AS other, kind, weight FROM note_links WHERE src = ?
-              UNION ALL
-              SELECT src AS other, kind, weight FROM note_links WHERE dst = ?
-            ) l
-            JOIN notes n ON n.id = l.other
-            WHERE \(Policy.surface())
-            GROUP BY n.id ORDER BY w DESC, n.id LIMIT 30
-            """, arguments: [noteId, noteId])
+        let linkRows = try scope.run(FetchLinkNeighborRowsTransaction(nid: noteId))
         
         if !linkRows.isEmpty {
-            let maxWeight = linkRows.compactMap { row in row["w"] as Double? }.max() ?? 1.0
+            let maxWeight = linkRows.map { row in row.value }.max() ?? 1.0
             let normalizer = maxWeight == 0 ? 1.0 : maxWeight
             
             for row in linkRows {
-                let weight: Double = row["w"] as Double? ?? 0
-                let hitId: String = row["id"]
-                var score = scores[hitId] ?? NeighborScore(
-                    id: hitId,
-                    axis: row["axis"],
-                    title: row["title"],
-                    summary: row["summary"] as String?,
+                var score = scores[row.id] ?? NeighborScore(
+                    id: row.id,
+                    axis: row.axis,
+                    title: row.title,
+                    summary: row.summary,
                     fts: 0,
                     entity: 0,
                     link: 0,
                     score: 0
                 )
-                score.link = weight / normalizer
-                scores[hitId] = score
+                score.link = row.value / normalizer
+                scores[row.id] = score
             }
         }
         
@@ -398,39 +349,13 @@ public enum Candidates {
     }
     
     static func clusters(
-        _ db: Database,
+        _ scope: GRDBReadScope,
         minSize: Int = 2,
         maxSize: Int? = nil,
         limit: Int = 20
     ) throws -> [Cluster] {
         let cap = maxSize ?? Config.getInt("candidates.cluster.max_size", default: 12)
-        var edges: [(String, String)] = []
-        let linkRows = try Row.fetchAll(db, sql: """
-            SELECT src, dst FROM note_links nl
-            JOIN notes a ON a.id = nl.src
-            JOIN notes b ON b.id = nl.dst
-            WHERE \(Policy.all(Policy.surface("a"), Policy.forgetExempt("a")))
-              AND \(Policy.all(Policy.surface("b"), Policy.forgetExempt("b")))
-            """)
-        
-        for row in linkRows {
-            edges.append((row["src"], row["dst"]))
-        }
-        
-        let entityRows = try Row.fetchAll(db, sql: """
-            SELECT e1.note_id AS a, e2.note_id AS b
-            FROM entity_index e1 JOIN entity_index e2
-              ON e1.entity = e2.entity AND e1.note_id < e2.note_id
-            JOIN notes na ON na.id = e1.note_id
-            JOIN notes nb ON nb.id = e2.note_id
-            WHERE \(Policy.all(Policy.surface("na"), Policy.forgetExempt("na")))
-              AND \(Policy.all(Policy.surface("nb"), Policy.forgetExempt("nb")))
-            GROUP BY e1.note_id, e2.note_id
-            """)
-        
-        for row in entityRows {
-            edges.append((row["a"], row["b"]))
-        }
+        let edges = try scope.run(FetchClusterEdgesTransaction())
         
         var parent: [String: String] = [:]
         
@@ -471,22 +396,17 @@ public enum Candidates {
         var clusters: [Cluster] = []
         
         for (_, members) in groups where members.count >= minSize && members.count <= cap {
-            let placeholders = Array(repeating: "?", count: members.count).joined(separator: ",")
-            let rows = try Row.fetchAll(
-                db,
-                sql: "SELECT id, axis, title, summary FROM notes WHERE id IN (\(placeholders)) ORDER BY id",
-                arguments: StatementArguments(members)
-            )
+            let rows = try scope.run(FetchClusterMemberRowsTransaction(ids: members))
             let memberStructs = rows.map { row in
                 Cluster.Member(
-                    id: row["id"],
-                    axis: row["axis"],
-                    title: row["title"],
-                    summary: row["summary"] as String?
+                    id: row.id,
+                    axis: row.axis,
+                    title: row.title,
+                    summary: row.summary
                 )
             }
             let axes = Array(Set(memberStructs.map { member in member.axis })).sorted()
-            let clusterEdges = try clusterEdges(db, memberIds: members)
+            let clusterEdges = try clusterEdges(scope, memberIds: members)
             
             clusters.append(
                 Cluster(
@@ -511,7 +431,7 @@ public enum Candidates {
     }
     
     static func missingEdges(
-        _ db: Database,
+        _ scope: GRDBReadScope,
         limit: Int = 20,
         perNote: Int = 3,
         vecCos: Double? = nil,
@@ -522,31 +442,20 @@ public enum Candidates {
         var linked = Set<String>()
         var degree: [String: Int] = [:]
         
-        for row in try Row.fetchAll(db, sql: """
-            SELECT l.src, l.dst FROM note_links l
-            JOIN notes ns ON ns.id = l.src AND \(Policy.surface("ns"))
-            JOIN notes nd ON nd.id = l.dst AND \(Policy.surface("nd"))
-            """) {
-            let src: String = row["src"]
-            let dst: String = row["dst"]
-            
-            linked.insert(pairKey(src, dst))
-            degree[src, default: 0] += 1
-            degree[dst, default: 0] += 1
+        for pair in try scope.run(FetchSurfaceLinkPairsTransaction()) {
+            linked.insert(pairKey(pair.src, pair.dst))
+            degree[pair.src, default: 0] += 1
+            degree[pair.dst, default: 0] += 1
         }
         
         var meta: [String: MissingEdge.Member] = [:]
         
-        for row in try Row.fetchAll(
-            db,
-            sql: "SELECT id, axis, title, summary FROM notes WHERE \(Policy.all(Policy.surface(""), Policy.notEager("")))"
-        ) {
-            let id: String = row["id"]
-            meta[id] = MissingEdge.Member(
-                id: id,
-                axis: row["axis"],
-                title: row["title"],
-                summary: row["summary"] as String?
+        for row in try scope.run(FetchSurfaceMetaRowsTransaction(notEager: true)) {
+            meta[row.id] = MissingEdge.Member(
+                id: row.id,
+                axis: row.axis,
+                title: row.title,
+                summary: row.summary
             )
         }
         
@@ -577,7 +486,7 @@ public enum Candidates {
         }
         
         do {
-            let raw = try FetchNoteVectorsTransaction().perform(db)
+            let raw = try scope.run(FetchNoteVectorsTransaction())
             var vectors: [String: [Float]] = [:]
             
             for (id, vector) in raw where vector.count > 1 {
@@ -613,7 +522,7 @@ public enum Candidates {
             let hits: [(String, Double)]
             do {
                 hits = try bm25Neighbors(
-                    db,
+                    scope,
                     noteId: anchor,
                     limit: perNote,
                     maxBm25: bm25Threshold
@@ -653,26 +562,18 @@ public enum Candidates {
     }
     
     static func nearDuplicates(
-        _ db: Database,
+        _ scope: GRDBReadScope,
         minFts: Double = 0.85,
         minJaccard: Double = 0.6,
         minContainment: Double = 0.85,
         limit: Int = 20
     ) throws -> [NearDuplicate] {
-        let rows = try Row.fetchAll(db, sql: """
-            SELECT id, axis, title, summary, path FROM notes
-            WHERE \(Policy.all(Policy.surface(""), Policy.forgetExempt("")))
-            ORDER BY id
-            """)
+        let rows = try scope.run(FetchSurfaceNoteRowsTransaction())
         var tokensById: [String: Set<String>] = [:]
         var summaryById: [String: String?] = [:]
         
         for row in rows {
-            let id: String = row["id"]
-            let title: String = row["title"]
-            let summary = row["summary"] as String?
-            let relativePath: String = row["path"]
-            let bodyPath = Paths.brainRoot.appendingPathComponent(relativePath)
+            let bodyPath = Paths.brainRoot.appendingPathComponent(row.path)
             let body: String
             do {
                 body = try Notes.requireNote(at: bodyPath).body
@@ -680,24 +581,24 @@ public enum Candidates {
                 continue
             }
             
-            tokensById[id] = nearDupTokens(title + " " + (summary ?? "") + " " + body)
-            summaryById[id] = summary
+            tokensById[row.id] = nearDupTokens(row.title + " " + (row.summary ?? "") + " " + body)
+            summaryById[row.id] = row.summary
         }
         
         var seen: Set<String> = []
         var duplicates: [NearDuplicate] = []
         
         for row in rows {
-            let id: String = row["id"]
-            let axis: String = row["axis"]
-            let title: String = row["title"]
-            let summary = row["summary"] as String?
+            let id = row.id
+            let axis = row.axis
+            let title = row.title
+            let summary = row.summary
             
             guard let ownTokens = tokensById[id] else { continue }
             
             let neighborScores: [NeighborScore]
             do {
-                neighborScores = try neighbors(db, noteId: id, k: 3)
+                neighborScores = try neighbors(scope, noteId: id, k: 3)
             } catch is NoteUnreadable {
                 continue
             }
@@ -756,16 +657,10 @@ public enum Candidates {
     }
     
     // MARK: - Private
-    private static func sectionSketch(_ db: Database, nid: String) throws -> [SectionSketch] {
-        guard let relativePath = try String.fetchOne(
-            db,
-            sql: "SELECT path FROM notes WHERE id = ?",
-            arguments: [nid]
-        ) else {
+    private static func sectionSketch(_ scope: GRDBReadScope, nid: String) throws -> [SectionSketch] {
+        guard let path = try scope.run(FetchNotePathTransaction(nid: nid)) else {
             return []
         }
-        
-        let path = Paths.brainRoot.appendingPathComponent(relativePath)
         let (_, body) = try Notes.requireNote(at: path)
         let sections = SectionEdit.splitSections(body)
         let lines = body.unicodeLines()
@@ -788,28 +683,18 @@ public enum Candidates {
     }
     
     private static func flagged(
-        _ db: Database,
+        _ scope: GRDBReadScope,
         flag: String,
         limit: Int
     ) throws -> [FlaggedCandidate] {
-        let rows = try Row.fetchAll(db, sql: """
-            SELECT r.note_id, r.reason, r.created_at, n.axis, n.title, n.summary
-            FROM ripple_flags r
-            JOIN notes n ON n.id = r.note_id
-            WHERE r.flag = ? AND r.resolved_at IS NULL
-              AND \(Policy.surface())
-            ORDER BY r.created_at ASC, r.note_id ASC
-            LIMIT ?
-            """, arguments: [flag, limit])
-        
-        return rows.map { row in
+        try scope.run(FetchFlaggedRowsTransaction(flag: flag, limit: limit)).map { row in
             FlaggedCandidate(
-                id: row["note_id"],
-                reason: row["reason"] as String?,
-                createdAt: row["created_at"],
-                axis: row["axis"],
-                title: row["title"],
-                summary: row["summary"] as String?
+                id: row.noteId,
+                reason: row.reason,
+                createdAt: row.createdAt,
+                axis: row.axis,
+                title: row.title,
+                summary: row.summary
             )
         }
     }
@@ -819,7 +704,7 @@ public enum Candidates {
     }
     
     private static func clusterEdges(
-        _ db: Database,
+        _ scope: GRDBReadScope,
         memberIds: [String]
     ) throws -> [Cluster.Edge] {
         if memberIds.count < 2 { return [] }
@@ -835,7 +720,7 @@ public enum Candidates {
             let neighborScores: [NeighborScore]
             do {
                 neighborScores = try neighbors(
-                    db,
+                    scope,
                     noteId: memberId,
                     k: max(memberIds.count, 30)
                 )
@@ -887,22 +772,17 @@ public enum Candidates {
     }
     
     private static func bm25Neighbors(
-        _ db: Database,
+        _ scope: GRDBReadScope,
         noteId: String,
         limit: Int,
         maxBm25: Double
     ) throws -> [(String, Double)] {
-        guard let row = try Row.fetchOne(
-            db,
-            sql: "SELECT title, path FROM notes WHERE id = ?",
-            arguments: [noteId]
-        ) else {
+        guard let anchor = try scope.run(FetchNoteAnchorTransaction(nid: noteId)) else {
             return []
         }
         
-        let title: String = row["title"]
-        let relativePath: String = row["path"]
-        let url = Paths.brainRoot.appendingPathComponent(relativePath)
+        let title = anchor.title
+        let url = Paths.brainRoot.appendingPathComponent(anchor.path)
         let body = try Notes.requireNote(at: url).body
         let searchText = "\(title) \(body)"
         let nsSearchText = searchText as NSString
@@ -920,19 +800,15 @@ public enum Candidates {
         guard !tokens.isEmpty else { return [] }
         
         let matchExpr = tokens.sorted().map { token in "\"\(token)\"" }.joined(separator: " OR ")
-        let rows = (try? Row.fetchAll(db, sql: """
-            SELECT n.id AS id, MIN(rank) AS s
-            FROM notes_fts f JOIN notes n ON n.id = f.id
-            WHERE notes_fts MATCH ? AND n.id != ? AND \(Policy.all(Policy.surface(), Policy.notEager()))
-            GROUP BY n.id
-            ORDER BY s, n.id LIMIT ?
-            """, arguments: [matchExpr, noteId, limit * 3])) ?? []
+        // Derived match text — an unparsable expression is a miss, not a
+        // failure (same contract as the inline try? before).
+        let rows = (try? scope.run(
+            SearchBM25NeighborRowsTransaction(matchExpr: matchExpr, excludeId: noteId, limit: limit * 3)
+        )) ?? []
         var hits: [(String, Double)] = []
         
-        for row in rows {
-            let score: Double = row["s"]
-            
-            if score <= maxBm25 { hits.append((row["id"], score)) }
+        for row in rows where row.score <= maxBm25 {
+            hits.append((row.id, row.score))
         }
         
         return Array(hits.prefix(limit))

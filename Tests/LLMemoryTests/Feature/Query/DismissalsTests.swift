@@ -365,7 +365,7 @@ struct DismissalsTests {
     
     private func splitCandidateIds() throws -> [String] {
         try home.read { database in
-            try Candidates.splitCandidates(database, limit: 50).map(\.id)
+            try Candidates.splitCandidates(GRDBReadScope(database), limit: 50).map(\.id)
         }
     }
     

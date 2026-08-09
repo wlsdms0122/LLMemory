@@ -433,7 +433,7 @@ struct TemplateTests {
         ]], "rationale": "t"]).status == "ok")
         
         let queue = try home.storage.connect()
-        let members = Set(try queue.read { db in try Candidates.clusters(db) }.flatMap { cluster in cluster.members.map(\.id) })
+        let members = Set(try queue.read { db in try Candidates.clusters(GRDBReadScope(db)) }.flatMap { cluster in cluster.members.map(\.id) })
         
         #expect(members.contains("cl-n1"))
         #expect(members.contains("cl-n2"))

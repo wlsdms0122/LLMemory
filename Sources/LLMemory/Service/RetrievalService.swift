@@ -296,7 +296,7 @@ public struct RetrievalService: Sendable {
         k: Int,
         sessionId: String? = nil
     ) throws -> (scores: [Candidates.NeighborScore], record: RetrievalRecord?) {
-        let scores = try scope.run(FetchNeighborScoresTransaction(noteId: id, k: k))
+        let scores = try Candidates.neighbors(scope, noteId: id, k: k)
         let record: RetrievalRecord? = scores.isEmpty ? nil : .init(
             sessionId: sessionId,
             payloadJSON: Events.retrievalPayloadJSON(cmd: "neighbors", payload: [

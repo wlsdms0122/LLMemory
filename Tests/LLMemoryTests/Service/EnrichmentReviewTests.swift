@@ -296,7 +296,7 @@ struct EnrichmentReviewTests {
         }
         
         // When
-        let candidates = try queue.read { db in try Candidates.enrichReviewCandidates(db) }
+        let candidates = try queue.read { db in try Candidates.enrichReviewCandidates(GRDBReadScope(db)) }
         
         // Then
         #expect(Set(candidates.map { candidate in candidate.id }) == ["rev-j1", "rev-j2"])

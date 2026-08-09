@@ -72,8 +72,48 @@ public struct ConsolidateService: Sendable {
         limit: Int
     ) async throws -> [String: Candidates.Batch] {
         try await storage.read { scope in
-            try scope.run(FetchCandidateBatchesTransaction(kinds: kinds, limit: limit))
+            try candidateBatches(scope, kinds: kinds, limit: limit)
         }
+    }
+
+    // The detector dispatch — one batch per requested kind, all policy in
+    // the Candidates catalog.
+    func candidateBatches(
+        _ scope: GRDBReadScope,
+        kinds: [String],
+        limit: Int
+    ) throws -> [String: Candidates.Batch] {
+        var batches: [String: Candidates.Batch] = [:]
+
+        for kind in kinds {
+            switch kind {
+            case "split":
+                batches[kind] = .split(try Candidates.splitCandidates(scope, limit: limit))
+
+            case "reconsolidate":
+                batches[kind] = .flagged(try Candidates.reconsolidateCandidates(scope, limit: limit))
+
+            case "ripple":
+                batches[kind] = .flagged(try Candidates.rippleCandidates(scope, limit: limit))
+
+            case "enrich_review":
+                batches[kind] = .flagged(try Candidates.enrichReviewCandidates(scope, limit: limit))
+
+            case "clusters":
+                batches[kind] = .clusters(try Candidates.clusters(scope, limit: limit))
+
+            case "missing_edge":
+                batches[kind] = .missingEdge(try Candidates.missingEdges(scope, limit: limit))
+
+            case "near_duplicate":
+                batches[kind] = .nearDuplicate(try Candidates.nearDuplicates(scope, limit: limit))
+
+            default:
+                batches[kind] = .split([])
+            }
+        }
+
+        return batches
     }
 
     public func integrate() async throws -> Consolidation.IntegrateResult {

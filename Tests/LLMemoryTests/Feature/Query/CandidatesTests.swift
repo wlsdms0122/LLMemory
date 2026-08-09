@@ -60,7 +60,7 @@ struct CandidatesTests {
         
         // When
         let hits = try home.read { database in
-            try Candidates.neighbors(database, noteId: "nbr-seed", k: 10)
+            try Candidates.neighbors(GRDBReadScope(database), noteId: "nbr-seed", k: 10)
         }
         
         // Then
@@ -84,7 +84,7 @@ struct CandidatesTests {
         
         // When
         let duplicates = try home.read { database in
-            try Candidates.nearDuplicates(database, limit: 50)
+            try Candidates.nearDuplicates(GRDBReadScope(database), limit: 50)
         }
         
         // Then
@@ -111,7 +111,7 @@ struct CandidatesTests {
         
         // When
         let edges = try home.read { database in
-            try Candidates.missingEdges(database, limit: 20, perNote: 3, ftsBm25: -0.1)
+            try Candidates.missingEdges(GRDBReadScope(database), limit: 20, perNote: 3, ftsBm25: -0.1)
         }
         
         // Then
