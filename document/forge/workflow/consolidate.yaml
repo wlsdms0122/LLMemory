@@ -1,0 +1,102 @@
+description: Memory restructuring — merge/split/promote notes to reshape structure, then
+  run learned-edge pruning (prune) and the metaplasticity tick (homeostasis). The same
+  agent also does eager-note hygiene (demoting notes below the bar).
+inputs:
+  home:
+    type: string
+    hint: 'absolute path of the brain state-root (passed to every llmemory call as --home)'
+  model:
+    type: string
+    default: claude:opus
+    hint: 'model for the restructuring agent'
+steps:
+- id: context
+  parallel:
+  - id: integrate
+    shell:
+      command:
+      - llmemory
+      - consolidate
+      - integrate
+      - --json
+      - --home
+      - ${inputs.home}
+    fallback: {}
+    timeout: 120
+  - id: candidates
+    shell:
+      command:
+      - llmemory
+      - consolidate
+      - candidates
+      - --kind
+      - all
+      - --limit
+      - '6'
+      - --verbose
+      - --json
+      - --home
+      - ${inputs.home}
+    fallback: {}
+    timeout: 120
+  - id: axes
+    shell:
+      command:
+      - llmemory
+      - query
+      - axes
+      - --json
+      - --home
+      - ${inputs.home}
+    fallback: []
+    timeout: 30
+  - id: eager
+    shell:
+      command:
+      - llmemory
+      - query
+      - list
+      - --priority
+      - eager
+      - --json
+      - --home
+      - ${inputs.home}
+    fallback: []
+    timeout: 60
+- id: call
+  invoke:
+    model: ${inputs.model}
+    allowed:
+    - files.read
+    - command: "llmemory *"
+    steps:
+    - id: t1
+      agent: '${@resource(prompt/llmemory/consolidate.md, inputs: {integrate: integrate,
+        candidates: candidates, axes: axes, eager: eager, home: inputs.home})}'
+  timeout: 1800
+- id: prune
+  shell:
+    command:
+    - llmemory
+    - consolidate
+    - prune
+    - --json
+    - --home
+    - ${inputs.home}
+  fallback: {}
+  timeout: 60
+- id: homeostasis
+  shell:
+    command:
+    - llmemory
+    - consolidate
+    - homeostasis
+    - --json
+    - --home
+    - ${inputs.home}
+  fallback: {}
+  timeout: 60
+outputs:
+  summary: ${call}
+  prune: ${prune}
+  homeostasis: ${homeostasis}

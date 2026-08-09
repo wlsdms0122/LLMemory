@@ -10,7 +10,9 @@ this README covers the package itself: what it is, the philosophy it is built
 on, and the basics of building and deploying it. The GUIDE is embedded in the
 binary and copied to `<state-root>/README.md` on `llmemory init` — every brain
 carries its own manual. For installing the binary and wiring it into an agent
-environment, see [`document/INTEGRATION.md`](document/INTEGRATION.md).
+environment, see [`document/INTEGRATION.md`](document/INTEGRATION.md). The
+judgment-driven maintenance loops (consolidate / cleaner / enrich) ship as
+forge workflows under [`document/forge/`](document/forge/).
 
 ## Philosophy
 
@@ -92,6 +94,7 @@ Tests/
 document/
   GUIDE.md            — agent-facing usage guide (SSoT)
   INTEGRATION.md      — installing and wiring llmemory into an environment
+  forge/              — maintenance workflows + prompts (consolidate/cleaner/enrich) for forge
   innate/*.md         — innate knowledge (SSoT) — planted into cortex/.innate/ on init/update
 tool/
   set-up.sh           — document/ → Sources/LLMemory/Resource/ embed generation

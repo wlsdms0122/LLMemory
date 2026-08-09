@@ -1,0 +1,70 @@
+description: Memory cleaning (glymphatic) — hygiene inside notes. Fixes factually
+  wrong memories against measured reality, rebases notes whose sources changed,
+  splits multi-topic notes, and sweeps clutter. Does not touch structure between
+  notes (merge/promote) or the forgetting tick.
+inputs:
+  home:
+    type: string
+    hint: 'absolute path of the brain state-root (passed to every llmemory call as --home)'
+  model:
+    type: string
+    default: claude:opus
+    hint: 'model for the cleaning agent'
+steps:
+- id: call
+  invoke:
+    model: ${inputs.model}
+    allowed:
+    - files.read
+    - command: "git *"
+    - command: "llmemory *"
+    steps:
+    - id: t1
+      agent: '${@resource(prompt/llmemory/cleaner.md, inputs: {home: inputs.home})}'
+  timeout: 1800
+- id: sync
+  shell:
+    command:
+    - llmemory
+    - index
+    - build
+    - --home
+    - ${inputs.home}
+  # Swallowing a failure as an empty value would let integrate/verify run on a
+  # stalled index and the cycle report "all clear". The fallback value itself
+  # must announce the failure.
+  fallback: 'SYNC FAILED — index build exited nonzero; cortex↔DB sync state unverified'
+  timeout: 300
+- id: integrate
+  shell:
+    command:
+    - llmemory
+    - consolidate
+    - integrate
+    - --json
+    - --home
+    - ${inputs.home}
+  fallback: {}
+  timeout: 120
+- id: verify
+  shell:
+    command:
+    - llmemory
+    - query
+    - lint
+    - --severity
+    - error
+    - --json
+    - --home
+    - ${inputs.home}
+  # `query lint --severity error` exits 1 *when errors exist* — the engine treats
+  # exit≠0 as failure and substitutes the fallback, so a `[]` fallback would report
+  # exactly the broken cycles as "0 errors" (signal inversion). The fallback must
+  # state indeterminacy, not an empty array.
+  fallback: 'VERIFY FAILED — lint exited nonzero (errors remain, or lint itself failed)'
+  timeout: 120
+outputs:
+  summary: ${call}
+  sync: ${sync}
+  integrate: ${integrate}
+  lint_error_after: ${verify}

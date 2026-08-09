@@ -92,7 +92,14 @@ context (`query related` → `query get` → `query neighbors`). Capture new
 knowledge with `ops apply` — do not keep knowledge in this file.
 ```
 
-## 4. Upgrading the binary
+## 4. Periodic maintenance
+
+The deterministic passes (`consolidate integrate` / `prune`, `index build`)
+can go straight into cron. The judgment passes — restructuring, in-note
+cleaning, semantic enrichment — ship as forge workflows with their prompts
+under [`forge/`](forge/); see its README for wiring and scheduling.
+
+## 5. Upgrading the binary
 
 Rebuild (`tool/deploy.sh`), replace the binary, then re-plant the shipped
 knowledge into each existing brain:

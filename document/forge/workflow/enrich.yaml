@@ -1,0 +1,65 @@
+description: Memory enrichment — elaborates the traces capture planted shallowly.
+  Links semantically close notes (assoc) and adds retrieval terms to fill the
+  exploration context. Never deletes notes or changes their state.
+inputs:
+  home:
+    type: string
+    hint: 'absolute path of the brain state-root (passed to every llmemory call as --home)'
+  model:
+    type: string
+    default: claude:opus
+    hint: 'model for the enrichment agent'
+steps:
+- id: context
+  parallel:
+  - id: gaps
+    shell:
+      command:
+      - llmemory
+      - consolidate
+      - candidates
+      - --kind
+      - missing_edge
+      - --limit
+      - '6'
+      - --json
+      - --home
+      - ${inputs.home}
+    fallback: []
+    timeout: 60
+  - id: axes
+    shell:
+      command:
+      - llmemory
+      - query
+      - axes
+      - --json
+      - --home
+      - ${inputs.home}
+    fallback: []
+    timeout: 30
+- id: call
+  invoke:
+    model: ${inputs.model}
+    allowed:
+    - files.read
+    - command: "llmemory *"
+    steps:
+    - id: t1
+      agent: '${@resource(prompt/llmemory/enrich.md, inputs: {gaps: gaps, axes: axes,
+        home: inputs.home})}'
+  timeout: 1800
+- id: integrate
+  shell:
+    command:
+    - llmemory
+    - consolidate
+    - integrate
+    - --json
+    - --home
+    - ${inputs.home}
+  fallback: {}
+  timeout: 120
+outputs:
+  enrich: ${call}
+  integrate: ${integrate}
