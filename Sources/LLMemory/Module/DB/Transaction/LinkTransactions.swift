@@ -91,7 +91,7 @@ public enum Links {
     ]
 
     static var siblingRankWeight: Double {
-        Genome.double("links.sibling_rank_weight")
+        Genes.double("links.sibling_rank_weight")
     }
 
     // MARK: - Initializer
@@ -505,7 +505,7 @@ struct StrengthenLinksTransaction: GRDBTransaction {
     func perform(_ db: Database) throws -> Int {
         guard !pairs.isEmpty else { return 0 }
 
-        let stepValue = step ?? Genome.double("links.strengthen_step")
+        let stepValue = step ?? Genes.double("links.strengthen_step")
         let now = Int(Date().timeIntervalSince1970)
         var strengthened = 0
 
@@ -564,7 +564,7 @@ struct FetchLinkNeighborsTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [Links.Neighbor] {
-        let floor = minWeight ?? Genome.double("links.neighbor_floor")
+        let floor = minWeight ?? Genes.double("links.neighbor_floor")
         var sql = """
             SELECT n.id, n.axis, n.title, n.summary, n.path, l.kind, l.weight,
                    \(Links.rankWeightSQL("l")) AS rank_w
@@ -628,7 +628,7 @@ struct ExpandLinksTransaction: GRDBTransaction {
     func perform(_ db: Database) throws -> [Links.ExpandedNote] {
         guard !noteIds.isEmpty else { return [] }
 
-        let floor = minWeight ?? Genome.double("links.neighbor_floor")
+        let floor = minWeight ?? Genes.double("links.neighbor_floor")
         var seen: [String: (note: Links.ExpandedNote, rankWeight: Double)] = [:]
         var frontier = Set(noteIds)
         var visited = Set(noteIds)
@@ -717,7 +717,7 @@ struct RebirthLinksTransaction: GRDBTransaction {
     }
 
     init(noteIds: [String], factor: Double? = nil, cap: Double = 1.0) {
-        let factor = factor ?? Genome.double("rebirth.default_factor")
+        let factor = factor ?? Genes.double("rebirth.default_factor")
 
         self.init(rankedIds: noteIds.map { id in (id, factor) }, cap: cap)
     }
@@ -786,8 +786,8 @@ struct DecayAndPruneLinksTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> (decayed: Int, pruned: Int) {
-        let factor = self.factor ?? Genome.double("links.decay_factor")
-        let floor = self.floor ?? Genome.double("links.prune_floor")
+        let factor = self.factor ?? Genes.double("links.decay_factor")
+        let floor = self.floor ?? Genes.double("links.prune_floor")
         let kindPlaceholders = Array(repeating: "?", count: Links.learnedKinds.count)
             .joined(separator: ",")
         let kinds = Array(Links.learnedKinds) as [DatabaseValueConvertible?]

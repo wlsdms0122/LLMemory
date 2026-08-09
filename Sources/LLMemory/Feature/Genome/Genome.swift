@@ -1,5 +1,5 @@
 //
-//  GenomeFeature.swift
+//  Genome.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct GenomeFeature {
+public struct Genome {
     // MARK: - Property
     let session: Session
 

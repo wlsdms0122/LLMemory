@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct QueryFeature {
+public struct Query {
     // MARK: - Property
     let session: Session
 

@@ -50,7 +50,7 @@ enum Activation {
     // MARK: - Property
     static let watermarkKey = "activation.derive_watermark"
 
-    static var windowGapSec: Int { Genome.int("activation.window_gap_sec") }
+    static var windowGapSec: Int { Genes.int("activation.window_gap_sec") }
 
     static var usedLookbackSec: Int {
         Config.getInt("activation.used_lookback_sec", default: 86_400)

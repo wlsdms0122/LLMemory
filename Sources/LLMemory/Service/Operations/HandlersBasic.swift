@@ -937,7 +937,7 @@ public enum HandlersBasic {
         validate: { op, _, _ in
             let id = op["gene"] as? String ?? ""
             
-            guard let definition = Genome.gene(id) else {
+            guard let definition = Genes.gene(id) else {
                 return "unknown gene: '\(id)' — see `genome list` for the catalog"
             }
             

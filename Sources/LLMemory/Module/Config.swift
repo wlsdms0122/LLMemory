@@ -44,7 +44,7 @@ enum Config {
     static func invalidateCache() {
         cache.removeAll()
         warmed = false
-        Genome.invalidateCache()
+        Genes.invalidateCache()
     }
     
     static func warmCache(_ storage: GRDBStorage) {
@@ -64,7 +64,7 @@ enum Config {
 
             warmed = true
 
-            Genome.warm(
+            Genes.warm(
                 try queue.read { db in try FetchGenomeValuesTransaction().perform(db) }
             )
         } catch { }

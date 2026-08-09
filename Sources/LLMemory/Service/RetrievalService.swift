@@ -170,8 +170,8 @@ public enum RetrievalService {
         linkKind: String? = nil,
         sessionId: String? = nil
     ) throws -> Framing.Snapshot {
-        let similarLimit = similarLimit ?? Genome.int("related.similar_limit")
-        let expandHops = expandHops ?? Genome.int("related.expand_hops")
+        let similarLimit = similarLimit ?? Genes.int("related.similar_limit")
+        let expandHops = expandHops ?? Genes.int("related.expand_hops")
         let text = "\(userInput)\n\(agentOutput)"
         let keywords = Framing.extractKeywords(text)
         let entityHints = NoteText.extractEntityHints(text)
@@ -350,7 +350,7 @@ public enum RetrievalService {
         rows: [Search.SearchRow],
         extra: [Links.ExpandedNote]
     ) -> [RetrievalRecord.Ranked] {
-        let boost = Genome.double("rebirth.search_boost")
+        let boost = Genes.double("rebirth.search_boost")
         var ranked: [RetrievalRecord.Ranked] = []
 
         for (index, row) in rows.enumerated() {
@@ -367,7 +367,7 @@ public enum RetrievalService {
     }
 
     private static func relatedRanked(snapshot: Framing.Snapshot) -> [RetrievalRecord.Ranked] {
-        let boost = Genome.double("rebirth.related_boost")
+        let boost = Genes.double("rebirth.related_boost")
         var ranked: [RetrievalRecord.Ranked] = []
 
         for (index, note) in snapshot.similar.enumerated() {

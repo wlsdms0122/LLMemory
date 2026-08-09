@@ -908,6 +908,6 @@ private extension OperationsEngine {
     static func rewarmGenome(_ scope: GRDBScope) {
         guard let values = try? scope.run(FetchGenomeValuesTransaction()) else { return }
 
-        Genome.warm(values)
+        Genes.warm(values)
     }
 }

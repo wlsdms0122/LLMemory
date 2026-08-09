@@ -211,7 +211,7 @@ struct FetchSimilarNotesTransaction: GRDBTransaction {
         let prior: [String: Double]
         
         if let sessionId, !sessionId.isEmpty {
-            let windowMin = Genome.int("priming.window_min")
+            let windowMin = Genes.int("priming.window_min")
             prior = (try? ComputeAxisPriorTransaction(
                 sessionId: sessionId,
                 windowSec: windowMin * 60,

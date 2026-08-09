@@ -1,5 +1,5 @@
 //
-//  Genome.swift
+//  Genes.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -11,7 +11,7 @@ import Foundation
 // wild types) is code-owned and species-level; the per-brain current values
 // live in the DB and reach this layer only through the warmed cache — the
 // DB touches themselves are transactions, run by GenomeService.
-public enum Genome {
+public enum Genes {
     public struct Gene: Sendable {
         // MARK: - Property
         public let id: String

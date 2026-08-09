@@ -142,8 +142,8 @@ public enum HandlersEnrichment {
                 
                 return 1.0
             }()
-            let base = Genome.double("links.proposed_initial_weight")
-            let neighborFloor = Genome.double("links.neighbor_floor")
+            let base = Genes.double("links.proposed_initial_weight")
+            let neighborFloor = Genes.double("links.neighbor_floor")
             let ceiling = neighborFloor - 0.02
             let weight = min(ceiling, base + max(0, ceiling - base) * confidence)
             

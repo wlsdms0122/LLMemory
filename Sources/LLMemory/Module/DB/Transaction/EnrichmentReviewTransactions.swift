@@ -192,7 +192,7 @@ struct EnrichmentStatusTransaction: GRDBTransaction {
         let termCounts = termRows.map { row in
             (row["kind"] as String, row["status"] as String, row["c"] as Int)
         }
-        let floor = Genome.double("links.neighbor_floor")
+        let floor = Genes.double("links.neighbor_floor")
         let assocRow = try Row.fetchOne(db, sql: """
             SELECT COUNT(*) AS total,
                    COALESCE(SUM(CASE WHEN weight >= ? THEN 1 ELSE 0 END), 0) AS active

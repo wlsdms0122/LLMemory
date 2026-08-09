@@ -69,7 +69,7 @@ public enum Search {
         limit: Int,
         axisOf: (T) -> String
     ) -> [T] {
-        let alpha = Genome.double("priming.alpha")
+        let alpha = Genes.double("priming.alpha")
         let poolCount = Double(pool.count)
         let scored: [(index: Int, score: Double, item: T)] = pool.enumerated()
             .map { index, item in
@@ -186,7 +186,7 @@ struct SearchNotesFTSTransaction: GRDBTransaction {
         
         let prior: [String: Double]
         if let sessionId, !sessionId.isEmpty {
-            let windowMin = Genome.int("priming.window_min")
+            let windowMin = Genes.int("priming.window_min")
             prior = (try? ComputeAxisPriorTransaction(
                 sessionId: sessionId,
                 windowSec: windowMin * 60,

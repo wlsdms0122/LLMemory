@@ -517,8 +517,8 @@ public enum Candidates {
         vecCos: Double? = nil,
         ftsBm25: Double? = nil
     ) throws -> [MissingEdge] {
-        let cosineThreshold = vecCos ?? Genome.double("candidates.missing_edge.vec_cos")
-        let bm25Threshold = ftsBm25 ?? Genome.double("candidates.missing_edge.fts_bm25")
+        let cosineThreshold = vecCos ?? Genes.double("candidates.missing_edge.vec_cos")
+        let bm25Threshold = ftsBm25 ?? Genes.double("candidates.missing_edge.fts_bm25")
         var linked = Set<String>()
         var degree: [String: Int] = [:]
         

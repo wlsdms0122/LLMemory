@@ -26,15 +26,15 @@ struct GenomeTests {
     @Test("a gene with no row reads as wild-type, config beats wild-type, and a genome row beats both")
     func valueResolution() throws {
         // Then — no row anywhere.
-        #expect(Genome.double("links.sibling_rank_weight") == 0.3)
-        #expect(Genome.source("links.sibling_rank_weight") == "wild_type")
+        #expect(Genes.double("links.sibling_rank_weight") == 0.3)
+        #expect(Genes.source("links.sibling_rank_weight") == "wild_type")
         
         // When — a legacy config value exists.
         try Config.set(home.database(), "priming.alpha", value: 0.8)
         
         // Then
-        #expect(Genome.double("priming.alpha") == 0.8)
-        #expect(Genome.source("priming.alpha") == "config")
+        #expect(Genes.double("priming.alpha") == 0.8)
+        #expect(Genes.source("priming.alpha") == "config")
         
         // When — the genome itself carries a value.
         try home.database().write { database in
@@ -45,8 +45,8 @@ struct GenomeTests {
         }
         
         // Then
-        #expect(Genome.double("priming.alpha") == 1.2)
-        #expect(Genome.source("priming.alpha") == "genome")
+        #expect(Genes.double("priming.alpha") == 1.2)
+        #expect(Genes.source("priming.alpha") == "genome")
     }
     
     @Test("set_gene enforces bounds, refuses an unknown gene, and resets to wild-type without a value")
@@ -62,7 +62,7 @@ struct GenomeTests {
         #expect(outOfBounds.status != "ok")
         #expect(unknown.status != "ok")
         #expect(accepted.status == "ok")
-        #expect(Genome.double("links.sibling_rank_weight") == 0.2)
+        #expect(Genes.double("links.sibling_rank_weight") == 0.2)
         
         let history = try home.read { database in
             try GenomeService.history(GRDBScope(database), gene: "links.sibling_rank_weight", limit: 5)
@@ -75,7 +75,7 @@ struct GenomeTests {
         
         // Then
         #expect(reset.status == "ok")
-        #expect(Genome.double("links.sibling_rank_weight") == 0.3)
+        #expect(Genes.double("links.sibling_rank_weight") == 0.3)
     }
     
     @Test("integer genes reject a fraction, and a boolean is not a number")
@@ -133,7 +133,7 @@ struct GenomeTests {
             #expect(report.newValue == 0)
         }
         
-        #expect(Genome.int("related.expand_hops") == 0)
+        #expect(Genes.int("related.expand_hops") == 0)
         
         // When — a second tick over the same history.
         try home.database().write { database in
@@ -180,7 +180,7 @@ struct GenomeTests {
             #expect(report.expandSeen == 0)
         }
         
-        #expect(Genome.int("related.expand_hops") == 1, "the gene must stay at wild-type")
+        #expect(Genes.int("related.expand_hops") == 1, "the gene must stay at wild-type")
     }
     
     @Test("expansion that lands restores the hop count toward wild-type, and stops there")
@@ -234,7 +234,7 @@ struct GenomeTests {
             #expect(report.adjustedGene == nil, "wild-type is the ceiling — restoration does not overshoot")
         }
         
-        #expect(Genome.int("related.expand_hops") == 1)
+        #expect(Genes.int("related.expand_hops") == 1)
     }
     
     @Test("the report states the sample the verdict used, not what happens to be left after it")
@@ -345,7 +345,7 @@ struct GenomeTests {
         let unchanged = try home.database().read { db in
             try GenomeService.shadow(
                 GRDBScope(db),
-                gene: "priming.alpha", value: Genome.double("priming.alpha"), limit: 10, sampleDiffs: 5
+                gene: "priming.alpha", value: Genes.double("priming.alpha"), limit: 10, sampleDiffs: 5
             )
         }
         
@@ -360,7 +360,7 @@ struct GenomeTests {
                 )
             }
         }
-        #expect(Genome.source("priming.alpha") == "wild_type", "a shadow run must not write the gene")
+        #expect(Genes.source("priming.alpha") == "wild_type", "a shadow run must not write the gene")
     }
     
     // MARK: - Private

@@ -16,10 +16,10 @@ public struct Brain {
     public let session: Session
 
     public let index: Index
-    public let query: QueryFeature
+    public let query: Query
     public let consolidate: Consolidate
-    public let genome: GenomeFeature
-    public let ruleset: RulesetFeature
+    public let genome: Genome
+    public let ruleset: Ruleset
     public let operations: Operations
 
     // MARK: - Initializer
@@ -28,10 +28,10 @@ public struct Brain {
 
         self.session = session
         self.index = Index(session: session)
-        self.query = QueryFeature(session: session)
+        self.query = Query(session: session)
         self.consolidate = Consolidate(session: session)
-        self.genome = GenomeFeature(session: session)
-        self.ruleset = RulesetFeature(session: session)
+        self.genome = Genome(session: session)
+        self.ruleset = Ruleset(session: session)
         self.operations = Operations(session: session)
     }
 

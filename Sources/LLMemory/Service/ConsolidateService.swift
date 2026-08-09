@@ -259,7 +259,7 @@ public enum ConsolidateService {
         let watermark = Int(
             try scope.run(FetchConfigValueTransaction(key: homeostasisWatermarkKey, default: "0"))
         ) ?? 0
-        let closedBefore = now - Genome.int("activation.window_gap_sec")
+        let closedBefore = now - Genes.int("activation.window_gap_sec")
         let windows = try scope.run(
             FetchClosedActivityWindowsTransaction(watermark: watermark, closedBefore: closedBefore)
         )
@@ -301,9 +301,9 @@ public enum ConsolidateService {
             rate = landingRate
 
             let gene = "related.expand_hops"
-            let current = Genome.double(gene)
-            let wildType = Genome.gene(gene)!.wildType
-            let bounds = Genome.gene(gene)!
+            let current = Genes.double(gene)
+            let wildType = Genes.gene(gene)!.wildType
+            let bounds = Genes.gene(gene)!
             var target = current
 
             if landingRate < homeostasisLowRate && current > bounds.min {

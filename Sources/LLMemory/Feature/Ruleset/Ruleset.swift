@@ -1,5 +1,5 @@
 //
-//  RulesetFeature.swift
+//  Ruleset.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct RulesetFeature {
+public struct Ruleset {
     // MARK: - Property
     let session: Session
 

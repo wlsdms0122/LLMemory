@@ -15,7 +15,7 @@ import Storage
 public enum GenomeService {
     public enum WriteError: Error, CustomStringConvertible {
         case unknownGene(String)
-        case outOfBounds(String, Double, Genome.Gene)
+        case outOfBounds(String, Double, Genes.Gene)
         case notInteger(String, Double)
         case locked(String)
 
@@ -123,7 +123,7 @@ public enum GenomeService {
     // uninitialized brain fails loud instead of masquerading as wild-type).
     public static func list(_ storage: GRDBStorage) async throws -> [ListRow] {
         try await storage.read { scope in
-            Genome.warm(try scope.run(FetchGenomeValuesTransaction()))
+            Genes.warm(try scope.run(FetchGenomeValuesTransaction()))
 
             return list()
         }
@@ -153,15 +153,15 @@ public enum GenomeService {
 
     // MARK: - Internal
     static func list() -> [ListRow] {
-        Genome.catalog.map { gene in
+        Genes.catalog.map { gene in
             ListRow(
                 id: gene.id,
-                value: Genome.double(gene.id),
+                value: Genes.double(gene.id),
                 wildType: gene.wildType,
                 min: gene.min,
                 max: gene.max,
                 mutable: gene.mutable,
-                source: Genome.source(gene.id),
+                source: Genes.source(gene.id),
                 summary: gene.summary
             )
         }
@@ -196,7 +196,7 @@ public enum GenomeService {
         limit: Int,
         sampleDiffs: Int
     ) throws -> ShadowResult {
-        guard let definition = Genome.gene(gene) else {
+        guard let definition = Genes.gene(gene) else {
             throw WriteError.unknownGene(gene)
         }
 
@@ -204,7 +204,7 @@ public enum GenomeService {
             throw WriteError.outOfBounds(gene, value, definition)
         }
 
-        let baselineValue = Genome.double(gene)
+        let baselineValue = Genes.double(gene)
         let logged = try scope.run(FetchLoggedRetrievalQueriesTransaction(limit: limit))
 
         func replayIds(
@@ -241,7 +241,7 @@ public enum GenomeService {
 
         for loggedQuery in logged {
             let baseline = try replayIds(loggedQuery)
-            let candidate = try Genome.withOverride(gene, value) { try replayIds(loggedQuery) }
+            let candidate = try Genes.withOverride(gene, value) { try replayIds(loggedQuery) }
 
             if baseline != candidate {
                 changed += 1
@@ -285,7 +285,7 @@ public enum GenomeService {
         requireMutable: Bool,
         now: Int
     ) throws -> (old: Double, new: Double) {
-        guard let gene = Genome.gene(id) else { throw WriteError.unknownGene(id) }
+        guard let gene = Genes.gene(id) else { throw WriteError.unknownGene(id) }
 
         if requireMutable && !gene.mutable { throw WriteError.locked(id) }
 
@@ -297,7 +297,7 @@ public enum GenomeService {
             throw WriteError.notInteger(id, value)
         }
 
-        let old = Genome.cached(id) ?? Config.getDouble(id, default: gene.wildType)
+        let old = Genes.cached(id) ?? Config.getDouble(id, default: gene.wildType)
 
         try scope.run(
             SetGeneTransaction(
@@ -310,7 +310,7 @@ public enum GenomeService {
             )
         )
 
-        Genome.prime(id, value)
+        Genes.prime(id, value)
 
         return (old, value)
     }
@@ -322,9 +322,9 @@ public enum GenomeService {
         cause: String,
         now: Int
     ) throws -> Double {
-        guard let gene = Genome.gene(id) else { throw WriteError.unknownGene(id) }
+        guard let gene = Genes.gene(id) else { throw WriteError.unknownGene(id) }
 
-        let old = Genome.cached(id) ?? Config.getDouble(id, default: gene.wildType)
+        let old = Genes.cached(id) ?? Config.getDouble(id, default: gene.wildType)
 
         try scope.run(
             ResetGeneTransaction(
@@ -336,7 +336,7 @@ public enum GenomeService {
             )
         )
 
-        Genome.prime(id, nil)
+        Genes.prime(id, nil)
 
         return old
     }

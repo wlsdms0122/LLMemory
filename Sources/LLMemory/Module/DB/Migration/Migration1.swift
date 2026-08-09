@@ -377,7 +377,7 @@ CREATE INDEX IF NOT EXISTS idx_retrieval_hits_note ON retrieval_hits(note_id, su
 
 -- ─────────────────────────────────────────────────────────
 -- genome / genome_events — 가소성 파라미터의 브레인별 현재값 (기질 3층의 데이터 절반).
--- *선언*(카탈로그: bounds·wild-type·mutable)은 코드(Service/Genome.swift)가 SSoT 다 —
+-- *선언*(카탈로그: bounds·wild-type·mutable)은 코드(Service/Genes.swift)가 SSoT 다 —
 -- 규칙은 종-수준이고 검증 가능해야 하므로 데이터가 아니다. 여기 저장되는 것은
 -- 브레인별 *현재값*(epigenome)과 그 변경 이력뿐. 행이 없는 유전자는 wild-type 로 동작.
 -- 쓰기는 두 경로만: set_gene op(사람 escape hatch — 전 유전자) 와
