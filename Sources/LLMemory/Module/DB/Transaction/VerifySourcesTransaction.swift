@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct VerifySourcesTransaction: GRDBWriteTransaction {
+public struct VerifySourcesTransaction: LegacyWriteTransaction {
     // MARK: - Initializer
     public init() { }
 

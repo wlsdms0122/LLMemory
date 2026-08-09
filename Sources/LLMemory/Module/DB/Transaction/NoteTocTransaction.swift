@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct NoteTocTransaction: GRDBTransaction {
+public struct NoteTocTransaction: LegacyReadTransaction {
     // MARK: - Property
     public let parameter: Parameter
 

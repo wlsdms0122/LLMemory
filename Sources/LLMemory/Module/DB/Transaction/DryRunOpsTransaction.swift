@@ -11,7 +11,7 @@ import GRDB
 
 // Validation of an ops payload without persisting — a read, so it never takes
 // the write lock, exactly like the engine's dry run always behaved.
-public struct DryRunOpsTransaction: GRDBTransaction {
+public struct DryRunOpsTransaction: LegacyReadTransaction {
     // MARK: - Property
     public let parameter: Parameter
 

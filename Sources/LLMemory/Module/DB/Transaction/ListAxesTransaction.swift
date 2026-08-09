@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct ListAxesTransaction: GRDBTransaction {
+public struct ListAxesTransaction: LegacyReadTransaction {
     // MARK: - Initializer
     public init() { }
 

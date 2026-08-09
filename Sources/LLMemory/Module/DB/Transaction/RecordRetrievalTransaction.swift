@@ -13,7 +13,7 @@ import GRDB
 // the retrieval event — derived on the read path and applied here as the write
 // half, so read transactions stay reads. Best-effort by contract: retrieval
 // must not fail because its trace could not be written.
-public struct RecordRetrievalTransaction: GRDBWriteTransaction {
+public struct RecordRetrievalTransaction: LegacyWriteTransaction {
     // MARK: - Property
     public let parameter: Parameter
 

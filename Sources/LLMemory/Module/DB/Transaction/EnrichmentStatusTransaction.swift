@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct EnrichmentStatusTransaction: GRDBTransaction {
+public struct EnrichmentStatusTransaction: LegacyReadTransaction {
     // MARK: - Initializer
     public init() { }
 

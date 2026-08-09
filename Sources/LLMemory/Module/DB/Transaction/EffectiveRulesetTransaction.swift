@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct EffectiveRulesetTransaction: GRDBTransaction {
+public struct EffectiveRulesetTransaction: LegacyReadTransaction {
     // MARK: - Property
     public let parameter: Parameter
 

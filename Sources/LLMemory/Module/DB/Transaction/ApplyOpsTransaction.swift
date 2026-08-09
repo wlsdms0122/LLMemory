@@ -13,7 +13,7 @@ import GRDB
 // the cross-process write lock `run` provides. The payload crosses the
 // transaction boundary as a JSON string; the engine's [String: Any] world
 // stays inside the DB module.
-public struct ApplyOpsTransaction: GRDBWriteTransaction {
+public struct ApplyOpsTransaction: LegacyWriteTransaction {
     // MARK: - Property
     public let parameter: Parameter
 

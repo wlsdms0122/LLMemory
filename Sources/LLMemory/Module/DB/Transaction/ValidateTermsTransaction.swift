@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct ValidateTermsTransaction: GRDBWriteTransaction {
+public struct ValidateTermsTransaction: LegacyWriteTransaction {
     // MARK: - Property
     public let parameter: Parameter
 

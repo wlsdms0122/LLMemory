@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct CheckIntegrityTransaction: GRDBTransaction {
+public struct CheckIntegrityTransaction: LegacyReadTransaction {
     // MARK: - Property
     public let parameter: Parameter
 

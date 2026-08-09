@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct AxisStatsTransaction: GRDBTransaction {
+public struct AxisStatsTransaction: LegacyReadTransaction {
     // MARK: - Property
     public let parameter: Parameter
 

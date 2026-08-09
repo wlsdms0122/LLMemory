@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct NoteMetaByKVTransaction: GRDBTransaction {
+public struct NoteMetaByKVTransaction: LegacyReadTransaction {
     // MARK: - Property
     public let parameter: Parameter
 

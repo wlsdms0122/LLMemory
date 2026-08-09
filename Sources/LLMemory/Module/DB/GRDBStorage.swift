@@ -174,7 +174,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     }
 
     @discardableResult
-    public func run<T: GRDBWriteTransaction>(_ transaction: T) async throws -> T.Result {
+    public func run<T: LegacyWriteTransaction>(_ transaction: T) async throws -> T.Result {
         let connection = try connect()
 
         // In-process exclusion first — flock cannot separate two tasks of one
@@ -195,7 +195,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     }
 
     @discardableResult
-    public func run<T: GRDBTransaction>(_ transaction: T) async throws -> T.Result {
+    public func run<T: LegacyReadTransaction>(_ transaction: T) async throws -> T.Result {
         try await transaction.execute(try connect())
     }
 

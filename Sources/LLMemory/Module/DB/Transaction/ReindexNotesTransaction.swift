@@ -9,7 +9,7 @@ import Foundation
 import Storage
 import GRDB
 
-public struct ReindexNotesTransaction: GRDBWriteTransaction {
+public struct ReindexNotesTransaction: LegacyWriteTransaction {
     // MARK: - Property
     public let parameter: Parameter
 
