@@ -208,32 +208,6 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         }
     }
 
-    @discardableResult
-    public func run<T: LegacyWriteTransaction>(_ transaction: T) async throws -> T.Result {
-        let connection = try connect()
-
-        // In-process exclusion first — flock cannot separate two tasks of one
-        // process (they share the descriptor, and the depth counter presumes an
-        // outer mutex), so the async gate is what makes the counter sound here.
-        // The flock wait and the transaction body still block this thread —
-        // accepted for the single-shot CLI; a dedicated queue is the recorded
-        // way out if embedding ever needs it.
-        await writeGate.acquire()
-
-        defer { writeGate.release() }
-
-        try acquireLock(as: .gate)
-
-        defer { releaseLock() }
-
-        return try await transaction.execute(connection)
-    }
-
-    @discardableResult
-    public func run<T: LegacyReadTransaction>(_ transaction: T) async throws -> T.Result {
-        try await transaction.execute(try connect())
-    }
-
     // The sync lifecycle gate — Session.bootstrap (which must run before the
     // migration gate can pass) and test fixtures. flock excludes it across
     // processes; in-process it never overlaps `run` writes because bootstrap
