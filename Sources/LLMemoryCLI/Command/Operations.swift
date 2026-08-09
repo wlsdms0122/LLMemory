@@ -22,7 +22,10 @@ struct OperationsCommand: ParsableCommand {
             SEE ALSO
                 operations apply, operations vocab, operations describe
             """,
-        subcommands: [OperationsApply.self, OperationsDryRun.self, OperationsVocab.self, OperationsDescribe.self]
+        subcommands: [OperationsApply.self, OperationsDryRun.self, OperationsVocab.self, OperationsDescribe.self],
+        // Owner call: the surface may stay short — `ops` aliases the
+        // spelled-out internal name, and both forms reach the same command.
+        aliases: ["ops"]
     )
     
     // MARK: - Initializer
