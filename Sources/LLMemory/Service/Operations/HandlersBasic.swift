@@ -874,7 +874,21 @@ public enum HandlersBasic {
             
             if ids.count != raw.count { return "ids must all be strings" }
             
-            _ = ids
+            let now = Int(Date().timeIntervalSince1970)
+            let cutoff = now - Activation.usedLookbackSec
+            let label = Env.retrievalSession(cli: nil)
+
+            for id in ids {
+                let surfaced = try scope.run(
+                    NoteSurfacedRecentlyTransaction(noteId: id, cutoff: cutoff, label: label)
+                )
+
+                if !surfaced {
+                    return "note '\(id)' was not surfaced in any recent activity window"
+                        + ((label?.isEmpty == false) ? " of session '\(label!)'" : "")
+                        + " (lookback \(Activation.usedLookbackSec)s) — cannot mark unobserved usage"
+                }
+            }
 
             return nil
         },

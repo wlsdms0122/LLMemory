@@ -210,7 +210,7 @@ public enum NotesService {
         _ scope: GRDBReadScope,
         id: String,
         sections: [String],
-        sessionId: String? = nil
+        sessionId: String?
     ) throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice], record: RetrievalRecord?) {
         let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
@@ -234,7 +234,7 @@ public enum NotesService {
         _ scope: GRDBReadScope,
         id: String,
         budget: Int,
-        sessionId: String? = nil
+        sessionId: String?
     ) throws -> (note: Reads.GetNote, record: RetrievalRecord?, cut: Reads.BudgetCut) {
         let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
@@ -248,7 +248,7 @@ public enum NotesService {
     static func toc(
         _ scope: GRDBReadScope,
         id: String,
-        sessionId: String? = nil
+        sessionId: String?
     ) throws -> (note: Reads.GetNote, entries: [Reads.TocEntry], record: RetrievalRecord?) {
         let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
@@ -267,7 +267,7 @@ public enum NotesService {
     static func template(
         _ scope: GRDBReadScope,
         id: String,
-        sessionId: String? = nil
+        sessionId: String?
     ) throws -> (note: Reads.GetNote, frame: [Template.FrameNode], record: RetrievalRecord?) {
         let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 

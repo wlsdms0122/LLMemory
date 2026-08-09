@@ -54,15 +54,9 @@ public enum OperationsService {
                 return OperationsEngine.apply(scope, payload, sessionId: sessionId, ruleset: ruleset)
             }
 
-            // A rolled-back savepoint may have primed the in-process gene
-            // cache — repair it from committed state, outside the scope, so
-            // cache correctness never depends on the scope's throw behavior.
-            if result.status != "ok" { await rewarmGenes(storage) }
-
             return result
         } catch {
-            await rewarmGenes(storage)
-
+            // Nothing ran (connect/lock failure) — the cache was never primed.
             return OperationsEngine.Result(
                 status: "unavailable",
                 opResults: [],
@@ -113,11 +107,4 @@ public enum OperationsService {
     }
 
     // MARK: - Private
-    private static func rewarmGenes(_ storage: GRDBStorage) async {
-        guard let values = try? await storage.read({ scope in
-            try scope.run(FetchGenomeValuesTransaction())
-        }) else { return }
-
-        Genes.warm(values)
-    }
 }

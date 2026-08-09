@@ -117,15 +117,21 @@ struct LayeringInvariantTests {
     @Test("a scope is constructed by storage alone")
     func scopeConstructionStaysInStorage() {
         // When
+        // Constructor *calls* only — a call carries an argument
+        // (`GRDBScope(db)`), a type annotation carries a colon before the
+        // name (`scope: GRDBScope`), so the regex anchors on the open paren
+        // followed by an argument character.
+        let construction = try! NSRegularExpression(pattern: #"GRDB(Read)?Scope\(\s*[\w.]"#)
         let allowed = ["GRDBStorage.swift", "GRDBScope.swift"]
         let violations = sources
             .filter { file in !allowed.contains(file.url.lastPathComponent) }
             .flatMap { file in
                 file.codeLines()
                     .filter { _, text in
-                        (text.contains("GRDBScope(") || text.contains("GRDBReadScope("))
-                            && !text.contains("scope: GRDBScope")
-                            && !text.contains("scope: GRDBReadScope")
+                        construction.firstMatch(
+                            in: text,
+                            range: NSRange(text.startIndex..., in: text)
+                        ) != nil
                     }
                     .map { number, _ in file.location(number) }
             }

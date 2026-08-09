@@ -47,6 +47,27 @@ public struct GRDBScope {
         }
     }
 
+    // A savepointed best-effort — the body either commits whole or rolls
+    // back whole, and the failure comes back as a value instead of being
+    // swallowed at the call site.
+    public func attempt<T>(_ body: () throws -> T) throws -> Swift.Result<T, any Error> {
+        var outcome: Swift.Result<T, any Error>!
+
+        try savepoint {
+            do {
+                outcome = .success(try body())
+
+                return .commit
+            } catch {
+                outcome = .failure(error)
+
+                return .rollback
+            }
+        }
+
+        return outcome
+    }
+
     // A write scope may always be viewed as a read scope — read cores take
     // GRDBReadScope and write orchestrators downgrade to call them.
     public var readOnly: GRDBReadScope { GRDBReadScope(db) }

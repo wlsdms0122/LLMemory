@@ -216,21 +216,20 @@ public enum OperationsEngine {
                 effectiveRulesetId: effectiveRulesetId
             )
             
+            // A rolled-back savepoint may have primed the in-process gene
+            // cache. All genome writes live inside the savepoint, so the
+            // post-rollback state read here equals committed state even if
+            // the enclosing scope later rolls back — the engine owns this
+            // repair so every caller gets it.
+            if txResult.status != "ok" { rewarmGenes(scope) }
+            
             if txResult.status == "ok" {
                 let touched = enrichmentTouchedNotes(opsRaw)
                 
                 if !touched.isEmpty {
                     // Best-effort, but atomically so — a failed validation
                     // pass rolls back rather than half-committing.
-                    try? scope.savepoint {
-                        do {
-                            _ = try scope.run(ValidatePendingTermsTransaction(noteIds: touched))
-
-                            return .commit
-                        } catch {
-                            return .rollback
-                        }
-                    }
+                    _ = try? scope.attempt { try scope.run(ValidatePendingTermsTransaction(noteIds: touched)) }
                 }
             }
             
@@ -246,6 +245,8 @@ public enum OperationsEngine {
                 conflict: conflict
             )
         } catch {
+            rewarmGenes(scope)
+
             return Result(
                 status: "failed",
                 opResults: [],
@@ -257,7 +258,6 @@ public enum OperationsEngine {
         }
     }
     
-
     // The gated apply sequence — validate, snapshot, savepointed op run,
     // post-checks, and the capture event that records the outcome.
     private static func applySequence(
@@ -267,174 +267,174 @@ public enum OperationsEngine {
         rationale: String,
         effectiveRulesetId: String?
     ) throws -> Result {
-                if let (message, index) = try validate(
-                    opsRaw,
-                    scope: scope.readOnly,
-                    rulesetId: effectiveRulesetId
-                ) {
-                    try? scope.run(RecordEventTransaction(
-                                                kind: Events.kindCapture,
-                        payload: [
-                            "tx_status": "rejected",
-                            "error": message,
-                            "rejected_index": index,
-                            "op_count": opsRaw.count
-                        ],
-                        sessionId: sessionId
-                    ))
-                    
-                    return Result(
-                        status: "rejected",
-                        opResults: [],
-                        error: message,
-                        rejectedIndex: index,
-                        rationale: rationale,
-                        recoveryFailed: []
-                    )
-                }
-                
-                let affected = try affectedPaths(opsRaw, scope: scope.readOnly)
-                let backups: [(URL, String?)]
-                do {
-                    backups = try snapshotFiles(affected)
-                } catch {
-                    let message = "snapshot failed: \(error)"
-                    
-                    try? scope.run(RecordEventTransaction(
-                                                kind: Events.kindCapture,
-                        payload: [
-                            "tx_status": "rejected",
-                            "error": message,
-                            "op_count": opsRaw.count
-                        ],
-                        sessionId: sessionId
-                    ))
-                    
-                    return Result(
-                        status: "rejected",
-                        opResults: [],
-                        error: message,
-                        rejectedIndex: nil,
-                        rationale: rationale,
-                        recoveryFailed: []
-                    )
-                }
-                
-                var results: [OperationResult] = []
-                var failure: (Int?, String)? = nil
-                var splitConflict: (Int, SplitConflict)? = nil
-                let eagerBefore = (try? scope.run(CountEagerNotesTransaction())) ?? 0
-                
-                do {
-                    try scope.savepoint {
-                        for (index, op) in opsRaw.enumerated() {
-                            do {
-                                results.append(try dispatchApply(op, scope: scope))
-                            } catch let conflict as SplitConflict {
-                                splitConflict = (index, conflict)
-                                
-                                return .rollback
-                            } catch {
-                                let opName = op["op"] as? String ?? "?"
-                                failure = (index, "\(opName): \(error)")
-                                
-                                return .rollback
-                            }
-                        }
-                        
-                        if let sectionError = checkSectionInvariants(
-                            affected: affected,
-                            backups: backups
-                        ) {
-                            failure = (nil, sectionError)
-                            
-                            return .rollback
-                        }
-                        
-                        if let templateError = checkTemplateFrames(affected: affected, scope: scope.readOnly) {
-                            failure = (nil, templateError)
-                            
-                            return .rollback
-                        }
-                        
-                        if let capError = checkEagerCap(scope: scope.readOnly, before: eagerBefore) {
-                            failure = (nil, capError)
-                            
-                            return .rollback
-                        }
-                        
-                        return .commit
-                    }
-                } catch {
-                    if failure == nil {
-                        failure = (nil, "savepoint failed: \(error)")
-                    }
-                }
-                
-                if let (index, conflict) = splitConflict {
-                    let recovery = restoreFiles(backups)
-                    
-                    return Result(
-                        status: "conflict",
-                        opResults: [],
-                        error: "split_note '\(conflict.fromId)' has \(conflict.unresolved.count) artifact(s) whose ownership across the new notes is a semantic call — re-issue with `routing` assigning each to children (to:[\"id\"]), copying (to:[\"a\",\"b\"]), or dropping (to:[]). Omitted artifacts are dropped; cooccur/reference are auto-handled.",
-                        rejectedIndex: index,
-                        rationale: rationale,
-                        recoveryFailed: recovery,
-                        conflict: conflict
-                    )
-                }
-                
-                if let (index, message) = failure {
-                    let recovery = restoreFiles(backups)
-                    var payload: [String: Any?] = [
-                        "tx_status": "failed",
-                        "error": message,
-                        "op_count": opsRaw.count,
-                        "recovery_failed": recovery
-                    ]
-                    
-                    if let index { payload["failed_index"] = index }
-                    
-                    try? scope.run(RecordEventTransaction(
-                                                kind: Events.kindCapture,
-                        payload: payload,
-                        sessionId: sessionId
-                    ))
-                    
-                    return Result(
-                        status: "failed",
-                        opResults: results,
-                        error: message,
-                        rejectedIndex: index,
-                        rationale: rationale,
-                        recoveryFailed: recovery
-                    )
-                }
-                
-                let opsSummary: [[String: Any]] = results.map { result in
-                    ["op": result.op, "status": result.status, "ids": result.ids]
-                }
-                
-                try? scope.run(RecordEventTransaction(
+        if let (message, index) = try validate(
+            opsRaw,
+            scope: scope.readOnly,
+            rulesetId: effectiveRulesetId
+        ) {
+            try? scope.run(RecordEventTransaction(
                                         kind: Events.kindCapture,
-                    payload: [
-                        "tx_status": "ok",
-                        "op_count": opsRaw.count,
-                        "ops": opsSummary
-                    ],
-                    sessionId: sessionId
-                ))
+                payload: [
+                    "tx_status": "rejected",
+                    "error": message,
+                    "rejected_index": index,
+                    "op_count": opsRaw.count
+                ],
+                sessionId: sessionId
+            ))
+            
+            return Result(
+                status: "rejected",
+                opResults: [],
+                error: message,
+                rejectedIndex: index,
+                rationale: rationale,
+                recoveryFailed: []
+            )
+        }
+        
+        let affected = try affectedPaths(opsRaw, scope: scope.readOnly)
+        let backups: [(URL, String?)]
+        do {
+            backups = try snapshotFiles(affected)
+        } catch {
+            let message = "snapshot failed: \(error)"
+            
+            try? scope.run(RecordEventTransaction(
+                                        kind: Events.kindCapture,
+                payload: [
+                    "tx_status": "rejected",
+                    "error": message,
+                    "op_count": opsRaw.count
+                ],
+                sessionId: sessionId
+            ))
+            
+            return Result(
+                status: "rejected",
+                opResults: [],
+                error: message,
+                rejectedIndex: nil,
+                rationale: rationale,
+                recoveryFailed: []
+            )
+        }
+        
+        var results: [OperationResult] = []
+        var failure: (Int?, String)? = nil
+        var splitConflict: (Int, SplitConflict)? = nil
+        let eagerBefore = (try? scope.run(CountEagerNotesTransaction())) ?? 0
+        
+        do {
+            try scope.savepoint {
+                for (index, op) in opsRaw.enumerated() {
+                    do {
+                        results.append(try dispatchApply(op, scope: scope))
+                    } catch let conflict as SplitConflict {
+                        splitConflict = (index, conflict)
+                        
+                        return .rollback
+                    } catch {
+                        let opName = op["op"] as? String ?? "?"
+                        failure = (index, "\(opName): \(error)")
+                        
+                        return .rollback
+                    }
+                }
                 
-                return Result(
-                    status: "ok",
-                    opResults: results,
-                    error: "",
-                    rejectedIndex: nil,
-                    rationale: rationale,
-                    recoveryFailed: []
-                )
-    }
+                if let sectionError = checkSectionInvariants(
+                    affected: affected,
+                    backups: backups
+                ) {
+                    failure = (nil, sectionError)
+                    
+                    return .rollback
+                }
+                
+                if let templateError = checkTemplateFrames(affected: affected, scope: scope.readOnly) {
+                    failure = (nil, templateError)
+                    
+                    return .rollback
+                }
+                
+                if let capError = checkEagerCap(scope: scope.readOnly, before: eagerBefore) {
+                    failure = (nil, capError)
+                    
+                    return .rollback
+                }
+                
+                return .commit
+            }
+        } catch {
+            if failure == nil {
+                failure = (nil, "savepoint failed: \(error)")
+            }
+        }
+        
+        if let (index, conflict) = splitConflict {
+            let recovery = restoreFiles(backups)
+            
+            return Result(
+                status: "conflict",
+                opResults: [],
+                error: "split_note '\(conflict.fromId)' has \(conflict.unresolved.count) artifact(s) whose ownership across the new notes is a semantic call — re-issue with `routing` assigning each to children (to:[\"id\"]), copying (to:[\"a\",\"b\"]), or dropping (to:[]). Omitted artifacts are dropped; cooccur/reference are auto-handled.",
+                rejectedIndex: index,
+                rationale: rationale,
+                recoveryFailed: recovery,
+                conflict: conflict
+            )
+        }
+        
+        if let (index, message) = failure {
+            let recovery = restoreFiles(backups)
+            var payload: [String: Any?] = [
+                "tx_status": "failed",
+                "error": message,
+                "op_count": opsRaw.count,
+                "recovery_failed": recovery
+            ]
+            
+            if let index { payload["failed_index"] = index }
+            
+            try? scope.run(RecordEventTransaction(
+                                        kind: Events.kindCapture,
+                payload: payload,
+                sessionId: sessionId
+            ))
+            
+            return Result(
+                status: "failed",
+                opResults: results,
+                error: message,
+                rejectedIndex: index,
+                rationale: rationale,
+                recoveryFailed: recovery
+            )
+        }
+        
+        let opsSummary: [[String: Any]] = results.map { result in
+            ["op": result.op, "status": result.status, "ids": result.ids]
+        }
+        
+        try? scope.run(RecordEventTransaction(
+                                kind: Events.kindCapture,
+            payload: [
+                "tx_status": "ok",
+                "op_count": opsRaw.count,
+                "ops": opsSummary
+            ],
+            sessionId: sessionId
+        ))
+        
+        return Result(
+            status: "ok",
+            opResults: results,
+            error: "",
+            rejectedIndex: nil,
+            rationale: rationale,
+            recoveryFailed: []
+        )
+}
 
     public static func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], ruleset: String? = nil) -> DryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
@@ -925,3 +925,11 @@ public enum OperationsEngine {
     }
 }
 
+private extension OperationsEngine {
+    // Repairs the in-process gene cache from (effectively) committed state.
+    static func rewarmGenes(_ scope: GRDBScope) {
+        guard let values = try? scope.run(FetchGenomeValuesTransaction()) else { return }
+
+        Genes.warm(values)
+    }
+}

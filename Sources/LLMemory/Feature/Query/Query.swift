@@ -64,28 +64,42 @@ public struct Query {
 
     public func getSections(
         id: String,
-        sections: [String]
+        sections: [String],
+        cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice]) {
-        try await NotesService.getSections(session.storage, id: id, sections: sections)
+        try await NotesService.getSections(
+            session.storage,
+            id: id,
+            sections: sections,
+            cliSessionId: cliSessionId
+        )
     }
 
     public func getBudget(
         id: String,
-        budget: Int
+        budget: Int,
+        cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, cut: Reads.BudgetCut) {
-        try await NotesService.getBudget(session.storage, id: id, budget: budget)
+        try await NotesService.getBudget(
+            session.storage,
+            id: id,
+            budget: budget,
+            cliSessionId: cliSessionId
+        )
     }
 
     public func toc(
-        id: String
+        id: String,
+        cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, entries: [Reads.TocEntry]) {
-        try await NotesService.toc(session.storage, id: id)
+        try await NotesService.toc(session.storage, id: id, cliSessionId: cliSessionId)
     }
 
     public func template(
-        id: String
+        id: String,
+        cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, frame: [Template.FrameNode]) {
-        try await NotesService.template(session.storage, id: id)
+        try await NotesService.template(session.storage, id: id, cliSessionId: cliSessionId)
     }
 
     public func metaById(

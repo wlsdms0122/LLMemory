@@ -194,39 +194,32 @@ public enum ConsolidateService {
 
         let ftsPrune = try scope.run(PruneFtsOrphansTransaction())
 
-        // Best-effort passes run as savepoints — a failure rolls its own
-        // statements back instead of leaving a half-applied pass inside the
-        // enclosing scope's commit.
+        // Best-effort passes run as savepointed attempts — a failure rolls
+        // its own statements back and is reported by name instead of being
+        // silently indistinguishable from "nothing to do".
+        var degradedPasses: [String] = []
+
+        func degrade(_ name: String, _ error: any Error) {
+            degradedPasses.append("\(name): \(error)")
+        }
+
         var validationPass = TermValidationPass()
         var staleRejected = 0
         var reviewPass = EnrichmentReviewPass()
 
-        try scope.savepoint {
-            do {
-                validationPass = try scope.run(ValidatePendingTermsTransaction(noteIds: nil))
-
-                return .commit
-            } catch {
-                return .rollback
-            }
+        switch try scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: nil)) }) {
+        case .success(let pass): validationPass = pass
+        case .failure(let error): degrade("term_validation", error)
         }
-        try scope.savepoint {
-            do {
-                staleRejected = try scope.run(RejectStalePendingTermsTransaction())
 
-                return .commit
-            } catch {
-                return .rollback
-            }
+        switch try scope.attempt({ try scope.run(RejectStalePendingTermsTransaction()) }) {
+        case .success(let rejected): staleRejected = rejected
+        case .failure(let error): degrade("stale_rejection", error)
         }
-        try scope.savepoint {
-            do {
-                reviewPass = try scope.run(FlagEnrichmentDisagreementsTransaction(now: now))
 
-                return .commit
-            } catch {
-                return .rollback
-            }
+        switch try scope.attempt({ try scope.run(FlagEnrichmentDisagreementsTransaction(now: now)) }) {
+        case .success(let pass): reviewPass = pass
+        case .failure(let error): degrade("enrich_review", error)
         }
 
         let termsActivated = validationPass.activated
@@ -237,14 +230,9 @@ public enum ConsolidateService {
         let decay: (decayed: Int, pruned: Int) = (0, 0)
         var vectorBuild: VectorBuildResult?
 
-        try scope.savepoint {
-            do {
-                vectorBuild = try scope.run(BuildVectorsTransaction())
-
-                return .commit
-            } catch {
-                return .rollback
-            }
+        switch try scope.attempt({ try scope.run(BuildVectorsTransaction()) }) {
+        case .success(let build): vectorBuild = build
+        case .failure(let error): degrade("vector_build", error)
         }
         let summary = Consolidation.IntegrateResult.Summary(
             eventsCompacted: eventsCompacted,
@@ -275,6 +263,8 @@ public enum ConsolidateService {
             "action": "integrate",
             "events_compacted": eventsCompacted
         ]
+
+        if !degradedPasses.isEmpty { tracePayload["degraded_passes"] = degradedPasses }
 
         if let data = try? JSONEncoder().encode(summary),
             let dictionary = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {

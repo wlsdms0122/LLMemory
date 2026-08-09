@@ -17,7 +17,14 @@ public enum IndexService {
         _ storage: GRDBStorage,
         rebuild: Bool = false
     ) async throws -> Indexer.BuildResult {
-        try await storage.run { scope in try scope.run(BuildIndexTransaction(rebuild: rebuild)) }
+        // The corpus scan (file I/O, parsing) runs before the lock — only the
+        // reconcile holds the write scope.
+        let scan = Indexer.scanPending()
+        let now = Int(Date().timeIntervalSince1970)
+
+        return try await storage.run { scope in
+            try scope.run(ReconcileIndexTransaction(scan: scan, rebuild: rebuild, now: now))
+        }
     }
 
     @discardableResult
@@ -25,7 +32,12 @@ public enum IndexService {
         _ storage: GRDBStorage,
         filePaths: [String]
     ) async throws -> Int {
-        try await storage.run { scope in try scope.run(ReindexNotesTransaction(filePaths: filePaths)) }
+        let outcomes = try await storage.run { scope in
+            try scope.run(ReindexNotesTransaction(filePaths: filePaths))
+        }
+
+        // Emission after the scope commits — "printed" means "committed".
+        return Indexer.ReindexOutcome.emit(outcomes)
     }
 
     public static func check(

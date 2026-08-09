@@ -82,7 +82,7 @@ struct QueryTemplate: AsyncParsableCommand {
     func run() async throws {
         let brain = Brain(home: global.home)
         
-        let (note, frame) = try await brain.query.template(id: id)
+        let (note, frame) = try await brain.query.template(id: id, cliSessionId: global.sessionId)
         let output = Output(id: note.id, axis: note.axis, path: note.path, frame: frame)
         
         render(output, json: format.json) { output in
@@ -1278,7 +1278,8 @@ struct QueryGet: AsyncParsableCommand {
         
         let (note, slices) = try await brain.query.getSections(
             id: ids[0],
-            sections: section
+            sections: section,
+            cliSessionId: global.sessionId
         )
         let output = Output(
             id: note.id,
@@ -1307,7 +1308,8 @@ struct QueryGet: AsyncParsableCommand {
         
         let (note, cut) = try await brain.query.getBudget(
             id: ids[0],
-            budget: budget
+            budget: budget,
+            cliSessionId: global.sessionId
         )
         let output = BudgetOutput(
             id: note.id,
@@ -1404,7 +1406,7 @@ struct QueryGet: AsyncParsableCommand {
     private func runToc() async throws {
         let brain = Brain(home: global.home)
         
-        let (note, entries) = try await brain.query.toc(id: ids[0])
+        let (note, entries) = try await brain.query.toc(id: ids[0], cliSessionId: global.sessionId)
         let output = TocOutput(
             id: note.id,
             axis: note.axis,

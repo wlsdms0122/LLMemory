@@ -78,6 +78,62 @@ struct NoteSourceTrackedTransaction: GRDBReadTransaction {
     // MARK: - Private
 }
 
+// Read-only union check for mark_used validation — a note counts as
+// surfaced when it appears in a derived hit *or* in a retrieval event not
+// yet succeeded into hits, so validation never needs to write.
+struct NoteSurfacedRecentlyTransaction: GRDBReadTransaction {
+    // MARK: - Property
+    let noteId: String
+    let cutoff: Int
+    let label: String?
+
+    // MARK: - Initializer
+    init(noteId: String, cutoff: Int, label: String? = nil) {
+        self.noteId = noteId
+        self.cutoff = cutoff
+        self.label = label
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> Bool {
+        if try CountSurfacedHitsTransaction(noteId: noteId, cutoff: cutoff, label: label)
+            .perform(db) > 0 {
+            return true
+        }
+
+        let rows: [Row]
+
+        if let label, !label.isEmpty {
+            rows = try Row.fetchAll(db, sql: """
+                SELECT payload FROM events
+                WHERE kind = 'retrieval' AND ts >= ? AND session_id = ?
+                """, arguments: [cutoff, label])
+        } else {
+            rows = try Row.fetchAll(db, sql: """
+                SELECT payload FROM events WHERE kind = 'retrieval' AND ts >= ?
+                """, arguments: [cutoff])
+        }
+
+        for row in rows {
+            guard let raw = row["payload"] as String?,
+                let data = raw.data(using: .utf8),
+                let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else {
+                continue
+            }
+
+            let surfaced = (payload["hit_ids"] as? [String] ?? [])
+                + (payload["expand_ids"] as? [String] ?? [])
+
+            if surfaced.contains(noteId) { return true }
+        }
+
+        return false
+    }
+
+    // MARK: - Private
+}
+
 struct CountSurfacedHitsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String

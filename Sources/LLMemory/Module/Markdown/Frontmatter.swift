@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct FrontmatterDoc: Equatable, Encodable {
+struct FrontmatterDoc: Equatable, Encodable, Sendable {
     private struct DynamicKey: CodingKey {
         // MARK: - Property
         let stringValue: String
