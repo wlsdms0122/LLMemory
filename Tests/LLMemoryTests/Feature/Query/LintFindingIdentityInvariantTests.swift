@@ -77,7 +77,7 @@ struct LintFindingIdentityInvariantTests {
         #expect(result.status == "ok", "setup: \(result.error)")
         
         // When
-        let issues = try home.read { database in try Lint.lintAll(database) }
+        let issues = try home.read { database in try Lint.lintAll(GRDBReadScope(database)) }
         
         // Then
         #expect(issues.contains { issue in issue.target.subject == "identity-3" },
@@ -124,10 +124,10 @@ struct LintFindingIdentityInvariantTests {
     func duplicateCorpusIdentitiesAreReportedNotFatal() throws {
         // When
         let collided = try home.read { database in
-            try Lint.lintAll(database, corpusRules: [CollidingCorpusRule()])
+            try Lint.lintAll(GRDBReadScope(database), corpusRules: [CollidingCorpusRule()])
         }
         let clean = try home.read { database in
-            try Lint.lintAll(database, corpusRules: [DistinctCorpusRule()])
+            try Lint.lintAll(GRDBReadScope(database), corpusRules: [DistinctCorpusRule()])
         }
         
         // Then
@@ -153,7 +153,7 @@ struct LintFindingIdentityInvariantTests {
         }
         
         // When
-        let issues = try home.read { database in try Lint.lintAll(database) }
+        let issues = try home.read { database in try Lint.lintAll(GRDBReadScope(database)) }
         
         // Then
         #expect(issues.filter { issue in issue.code == "unknown-field" }.count == 2,

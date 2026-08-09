@@ -32,11 +32,12 @@ public struct Container: Sendable {
         let retrieval = RetrievalService(storage: storage)
         let genome = GenomeService(storage: storage, retrieval: retrieval)
         let ruleset = RulesetService(storage: storage)
+        let lint = LintService(storage: storage)
 
         self.retrieval = retrieval
         self.notes = NotesService(storage: storage, retrieval: retrieval)
         self.stats = StatsService(storage: storage)
-        self.lint = LintService(storage: storage)
+        self.lint = lint
         self.enrichment = EnrichmentService(storage: storage)
         self.consolidate = ConsolidateService(storage: storage, genome: genome)
         self.index = IndexService(storage: storage)
@@ -44,7 +45,7 @@ public struct Container: Sendable {
         self.ruleset = ruleset
         self.operations = OperationsService(
             storage: storage,
-            engine: OperationsEngine(genome: genome, ruleset: ruleset)
+            engine: OperationsEngine(genome: genome, ruleset: ruleset, lint: lint)
         )
     }
 

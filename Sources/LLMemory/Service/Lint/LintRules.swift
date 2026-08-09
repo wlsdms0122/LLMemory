@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import GRDB
 
 private let kebabIdRegex = try! NSRegularExpression(pattern: #"^[a-z0-9][a-z0-9-]*$"#)
 private let hangulRegex = try! NSRegularExpression(pattern: #"[가-힣]"#)
@@ -16,11 +15,11 @@ protocol NoteLintRule: LintRuleMeta {
 }
 
 protocol NoteDBLintRule: LintRuleMeta {
-    func check(_ db: Database, note: NoteLintInput) throws -> [LintEngine.Finding]
+    func check(_ scope: GRDBReadScope, note: NoteLintInput) throws -> [LintEngine.Finding]
 }
 
 protocol CorpusDBLintRule: LintRuleMeta {
-    func check(_ db: Database) throws -> [LintEngine.Finding]
+    func check(_ scope: GRDBReadScope) throws -> [LintEngine.Finding]
 }
 
 struct NoteLintInput {
@@ -157,24 +156,17 @@ enum FamilyView {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    static func families(_ db: Database) throws -> [Family] {
+    static func families(_ scope: GRDBReadScope) throws -> [Family] {
         let minFamily = Config.getInt("lint.fragment_min_family", default: 3)
-        let rows = try Row.fetchAll(db, sql: "SELECT id, axis FROM notes")
-        let allIds = Set(rows.map { row in row["id"] as String })
+        let graph = try scope.run(FetchFamilyGraphTransaction())
+        let allIds = Set(graph.notes.map { note in note.id })
         var adjacency: [String: [String]] = [:]
         
-        for row in try Row.fetchAll(
-            db,
-            sql: "SELECT src, dst FROM note_links WHERE kind = ?",
-            arguments: [Links.kindSibling]
-        ) {
-            let source: String = row["src"]
-            let destination: String = row["dst"]
+        for link in graph.siblingLinks {
+            guard allIds.contains(link.src), allIds.contains(link.dst) else { continue }
             
-            guard allIds.contains(source), allIds.contains(destination) else { continue }
-            
-            adjacency[source, default: []].append(destination)
-            adjacency[destination, default: []].append(source)
+            adjacency[link.src, default: []].append(link.dst)
+            adjacency[link.dst, default: []].append(link.src)
         }
         
         var components: [[String]] = []
@@ -204,9 +196,9 @@ enum FamilyView {
         
         var grouped: [String: [String]] = [:]
         
-        for row in rows {
-            let id: String = row["id"]
-            let axis: String = row["axis"]
+        for note in graph.notes {
+            let id = note.id
+            let axis = note.axis
             
             guard let cut = id.lastIndex(of: "-") else { continue }
             
@@ -252,20 +244,12 @@ enum FamilyView {
         }
     }
     
-    static func unlinkedMembers(_ db: Database, _ family: Family) throws -> [String] {
-        let deliberate = Links.deleteBlockingKinds
-        let kindPlaceholders = Array(repeating: "?", count: deliberate.count)
-            .joined(separator: ",")
+    static func unlinkedMembers(_ scope: GRDBReadScope, _ family: Family) throws -> [String] {
         let inFamily = Set(family.members).union(family.stem.map { stem in [stem] } ?? [])
         var unlinked: [String] = []
         
         for member in family.members {
-            let arguments: [DatabaseValueConvertible?] = [member, member, member]
-                + (Array(deliberate) as [DatabaseValueConvertible?])
-            let neighbours = try String.fetchAll(db, sql: """
-                SELECT CASE WHEN src = ? THEN dst ELSE src END AS other FROM note_links
-                WHERE (src = ? OR dst = ?) AND kind IN (\(kindPlaceholders))
-                """, arguments: StatementArguments(arguments))
+            let neighbours = try scope.run(FetchDeliberateNeighborsTransaction(noteId: member))
             
             if neighbours.contains(where: { other in inFamily.contains(other) }) { continue }
             
@@ -910,7 +894,7 @@ struct EnrichThinRule: NoteDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ db: Database, note: NoteLintInput) throws -> [LintEngine.Finding] {
+    func check(_ scope: GRDBReadScope, note: NoteLintInput) throws -> [LintEngine.Finding] {
         let haystack = "\(note.doc.title)\n\(note.body)"
         
         guard hasHangul(haystack) else { return [] }
@@ -919,11 +903,7 @@ struct EnrichThinRule: NoteDBLintRule {
         
         guard !compounds.isEmpty else { return [] }
         
-        let active = try Int.fetchOne(
-            db,
-            sql: "SELECT COUNT(*) FROM note_retrieval_terms WHERE note_id = ? AND status = 'active'",
-            arguments: [note.nid]
-        ) ?? 0
+        let active = try scope.run(CountActiveRetrievalTermsTransaction(noteId: note.nid))
         
         guard active == 0 else { return [] }
         
@@ -971,10 +951,10 @@ struct TemplateDriftRule: NoteDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ db: Database, note: NoteLintInput) throws -> [LintEngine.Finding] {
+    func check(_ scope: GRDBReadScope, note: NoteLintInput) throws -> [LintEngine.Finding] {
         guard let templateId = note.doc.template, !templateId.isEmpty else { return [] }
         
-        guard let frame = try LoadTemplateFrameTransaction(templateId: templateId).perform(db) else {
+        guard let frame = try scope.run(LoadTemplateFrameTransaction(templateId: templateId)) else {
             return [.init("template note '\(templateId)' not found — cannot validate frame")]
         }
         
@@ -995,8 +975,8 @@ struct IsolatedNoteRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ db: Database) throws -> [LintEngine.Finding] {
-        try fragmentationRows(db)
+    func check(_ scope: GRDBReadScope) throws -> [LintEngine.Finding] {
+        try scope.run(FetchFragmentationRowsTransaction())
             .filter { row in row.linkN == 0 && row.entN == 0 && row.tagN <= 1 }
             .map { row in
                 .init("no links, no entities, ≤1 tag — orphan", target: .note(row.nid))
@@ -1013,11 +993,11 @@ struct FragmentUnlinkedRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ db: Database) throws -> [LintEngine.Finding] {
+    func check(_ scope: GRDBReadScope) throws -> [LintEngine.Finding] {
         var findings: [LintEngine.Finding] = []
         
-        for family in try FamilyView.families(db) {
-            let unlinked = try FamilyView.unlinkedMembers(db, family)
+        for family in try FamilyView.families(scope) {
+            let unlinked = try FamilyView.unlinkedMembers(scope, family)
             
             guard !unlinked.isEmpty else { continue }
             
@@ -1050,8 +1030,8 @@ struct GistMissingRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ db: Database) throws -> [LintEngine.Finding] {
-        try FamilyView.families(db).compactMap { family in
+    func check(_ scope: GRDBReadScope) throws -> [LintEngine.Finding] {
+        try FamilyView.families(scope).compactMap { family in
             guard !family.hasIndex, let stem = family.stem else { return nil }
             
             return .init(
@@ -1074,8 +1054,8 @@ struct TagOnlyAxisRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ db: Database) throws -> [LintEngine.Finding] {
-        try fragmentationRows(db)
+    func check(_ scope: GRDBReadScope) throws -> [LintEngine.Finding] {
+        try scope.run(FetchFragmentationRowsTransaction())
             .filter { row in
                 !(row.linkN == 0 && row.entN == 0 && row.tagN <= 1) && row.tagN <= 1
             }
@@ -1094,12 +1074,8 @@ struct TagNearDuplicateRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ db: Database) throws -> [LintEngine.Finding] {
-        let rows = try Row.fetchAll(db, sql: "SELECT tag, COUNT(*) c FROM tags GROUP BY tag")
-        let counts: [(tag: String, c: Int)] = rows.map { row in
-            (row["tag"], row["c"] as Int? ?? 0)
-        }
-        let axes = Set(try String.fetchAll(db, sql: "SELECT axis FROM axes"))
+    func check(_ scope: GRDBReadScope) throws -> [LintEngine.Finding] {
+        let (counts, axes) = try scope.run(FetchTagUsageTransaction())
         var findings: [LintEngine.Finding] = []
         
         for leftIndex in 0..<counts.count {
@@ -1137,18 +1113,6 @@ struct TagNearDuplicateRule: CorpusDBLintRule {
         return findings
     }
     
-    // MARK: - Private
-}
-
-private struct FragmentationRow {
-    // MARK: - Property
-    let nid: String
-    let linkN: Int
-    let entN: Int
-    let tagN: Int
-    
-    // MARK: - Initializer
-    // MARK: - Public
     // MARK: - Private
 }
 
@@ -1205,22 +1169,3 @@ private func hasHangul(_ text: String) -> Bool {
     ) != nil
 }
 
-private func fragmentationRows(_ db: Database) throws -> [FragmentationRow] {
-    try Row.fetchAll(db, sql: """
-        SELECT n.id, n.priority,
-               (SELECT COUNT(*) FROM note_links l
-                  JOIN notes o ON o.id = CASE WHEN l.src = n.id THEN l.dst ELSE l.src END
-                 WHERE (l.src = n.id OR l.dst = n.id)) AS link_n,
-               (SELECT COUNT(*) FROM entity_index WHERE note_id = n.id) AS ent_n,
-               (SELECT COUNT(*) FROM tags WHERE note_id = n.id) AS tag_n
-        FROM notes n
-        WHERE \(Policy.notEager())
-        """).map { row in
-        FragmentationRow(
-            nid: row["id"],
-            linkN: row["link_n"] as Int? ?? 0,
-            entN: row["ent_n"] as Int? ?? 0,
-            tagN: row["tag_n"] as Int? ?? 0
-        )
-    }
-}

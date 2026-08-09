@@ -302,7 +302,7 @@ struct DismissalsTests {
         
         // When
         let untargeted = try home.read { database in
-            try Lint.lintAll(database).filter { issue in issue.code == "lint-rule-untargeted" }
+            try Lint.lintAll(GRDBReadScope(database)).filter { issue in issue.code == "lint-rule-untargeted" }
         }
         
         // Then
@@ -379,8 +379,8 @@ struct DismissalsTests {
     
     private func lintIssues(code: String, includeDismissed: Bool = false) throws -> [Lint.Issue] {
         try home.read { database in
-            let all = try Lint.lintAll(database)
-            let visible = includeDismissed ? all : try Lint.suppressDismissed(database, all)
+            let all = try Lint.lintAll(GRDBReadScope(database))
+            let visible = includeDismissed ? all : try Lint.suppressDismissed(GRDBReadScope(database), all)
             
             return visible.filter { issue in issue.code == code }
         }

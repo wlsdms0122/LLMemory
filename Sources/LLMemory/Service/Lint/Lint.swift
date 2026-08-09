@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import GRDB
 
 public enum Lint {
     public struct Issue: Encodable, Sendable {
@@ -86,23 +85,23 @@ public enum Lint {
         return rules.sorted { lhs, rhs in (lhs.severity, lhs.code) < (rhs.severity, rhs.code) }
     }
     
-    static func lintNote(_ db: Database, nid: String) throws -> [Issue] {
-        checked(try lintNote(db, nid: nid, index: corpusIndex(db)))
+    static func lintNote(_ scope: GRDBReadScope, nid: String) throws -> [Issue] {
+        checked(try lintNote(scope, nid: nid, index: scope.run(FetchLintCorpusIndexTransaction())))
     }
     
     static func lintAll(
-        _ db: Database,
+        _ scope: GRDBReadScope,
         corpusRules: [any CorpusDBLintRule] = LintRules.corpusDBRules
     ) throws -> [Issue] {
-        let index = try corpusIndex(db)
+        let index = try scope.run(FetchLintCorpusIndexTransaction())
         var issues: [Issue] = []
         
         for nid in index.ids.sorted() {
-            issues.append(contentsOf: try lintNote(db, nid: nid, index: index))
+            issues.append(contentsOf: try lintNote(scope, nid: nid, index: index))
         }
         
         for rule in corpusRules {
-            issues.append(contentsOf: try rule.check(db).map { finding in
+            issues.append(contentsOf: try rule.check(scope).map { finding in
                 corpusIssue(code: rule.code, severity: rule.severity.rawValue, finding)
             })
         }
@@ -130,12 +129,12 @@ public enum Lint {
         return Issue(severity, code, finding.message, target, key: finding.key)
     }
     
-    static func suppressDismissed(_ db: Database, _ issues: [Issue]) throws -> [Issue] {
-        let dismissals = try FetchLintDismissalsTransaction().perform(db)
+    static func suppressDismissed(_ scope: GRDBReadScope, _ issues: [Issue]) throws -> [Issue] {
+        let dismissals = try scope.run(FetchLintDismissalsTransaction())
         
         if dismissals.isEmpty { return issues }
         
-        let generation = try FetchCandidateGenerationTransaction().perform(db)
+        let generation = try scope.run(FetchCandidateGenerationTransaction())
         var shapes: [String: (words: Int, sections: Int)] = [:]
         
         return try issues.filter { issue in
@@ -156,15 +155,7 @@ public enum Lint {
             
             case .note(let nid):
                 if shapes[nid] == nil {
-                    let row = try Row.fetchOne(
-                        db,
-                        sql: "SELECT word_count, section_count FROM notes WHERE id = ?",
-                        arguments: [nid]
-                    )
-                    shapes[nid] = (
-                        row?["word_count"] as Int? ?? 0,
-                        row?["section_count"] as Int? ?? 0
-                    )
+                    shapes[nid] = try scope.run(FetchNoteShapeTransaction(nid: nid))
                 }
                 
                 let shape = shapes[nid]!
@@ -211,36 +202,17 @@ public enum Lint {
     }
     
     // MARK: - Private
-    private static func corpusIndex(_ db: Database) throws -> LintCorpusIndex {
-        var aliases: [String: String] = [:]
-        
-        for row in try Row.fetchAll(db, sql: "SELECT alias, canonical FROM tag_aliases") {
-            aliases[row["alias"]] = row["canonical"]
-        }
-        
-        return LintCorpusIndex(
-            ids: Set(try String.fetchAll(db, sql: "SELECT id FROM notes")),
-            tagAliases: aliases
-        )
-    }
-    
     private static func lintNote(
-        _ db: Database,
+        _ scope: GRDBReadScope,
         nid: String,
         index: LintCorpusIndex
     ) throws -> [Issue] {
-        let row = try Row.fetchOne(
-            db,
-            sql: "SELECT path, axis FROM notes WHERE id = ?",
-            arguments: [nid]
-        )
-        
-        guard let row else {
+        guard let header = try scope.run(FetchNoteLintHeaderTransaction(nid: nid)) else {
             return [Issue("error", "missing", "note not in db: \(nid)", .note(nid))]
         }
         
-        let relativePath: String = row["path"]
-        let axis: String = row["axis"]
+        let relativePath = header.path
+        let axis = header.axis
         let path = Paths.brainRoot.appendingPathComponent(relativePath)
         
         if !FileManager.default.fileExists(atPath: path.path) {
@@ -290,7 +262,7 @@ public enum Lint {
         }
         
         for rule in LintRules.noteDBRules {
-            issues.append(contentsOf: try rule.check(db, note: note).map { finding in
+            issues.append(contentsOf: try rule.check(scope, note: note).map { finding in
                 Issue(
                     rule.severity.rawValue,
                     rule.code,
