@@ -158,23 +158,6 @@ public struct GenomeService: Sendable {
     }
 
     // MARK: - Internal
-    // Catalog mapping only — no rewarm, no connection gate. The gated,
-    // rewarming read is the public async `list`.
-    func catalogRows() -> [ListRow] {
-        Genes.catalog.map { gene in
-            ListRow(
-                id: gene.id,
-                value: Genes.double(gene.id),
-                wildType: gene.wildType,
-                min: gene.min,
-                max: gene.max,
-                mutable: gene.mutable,
-                source: Genes.source(gene.id),
-                summary: gene.summary
-            )
-        }
-    }
-
     func history(
         _ scope: GRDBReadScope,
         gene: String?,
@@ -192,7 +175,6 @@ public struct GenomeService: Sendable {
                 )
             }
     }
-
 
     // Offline reranking — replays the logged retrieval queries against the
     // current corpus under a candidate gene value. The override lives only in
@@ -350,4 +332,20 @@ public struct GenomeService: Sendable {
     }
 
     // MARK: - Private
+    // Catalog mapping only — no rewarm, no connection gate. The gated,
+    // rewarming read (the public async `list`) is the one entry point.
+    private func catalogRows() -> [ListRow] {
+        Genes.catalog.map { gene in
+            ListRow(
+                id: gene.id,
+                value: Genes.double(gene.id),
+                wildType: gene.wildType,
+                min: gene.min,
+                max: gene.max,
+                mutable: gene.mutable,
+                source: Genes.source(gene.id),
+                summary: gene.summary
+            )
+        }
+    }
 }

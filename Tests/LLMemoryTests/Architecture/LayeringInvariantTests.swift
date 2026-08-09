@@ -152,11 +152,9 @@ struct LayeringInvariantTests {
         // carry one. The engine counts too: it is a service collaborator,
         // not a global.
         let construction = try! NSRegularExpression(
-            pattern: #"\b\w+Service\(|\bOperationsEngine\(|\bServices\("#
+            pattern: #"\b\w+Service\(|\bOperationsEngine\("#
         )
-        // Services.swift assembles the services; Brain.swift assembles the
-        // container itself — the two halves of the composition root.
-        let allowed = ["Services.swift", "Brain.swift"]
+        let allowed = ["Services.swift"]
         let violations = sources
             .filter { file in !allowed.contains(file.url.lastPathComponent) }
             .flatMap { file in
@@ -175,6 +173,34 @@ struct LayeringInvariantTests {
             service constructed outside the container — instances are wired \
             once at the composition root and injected; nothing assembles its \
             own collaborator:
+            \(violations.joined(separator: "\n"))
+            """)
+    }
+
+    // A separate invariant with its own exception — folding this into the
+    // service scan would exempt the composition root from that scan too.
+    @Test("the container is assembled by the composition root alone")
+    func containerAssemblyStaysInCompositionRoot() {
+        // When
+        let assembly = try! NSRegularExpression(pattern: #"\bServices\("#)
+        let allowed = ["Brain.swift"]
+        let violations = sources
+            .filter { file in !allowed.contains(file.url.lastPathComponent) }
+            .flatMap { file in
+                file.codeLines()
+                    .filter { _, text in
+                        assembly.firstMatch(
+                            in: text,
+                            range: NSRange(text.startIndex..., in: text)
+                        ) != nil
+                    }
+                    .map { number, _ in file.location(number) }
+            }
+
+        // Then
+        #expect(violations.isEmpty, """
+            container assembled outside the composition root — Brain owns the \
+            one production assembly; fixtures build theirs in the test target:
             \(violations.joined(separator: "\n"))
             """)
     }
