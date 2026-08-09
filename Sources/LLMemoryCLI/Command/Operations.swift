@@ -20,7 +20,7 @@ struct OperationsCommand: ParsableCommand {
             and rolls back DB and files on any failure. No direct file or row edits.
 
             SEE ALSO
-                ops apply, ops vocab, ops describe
+                operations apply, operations vocab, operations describe
             """,
         subcommands: [OperationsApply.self, OperationsDryRun.self, OperationsVocab.self, OperationsDescribe.self]
     )
@@ -57,7 +57,7 @@ struct OperationsApply: AsyncParsableCommand {
                 llmemory operations apply --home brain --input "$(cat plan.json)"
 
             SEE ALSO
-                ops dry-run, ops vocab, ops describe
+                operations dry-run, operations vocab, operations describe
             """
     )
     
@@ -106,7 +106,7 @@ struct OperationsDryRun: AsyncParsableCommand {
                 llmemory operations dry-run --home brain --json '<payload>'
 
             SEE ALSO
-                ops apply
+                operations apply
             """
     )
     
@@ -177,7 +177,7 @@ struct OperationsVocab: ParsableCommand {
                 llmemory operations vocab --verbose --home brain
 
             SEE ALSO
-                ops describe
+                operations describe
             """
     )
     
@@ -251,7 +251,7 @@ struct OperationsDescribe: ParsableCommand {
                 llmemory operations describe patch_section --json --home brain
 
             SEE ALSO
-                ops apply, ops vocab
+                operations apply, operations vocab
             """
     )
     

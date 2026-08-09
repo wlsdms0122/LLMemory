@@ -28,7 +28,7 @@ struct GenomeCommand: ParsableCommand {
 
             SEE ALSO
                 genome list, genome history, genome shadow
-                consolidate homeostasis, ops describe set_gene
+                consolidate homeostasis, operations describe set_gene
             """,
         subcommands: [GenomeList.self, GenomeHistory.self, GenomeShadow.self]
     )

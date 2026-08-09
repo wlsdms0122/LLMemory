@@ -33,10 +33,12 @@ public enum NotesService {
     public static func getSections(
         _ storage: GRDBStorage,
         id: String,
-        sections: [String]
+        sections: [String],
+        cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice]) {
+        let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
-            try getSections(scope, id: id, sections: sections)
+            try getSections(scope, id: id, sections: sections, sessionId: sessionId)
         }
 
         try await RetrievalService.applyRecord(storage, outcome.record)
@@ -47,10 +49,12 @@ public enum NotesService {
     public static func getBudget(
         _ storage: GRDBStorage,
         id: String,
-        budget: Int
+        budget: Int,
+        cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, cut: Reads.BudgetCut) {
+        let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
-            try getBudget(scope, id: id, budget: budget)
+            try getBudget(scope, id: id, budget: budget, sessionId: sessionId)
         }
 
         try await RetrievalService.applyRecord(storage, outcome.record)
@@ -60,9 +64,11 @@ public enum NotesService {
 
     public static func toc(
         _ storage: GRDBStorage,
-        id: String
+        id: String,
+        cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, entries: [Reads.TocEntry]) {
-        let outcome = try await storage.read { scope in try toc(scope, id: id) }
+        let sessionId = Env.retrievalSession(cli: cliSessionId)
+        let outcome = try await storage.read { scope in try toc(scope, id: id, sessionId: sessionId) }
 
         try await RetrievalService.applyRecord(storage, outcome.record)
 
@@ -71,9 +77,11 @@ public enum NotesService {
 
     public static func template(
         _ storage: GRDBStorage,
-        id: String
+        id: String,
+        cliSessionId: String = ""
     ) async throws -> (note: Reads.GetNote, frame: [Template.FrameNode]) {
-        let outcome = try await storage.read { scope in try template(scope, id: id) }
+        let sessionId = Env.retrievalSession(cli: cliSessionId)
+        let outcome = try await storage.read { scope in try template(scope, id: id, sessionId: sessionId) }
 
         try await RetrievalService.applyRecord(storage, outcome.record)
 
@@ -152,10 +160,12 @@ public enum NotesService {
     }
 
     // MARK: - Internal
+    // sessionId is required on purpose — a caller that forgets it loses the
+    // event's session attribution silently, so the omission must not compile.
     static func get(
         _ scope: GRDBReadScope,
         ids: [String],
-        sessionId: String? = nil
+        sessionId: String?
     ) throws -> (found: [Reads.GetNote], missing: [String], record: RetrievalRecord?) {
         let byId = try scope.run(FetchNoteCatalogTransaction(ids: ids))
         var found: [Reads.GetNote] = []
@@ -199,9 +209,10 @@ public enum NotesService {
     static func getSections(
         _ scope: GRDBReadScope,
         id: String,
-        sections: [String]
+        sections: [String],
+        sessionId: String? = nil
     ) throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice], record: RetrievalRecord?) {
-        let (found, missing, record) = try get(scope, ids: [id])
+        let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -222,9 +233,10 @@ public enum NotesService {
     static func getBudget(
         _ scope: GRDBReadScope,
         id: String,
-        budget: Int
+        budget: Int,
+        sessionId: String? = nil
     ) throws -> (note: Reads.GetNote, record: RetrievalRecord?, cut: Reads.BudgetCut) {
-        let (found, missing, record) = try get(scope, ids: [id])
+        let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -235,9 +247,10 @@ public enum NotesService {
 
     static func toc(
         _ scope: GRDBReadScope,
-        id: String
+        id: String,
+        sessionId: String? = nil
     ) throws -> (note: Reads.GetNote, entries: [Reads.TocEntry], record: RetrievalRecord?) {
-        let (found, missing, record) = try get(scope, ids: [id])
+        let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -253,9 +266,10 @@ public enum NotesService {
 
     static func template(
         _ scope: GRDBReadScope,
-        id: String
+        id: String,
+        sessionId: String? = nil
     ) throws -> (note: Reads.GetNote, frame: [Template.FrameNode], record: RetrievalRecord?) {
-        let (found, missing, record) = try get(scope, ids: [id])
+        let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
