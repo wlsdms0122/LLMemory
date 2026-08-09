@@ -142,7 +142,7 @@ public enum HandlersBasic {
             try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
             
             if let axisDescription = op["axis_description"] as? String, !axisDescription.isEmpty {
-                try Vocab.ensureAxis(db, axis: axis, description: axisDescription, now: now)
+                try EnsureAxisTransaction(axis: axis, description: axisDescription, now: now).perform(db)
             }
             
             try Notes.reindexFile(db, path: path)
@@ -526,12 +526,11 @@ public enum HandlersBasic {
             
             let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(100)
             
-            _ = try Ripple.flagInboundReferrers(
-                db,
+            _ = try FlagInboundReferrersTransaction(
                 targetId: noteId,
                 reason: "invalidated: \(reasonShort)",
                 now: now
-            )
+            ).perform(db)
             
             return ["status": "ok", "path": path.path, "ids": [noteId], "note": "invalidated"]
         },
@@ -689,13 +688,12 @@ public enum HandlersBasic {
         write: { op, db in
             let now = Int(Date().timeIntervalSince1970)
             
-            try Ripple.addFlag(
-                db,
+            try AddRippleFlagTransaction(
                 noteId: op["id"] as! String,
                 kind: op["kind"] as! String,
                 reason: op["reason"] as? String ?? "",
                 now: now
-            )
+            ).perform(db)
             
             return ["status": "ok", "ids": [op["id"]!], "note": "flagged \(op["kind"]!)"]
         },
@@ -722,13 +720,12 @@ public enum HandlersBasic {
         },
         write: { op, db in
             let now = Int(Date().timeIntervalSince1970)
-            let resolved = try Ripple.resolve(
-                db,
+            let resolved = try ResolveRippleFlagTransaction(
                 noteId: op["id"] as! String,
                 kind: op["kind"] as! String,
                 reason: op["reason"] as? String,
                 now: now
-            )
+            ).perform(db)
             
             return [
                 "status": "ok",
@@ -925,7 +922,7 @@ public enum HandlersBasic {
             
             for id in ids {
                 if try surfacedCount(id) == 0 {
-                    _ = try? Activation.deriveWindows(db, now: now)
+                    _ = try? DeriveActivityWindowsTransaction(now: now).perform(db)
                     
                     if try surfacedCount(id) == 0 {
                         return "note '\(id)' was not surfaced in any recent activity window"
@@ -940,13 +937,13 @@ public enum HandlersBasic {
         write: { op, db in
             let ids = (op["ids"] as! [Any]).compactMap { value in value as? String }
             let now = Int(Date().timeIntervalSince1970)
-            let outcomes = try Activation.markUsed(
-                db,
+            let outcomes = try MarkNotesUsedTransaction(
                 ids: ids,
                 response: op["response"] as? String,
                 sessionLabel: Env.retrievalSession(cli: nil),
                 now: now
             )
+                .perform(db)
             let marked = outcomes.filter { outcome in outcome.matched }
             let failed = outcomes.filter { outcome in !outcome.matched }
             var note = "marked \(marked.count) note(s) used"

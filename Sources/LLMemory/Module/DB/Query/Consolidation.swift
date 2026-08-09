@@ -262,7 +262,7 @@ public enum Consolidation {
     }
 
     public static func pruneEmptyAxes(_ db: Database) throws -> (pruned: [String], count: Int) {
-        let pruned = try Vocab.pruneEmptyAxes(db)
+        let pruned = try PruneEmptyAxesTransaction().perform(db)
         
         return (pruned, pruned.count)
     }
@@ -270,7 +270,7 @@ public enum Consolidation {
     public static func pruneUnusedVocabTags(
         _ db: Database
     ) throws -> (pruned: [String], count: Int) {
-        let pruned = try Vocab.pruneUnusedVocabTags(db)
+        let pruned = try PruneUnusedVocabTagsTransaction().perform(db)
         
         return (pruned, pruned.count)
     }
@@ -482,7 +482,7 @@ public enum Consolidation {
         var reviewPass = EnrichmentReview.ReviewPass()
         
         try queue.write { db in
-            _ = try Activation.deriveWindows(db, now: now)
+            _ = try DeriveActivityWindowsTransaction(now: now).perform(db)
             
             eventsCompacted = try compactOldEvents(
                 db,

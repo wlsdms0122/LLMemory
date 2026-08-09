@@ -51,7 +51,7 @@ struct VocabPruneTests {
 
         // When
         let result = try home.database().write { database in
-            try Vocab.pruneEmptyAxes(database, protected: ["keepaxis"])
+            try PruneEmptyAxesTransaction(protected: ["keepaxis"]).perform(database)
         }
 
         // Then

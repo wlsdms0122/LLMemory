@@ -49,7 +49,7 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: base + 90_000, sessionId: "task-a", hitIds: ["n2"])
         
         // When
-            let result = try Activation.deriveWindows(database, now: base + 100_000)
+            let result = try DeriveActivityWindowsTransaction(now: base + 100_000).perform(database)
         
         // Then
             #expect(result.eventsConsumed == 5)
@@ -77,12 +77,12 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: 2_000_000, sessionId: nil, hitIds: ["n1"])
         
         // When
-            let first = try Activation.deriveWindows(database, now: 2_000_100)
+            let first = try DeriveActivityWindowsTransaction(now: 2_000_100).perform(database)
         
         // Then
             #expect(first.eventsConsumed == 1)
             
-            let second = try Activation.deriveWindows(database, now: 2_000_200)
+            let second = try DeriveActivityWindowsTransaction(now: 2_000_200).perform(database)
             
             #expect(second.eventsConsumed == 0)
             
@@ -130,7 +130,7 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: now - 60, sessionId: nil,
                 hitIds: ["transfer-flow", "unrelated-note"])
             
-            _ = try Activation.deriveWindows(database, now: now)
+            _ = try DeriveActivityWindowsTransaction(now: now).perform(database)
         }
         
         // When
@@ -184,18 +184,18 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: now - 10, sessionId: "turn-1:capture",
                 hitIds: ["snapshot-only-note"])
             
-            _ = try Activation.deriveWindows(database, now: now)
+            _ = try DeriveActivityWindowsTransaction(now: now).perform(database)
         
         // When
             // A labeled mark attaches to the window with that label, and to no other.
-            let ok = try Activation.markUsed(database, ids: ["answer-note"], response: nil,
-                sessionLabel: "turn-1", now: now)
+            let ok = try MarkNotesUsedTransaction(ids: ["answer-note"], response: nil,
+                sessionLabel: "turn-1", now: now).perform(database)
         
         // Then
             #expect(ok.first?.signal == "reported")
             #expect(throws: Activation.UsedError.self) {
-                _ = try Activation.markUsed(database, ids: ["snapshot-only-note"], response: nil,
-                    sessionLabel: "turn-1", now: now)
+                _ = try MarkNotesUsedTransaction(ids: ["snapshot-only-note"], response: nil,
+                    sessionLabel: "turn-1", now: now).perform(database)
             }
         }
     }
@@ -210,11 +210,11 @@ struct ActivationTests {
         try home.database().write { database in
             try recordRetrieval(database, timestamp: now - 30, sessionId: "w1", hitIds: ["n1"])
             
-            _ = try Activation.deriveWindows(database, now: now)
+            _ = try DeriveActivityWindowsTransaction(now: now).perform(database)
         }
         
         // When
-        let stats = try home.read { database in try Stats.overall(database) }
+        let stats = try home.read { database in try OverallStatsTransaction().perform(database) }
         
         // Then
         #expect(stats.activation.windows == 1)

@@ -308,7 +308,7 @@ public extension Reads {
         // MARK: - Property
         public let axes: [(axis: String, description: String?, count: Int)]
         public let distribution: Links.Distribution
-        public let axisStats: Stats.AxisStats?
+        public let axisStats: AxisStats?
         
         // MARK: - Initializer
         // MARK: - Public

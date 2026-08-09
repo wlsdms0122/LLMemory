@@ -33,7 +33,7 @@ struct RippleTests {
         
         // When
         let flagged = try home.database().write { database in
-            try Ripple.flagInboundReferrers(database, targetId: "tmp-ripple-a", reason: "test", now: home.now)
+            try FlagInboundReferrersTransaction(targetId: "tmp-ripple-a", reason: "test", now: home.now).perform(database)
         }
         
         // Then
@@ -112,7 +112,7 @@ struct RippleTests {
     
     private func flagReferrers(of noteId: String) throws {
         _ = try home.database().write { database in
-            try Ripple.flagInboundReferrers(database, targetId: noteId, reason: "test", now: home.now)
+            try FlagInboundReferrersTransaction(targetId: noteId, reason: "test", now: home.now).perform(database)
         }
     }
     

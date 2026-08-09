@@ -122,7 +122,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try Activation.deriveWindows(database, now: home.now)
+            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
             // When
             let report = try Homeostasis.tick(database, now: home.now)
@@ -169,7 +169,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try Activation.deriveWindows(database, now: home.now)
+            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
             // When
             let report = try Homeostasis.tick(database, now: home.now)
@@ -206,7 +206,7 @@ struct GenomeTests {
                 try recordRetrieval(database, timestamp: timestamp + 30, hitIds: ["landed-expand"], command: "get")
             }
             
-            _ = try Activation.deriveWindows(database, now: home.now)
+            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
             // When
             let report = try Homeostasis.tick(database, now: home.now)
@@ -226,7 +226,7 @@ struct GenomeTests {
                 try recordRetrieval(database, timestamp: timestamp + 30, hitIds: ["landed-expand"], command: "get")
             }
             
-            _ = try Activation.deriveWindows(database, now: home.now)
+            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
             let report = try Homeostasis.tick(database, now: home.now)
             
@@ -257,7 +257,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try Activation.deriveWindows(database, now: home.now)
+            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
             // When — below the minimum sample.
             let first = try Homeostasis.tick(database, now: home.now)
@@ -276,7 +276,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try Activation.deriveWindows(database, now: home.now)
+            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database)
             
             let second = try Homeostasis.tick(database, now: home.now)
             
@@ -305,14 +305,14 @@ struct GenomeTests {
         try home.database().write { database in
             try recordRetrieval(database, timestamp: 3_000_000, hitIds: ["n1"])
             
-            _ = try Activation.deriveWindows(database, now: 3_000_100)
+            _ = try DeriveActivityWindowsTransaction(now: 3_000_100).perform(database)
         }
         
         // When — the cache is rewound the way a second process would see it.
         Config.cacheOverrideForTesting("activation.derive_watermark", value: "0")
         
         try home.database().write { database in
-            let result = try Activation.deriveWindows(database, now: 3_000_200)
+            let result = try DeriveActivityWindowsTransaction(now: 3_000_200).perform(database)
             
             // Then
             #expect(result.eventsConsumed == 0, "the cursor is read from the row, not from the cache")

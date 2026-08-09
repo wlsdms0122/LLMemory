@@ -239,19 +239,19 @@ public enum QueryService {
     public static func noteStats(
         _ storage: GRDBStorage,
         id: String
-    ) async throws -> Stats.NoteStats? {
-        try await storage.run(NoteStatsTransaction(.init(id: id)))
+    ) async throws -> NoteStats? {
+        try await storage.read { scope in try scope.run(NoteStatsTransaction(id: id)) }
     }
 
     public static func axisStats(
         _ storage: GRDBStorage,
         axis: String
-    ) async throws -> Stats.AxisStats {
-        try await storage.run(AxisStatsTransaction(.init(axis: axis)))
+    ) async throws -> AxisStats {
+        try await storage.read { scope in try scope.run(AxisStatsTransaction(axis: axis)) }
     }
 
-    public static func overallStats(_ storage: GRDBStorage) async throws -> Stats.OverallStats {
-        try await storage.run(OverallStatsTransaction())
+    public static func overallStats(_ storage: GRDBStorage) async throws -> OverallStats {
+        try await storage.read { scope in try scope.run(OverallStatsTransaction()) }
     }
 
     public static func list(

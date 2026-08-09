@@ -273,7 +273,7 @@ public enum Handlers {
     public static func existingState(_ db: Database) throws -> ExistingState {
         ExistingState(
             ids: try Notes.existingIds(db),
-            axes: try Vocab.listAxesNames(db)
+            axes: try FetchAxisNamesTransaction().perform(db)
         )
     }
     

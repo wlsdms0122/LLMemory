@@ -24,7 +24,7 @@ public struct HomeostasisTransaction: LegacyWriteTransaction {
         var report: Homeostasis.Report!
 
         try connection.write { db in
-            _ = try Activation.deriveWindows(db, now: now)
+            _ = try DeriveActivityWindowsTransaction(now: now).perform(db)
             report = try Homeostasis.tick(db, now: now)
         }
 

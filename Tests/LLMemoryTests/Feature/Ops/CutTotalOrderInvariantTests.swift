@@ -129,7 +129,7 @@ struct CutTotalOrderInvariantTests {
         try seedTags(ids: ids) { offset in ["hub", "x\(offset + 1)"] }
         
         // When
-        let pairs = try home.read { database in try Vocab.cooccurFor(database, tags: ["hub"], limit: 3) }
+        let pairs = try home.read { database in try FetchTagCooccurrenceTransaction(tags: ["hub"], limit: 3).perform(database) }
         
         // Then
         #expect(pairs.map { pair in "\(pair.tagA)|\(pair.tagB)" } == ["hub|x1", "hub|x2", "hub|x3"])

@@ -52,7 +52,7 @@ final class MemoryHome: BrainHome, @unchecked Sendable {
             // having to carry an axis_description.
             try session.storage.connect().write { database in
                 for axis in ["flow", "tech", "persona", "repo", "env", "journal"] {
-                    try Vocab.ensureAxis(database, axis: axis, description: "(test axis)", now: now)
+                    try EnsureAxisTransaction(axis: axis, description: "(test axis)", now: now).perform(database)
                 }
             }
             

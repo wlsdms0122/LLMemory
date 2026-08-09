@@ -77,7 +77,7 @@ enum Notes {
         let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
         let mtime = Int((attributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)
         
-        try Vocab.ensureAxis(db, axis: axis, now: now)
+        try EnsureAxisTransaction(axis: axis, now: now).perform(db)
         
         let staleFlag = fields.stale ? 1 : 0
         let templateValue = fields.template.flatMap { value in value.isEmpty ? nil : value }
@@ -120,9 +120,9 @@ enum Notes {
         try db.execute(sql: "DELETE FROM tags WHERE note_id = ?", arguments: [fields.id])
         
         for tag in fields.tags {
-            let canonical = try Vocab.canonicalizeTag(db, tag: tag)
+            let canonical = try CanonicalizeTagTransaction(tag: tag).perform(db)
             
-            try Vocab.ensureTag(db, tag: canonical, now: now)
+            try EnsureTagTransaction(tag: canonical, now: now).perform(db)
             try db.execute(
                 sql: "INSERT OR IGNORE INTO tags (note_id, tag) VALUES (?, ?)",
                 arguments: [fields.id, canonical]
@@ -446,7 +446,7 @@ enum Notes {
         var normalized: [String] = []
         
         for tag in doc.tags {
-            let canonical = try Vocab.canonicalizeTag(db, tag: tag)
+            let canonical = try CanonicalizeTagTransaction(tag: tag).perform(db)
             
             if seen.insert(canonical).inserted { normalized.append(canonical) }
         }

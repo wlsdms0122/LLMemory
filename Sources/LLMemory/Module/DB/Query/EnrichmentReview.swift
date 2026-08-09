@@ -88,13 +88,12 @@ public enum EnrichmentReview {
             
             if similarity < floor {
                 for noteId in [src, dst] {
-                    try Ripple.addFlag(
-                        db,
+                    try AddRippleFlagTransaction(
                         noteId: noteId,
                         kind: flagKind,
                         reason: "assoc edge \(src)↔\(dst) cosine \(String(format: "%.3f", similarity)) < floor \(String(format: "%.2f", floor))",
                         now: now
-                    )
+                    ).perform(db)
                     flagged.insert(noteId)
                 }
             }
@@ -107,13 +106,12 @@ public enum EnrichmentReview {
             """, arguments: [flagKind])
         
         for noteId in open where !flagged.contains(noteId) {
-            pass.resolved += try Ripple.resolve(
-                db,
+            pass.resolved += try ResolveRippleFlagTransaction(
                 noteId: noteId,
                 kind: flagKind,
                 reason: "disagreement cleared (cosine recovered or edge pruned)",
                 now: now
-            )
+            ).perform(db)
         }
         
         return pass

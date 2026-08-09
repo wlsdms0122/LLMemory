@@ -209,7 +209,7 @@ public enum Framing {
         tags: [String],
         limit: Int = 15
     ) throws -> [(tagA: String, tagB: String, count: Int)] {
-        try Vocab.cooccurFor(db, tags: tags, limit: limit)
+        try FetchTagCooccurrenceTransaction(tags: tags, limit: limit).perform(db)
     }
     
     static func vocab(_ db: Database) throws -> [String] {

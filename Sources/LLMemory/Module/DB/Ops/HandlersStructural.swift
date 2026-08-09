@@ -140,12 +140,11 @@ public enum HandlersStructural {
                 ])
             }
             
-            _ = try Ripple.flagInboundReferrers(
-                db,
+            _ = try FlagInboundReferrersTransaction(
                 targetId: noteId,
                 reason: "deleted \(noteId)",
                 now: now
-            )
+            ).perform(db)
             
             let trashPath = try Handlers.trashNoteFile(
                 src,
@@ -155,7 +154,7 @@ public enum HandlersStructural {
             
             try Notes.delete(db, nid: noteId)
             try DeleteNoteEntitiesTransaction(noteId: noteId).perform(db)
-            try Ripple.deleteForNote(db, noteId: noteId)
+            try DeleteNoteRippleFlagsTransaction(noteId: noteId).perform(db)
             
             let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(80)
             
@@ -204,7 +203,7 @@ public enum HandlersStructural {
                 return "description must be non-empty string"
             }
             
-            if !(try Vocab.axisExists(db, axis: axis)) { return "unknown axis: \(axis)" }
+            if !(try AxisExistsTransaction(axis: axis).perform(db)) { return "unknown axis: \(axis)" }
             
             return nil
         },
@@ -213,7 +212,7 @@ public enum HandlersStructural {
             let description = (op["description"] as! String)
                 .trimmingCharacters(in: .whitespaces)
             
-            try Vocab.setAxisDescription(db, axis: axis, description: description)
+            try SetAxisDescriptionTransaction(axis: axis, description: description).perform(db)
             
             return [
                 "status": "ok",
@@ -324,15 +323,14 @@ public enum HandlersStructural {
             try Notes.reindexFile(db, path: newPath)
             
             if newId != targetId {
-                _ = try Ripple.flagInboundReferrers(
-                    db,
+                _ = try FlagInboundReferrersTransaction(
                     targetId: targetId,
                     reason: "migrated \(targetId) -> \(newId)",
                     now: now
-                )
+                ).perform(db)
                 try NoteArtifacts.reparent(db, from: targetId, to: newId)
                 try Notes.delete(db, nid: targetId)
-                try Vocab.clearTagsForNote(db, noteId: targetId)
+                try ClearNoteTagsTransaction(noteId: targetId).perform(db)
                 
                 for hit in oldEntityHits {
                     try db.execute(
@@ -401,15 +399,15 @@ public enum HandlersStructural {
                 return "invalid to_axis format: \(toAxis)"
             }
             
-            if !(try Vocab.axisExists(db, axis: fromAxis)) {
+            if !(try AxisExistsTransaction(axis: fromAxis).perform(db)) {
                 return "unknown from_axis: \(fromAxis)"
             }
             
-            if try Vocab.axisExists(db, axis: toAxis) {
+            if try AxisExistsTransaction(axis: toAxis).perform(db) {
                 return "to_axis already exists: \(toAxis) (use migrate_note × N to merge into existing axis)"
             }
             
-            let canonical = try Vocab.canonicalizeTag(db, tag: toAxis)
+            let canonical = try CanonicalizeTagTransaction(tag: toAxis).perform(db)
             
             if canonical != toAxis && canonical != fromAxis {
                 return "to_axis '\(toAxis)' is a tag alias of '\(canonical)' — pick another name or drop the alias first"
@@ -422,7 +420,7 @@ public enum HandlersStructural {
             let toAxis = op["to_axis"] as! String
             let now = Int(Date().timeIntervalSince1970)
             let rows = try Notes.listByAxis(db, axis: fromAxis)
-            let axisRow = try Vocab.getAxis(db, axis: fromAxis)
+            let axisRow = try FetchAxisTransaction(axis: fromAxis).perform(db)
             let description = axisRow?.description?.isEmpty == false
                 ? axisRow!.description!
                 : "(auto-created)"
@@ -474,19 +472,19 @@ public enum HandlersStructural {
                 try FileManager.default.removeItem(at: oldPath)
             }
             
-            try Vocab.createAxis(db, axis: toAxis, description: description, createdAt: createdAt)
+            try CreateAxisTransaction(axis: toAxis, description: description, createdAt: createdAt).perform(db)
             
             _ = try Notes.setAxis(db, fromAxis: fromAxis, toAxis: toAxis)
             
-            try Vocab.deleteAxis(db, axis: fromAxis)
-            try Vocab.ensureTag(db, tag: toAxis, now: now)
+            try DeleteAxisTransaction(axis: fromAxis).perform(db)
+            try EnsureTagTransaction(tag: toAxis, now: now).perform(db)
             
             for (noteId, _) in rows {
-                try Vocab.replaceTagForNote(db, noteId: noteId, fromTag: fromAxis, toTag: toAxis)
+                try ReplaceNoteTagTransaction(noteId: noteId, fromTag: fromAxis, toTag: toAxis).perform(db)
             }
             
-            if !(try Vocab.tagInUse(db, tag: fromAxis)) {
-                try Vocab.retireTag(db, tag: fromAxis, successor: toAxis)
+            if !(try TagInUseTransaction(tag: fromAxis).perform(db)) {
+                try RetireTagTransaction(tag: fromAxis, successor: toAxis).perform(db)
             }
             
             for (noteId, _) in rows {
@@ -563,16 +561,16 @@ public enum HandlersStructural {
                 return "invalid to_tag format: \(toTag)"
             }
             
-            if try Vocab.axisExists(db, axis: fromTag) {
+            if try AxisExistsTransaction(axis: fromTag).perform(db) {
                 return "'\(fromTag)' is an axis name — use rename_axis instead"
             }
             
-            let exists = try Vocab.tagVocabExists(db, tag: fromTag)
-                || (try Vocab.tagInUse(db, tag: fromTag))
+            let exists = try TagVocabExistsTransaction(tag: fromTag).perform(db)
+                || (try TagInUseTransaction(tag: fromTag).perform(db))
             
             if !exists { return "unknown from_tag: \(fromTag)" }
             
-            let canonical = try Vocab.canonicalizeTag(db, tag: toTag)
+            let canonical = try CanonicalizeTagTransaction(tag: toTag).perform(db)
             
             if canonical != toTag && canonical != fromTag {
                 return "to_tag '\(toTag)' is an alias of '\(canonical)' — rename to '\(canonical)' or drop the alias first"
@@ -585,7 +583,7 @@ public enum HandlersStructural {
             let toTag = op["to_tag"] as! String
             let addAlias = (op["add_alias"] as? Bool) ?? false
             let now = Int(Date().timeIntervalSince1970)
-            let affectedIds = try Vocab.notesWithTag(db, tag: fromTag)
+            let affectedIds = try FetchNotesWithTagTransaction(tag: fromTag).perform(db)
             
             for noteId in affectedIds {
                 guard let path = try Notes.pathOf(db, nid: noteId),
@@ -622,10 +620,10 @@ public enum HandlersStructural {
                 )
             }
             
-            try Vocab.ensureTag(db, tag: toTag, now: now)
+            try EnsureTagTransaction(tag: toTag, now: now).perform(db)
             
             for noteId in affectedIds {
-                try Vocab.replaceTagForNote(db, noteId: noteId, fromTag: fromTag, toTag: toTag)
+                try ReplaceNoteTagTransaction(noteId: noteId, fromTag: fromTag, toTag: toTag).perform(db)
                 
                 guard let path = try Notes.pathOf(db, nid: noteId) else { continue }
                 
@@ -644,10 +642,10 @@ public enum HandlersStructural {
             }
             
             if addAlias {
-                try Vocab.addTagAlias(db, alias: fromTag, canonical: toTag, now: now)
+                try AddTagAliasTransaction(alias: fromTag, canonical: toTag, now: now).perform(db)
             }
             
-            try Vocab.retireTag(db, tag: fromTag, successor: toTag)
+            try RetireTagTransaction(tag: fromTag, successor: toTag).perform(db)
             
             let note = "renamed tag \(fromTag) -> \(toTag) (\(affectedIds.count) notes)"
                 + (addAlias ? " + alias" : "")
@@ -656,7 +654,7 @@ public enum HandlersStructural {
         },
         effect: { _ in [:] },
         touches: { op, db in
-            let ids = try Vocab.notesWithTag(db, tag: op["from_tag"] as! String)
+            let ids = try FetchNotesWithTagTransaction(tag: op["from_tag"] as! String).perform(db)
             
             return try ids.compactMap { noteId in try Notes.pathOf(db, nid: noteId) }
         }
@@ -1052,12 +1050,11 @@ public enum HandlersStructural {
                 try Notes.reindexFile(db, path: srcPath)
                 try Notes.stampLifecycle(db, nid: fromId, now: now, isNew: false)
             } else {
-                _ = try Ripple.flagInboundReferrers(
-                    db,
+                _ = try FlagInboundReferrersTransaction(
                     targetId: fromId,
                     reason: "split into \(newIds.joined(separator: ", "))",
                     now: now
-                )
+                ).perform(db)
                 try Notes.delete(db, nid: fromId)
                 try Handlers.trashNoteFile(
                     srcPath,
@@ -1353,12 +1350,11 @@ public enum HandlersStructural {
             try Notes.stampLifecycle(db, nid: intoId, now: now, isNew: false)
             
             for fromId in fromIds {
-                _ = try Ripple.flagInboundReferrers(
-                    db,
+                _ = try FlagInboundReferrersTransaction(
                     targetId: fromId,
                     reason: "merged into \(intoId)",
                     now: now
-                )
+                ).perform(db)
                 try Links.redirectForMerge(db, fromId: fromId, intoId: intoId)
                 try NoteArtifacts.absorbForMerge(db, from: fromId, into: intoId)
                 try Notes.delete(db, nid: fromId)

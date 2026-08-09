@@ -2035,7 +2035,7 @@ struct QueryStats: AsyncParsableCommand {
         let avgWords: Double
         let maxWords: Int
         let avgSections: Double
-        let activation: Activation.Stats
+        let activation: ActivationStats
         
         // MARK: - Initializer
         // MARK: - Public

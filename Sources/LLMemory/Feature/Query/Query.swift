@@ -137,17 +137,17 @@ public struct QueryFeature {
 
     public func noteStats(
         id: String
-    ) async throws -> Stats.NoteStats? {
+    ) async throws -> NoteStats? {
         try await QueryService.noteStats(session.storage, id: id)
     }
 
     public func axisStats(
         axis: String
-    ) async throws -> Stats.AxisStats {
+    ) async throws -> AxisStats {
         try await QueryService.axisStats(session.storage, axis: axis)
     }
 
-    public func overallStats() async throws -> Stats.OverallStats {
+    public func overallStats() async throws -> OverallStats {
         try await QueryService.overallStats(session.storage)
     }
 

@@ -98,11 +98,11 @@ public enum Seeding {
     // Gives the innate axis its real description once innate notes exist. ensureAxis only
     // replaces an empty or "(auto-created)" description, so a human edit survives.
     public static func describeInnateAxis(_ db: Database) throws {
-        try Vocab.describePopulatedAxis(
-            db,
+        try DescribePopulatedAxisTransaction(
             axis: Paths.innateAxis,
             description: innateAxisDescription
         )
+            .perform(db)
     }
 
     // MARK: - Private

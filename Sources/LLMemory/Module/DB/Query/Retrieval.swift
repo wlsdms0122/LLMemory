@@ -364,10 +364,10 @@ public enum Retrieval {
     static func structure(_ queue: any DatabaseReader, axis: String?) throws -> Reads.StructureResult {
                 let axes = try axesWithCounts(queue)
         let distribution = try Links.distribution(queue)
-        var stats: Stats.AxisStats? = nil
+        var stats: AxisStats? = nil
         
         if let axis {
-            stats = try queue.read { db in try Stats.axisStats(db, axis: axis) }
+            stats = try queue.read { db in try AxisStatsTransaction(axis: axis).perform(db) }
         }
         
         return Reads.StructureResult(axes: axes, distribution: distribution, axisStats: stats)
@@ -391,16 +391,16 @@ public enum Retrieval {
         return (scores, record)
     }
     
-        static func noteStats(_ queue: any DatabaseReader, id: String) throws -> Stats.NoteStats? {
-        return try queue.read { db in try Stats.noteStats(db, nid: id) }
+        static func noteStats(_ queue: any DatabaseReader, id: String) throws -> NoteStats? {
+        return try queue.read { db in try NoteStatsTransaction(id: id).perform(db) }
     }
     
-    static func axisStats(_ queue: any DatabaseReader, axis: String) throws -> Stats.AxisStats {
-        return try queue.read { db in try Stats.axisStats(db, axis: axis) }
+    static func axisStats(_ queue: any DatabaseReader, axis: String) throws -> AxisStats {
+        return try queue.read { db in try AxisStatsTransaction(axis: axis).perform(db) }
     }
     
-    static func overallStats(_ queue: any DatabaseReader) throws -> Stats.OverallStats {
-        return try queue.read { db in try Stats.overall(db) }
+    static func overallStats(_ queue: any DatabaseReader) throws -> OverallStats {
+        return try queue.read { db in try OverallStatsTransaction().perform(db) }
     }
     
     static func list(

@@ -1,77 +1,84 @@
 //
-//  Stats.swift
+//  StatsTransactions.swift
 //  LLMemory
 //
-//  Created by JSilver on 8/7/26.
+//  Created by JSilver on 8/9/26.
 //
 
 import Foundation
 import GRDB
 
-public enum Stats {
-    public struct NoteStats {
-        // MARK: - Property
-        public let id: String
-        public let axis: String
-        public let title: String
-        public let summary: String?
-        public let priority: String
-        public let createdAt: Int
-        public let editedAt: Int
-        public let ageDays: Int?
-        public let sinceEditDays: Int?
-        public let sinceRetrievalDays: Int?
-        public let hitCount: Int
-        public let wordCount: Int
-        public let sectionCount: Int
-        public let stale: Bool
-        public let tagCount: Int
-        public let linkCount: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    public struct AxisStats {
-        // MARK: - Property
-        public let axis: String
-        public let total: Int
-        public let stale: Int
-        public let eager: Int
-        public let avgWords: Double
-        public let maxWords: Int
-        public let avgSections: Double
-        public let totalHits: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    public struct OverallStats {
-        // MARK: - Property
-        public let total: Int
-        public let stale: Int
-        public let axes: [(axis: String, count: Int)]
-        public let hitNonZero: Int
-        public let hitZero: Int
-        public let hitAvg: Double
-        public let hitMax: Int
-        public let avgWords: Double
-        public let maxWords: Int
-        public let avgSections: Double
-        public let activation: Activation.Stats
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
+// Observation transactions — per-note, per-axis, and corpus-wide stats.
+public struct NoteStats: Sendable {
     // MARK: - Property
+    public let id: String
+    public let axis: String
+    public let title: String
+    public let summary: String?
+    public let priority: String
+    public let createdAt: Int
+    public let editedAt: Int
+    public let ageDays: Int?
+    public let sinceEditDays: Int?
+    public let sinceRetrievalDays: Int?
+    public let hitCount: Int
+    public let wordCount: Int
+    public let sectionCount: Int
+    public let stale: Bool
+    public let tagCount: Int
+    public let linkCount: Int
+
     // MARK: - Initializer
     // MARK: - Public
-    static func noteStats(_ db: Database, nid: String) throws -> NoteStats? {
+    // MARK: - Private
+}
+
+public struct AxisStats: Sendable {
+    // MARK: - Property
+    public let axis: String
+    public let total: Int
+    public let stale: Int
+    public let eager: Int
+    public let avgWords: Double
+    public let maxWords: Int
+    public let avgSections: Double
+    public let totalHits: Int
+
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct OverallStats: Sendable {
+    // MARK: - Property
+    public let total: Int
+    public let stale: Int
+    public let axes: [(axis: String, count: Int)]
+    public let hitNonZero: Int
+    public let hitZero: Int
+    public let hitAvg: Double
+    public let hitMax: Int
+    public let avgWords: Double
+    public let maxWords: Int
+    public let avgSections: Double
+    public let activation: ActivationStats
+
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+struct NoteStatsTransaction: GRDBTransaction {
+    // MARK: - Property
+    let id: String
+
+    // MARK: - Initializer
+    init(id: String) {
+        self.id = id
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> NoteStats? {
         let row = try Row.fetchOne(db, sql: """
             SELECT notes.id, axis, title, summary, priority,
                    u.created_at, edited_at, u.hit_count, u.last_retrieved_at,
@@ -80,15 +87,15 @@ public enum Stats {
                    (SELECT COUNT(*) FROM tags WHERE note_id = notes.id) AS tag_count,
                    (SELECT COUNT(*) FROM note_links WHERE src = notes.id OR dst = notes.id) AS link_count
             FROM notes LEFT JOIN note_usage u ON u.note_id = notes.id WHERE notes.id = ?
-            """, arguments: [nid])
-        
+            """, arguments: [id])
+
         guard let row else { return nil }
-        
+
         let now = Int(Date().timeIntervalSince1970)
         let created: Int = row["created_at"] as Int? ?? 0
         let edited: Int = row["edited_at"] as Int? ?? 0
         let lastRetrieved: Int = row["last_retrieved_at"] as Int? ?? 0
-        
+
         return NoteStats(
             id: row["id"],
             axis: row["axis"],
@@ -108,8 +115,21 @@ public enum Stats {
             linkCount: row["link_count"] as Int? ?? 0
         )
     }
-    
-    static func axisStats(_ db: Database, axis: String) throws -> AxisStats {
+
+    // MARK: - Private
+}
+
+struct AxisStatsTransaction: GRDBTransaction {
+    // MARK: - Property
+    let axis: String
+
+    // MARK: - Initializer
+    init(axis: String) {
+        self.axis = axis
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> AxisStats {
         let row = try Row.fetchOne(db, sql: """
             SELECT COUNT(*) AS total,
                    SUM(CASE WHEN \(Policy.stale()) THEN 1 ELSE 0 END) AS stale_count,
@@ -120,7 +140,7 @@ public enum Stats {
                    COALESCE(SUM(COALESCE(u.hit_count, 0)), 0) AS total_hits
             FROM notes n LEFT JOIN note_usage u ON u.note_id = n.id WHERE n.axis = ?
             """, arguments: [axis])!
-        
+
         return AxisStats(
             axis: axis,
             total: row["total"] as Int? ?? 0,
@@ -132,8 +152,16 @@ public enum Stats {
             totalHits: row["total_hits"] as Int? ?? 0
         )
     }
-    
-    static func overall(_ db: Database) throws -> OverallStats {
+
+    // MARK: - Private
+}
+
+struct OverallStatsTransaction: GRDBTransaction {
+    // MARK: - Initializer
+    init() { }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> OverallStats {
         let total = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM notes") ?? 0
         let stale = try Int.fetchOne(
             db,
@@ -157,7 +185,7 @@ public enum Stats {
                    COALESCE(AVG(section_count), 0) AS as_
             FROM notes
             """)!
-        
+
         return OverallStats(
             total: total,
             stale: stale,
@@ -169,9 +197,9 @@ public enum Stats {
             avgWords: round((sizeRow["aw"] as Double? ?? 0) * 10) / 10,
             maxWords: sizeRow["mw"] as Int? ?? 0,
             avgSections: round((sizeRow["as_"] as Double? ?? 0) * 10) / 10,
-            activation: try Activation.stats(db)
+            activation: try FetchActivationStatsTransaction().perform(db)
         )
     }
-    
+
     // MARK: - Private
 }
