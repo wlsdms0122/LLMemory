@@ -114,11 +114,11 @@ public struct OperationsService: Sendable {
     // Code-owned catalog — no connection, no session. Callable directly by any
     // surface (the CLI included).
     public func operationNames() -> [String] {
-        Handlers.operationNames()
+        engine.operationNames()
     }
 
     public func operationSchema(_ name: String) -> OperationSchema? {
-        Handlers.operationSchema(name)
+        engine.operationSchema(name)
     }
 
     // MARK: - Private

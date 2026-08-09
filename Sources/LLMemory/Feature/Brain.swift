@@ -14,7 +14,7 @@ import Foundation
 public struct Brain {
     // MARK: - Property
     public let session: Session
-    public let services: Services
+    let services: Services
 
     public let index: Index
     public let query: Query

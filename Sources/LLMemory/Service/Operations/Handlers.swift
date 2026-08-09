@@ -208,9 +208,6 @@ public struct HandlerContext {
     // requires them: an unseeded context does not compile.
     public let sessionId: String?
     public let now: Int
-    // Collaborators a handler may not construct for itself — the engine
-    // injects them at entry, same discipline as the ambient facts.
-    public let genome: GenomeService
 
     public var inFlightIds: Set<String> = []
     // Axes an earlier op in the same transaction introduces (create_note with axis_description).
@@ -223,10 +220,9 @@ public struct HandlerContext {
     public var opaqueBodyIds: Set<String> = []
     
     // MARK: - Initializer
-    public init(sessionId: String?, now: Int, genome: GenomeService) {
+    public init(sessionId: String?, now: Int) {
         self.sessionId = sessionId
         self.now = now
-        self.genome = genome
     }
 
     // MARK: - Public
@@ -259,8 +255,6 @@ public enum Handlers {
     public static let frontmatterMutable: Set<String> = [
         "title", "summary", "tags", "priority", "source", "promoted_from"
     ]
-    
-    static let registry: [String: OperationHandler] = HandlersRegistry.build()
     
     // MARK: - Initializer
     // MARK: - Public
@@ -405,14 +399,6 @@ public enum Handlers {
         guard let relativePath = try? Notes.relativeToBrainRoot(src) else { return nil }
         
         return try? resolveTrashPath(relativePath)
-    }
-    
-    public static func operationNames() -> [String] {
-        registry.keys.sorted()
-    }
-    
-    public static func operationSchema(_ name: String) -> OperationSchema? {
-        registry[name]?.schema
     }
     
     static func composeCreateBody(_ op: [String: Any], _ scope: GRDBReadScope) throws -> String {

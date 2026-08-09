@@ -1462,7 +1462,9 @@ public enum HandlersStructural {
 }
 
 public enum HandlersRegistry {
-    public static func build() -> [String: OperationHandler] {
+    // The registry is assembled per engine, so handlers that need a
+    // collaborator capture it here — nothing reaches through the context.
+    public static func build(genome: GenomeService) -> [String: OperationHandler] {
         [
             "create_note": HandlersBasic.createNote,
             "patch_section": HandlersBasic.patchSection,
@@ -1474,7 +1476,7 @@ public enum HandlersRegistry {
             "resolve_flag": HandlersBasic.resolveFlag,
             "dismiss_candidate": HandlersBasic.dismissCandidate,
             "mark_used": HandlersBasic.markUsed,
-            "set_gene": HandlersBasic.setGene,
+            "set_gene": HandlersBasic.setGene(genome: genome),
             "invalidate": HandlersBasic.invalidate,
             "revalidate": HandlersBasic.revalidate,
             "rebase_source": HandlersBasic.rebaseSource,

@@ -148,11 +148,15 @@ public struct OperationsEngine: Sendable {
     // MARK: - Property
     let genome: GenomeService
     let ruleset: RulesetService
+    // Assembled with the engine — handlers needing a collaborator captured
+    // it at wiring time, so the registry is per-engine, not process-global.
+    let registry: [String: OperationHandler]
 
     // MARK: - Initializer
     init(genome: GenomeService, ruleset: RulesetService) {
         self.genome = genome
         self.ruleset = ruleset
+        self.registry = HandlersRegistry.build(genome: genome)
     }
 
     // MARK: - Public
@@ -166,6 +170,15 @@ public struct OperationsEngine: Sendable {
         else { return nil }
 
         return payload
+    }
+
+    // Catalog reads — the schema vocabulary the registry carries.
+    func operationNames() -> [String] {
+        registry.keys.sorted()
+    }
+
+    func operationSchema(_ name: String) -> OperationSchema? {
+        registry[name]?.schema
     }
 
     // Runs inside the caller's write scope — OperationsService provides the
@@ -278,7 +291,7 @@ public struct OperationsEngine: Sendable {
         effectiveRulesetId: String?
     ) throws -> Result {
         let now = Int(Date().timeIntervalSince1970)
-        let applyContext = HandlerContext(sessionId: sessionId, now: now, genome: genome)
+        let applyContext = HandlerContext(sessionId: sessionId, now: now)
 
         if let (message, index) = try validate(
             opsRaw,
@@ -645,11 +658,11 @@ public struct OperationsEngine: Sendable {
         sessionId: String? = nil,
         now: Int = Int(Date().timeIntervalSince1970)
     ) throws -> (String, Int?)? {
-        var context = HandlerContext(sessionId: sessionId, now: now, genome: genome)
+        var context = HandlerContext(sessionId: sessionId, now: now)
         
         for (index, op) in ops.enumerated() {
             guard let name = op["op"] as? String,
-                let handler = Handlers.registry[name]
+                let handler = registry[name]
             else {
                 return ("op[\(index)] unknown: \(op["op"] ?? "nil")", index)
             }
@@ -790,7 +803,7 @@ public struct OperationsEngine: Sendable {
         
         for op in ops {
             guard let name = op["op"] as? String,
-                let handler = Handlers.registry[name]
+                let handler = registry[name]
             else {
                 continue
             }
@@ -944,7 +957,7 @@ public struct OperationsEngine: Sendable {
     
     private func dispatchApply(_ op: [String: Any], context: HandlerContext, scope: GRDBScope) throws -> OperationResult {
         let name = op["op"] as! String
-        let handler = Handlers.registry[name]!
+        let handler = registry[name]!
         let raw = try handler.write(op, context, scope)
         var paths: [String] = []
         

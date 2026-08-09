@@ -921,7 +921,12 @@ public enum HandlersBasic {
         touches: { _, _ in [] }
     )
     
-    public static let setGene = OperationHandler(
+    // A factory, not a constant — the write path needs the genome service,
+    // and the registry captures it at assembly instead of smuggling it
+    // through the context (facts ride the context; collaborators ride the
+    // wiring).
+    public static func setGene(genome: GenomeService) -> OperationHandler {
+        OperationHandler(
         schema: OperationSchema(
             summary: "set a gene's per-brain value directly. Works on every cataloged gene (locked "
             + "write-path genes included; the lock only bars the homeostasis loop). Bounds-checked; "
@@ -956,7 +961,7 @@ public enum HandlersBasic {
             let reason = op["reason"] as? String
             
             if let raw = op["value"], !(raw is NSNull), let value = Handlers.asDouble(raw) {
-                let result = try context.genome.setGene(
+                let result = try genome.setGene(
                     scope,
                     id: id,
                     value: value,
@@ -973,14 +978,15 @@ public enum HandlersBasic {
                 ]
             }
             
-            let old = try context.genome.resetGene(scope, id: id, cause: "set_gene", now: now)
-            
+            let old = try genome.resetGene(scope, id: id, cause: "set_gene", now: now)
+
             return ["status": "ok", "ids": [id], "note": "gene \(id): \(old) → wild-type"]
         },
         effect: { _ in [:] },
         touches: { _, _ in [] }
-    )
-    
+        )
+    }
+
     public static let setNoteMeta = OperationHandler(
         schema: OperationSchema(
             summary: "upsert a (namespace, key, value) row in note_meta side-table",

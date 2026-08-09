@@ -7,9 +7,12 @@
 
 import Foundation
 
-// The dependency container — the one place service instances are assembled.
-// Cross-service collaborators are wired here by injection, so no service
-// (and no handler) ever reaches for a sibling through a global. Owned by
+// The dependency container — the single wiring point for services.
+// Cross-service collaborators are injected here, so no service (and no
+// handler) ever reaches for a sibling through a global. The invariant is
+// *where wiring happens*, not instance count: services are stateless
+// values over storage, so assembling the container twice is semantically
+// the same container (which is exactly what test fixtures do). Owned by
 // Brain, the composition root; features receive only what they need.
 public struct Services: Sendable {
     // MARK: - Property
