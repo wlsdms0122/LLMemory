@@ -12,7 +12,7 @@ import GRDB
 // What counts as a candidate is Candidates' (Service tier) policy; these
 // only fetch, returning neutral rows.
 struct FetchSplitShapeRowsTransaction: GRDBReadTransaction {
-    struct Row_ {
+    struct SplitShape {
         // MARK: - Property
         let id: String
         let axis: String
@@ -37,7 +37,7 @@ struct FetchSplitShapeRowsTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Row_] {
+    func perform(_ db: Database) throws -> [SplitShape] {
         try Row.fetchAll(db, sql: """
             SELECT n.id, n.axis, n.title, n.word_count, n.section_count,
                    (SELECT COUNT(DISTINCT tag) FROM tags WHERE note_id = n.id) AS tag_count
@@ -47,7 +47,7 @@ struct FetchSplitShapeRowsTransaction: GRDBReadTransaction {
               AND n.section_count >= ?
             ORDER BY n.word_count DESC, n.id ASC
             """, arguments: [minWords, minSections]).map { row in
-            Row_(
+            SplitShape(
                 id: row["id"],
                 axis: row["axis"],
                 title: row["title"],
@@ -62,7 +62,7 @@ struct FetchSplitShapeRowsTransaction: GRDBReadTransaction {
 }
 
 struct FetchFlaggedRowsTransaction: GRDBReadTransaction {
-    struct Row_ {
+    struct FlaggedNote {
         // MARK: - Property
         let noteId: String
         let reason: String?
@@ -87,7 +87,7 @@ struct FetchFlaggedRowsTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Row_] {
+    func perform(_ db: Database) throws -> [FlaggedNote] {
         try Row.fetchAll(db, sql: """
             SELECT r.note_id, r.reason, r.created_at, n.axis, n.title, n.summary
             FROM ripple_flags r
@@ -97,7 +97,7 @@ struct FetchFlaggedRowsTransaction: GRDBReadTransaction {
             ORDER BY r.created_at ASC, r.note_id ASC
             LIMIT ?
             """, arguments: [flag, limit]).map { row in
-            Row_(
+            FlaggedNote(
                 noteId: row["note_id"],
                 reason: row["reason"] as String?,
                 createdAt: row["created_at"],
@@ -205,7 +205,7 @@ struct FetchNoteEntitySetTransaction: GRDBReadTransaction {
 }
 
 struct FetchEntityOverlapRowsTransaction: GRDBReadTransaction {
-    struct Row_ {
+    struct EntityOverlap {
         // MARK: - Property
         let id: String
         let axis: String
@@ -228,7 +228,7 @@ struct FetchEntityOverlapRowsTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Row_] {
+    func perform(_ db: Database) throws -> [EntityOverlap] {
         try Row.fetchAll(db, sql: """
             SELECT n.id, n.axis, n.title, n.summary,
                    (SELECT COUNT(*) FROM entity_index e1
@@ -238,7 +238,7 @@ struct FetchEntityOverlapRowsTransaction: GRDBReadTransaction {
             FROM notes n
             WHERE n.id != ? AND \(Policy.surface())
             """, arguments: [nid, nid]).map { row in
-            Row_(
+            EntityOverlap(
                 id: row["id"],
                 axis: row["axis"],
                 title: row["title"],
@@ -445,7 +445,7 @@ struct SearchBM25NeighborRowsTransaction: GRDBReadTransaction {
 }
 
 struct FetchSurfaceNoteRowsTransaction: GRDBReadTransaction {
-    struct Row_ {
+    struct SurfaceNote {
         // MARK: - Property
         let id: String
         let axis: String
@@ -462,13 +462,13 @@ struct FetchSurfaceNoteRowsTransaction: GRDBReadTransaction {
     init() { }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Row_] {
+    func perform(_ db: Database) throws -> [SurfaceNote] {
         try Row.fetchAll(db, sql: """
             SELECT id, axis, title, summary, path FROM notes
             WHERE \(Policy.all(Policy.surface(""), Policy.forgetExempt("")))
             ORDER BY id
             """).map { row in
-            Row_(
+            SurfaceNote(
                 id: row["id"],
                 axis: row["axis"],
                 title: row["title"],

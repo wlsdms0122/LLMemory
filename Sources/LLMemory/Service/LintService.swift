@@ -8,8 +8,10 @@
 import Foundation
 import Storage
 
-// Lint-domain service — deterministic observation of corpus shape, with
-// habituation suppressing findings the owner has reviewed and kept.
+// Lint-domain service — the effectful surface over the Lint policy
+// namespace (rule catalog + judgment), and the instance the operations
+// registry captures for dismissal validation. Habituation suppresses
+// findings the owner has reviewed and kept.
 public struct LintService: Sendable {
     // MARK: - Property
     let storage: GRDBStorage

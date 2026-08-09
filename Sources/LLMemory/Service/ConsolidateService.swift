@@ -109,7 +109,9 @@ public struct ConsolidateService: Sendable {
                 batches[kind] = .nearDuplicate(try Candidates.nearDuplicates(scope, limit: limit))
 
             default:
-                batches[kind] = .split([])
+                // The kind vocabulary is closed (candidateValidKinds) — an
+                // unknown kind is a caller bug, not an empty result.
+                throw CandidatesError.unknownKind(kind)
             }
         }
 
