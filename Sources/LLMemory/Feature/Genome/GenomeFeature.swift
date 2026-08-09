@@ -17,14 +17,14 @@ public struct GenomeFeature {
     }
 
     // MARK: - Public
-    public func list() async throws -> [Genome.ListRow] {
+    public func list() async throws -> [GenomeService.ListRow] {
         try await GenomeService.list(session.storage)
     }
 
     public func history(
         gene: String?,
         limit: Int
-    ) async throws -> [Genome.HistoryRow] {
+    ) async throws -> [GenomeService.HistoryRow] {
         try await GenomeService.history(session.storage, gene: gene, limit: limit)
     }
 
@@ -33,7 +33,7 @@ public struct GenomeFeature {
         value: Double,
         limit: Int,
         sampleDiffs: Int
-    ) async throws -> Genome.ShadowResult {
+    ) async throws -> GenomeService.ShadowResult {
         try await GenomeService.shadow(session.storage, gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
     }
 

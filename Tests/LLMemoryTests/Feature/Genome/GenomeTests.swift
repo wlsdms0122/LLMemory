@@ -38,8 +38,8 @@ struct GenomeTests {
         
         // When — the genome itself carries a value.
         try home.database().write { database in
-            _ = try Genome.set(
-                database, id: "priming.alpha", value: 1.2, cause: "set_gene",
+            _ = try GenomeService.setGene(
+                GRDBScope(database), id: "priming.alpha", value: 1.2, cause: "set_gene",
                 detail: nil, requireMutable: false, now: 1
             )
         }
@@ -65,7 +65,7 @@ struct GenomeTests {
         #expect(Genome.double("links.sibling_rank_weight") == 0.2)
         
         let history = try home.read { database in
-            try Genome.history(database, geneId: "links.sibling_rank_weight", limit: 5)
+            try GenomeService.history(GRDBScope(database), gene: "links.sibling_rank_weight", limit: 5)
         }
         
         #expect(history.first?.cause == "set_gene", "every change must leave provenance")
@@ -92,9 +92,9 @@ struct GenomeTests {
     @Test("the homeostatic tick cannot move a gene that is not mutable")
     func lockedGeneGuard() throws {
         try home.database().write { database in
-            #expect(throws: Genome.WriteError.self) {
-                try Genome.set(
-                    database, id: "links.decay_factor", value: 0.8,
+            #expect(throws: GenomeService.WriteError.self) {
+                try GenomeService.setGene(
+                    GRDBScope(database), id: "links.decay_factor", value: 0.8,
                     cause: "homeostasis:test", detail: nil, requireMutable: true, now: 1
                 )
             }
@@ -145,7 +145,7 @@ struct GenomeTests {
         }
         
         let history = try home.read { database in
-            try Genome.history(database, geneId: "related.expand_hops", limit: 5)
+            try GenomeService.history(GRDBScope(database), gene: "related.expand_hops", limit: 5)
         }
         
         #expect(history.first?.cause == "homeostasis:expand_landing")
@@ -194,8 +194,8 @@ struct GenomeTests {
         let base = home.now - 50_000
         
         try home.database().write { database in
-            _ = try Genome.set(
-                database, id: "related.expand_hops", value: 0, cause: "set_gene",
+            _ = try GenomeService.setGene(
+                GRDBScope(database), id: "related.expand_hops", value: 0, cause: "set_gene",
                 detail: "test setup", requireMutable: false, now: home.now
             )
             
@@ -350,7 +350,7 @@ struct GenomeTests {
         // Then
         #expect(unchanged.queriesReplayed == 1)
         #expect(unchanged.queriesChanged == 0)
-        #expect(throws: Genome.WriteError.self) {
+        #expect(throws: GenomeService.WriteError.self) {
             _ = try GeneShadowTransaction(
                 .init(gene: "priming.alpha", value: 99, limit: 10, sampleDiffs: 5)
             )

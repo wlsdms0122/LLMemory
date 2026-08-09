@@ -385,7 +385,7 @@ public enum OpsEngine {
                 )
             }
             
-            if txResult.status != "ok" { Genome.warmCache(queue) }
+            if txResult.status != "ok" { rewarmGenome(queue) }
             
             if txResult.status == "ok" {
                 let touched = enrichmentTouchedNotes(opsRaw)
@@ -409,7 +409,7 @@ public enum OpsEngine {
                 conflict: conflict
             )
         } catch {
-            Genome.warmCache(queue)
+            rewarmGenome(queue)
             
             return Result(
                 status: "failed",
@@ -920,5 +920,17 @@ public enum OpsEngine {
             paths: paths,
             ids: ids
         )
+    }
+}
+
+private extension OpsEngine {
+    // A rolled-back transaction may have primed the in-process gene cache —
+    // reload it from the committed state, tolerating a dead connection.
+    static func rewarmGenome(_ queue: any DatabaseReader) {
+        guard let values = try? queue.read({ db in
+            try FetchGenomeValuesTransaction().perform(db)
+        }) else { return }
+
+        Genome.warm(values)
     }
 }

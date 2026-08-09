@@ -136,8 +136,8 @@ public enum Homeostasis {
             }
             
             if target != current {
-                let result = try Genome.set(
-                    db,
+                let result = try GenomeService.setGene(
+                    GRDBScope(db),
                     id: gene,
                     value: target,
                     cause: "homeostasis:expand_landing",

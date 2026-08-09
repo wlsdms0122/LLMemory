@@ -63,7 +63,10 @@ enum Config {
             }
 
             warmed = true
-            Genome.warmCache(queue)
+
+            Genome.warm(
+                try queue.read { db in try FetchGenomeValuesTransaction().perform(db) }
+            )
         } catch { }
     }
 

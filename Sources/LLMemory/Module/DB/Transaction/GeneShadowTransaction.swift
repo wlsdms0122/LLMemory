@@ -27,11 +27,11 @@ public struct GeneShadowTransaction: LegacyReadTransaction {
     // Sync body — also the direct surface for synchronous unit tests.
     func perform(_ connection: Connection) throws -> Result {
         guard let definition = Genome.gene(parameter.gene) else {
-            throw Genome.WriteError.unknownGene(parameter.gene)
+            throw GenomeService.WriteError.unknownGene(parameter.gene)
         }
         
         guard parameter.value >= definition.min && parameter.value <= definition.max else {
-            throw Genome.WriteError.outOfBounds(parameter.gene, parameter.value, definition)
+            throw GenomeService.WriteError.outOfBounds(parameter.gene, parameter.value, definition)
         }
         
         let baselineValue = Genome.double(parameter.gene)
@@ -122,7 +122,7 @@ public struct GeneShadowTransaction: LegacyReadTransaction {
             }
         }
         
-        var diffs: [Genome.ShadowResult.QueryDiff] = []
+        var diffs: [GenomeService.ShadowResult.QueryDiff] = []
         var changed = 0
         
         for loggedQuery in logged {
@@ -137,7 +137,7 @@ public struct GeneShadowTransaction: LegacyReadTransaction {
                     let candidateIds = Set(candidate)
                     
                     diffs.append(
-                        Genome.ShadowResult.QueryDiff(
+                        GenomeService.ShadowResult.QueryDiff(
                             query: "\(loggedQuery.command): \(loggedQuery.text)",
                             baseline: baseline,
                             candidate: candidate,
@@ -149,7 +149,7 @@ public struct GeneShadowTransaction: LegacyReadTransaction {
             }
         }
         
-        return Genome.ShadowResult(
+        return GenomeService.ShadowResult(
             gene: parameter.gene,
             baselineValue: baselineValue,
             candidateValue: parameter.value,
@@ -177,5 +177,5 @@ public extension GeneShadowTransaction {
         }
     }
 
-    typealias Result = Genome.ShadowResult
+    typealias Result = GenomeService.ShadowResult
 }
