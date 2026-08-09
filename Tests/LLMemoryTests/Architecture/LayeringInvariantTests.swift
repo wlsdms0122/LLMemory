@@ -69,21 +69,66 @@ struct LayeringInvariantTests {
             """)
     }
 
-    @Test("transactions are dispatched by services only")
-    func transactionDispatchStaysInService() {
+    @Test("scopes are opened by services only")
+    func scopeDispatchStaysInService() {
         // When
         let violations = sources
             .filter { file in !file.url.path.contains("/LLMemory/Service/") }
             .flatMap { file in
                 file.codeLines()
-                    .filter { _, text in text.contains("storage.run(") }
+                    .filter { _, text in
+                        text.contains("storage.run(") || text.contains("storage.run {")
+                            || text.contains("storage.read(") || text.contains("storage.read {")
+                    }
                     .map { number, _ in file.location(number) }
             }
 
         // Then
         #expect(violations.isEmpty, """
-            storage.run outside the service tier — surfaces call a domain service, \
-            which is the one tier that runs transactions:
+            storage.run/read outside the service tier — surfaces call a domain \
+            service, which is the one tier that opens scopes:
+            \(violations.joined(separator: "\n"))
+            """)
+    }
+
+    @Test("a transaction body is entered directly only inside Module/DB")
+    func performStaysInDBModule() {
+        // When — Config warming and Session-driven seeding are lifecycle code
+        // that already holds a db handle under the sync gate.
+        let allowed = ["Config.swift", "Seeding.swift"]
+        let violations = sources
+            .filter { file in !file.url.path.contains("/LLMemory/Module/DB/") }
+            .filter { file in !allowed.contains(file.url.lastPathComponent) }
+            .flatMap { file in
+                file.codeLines()
+                    .filter { _, text in text.contains(".perform(") }
+                    .map { number, _ in file.location(number) }
+            }
+
+        // Then
+        #expect(violations.isEmpty, """
+            transaction.perform outside Module/DB — services and the engine go \
+            through scope.run; direct perform is transaction-to-transaction \
+            composition inside the DB module only:
+            \(violations.joined(separator: "\n"))
+            """)
+    }
+
+    @Test("a scope is constructed by storage alone")
+    func scopeConstructionStaysInStorage() {
+        // When
+        let violations = sources
+            .filter { file in file.url.lastPathComponent != "GRDBStorage.swift" }
+            .flatMap { file in
+                file.codeLines()
+                    .filter { _, text in text.contains("GRDBScope(") && !text.contains("(_ scope: GRDBScope") }
+                    .map { number, _ in file.location(number) }
+            }
+
+        // Then
+        #expect(violations.isEmpty, """
+            GRDBScope constructed outside storage — a scope exists only inside \
+            storage.run/read, which owns the rollback boundary:
             \(violations.joined(separator: "\n"))
             """)
     }
