@@ -103,7 +103,7 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: old, sessionId: nil, hitIds: ["n1"])
         }
         
-        _ = try home.database().write { db in try home.services.consolidate.integrate(GRDBScope(db)) }
+        _ = try home.database().write { db in try home.container.consolidate.integrate(GRDBScope(db)) }
         
         // When
         try home.read { database in

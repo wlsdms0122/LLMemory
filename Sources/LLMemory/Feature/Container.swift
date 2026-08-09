@@ -1,5 +1,5 @@
 //
-//  Services.swift
+//  Container.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/10/26.
@@ -14,7 +14,7 @@ import Foundation
 // values over storage, so assembling the container twice is semantically
 // the same container (which is exactly what test fixtures do). Owned by
 // Brain, the composition root; features receive only what they need.
-public struct Services: Sendable {
+public struct Container: Sendable {
     // MARK: - Property
     public let retrieval: RetrievalService
     public let notes: NotesService

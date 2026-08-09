@@ -25,7 +25,7 @@ struct OperationsUnavailableTests {
             databaseURL: URL(fileURLWithPath: "/nonexistent-\(UUID().uuidString)/data/memory.db"),
             migrations: []
         )
-        let operations = Services(storage: storage).operations
+        let operations = Container(storage: storage).operations
 
         // When
         let applied = await operations.apply(

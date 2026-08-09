@@ -154,7 +154,7 @@ struct LayeringInvariantTests {
         let construction = try! NSRegularExpression(
             pattern: #"\b\w+Service\(|\bOperationsEngine\("#
         )
-        let allowed = ["Services.swift"]
+        let allowed = ["Container.swift"]
         let violations = sources
             .filter { file in !allowed.contains(file.url.lastPathComponent) }
             .flatMap { file in
@@ -182,7 +182,7 @@ struct LayeringInvariantTests {
     @Test("the container is assembled by the composition root alone")
     func containerAssemblyStaysInCompositionRoot() {
         // When
-        let assembly = try! NSRegularExpression(pattern: #"\bServices\("#)
+        let assembly = try! NSRegularExpression(pattern: #"\bContainer\("#)
         let allowed = ["Brain.swift"]
         let violations = sources
             .filter { file in !allowed.contains(file.url.lastPathComponent) }

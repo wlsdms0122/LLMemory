@@ -36,7 +36,7 @@ extension BrainHome {
         try storage.writeLock { try database().write(body) }
     }
 
-    var services: Services { Services(storage: storage) }
+    var container: Container { Container(storage: storage) }
 
     @discardableResult
     func apply(_ operations: [[String: Any]], rationale: String = "test") -> OperationsEngine.Result {

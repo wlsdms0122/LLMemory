@@ -32,7 +32,7 @@ struct SectionGetTests {
         ).status == "ok")
         
         // When
-        let (note, slices, _) = try home.database().read { db in try home.services.notes.getSections(GRDBReadScope(db), id: "doc", sections: ["## A"], sessionId: nil) }
+        let (note, slices, _) = try home.database().read { db in try home.container.notes.getSections(GRDBReadScope(db), id: "doc", sections: ["## A"], sessionId: nil) }
         
         // Then
         #expect(note.id == "doc")
@@ -50,7 +50,7 @@ struct SectionGetTests {
         
         // Then
         #expect(throws: SectionError.self) {
-            _ = try home.database().read { db in try home.services.notes.getSections(GRDBReadScope(db), id: "doc2", sections: ["## Nope"], sessionId: nil) }
+            _ = try home.database().read { db in try home.container.notes.getSections(GRDBReadScope(db), id: "doc2", sections: ["## Nope"], sessionId: nil) }
         }
     }
     
@@ -63,7 +63,7 @@ struct SectionGetTests {
         ).status == "ok")
         
         // When
-        let (_, entries, _) = try home.database().read { db in try home.services.notes.toc(GRDBReadScope(db), id: "doc3", sessionId: nil) }
+        let (_, entries, _) = try home.database().read { db in try home.container.notes.toc(GRDBReadScope(db), id: "doc3", sessionId: nil) }
         
         // Then
         #expect(entries.map(\.path) == ["## A", "## A > ### A1"])
