@@ -124,7 +124,11 @@ struct OperationsDryRun: AsyncParsableCommand {
         
         guard let payload = try readJSONText(input) else { throw ExitCode(2) }
         
-        let result = await brain.operations.dryRun(payloadJSON: payload, ruleset: rulesetOption.rulesetId)
+        let result = await brain.operations.dryRun(
+            payloadJSON: payload,
+            sessionId: Session.retrievalSession(cli: global.sessionId),
+            ruleset: rulesetOption.rulesetId
+        )
         
         render(result, json: format.json) { result in opsResultBlocks(result) }
         

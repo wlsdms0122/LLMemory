@@ -52,7 +52,7 @@ public struct Index {
     }
 
     @discardableResult
-    public func reindex(filePaths: [String]) async throws -> Int {
+    public func reindex(filePaths: [String]) async throws -> [Indexer.ReindexOutcome] {
         try await IndexService.reindex(session.storage, filePaths: filePaths)
     }
 

@@ -80,26 +80,43 @@ struct NoteSourceTrackedTransaction: GRDBReadTransaction {
 
 // Read-only union check for mark_used validation — a note counts as
 // surfaced when it appears in a derived hit *or* in a retrieval event not
-// yet succeeded into hits, so validation never needs to write.
-struct NoteSurfacedRecentlyTransaction: GRDBReadTransaction {
+// yet succeeded into hits, so validation never needs to write. Set-valued:
+// the batch is judged with one hits query and one event scan.
+struct NotesSurfacedRecentlyTransaction: GRDBReadTransaction {
     // MARK: - Property
-    let noteId: String
+    let noteIds: [String]
     let cutoff: Int
     let label: String?
 
     // MARK: - Initializer
-    init(noteId: String, cutoff: Int, label: String? = nil) {
-        self.noteId = noteId
+    init(noteIds: [String], cutoff: Int, label: String? = nil) {
+        self.noteIds = noteIds
         self.cutoff = cutoff
         self.label = label
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> Bool {
-        if try CountSurfacedHitsTransaction(noteId: noteId, cutoff: cutoff, label: label)
-            .perform(db) > 0 {
-            return true
+    func perform(_ db: Database) throws -> Set<String> {
+        guard !noteIds.isEmpty else { return [] }
+
+        var surfaced = Set<String>()
+        let wanted = Set(noteIds)
+        let placeholders = noteIds.map { _ in "?" }.joined(separator: ",")
+
+        if let label, !label.isEmpty {
+            surfaced.formUnion(try String.fetchAll(db, sql: """
+                SELECT DISTINCT h.note_id FROM retrieval_hits h
+                JOIN activity_windows w ON w.id = h.window_id
+                WHERE h.note_id IN (\(placeholders)) AND h.surfaced_at >= ? AND w.label = ?
+                """, arguments: StatementArguments(noteIds + [cutoff, label] as [DatabaseValueConvertible])))
+        } else {
+            surfaced.formUnion(try String.fetchAll(db, sql: """
+                SELECT DISTINCT note_id FROM retrieval_hits
+                WHERE note_id IN (\(placeholders)) AND surfaced_at >= ?
+                """, arguments: StatementArguments(noteIds + [cutoff] as [DatabaseValueConvertible])))
         }
+
+        if surfaced.isSuperset(of: wanted) { return surfaced }
 
         let rows: [Row]
 
@@ -122,13 +139,15 @@ struct NoteSurfacedRecentlyTransaction: GRDBReadTransaction {
                 continue
             }
 
-            let surfaced = (payload["hit_ids"] as? [String] ?? [])
+            let ids = (payload["hit_ids"] as? [String] ?? [])
                 + (payload["expand_ids"] as? [String] ?? [])
 
-            if surfaced.contains(noteId) { return true }
+            surfaced.formUnion(wanted.intersection(ids))
+
+            if surfaced.isSuperset(of: wanted) { break }
         }
 
-        return false
+        return surfaced
     }
 
     // MARK: - Private

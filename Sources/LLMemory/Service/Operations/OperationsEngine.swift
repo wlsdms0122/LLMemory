@@ -192,6 +192,8 @@ public enum OperationsEngine {
             )
         }
         
+        let result: Result
+
         do {
             if let rulesetId = effectiveRulesetId {
                 let exists = try scope.run(RulesetExistsTransaction(id: rulesetId))
@@ -216,26 +218,33 @@ public enum OperationsEngine {
                 effectiveRulesetId: effectiveRulesetId
             )
             
-            // A rolled-back savepoint may have primed the in-process gene
-            // cache. All genome writes live inside the savepoint, so the
-            // post-rollback state read here equals committed state even if
-            // the enclosing scope later rolls back — the engine owns this
-            // repair so every caller gets it.
-            if txResult.status != "ok" { rewarmGenes(scope) }
-            
             if txResult.status == "ok" {
                 let touched = enrichmentTouchedNotes(opsRaw)
                 
                 if !touched.isEmpty {
                     // Best-effort, but atomically so — a failed validation
-                    // pass rolls back rather than half-committing.
-                    _ = try? scope.attempt { try scope.run(ValidatePendingTermsTransaction(noteIds: touched)) }
+                    // pass rolls back whole, and the degradation leaves a
+                    // trace instead of vanishing.
+                    if case .failure(let error)? =
+                        try? scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: touched)) }) {
+                        try? scope.run(
+                            RecordEventTransaction(
+                                kind: Events.kindCapture,
+                                payload: [
+                                    "tx_status": "degraded",
+                                    "pass": "term_validation",
+                                    "error": "\(error)"
+                                ],
+                                sessionId: sessionId
+                            )
+                        )
+                    }
                 }
             }
             
-            return txResult
+            result = txResult
         } catch let conflict as SplitConflict {
-            return Result(
+            result = Result(
                 status: "conflict",
                 opResults: [],
                 error: "split_note '\(conflict.fromId)' has \(conflict.unresolved.count) artifact(s) whose ownership across the new notes is a semantic call — re-issue with `routing` assigning each to children (to:[\"id\"]), copying (to:[\"a\",\"b\"]), or dropping (to:[]). Omitted artifacts are dropped; cooccur/reference are auto-handled.",
@@ -245,9 +254,7 @@ public enum OperationsEngine {
                 conflict: conflict
             )
         } catch {
-            rewarmGenes(scope)
-
-            return Result(
+            result = Result(
                 status: "failed",
                 opResults: [],
                 error: "\(error)",
@@ -256,6 +263,15 @@ public enum OperationsEngine {
                 recoveryFailed: []
             )
         }
+
+        // A rolled-back savepoint (op failure, split conflict, or a thrown
+        // sequence) may have primed the in-process gene cache. All genome
+        // writes live inside the savepoint, so the state read here equals
+        // committed state; the engine owns this repair at its single exit,
+        // and every caller — the fixture included — gets it.
+        if result.status != "ok" { rewarmGenes(scope) }
+
+        return result
     }
     
     // The gated apply sequence — validate, snapshot, savepointed op run,
@@ -267,10 +283,17 @@ public enum OperationsEngine {
         rationale: String,
         effectiveRulesetId: String?
     ) throws -> Result {
+        let now = Int(Date().timeIntervalSince1970)
+        var applyContext = HandlerContext()
+        applyContext.sessionId = sessionId
+        applyContext.now = now
+
         if let (message, index) = try validate(
             opsRaw,
             scope: scope.readOnly,
-            rulesetId: effectiveRulesetId
+            rulesetId: effectiveRulesetId,
+            sessionId: sessionId,
+            now: now
         ) {
             try? scope.run(RecordEventTransaction(
                                         kind: Events.kindCapture,
@@ -329,7 +352,7 @@ public enum OperationsEngine {
             try scope.savepoint {
                 for (index, op) in opsRaw.enumerated() {
                     do {
-                        results.append(try dispatchApply(op, scope: scope))
+                        results.append(try dispatchApply(op, context: applyContext, scope: scope))
                     } catch let conflict as SplitConflict {
                         splitConflict = (index, conflict)
                         
@@ -436,7 +459,7 @@ public enum OperationsEngine {
         )
 }
 
-    public static func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], ruleset: String? = nil) -> DryRunResult {
+    public static func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], sessionId: String? = nil, ruleset: String? = nil) -> DryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return DryRunResult(
                 status: "rejected",
@@ -479,7 +502,7 @@ public enum OperationsEngine {
                 }
             }
             
-            let result: (String?, Int?)? = try validate(opsRaw, scope: scope, rulesetId: effectiveRulesetId)
+            let result: (String?, Int?)? = try validate(opsRaw, scope: scope, rulesetId: effectiveRulesetId, sessionId: sessionId)
             
             if let (message, index) = result {
                 return DryRunResult(
@@ -600,9 +623,13 @@ public enum OperationsEngine {
     private static func validate(
         _ ops: [[String: Any]],
         scope: GRDBReadScope,
-        rulesetId: String?
+        rulesetId: String?,
+        sessionId: String? = nil,
+        now: Int = Int(Date().timeIntervalSince1970)
     ) throws -> (String, Int?)? {
         var context = HandlerContext()
+        context.sessionId = sessionId
+        context.now = now
         
         for (index, op) in ops.enumerated() {
             guard let name = op["op"] as? String,
@@ -899,10 +926,10 @@ public enum OperationsEngine {
         return nil
     }
     
-    private static func dispatchApply(_ op: [String: Any], scope: GRDBScope) throws -> OperationResult {
+    private static func dispatchApply(_ op: [String: Any], context: HandlerContext, scope: GRDBScope) throws -> OperationResult {
         let name = op["op"] as! String
         let handler = Handlers.registry[name]!
-        let raw = try handler.write(op, scope)
+        let raw = try handler.write(op, context, scope)
         var paths: [String] = []
         
         if let rawPaths = raw["paths"] as? [Any] {

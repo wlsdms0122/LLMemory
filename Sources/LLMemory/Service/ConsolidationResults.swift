@@ -65,6 +65,7 @@ public enum Consolidation {
                 case enrichReviewFlagged = "enrich_review_flagged"
                 case enrichReviewResolved = "enrich_review_resolved"
                 case vectorsBuilt = "vectors_built"
+                case degradedPasses = "degraded_passes"
             }
             
             // MARK: - Property
@@ -91,6 +92,9 @@ public enum Consolidation {
             public let enrichReviewFlagged: Int
             public let enrichReviewResolved: Int
             public let vectorsBuilt: Int
+            // Best-effort passes that failed and rolled back, by name —
+            // distinguishes "nothing to do" from "pass degraded".
+            public let degradedPasses: [String]
             
             // MARK: - Initializer
             // MARK: - Public

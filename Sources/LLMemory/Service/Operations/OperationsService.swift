@@ -71,6 +71,7 @@ public enum OperationsService {
     public static func dryRun(
         _ storage: GRDBStorage,
         payloadJSON: String,
+        sessionId: String? = nil,
         ruleset: String? = nil
     ) async -> OperationsEngine.DryRunResult {
         do {
@@ -84,7 +85,7 @@ public enum OperationsService {
                     )
                 }
 
-                return OperationsEngine.dryRun(scope, payload, ruleset: ruleset)
+                return OperationsEngine.dryRun(scope, payload, sessionId: sessionId, ruleset: ruleset)
             }
         } catch {
             return OperationsEngine.DryRunResult(

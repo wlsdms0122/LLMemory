@@ -194,8 +194,20 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         defer { releaseLock() }
 
-        return try await connection.write { db in
-            try body(GRDBScope(db))
+        do {
+            return try await connection.write { db in
+                try body(GRDBScope(db))
+            }
+        } catch {
+            // The scope threw — body failure or the commit step itself
+            // (disk/busy). Anything the body primed into the process-global
+            // caches may reflect uncommitted state; rewarm from what is
+            // actually committed before surfacing the error. This is the one
+            // place that knows the commit fact, so the repair lives here.
+            Config.invalidateCache()
+            Config.warmCache(self)
+
+            throw error
         }
     }
 

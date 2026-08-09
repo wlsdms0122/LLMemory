@@ -192,7 +192,7 @@ public struct OperationHandler: @unchecked Sendable {
     // MARK: - Property
     public let schema: OperationSchema
     public let validate: (_ op: [String: Any], _ context: HandlerContext, _ scope: GRDBReadScope) throws -> String?
-    public let write: (_ op: [String: Any], _ scope: GRDBScope) throws -> [String: Any]
+    public let write: (_ op: [String: Any], _ context: HandlerContext, _ scope: GRDBScope) throws -> [String: Any]
     public let effect: (_ op: [String: Any]) -> [String: [String]]
     public let touches: (_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL]
     
@@ -203,6 +203,11 @@ public struct OperationHandler: @unchecked Sendable {
 
 public struct HandlerContext {
     // MARK: - Property
+    // The batch's ambient facts — resolved once at the apply/dry-run entry
+    // so no handler re-derives them from process globals.
+    public var sessionId: String? = nil
+    public var now: Int = 0
+
     public var inFlightIds: Set<String> = []
     // Axes an earlier op in the same transaction introduces (create_note with axis_description).
     // Later ops must see them as existing even though nothing is committed yet.

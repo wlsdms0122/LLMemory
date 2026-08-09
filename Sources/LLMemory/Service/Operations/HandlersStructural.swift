@@ -34,7 +34,7 @@ public enum HandlersStructural {
             
             return "not in trash: \(noteId)"
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let noteId = op["id"] as! String
             let now = Int(Date().timeIntervalSince1970)
             
@@ -123,7 +123,7 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let noteId = op["id"] as! String
             let now = Int(Date().timeIntervalSince1970)
             
@@ -200,7 +200,7 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let axis = op["axis"] as! String
             let description = (op["description"] as! String)
                 .trimmingCharacters(in: .whitespaces)
@@ -264,7 +264,7 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let targetId = op["id"] as! String
             let (newAxis, newId, newPath) = try migrateDestination(op, scope.readOnly)
             
@@ -397,7 +397,7 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let fromAxis = op["from_axis"] as! String
             let toAxis = op["to_axis"] as! String
             let now = Int(Date().timeIntervalSince1970)
@@ -558,7 +558,7 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let fromTag = op["from_tag"] as! String
             let toTag = op["to_tag"] as! String
             let addAlias = (op["add_alias"] as? Bool) ?? false
@@ -683,7 +683,7 @@ public enum HandlersStructural {
             
             return "position must be 'end'/'start' or {after|before: <path>}"
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let fromId = op["from_id"] as! String
             let toId = op["to_id"] as! String
             
@@ -924,7 +924,7 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let fromId = op["from_id"] as! String
             
             guard let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
@@ -1275,7 +1275,7 @@ public enum HandlersStructural {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let intoId = op["into_id"] as! String
             let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
             

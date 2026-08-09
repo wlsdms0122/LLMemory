@@ -52,15 +52,15 @@ public enum Indexer {
         // MARK: - Private
     }
 
-    struct ReindexOutcome: Sendable {
-        enum Result: Sendable {
+    public struct ReindexOutcome: Sendable {
+        public enum Result: Sendable {
             case reindexed(noteId: String, relativePath: String)
             case failure(String)
         }
 
         // MARK: - Property
-        let filePath: String
-        let result: Result
+        public let filePath: String
+        public let result: Result
 
         // MARK: - Initializer
         // MARK: - Public

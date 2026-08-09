@@ -85,23 +85,6 @@ public enum ConsolidateService {
 
     public static func homeostasis(_ storage: GRDBStorage) async throws -> HomeostasisReport {
         let now = Int(Date().timeIntervalSince1970)
-
-        do {
-            return try await run(storage, now: now)
-        } catch {
-            // The tick may have primed the gene cache before the scope rolled
-            // back — repair it from committed state before surfacing the error.
-            if let values = try? await storage.read({ scope in
-                try scope.run(FetchGenomeValuesTransaction())
-            }) {
-                Genes.warm(values)
-            }
-
-            throw error
-        }
-    }
-
-    private static func run(_ storage: GRDBStorage, now: Int) async throws -> HomeostasisReport {
         let report = try await storage.run { scope in
             _ = try scope.run(DeriveActivityWindowsTransaction(now: now))
 
@@ -257,14 +240,14 @@ public enum ConsolidateService {
             termsRejected: termsRejected,
             enrichReviewFlagged: reviewPass.flagged,
             enrichReviewResolved: reviewPass.resolved,
-            vectorsBuilt: (vectorBuild?.skipped == false) ? (vectorBuild?.noteCount ?? 0) : 0
+            vectorsBuilt: (vectorBuild?.skipped == false) ? (vectorBuild?.noteCount ?? 0) : 0,
+            degradedPasses: degradedPasses
         )
         var tracePayload: [String: Any?] = [
             "action": "integrate",
             "events_compacted": eventsCompacted
         ]
 
-        if !degradedPasses.isEmpty { tracePayload["degraded_passes"] = degradedPasses }
 
         if let data = try? JSONEncoder().encode(summary),
             let dictionary = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {

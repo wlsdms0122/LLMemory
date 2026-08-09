@@ -32,9 +32,15 @@ public struct Operations {
 
     public func dryRun(
         payloadJSON: String,
+        sessionId: String? = nil,
         ruleset: String? = nil
     ) async -> OperationsEngine.DryRunResult {
-        await OperationsService.dryRun(session.storage, payloadJSON: payloadJSON, ruleset: ruleset)
+        await OperationsService.dryRun(
+            session.storage,
+            payloadJSON: payloadJSON,
+            sessionId: sessionId,
+            ruleset: ruleset
+        )
     }
 
     // Catalog reads are code-owned and connection-free; they live on the facade

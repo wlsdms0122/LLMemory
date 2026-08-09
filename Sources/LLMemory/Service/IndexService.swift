@@ -17,27 +17,30 @@ public enum IndexService {
         _ storage: GRDBStorage,
         rebuild: Bool = false
     ) async throws -> Indexer.BuildResult {
-        // The corpus scan (file I/O, parsing) runs before the lock — only the
-        // reconcile holds the write scope.
-        let scan = Indexer.scanPending()
-        let now = Int(Date().timeIntervalSince1970)
+        // The scan runs inside the exclusion boundary — orphan judgement
+        // compares scanned paths against DB rows, so a scan taken before the
+        // lock could mark a concurrently committed note as an orphan and
+        // delete it. Atomicity beats lock duration here.
+        try await storage.run { scope in
+            let scan = Indexer.scanPending()
 
-        return try await storage.run { scope in
-            try scope.run(ReconcileIndexTransaction(scan: scan, rebuild: rebuild, now: now))
+            return try scope.run(
+                ReconcileIndexTransaction(
+                    scan: scan,
+                    rebuild: rebuild,
+                    now: Int(Date().timeIntervalSince1970)
+                )
+            )
         }
     }
 
-    @discardableResult
     public static func reindex(
         _ storage: GRDBStorage,
         filePaths: [String]
-    ) async throws -> Int {
-        let outcomes = try await storage.run { scope in
+    ) async throws -> [Indexer.ReindexOutcome] {
+        try await storage.run { scope in
             try scope.run(ReindexNotesTransaction(filePaths: filePaths))
         }
-
-        // Emission after the scope commits — "printed" means "committed".
-        return Indexer.ReindexOutcome.emit(outcomes)
     }
 
     public static func check(

@@ -329,16 +329,36 @@ struct IndexBuild: AsyncParsableCommand {
         if !path.isEmpty {
             if rebuild { throw ValidationError("--path and --rebuild are mutually exclusive") }
             
-            let returnCode = try await brain.index.reindex(filePaths: path)
-            
+            // The scope has committed by the time outcomes return — output
+            // here means committed, and the format owns the rendering.
+            let outcomes = try await brain.index.reindex(filePaths: path)
+            let failures = outcomes.filter { outcome in
+                if case .failure = outcome.result { return true }
+
+                return false
+            }
+
+            for outcome in outcomes {
+                if case .failure(let message) = outcome.result {
+                    FileHandle.standardError.write(
+                        "ERROR \(outcome.filePath): \(message)\n".data(using: .utf8)!
+                    )
+                }
+            }
+
             render(
-                ReindexOutput(reindexed: path.count, returnCode: Int(returnCode)),
+                ReindexOutput(reindexed: outcomes.count - failures.count, returnCode: failures.isEmpty ? 0 : 1),
                 json: format.json
             ) { output in
-                [.text("reindexed: \(output.reindexed) path(s) (rc=\(output.returnCode))")]
+                outcomes.compactMap { outcome in
+                    guard case .reindexed(let noteId, let relativePath) = outcome.result else { return nil }
+
+                    return .text("reindexed: \(noteId) (\(relativePath))")
+                }
+                + [.text("reindexed: \(output.reindexed) path(s) (rc=\(output.returnCode))")]
             }
             
-            if returnCode != 0 { throw ExitCode(Int32(returnCode)) }
+            if !failures.isEmpty { throw ExitCode(1) }
             
             return
         }

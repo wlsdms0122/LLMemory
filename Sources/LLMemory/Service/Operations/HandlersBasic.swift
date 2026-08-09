@@ -102,7 +102,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let now = Int(Date().timeIntervalSince1970)
             let axis = op["axis"] as! String
             let noteId = op["id"] as! String
@@ -235,7 +235,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let noteId = op["id"] as! String
             
             guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
@@ -349,7 +349,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let noteId = op["id"] as! String
             
             guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
@@ -420,7 +420,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let noteId = op["id"] as! String
             
             guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
@@ -486,7 +486,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let now = Int(Date().timeIntervalSince1970)
             let noteId = op["id"] as! String
             
@@ -561,7 +561,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let now = Int(Date().timeIntervalSince1970)
             let noteId = op["id"] as! String
             
@@ -623,7 +623,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let now = Int(Date().timeIntervalSince1970)
             let noteId = op["id"] as! String
             
@@ -661,7 +661,7 @@ public enum HandlersBasic {
             
             return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let now = Int(Date().timeIntervalSince1970)
             
             try scope.run(AddRippleFlagTransaction(
@@ -694,7 +694,7 @@ public enum HandlersBasic {
             
             return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let now = Int(Date().timeIntervalSince1970)
             let resolved = try scope.run(ResolveRippleFlagTransaction(
                 noteId: op["id"] as! String,
@@ -802,7 +802,7 @@ public enum HandlersBasic {
             
             return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let now = Int(Date().timeIntervalSince1970)
             let target: LintTarget = ((op["target"] as? String)
                 .map { value in value.isEmpty ? nil : value } ?? nil)
@@ -865,7 +865,7 @@ public enum HandlersBasic {
             ],
             example: ##"{"op":"mark_used","ids":["transfer-flow","apigw-routing"],"response":"...최종 응답 본문..."}"##
         ),
-        validate: { op, _, scope in
+        validate: { op, context, scope in
             guard let raw = op["ids"] as? [Any], !raw.isEmpty else {
                 return "ids must be a non-empty array of note ids"
             }
@@ -874,39 +874,35 @@ public enum HandlersBasic {
             
             if ids.count != raw.count { return "ids must all be strings" }
             
-            let now = Int(Date().timeIntervalSince1970)
-            let cutoff = now - Activation.usedLookbackSec
-            let label = Env.retrievalSession(cli: nil)
+            let cutoff = context.now - Activation.usedLookbackSec
+            let label = context.sessionId
+            let surfaced = try scope.run(
+                NotesSurfacedRecentlyTransaction(noteIds: ids, cutoff: cutoff, label: label)
+            )
 
-            for id in ids {
-                let surfaced = try scope.run(
-                    NoteSurfacedRecentlyTransaction(noteId: id, cutoff: cutoff, label: label)
-                )
-
-                if !surfaced {
-                    return "note '\(id)' was not surfaced in any recent activity window"
-                        + ((label?.isEmpty == false) ? " of session '\(label!)'" : "")
-                        + " (lookback \(Activation.usedLookbackSec)s) — cannot mark unobserved usage"
-                }
+            if let missing = ids.first(where: { id in !surfaced.contains(id) }) {
+                return "note '\(missing)' was not surfaced in any recent activity window"
+                    + ((label?.isEmpty == false) ? " of session '\(label!)'" : "")
+                    + " (lookback \(Activation.usedLookbackSec)s) — cannot mark unobserved usage"
             }
 
             return nil
         },
-        write: { op, scope in
+        write: { op, context, scope in
             let ids = (op["ids"] as! [Any]).compactMap { value in value as? String }
-            let now = Int(Date().timeIntervalSince1970)
 
             // Fresh retrieval events may not be succeeded into hits yet —
-            // derive first so a just-surfaced note is markable. Validation is
-            // shape-only (it runs on a read scope and cannot derive); a truly
-            // unsurfaced note fails here with the same loud message.
-            _ = try scope.run(DeriveActivityWindowsTransaction(now: now))
+            // derive first so validation's union judgement (hits ∪ pending
+            // events) and the marking below see the same universe. The
+            // notSurfaced throw inside is a backstop, not a second gate: it
+            // shares the context's now/session with validation.
+            _ = try scope.run(DeriveActivityWindowsTransaction(now: context.now))
 
             let outcomes = try scope.run(MarkNotesUsedTransaction(
                 ids: ids,
                 response: op["response"] as? String,
-                sessionLabel: Env.retrievalSession(cli: nil),
-                now: now
+                sessionLabel: context.sessionId,
+                now: context.now
             ))
             let marked = outcomes.filter { outcome in outcome.matched }
             let failed = outcomes.filter { outcome in !outcome.matched }
@@ -954,7 +950,7 @@ public enum HandlersBasic {
             
             return nil
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let now = Int(Date().timeIntervalSince1970)
             let id = op["gene"] as! String
             let reason = op["reason"] as? String
@@ -1019,7 +1015,7 @@ public enum HandlersBasic {
             
             return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let now = Int(Date().timeIntervalSince1970)
             
             try scope.run(UpsertNoteMetaTransaction(
@@ -1063,7 +1059,7 @@ public enum HandlersBasic {
             
             return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
         },
-        write: { op, scope in
+        write: { op, _, scope in
             let deleted = try scope.run(DeleteNoteMetaTransaction(
                 noteId: op["id"] as! String,
                 namespace: op["namespace"] as! String,
