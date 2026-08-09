@@ -379,7 +379,7 @@ struct RestoreArtifactsAfterRebuildTransaction: GRDBTransaction {
             sql: "SELECT DISTINCT note_id FROM note_retrieval_terms WHERE status = 'active'"
         )
         
-        for noteId in restored { try Notes.syncEnrich(db, noteId: noteId) }
+        for noteId in restored { try SyncNoteEnrichTransaction(noteId: noteId).perform(db) }
     }
 
     // MARK: - Private

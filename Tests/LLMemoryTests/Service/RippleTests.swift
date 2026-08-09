@@ -71,7 +71,7 @@ struct RippleTests {
         try flagReferrers(of: "tmp-ripple-a")
         
         try home.database().write { database in
-            try Notes.setStale(database, nid: "tmp-ripple-c", stale: true)
+            try SetNoteStaleTransaction(nid: "tmp-ripple-c", stale: true).perform(database)
         }
         
         // When

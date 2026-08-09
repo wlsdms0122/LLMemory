@@ -71,19 +71,17 @@ public enum HandlersStructural {
                 encoding: .utf8
             )
             try FileManager.default.removeItem(at: trashFile)
-            try Notes.reindexFile(db, path: destination)
+            try ReindexNoteFileTransaction(path: destination).perform(db)
             try db.execute(sql: """
                 INSERT INTO note_usage (note_id, hit_count, last_retrieved_at, created_at)
                 VALUES (?, 0, ?, ?)
                 ON CONFLICT(note_id) DO UPDATE SET last_retrieved_at = excluded.last_retrieved_at
                 """, arguments: [noteId, now, now])
-            try Notes.recordLifecycleEvent(
-                db,
-                nid: noteId,
+            try RecordNoteLifecycleEventTransaction(nid: noteId,
                 kind: "restored",
                 reason: op["reason"] as? String,
                 now: now
-            )
+            ).perform(db)
             
             return [
                 "status": "ok",
@@ -134,7 +132,7 @@ public enum HandlersStructural {
             let noteId = op["id"] as! String
             let now = Int(Date().timeIntervalSince1970)
             
-            guard let src = try Notes.pathOf(db, nid: noteId) else {
+            guard let src = try FetchNotePathTransaction(nid: noteId).perform(db) else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
                     NSLocalizedDescriptionKey: "unknown id: \(noteId)"
                 ])
@@ -152,7 +150,7 @@ public enum HandlersStructural {
                 now: now
             )
             
-            try Notes.delete(db, nid: noteId)
+            try DeleteNoteRowTransaction(nid: noteId).perform(db)
             try DeleteNoteEntitiesTransaction(noteId: noteId).perform(db)
             try DeleteNoteRippleFlagsTransaction(noteId: noteId).perform(db)
             
@@ -168,7 +166,7 @@ public enum HandlersStructural {
         effect: { op in ["removes": [op["id"] as? String ?? ""]] },
         touches: { op, db in
             guard let noteId = op["id"] as? String,
-                let src = try Notes.pathOf(db, nid: noteId)
+                let src = try FetchNotePathTransaction(nid: noteId).perform(db)
             else {
                 return []
             }
@@ -279,7 +277,7 @@ public enum HandlersStructural {
             let targetId = op["id"] as! String
             let (newAxis, newId, newPath) = try migrateDestination(op, db)
             
-            guard let srcPath = try Notes.pathOf(db, nid: targetId),
+            guard let srcPath = try FetchNotePathTransaction(nid: targetId).perform(db),
                 FileManager.default.fileExists(atPath: srcPath.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -320,7 +318,7 @@ public enum HandlersStructural {
                 ).map { row in (entity: row["entity"], hits: row["hit_count"]) }
                 : []
             
-            try Notes.reindexFile(db, path: newPath)
+            try ReindexNoteFileTransaction(path: newPath).perform(db)
             
             if newId != targetId {
                 _ = try FlagInboundReferrersTransaction(
@@ -329,7 +327,7 @@ public enum HandlersStructural {
                     now: now
                 ).perform(db)
                 try ReparentNoteArtifactsTransaction(from: targetId, to: newId).perform(db)
-                try Notes.delete(db, nid: targetId)
+                try DeleteNoteRowTransaction(nid: targetId).perform(db)
                 try ClearNoteTagsTransaction(noteId: targetId).perform(db)
                 
                 for hit in oldEntityHits {
@@ -339,11 +337,11 @@ public enum HandlersStructural {
                     )
                 }
                 
-                try Notes.syncEnrich(db, noteId: newId)
+                try SyncNoteEnrichTransaction(noteId: newId).perform(db)
                 try NormalizeUndirectedLinksTransaction(nodeId: newId).perform(db)
             }
             
-            try Notes.stampLifecycle(db, nid: newId, now: now, isNew: false)
+            try StampNoteLifecycleTransaction(nid: newId, now: now, isNew: false).perform(db)
             
             return [
                 "status": "ok",
@@ -365,7 +363,7 @@ public enum HandlersStructural {
         touches: { op, db in
             var paths: [URL] = []
             
-            if let noteId = op["id"] as? String, let src = try Notes.pathOf(db, nid: noteId) {
+            if let noteId = op["id"] as? String, let src = try FetchNotePathTransaction(nid: noteId).perform(db) {
                 paths.append(src)
             }
             
@@ -419,7 +417,7 @@ public enum HandlersStructural {
             let fromAxis = op["from_axis"] as! String
             let toAxis = op["to_axis"] as! String
             let now = Int(Date().timeIntervalSince1970)
-            let rows = try Notes.listByAxis(db, axis: fromAxis)
+            let rows = try ListNotesByAxisTransaction(axis: fromAxis).perform(db)
             let axisRow = try FetchAxisTransaction(axis: fromAxis).perform(db)
             let description = axisRow?.description?.isEmpty == false
                 ? axisRow!.description!
@@ -474,7 +472,7 @@ public enum HandlersStructural {
             
             try CreateAxisTransaction(axis: toAxis, description: description, createdAt: createdAt).perform(db)
             
-            _ = try Notes.setAxis(db, fromAxis: fromAxis, toAxis: toAxis)
+            _ = try SetNotesAxisTransaction(fromAxis: fromAxis, toAxis: toAxis).perform(db)
             
             try DeleteAxisTransaction(axis: fromAxis).perform(db)
             try EnsureTagTransaction(tag: toAxis, now: now).perform(db)
@@ -495,13 +493,11 @@ public enum HandlersStructural {
                     (attributes?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
                 )
                 
-                try Notes.setPath(
-                    db,
-                    nid: noteId,
+                try SetNotePathTransaction(nid: noteId,
                     newRel: newRelativePath,
                     fileMtime: mtime,
                     indexedAt: now
-                )
+                ).perform(db)
             }
             
             let oldDirectory = Paths.notes.appendingPathComponent(fromAxis)
@@ -527,7 +523,7 @@ public enum HandlersStructural {
             let toAxis = op["to_axis"] as! String
             var paths: [URL] = []
             
-            for (noteId, relativePath) in try Notes.listByAxis(db, axis: fromAxis) {
+            for (noteId, relativePath) in try ListNotesByAxisTransaction(axis: fromAxis).perform(db) {
                 paths.append(Paths.brainRoot.appendingPathComponent(relativePath))
                 paths.append(Handlers.pathFor(axis: toAxis, nid: noteId))
             }
@@ -586,7 +582,7 @@ public enum HandlersStructural {
             let affectedIds = try FetchNotesWithTagTransaction(tag: fromTag).perform(db)
             
             for noteId in affectedIds {
-                guard let path = try Notes.pathOf(db, nid: noteId),
+                guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
                     FileManager.default.fileExists(atPath: path.path)
                 else {
                     throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -625,20 +621,18 @@ public enum HandlersStructural {
             for noteId in affectedIds {
                 try ReplaceNoteTagTransaction(noteId: noteId, fromTag: fromTag, toTag: toTag).perform(db)
                 
-                guard let path = try Notes.pathOf(db, nid: noteId) else { continue }
+                guard let path = try FetchNotePathTransaction(nid: noteId).perform(db) else { continue }
                 
                 let relativePath = try Notes.relativeToBrainRoot(path)
                 let modifiedAt = try FileManager.default
                     .attributesOfItem(atPath: path.path)[.modificationDate] as? Date
                 let mtime = Int(modifiedAt?.timeIntervalSince1970 ?? 0)
                 
-                try Notes.setPath(
-                    db,
-                    nid: noteId,
+                try SetNotePathTransaction(nid: noteId,
                     newRel: relativePath,
                     fileMtime: mtime,
                     indexedAt: now
-                )
+                ).perform(db)
             }
             
             if addAlias {
@@ -656,7 +650,7 @@ public enum HandlersStructural {
         touches: { op, db in
             let ids = try FetchNotesWithTagTransaction(tag: op["from_tag"] as! String).perform(db)
             
-            return try ids.compactMap { noteId in try Notes.pathOf(db, nid: noteId) }
+            return try ids.compactMap { noteId in try FetchNotePathTransaction(nid: noteId).perform(db) }
         }
     )
     
@@ -709,9 +703,9 @@ public enum HandlersStructural {
             let fromId = op["from_id"] as! String
             let toId = op["to_id"] as! String
             
-            guard let srcPath = try Notes.pathOf(db, nid: fromId),
+            guard let srcPath = try FetchNotePathTransaction(nid: fromId).perform(db),
                 FileManager.default.fileExists(atPath: srcPath.path),
-                let dstPath = try Notes.pathOf(db, nid: toId),
+                let dstPath = try FetchNotePathTransaction(nid: toId).perform(db),
                 FileManager.default.fileExists(atPath: dstPath.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -766,13 +760,13 @@ public enum HandlersStructural {
                 atomically: true,
                 encoding: .utf8
             )
-            try Notes.reindexFile(db, path: srcPath)
-            try Notes.reindexFile(db, path: dstPath)
+            try ReindexNoteFileTransaction(path: srcPath).perform(db)
+            try ReindexNoteFileTransaction(path: dstPath).perform(db)
             
             let now = Int(Date().timeIntervalSince1970)
             
-            try Notes.stampLifecycle(db, nid: fromId, now: now, isNew: false)
-            try Notes.stampLifecycle(db, nid: toId, now: now, isNew: false)
+            try StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false).perform(db)
+            try StampNoteLifecycleTransaction(nid: toId, now: now, isNew: false).perform(db)
             try Handlers.recordEdit(
                 db,
                 nid: fromId,
@@ -798,11 +792,11 @@ public enum HandlersStructural {
             var paths: [URL] = []
             
             if let fromId = op["from_id"] as? String,
-                let path = try Notes.pathOf(db, nid: fromId) {
+                let path = try FetchNotePathTransaction(nid: fromId).perform(db) {
                 paths.append(path)
             }
             
-            if let toId = op["to_id"] as? String, let path = try Notes.pathOf(db, nid: toId) {
+            if let toId = op["to_id"] as? String, let path = try FetchNotePathTransaction(nid: toId).perform(db) {
                 paths.append(path)
             }
             
@@ -915,7 +909,7 @@ public enum HandlersStructural {
                 normalized[index]["sections"] = normalizedSections
             }
             
-            if let srcPath = try Notes.pathOf(db, nid: fromId),
+            if let srcPath = try FetchNotePathTransaction(nid: fromId).perform(db),
                 let raw = try? String(contentsOf: srcPath, encoding: .utf8) {
                 let (_, srcBody) = try Frontmatter.parse(raw)
                 
@@ -949,7 +943,7 @@ public enum HandlersStructural {
         write: { op, db in
             let fromId = op["from_id"] as! String
             
-            guard let srcPath = try Notes.pathOf(db, nid: fromId),
+            guard let srcPath = try FetchNotePathTransaction(nid: fromId).perform(db),
                 FileManager.default.fileExists(atPath: srcPath.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -1021,9 +1015,9 @@ public enum HandlersStructural {
                     atomically: true,
                     encoding: .utf8
                 )
-                try Notes.reindexFile(db, path: childPath)
+                try ReindexNoteFileTransaction(path: childPath).perform(db)
                 try InheritSourceObservationTransaction(from: fromId, to: childId).perform(db)
-                try Notes.stampLifecycle(db, nid: childId, now: now, isNew: true)
+                try StampNoteLifecycleTransaction(nid: childId, now: now, isNew: true).perform(db)
                 
                 written.append(childPath)
                 newIds.append(childId)
@@ -1047,15 +1041,15 @@ public enum HandlersStructural {
                     atomically: true,
                     encoding: .utf8
                 )
-                try Notes.reindexFile(db, path: srcPath)
-                try Notes.stampLifecycle(db, nid: fromId, now: now, isNew: false)
+                try ReindexNoteFileTransaction(path: srcPath).perform(db)
+                try StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false).perform(db)
             } else {
                 _ = try FlagInboundReferrersTransaction(
                     targetId: fromId,
                     reason: "split into \(newIds.joined(separator: ", "))",
                     now: now
                 ).perform(db)
-                try Notes.delete(db, nid: fromId)
+                try DeleteNoteRowTransaction(nid: fromId).perform(db)
                 try Handlers.trashNoteFile(
                     srcPath,
                     reason: "split into \(newIds.joined(separator: ", "))",
@@ -1236,7 +1230,7 @@ public enum HandlersStructural {
         touches: { op, db in
             var paths: [URL] = []
             
-            if let fromId = op["from_id"] as? String, let src = try Notes.pathOf(db, nid: fromId) {
+            if let fromId = op["from_id"] as? String, let src = try FetchNotePathTransaction(nid: fromId).perform(db) {
                 paths.append(src)
                 
                 if let trashPath = Handlers.trashDestination(src) { paths.append(trashPath) }
@@ -1302,7 +1296,7 @@ public enum HandlersStructural {
             let intoId = op["into_id"] as! String
             let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
             
-            guard let intoPath = try Notes.pathOf(db, nid: intoId),
+            guard let intoPath = try FetchNotePathTransaction(nid: intoId).perform(db),
                 FileManager.default.fileExists(atPath: intoPath.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -1333,7 +1327,7 @@ public enum HandlersStructural {
             var fromPaths: [URL] = []
             
             for fromId in fromIds {
-                if let path = try Notes.pathOf(db, nid: fromId),
+                if let path = try FetchNotePathTransaction(nid: fromId).perform(db),
                     FileManager.default.fileExists(atPath: path.path) {
                     fromPaths.append(path)
                 }
@@ -1346,8 +1340,8 @@ public enum HandlersStructural {
                 atomically: true,
                 encoding: .utf8
             )
-            try Notes.reindexFile(db, path: intoPath)
-            try Notes.stampLifecycle(db, nid: intoId, now: now, isNew: false)
+            try ReindexNoteFileTransaction(path: intoPath).perform(db)
+            try StampNoteLifecycleTransaction(nid: intoId, now: now, isNew: false).perform(db)
             
             for fromId in fromIds {
                 _ = try FlagInboundReferrersTransaction(
@@ -1357,10 +1351,10 @@ public enum HandlersStructural {
                 ).perform(db)
                 try RedirectLinksForMergeTransaction(fromId: fromId, intoId: intoId).perform(db)
                 try AbsorbNoteArtifactsForMergeTransaction(from: fromId, into: intoId).perform(db)
-                try Notes.delete(db, nid: fromId)
+                try DeleteNoteRowTransaction(nid: fromId).perform(db)
             }
             
-            try Notes.syncEnrich(db, noteId: intoId)
+            try SyncNoteEnrichTransaction(noteId: intoId).perform(db)
             
             for path in fromPaths {
                 try Handlers.trashNoteFile(path, reason: "merged into \(intoId)", now: now)
@@ -1381,14 +1375,14 @@ public enum HandlersStructural {
         touches: { op, db in
             var paths: [URL] = []
             
-            if let intoId = op["into_id"] as? String, let path = try Notes.pathOf(db, nid: intoId) {
+            if let intoId = op["into_id"] as? String, let path = try FetchNotePathTransaction(nid: intoId).perform(db) {
                 paths.append(path)
             }
             
             let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
             
             for fromId in fromIds {
-                if let path = try Notes.pathOf(db, nid: fromId) {
+                if let path = try FetchNotePathTransaction(nid: fromId).perform(db) {
                     paths.append(path)
                     
                     if let trashPath = Handlers.trashDestination(path) { paths.append(trashPath) }

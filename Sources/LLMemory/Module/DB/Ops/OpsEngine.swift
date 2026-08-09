@@ -270,7 +270,7 @@ public enum OpsEngine {
                 var results: [OpResult] = []
                 var failure: (Int?, String)? = nil
                 var splitConflict: (Int, SplitConflict)? = nil
-                let eagerBefore = (try? Notes.eagerCount(db)) ?? 0
+                let eagerBefore = (try? CountEagerNotesTransaction().perform(db)) ?? 0
                 
                 do {
                     try db.inSavepoint {
@@ -888,7 +888,7 @@ public enum OpsEngine {
     
     private static func checkEagerCap(db: Database, before: Int) -> String? {
         let cap = Config.getInt("eager.max_count", default: 20)
-        let after = (try? Notes.eagerCount(db)) ?? 0
+        let after = (try? CountEagerNotesTransaction().perform(db)) ?? 0
         
         if after > cap && after > before {
             return "eager cap exceeded (\(after)/\(cap)) — use priority=lazy (eager is the per-session BOOT working set)"

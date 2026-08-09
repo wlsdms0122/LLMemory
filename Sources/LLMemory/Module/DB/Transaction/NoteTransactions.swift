@@ -1,84 +1,54 @@
 //
-//  Notes.swift
+//  NoteTransactions.swift
 //  LLMemory
 //
-//  Created by JSilver on 8/7/26.
+//  Created by JSilver on 8/9/26.
 //
 
 import Foundation
 import GRDB
-import CryptoKit
 
-enum Notes {
+// notes-row transactions — the core catalog row, its FTS projection,
+// reference links, and lifecycle provenance. File-level note reading stays
+// in the Notes module.
+struct UpsertNoteTransaction: GRDBTransaction {
     // MARK: - Property
-    private static let wikilinkRegex = try! NSRegularExpression(
-        pattern: #"\[\[([a-z0-9][a-z0-9-]*)\]\]"#
-    )
-    private static let backtickIdRegex = try! NSRegularExpression(
-        pattern: #"`([a-z][a-z0-9-]{2,})`"#
-    )
-    
+    let file: URL
+    let fields: FrontmatterDoc
+    let body: String
+    let raw: String?
+    let now: Int
+
     // MARK: - Initializer
+    init(file: URL, fields: FrontmatterDoc, body: String, raw: String? = nil, now: Int) {
+        self.file = file
+        self.fields = fields
+        self.body = body
+        self.raw = raw
+        self.now = now
+    }
+
     // MARK: - Public
-    static func contentHash(_ text: String) -> String {
-        let digest = SHA256.hash(data: text.data(using: .utf8) ?? Data())
-        
-        return String(digest.map { byte in String(format: "%02x", byte) }.joined().prefix(16))
-    }
-    
-    static func requireNote(at url: URL) throws -> (doc: FrontmatterDoc, body: String) {
-        guard let read = try readNoteIfPresent(at: url) else {
-            throw NoteUnreadable(path: url.path, reason: "file does not exist")
-        }
-        
-        return read
-    }
-    
-    static func readNoteIfPresent(at url: URL) throws -> (doc: FrontmatterDoc, body: String)? {
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        
-        do {
-            return try Frontmatter.parse(try String(contentsOf: url, encoding: .utf8))
-        } catch {
-            throw NoteUnreadable(path: url.path, reason: "\(error)")
-        }
-    }
-    
-    static func relativeToBrainRoot(_ file: URL) throws -> String {
-        guard let relativePath = Paths.relative(of: file) else {
-            throw NotesError.notUnderBrainRoot(file.path)
-        }
-        
-        return relativePath
-    }
-    
     @discardableResult
-    static func upsert(
-        _ db: Database,
-        file: URL,
-        fields: FrontmatterDoc,
-        body: String,
-        raw: String? = nil,
-        now: Int
-    ) throws -> String {
+    func perform(_ db: Database) throws -> String {
         if fields.id.isEmpty { throw NotesError.idMissing }
-        
+
         var axis = fields.axis
-        
+
         if axis.isEmpty { axis = Paths.axisFromPath(file) }
-        
+
         let priority = fields.priority.isEmpty ? "lazy" : fields.priority
-        
+
         guard ["eager", "lazy"].contains(priority) else {
             throw NotesError.invalidPriority(priority)
         }
-        
+
         let relativePath = try Notes.relativeToBrainRoot(file)
         let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
         let mtime = Int((attributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)
-        
+
         try EnsureAxisTransaction(axis: axis, now: now).perform(db)
-        
+
         let staleFlag = fields.stale ? 1 : 0
         let templateValue = fields.template.flatMap { value in value.isEmpty ? nil : value }
         let lockedFlag = fields.locked ? 1 : 0
@@ -87,7 +57,7 @@ enum Notes {
         let contentHash = Notes.contentHash(
             try raw ?? String(contentsOf: file, encoding: .utf8)
         )
-        
+
         try db.execute(sql: """
             INSERT INTO notes (id, axis, path, title, summary, priority,
                                file_mtime, indexed_at, stale,
@@ -118,51 +88,64 @@ enum Notes {
         )
         try ProjectNoteRefsTransaction(noteId: fields.id, paths: fields.source, now: now).perform(db)
         try db.execute(sql: "DELETE FROM tags WHERE note_id = ?", arguments: [fields.id])
-        
+
         for tag in fields.tags {
             let canonical = try CanonicalizeTagTransaction(tag: tag).perform(db)
-            
+
             try EnsureTagTransaction(tag: canonical, now: now).perform(db)
             try db.execute(
                 sql: "INSERT OR IGNORE INTO tags (note_id, tag) VALUES (?, ?)",
                 arguments: [fields.id, canonical]
             )
         }
-        
+
         try ReconcileNoteEntitiesTransaction(
             entities: fields.entities ?? [],
             noteId: fields.id,
             now: now
         )
             .perform(db)
-        try reindexFTS(
-            db,
+        try ReindexNoteFTSTransaction(
             noteId: fields.id,
             title: fields.title,
             summary: fields.summary,
             body: body
         )
-        try refreshReferenceLinks(db, nid: fields.id, body: body, now: now)
-        
+            .perform(db)
+        try RefreshReferenceLinksTransaction(nid: fields.id, body: body, now: now).perform(db)
+
         return fields.id
     }
-    
-    static func reindexFTS(
-        _ db: Database,
-        noteId: String,
-        title: String,
-        summary: String?,
-        body: String
-    ) throws {
-        let enrich = try enrichText(db, noteId: noteId)
+
+    // MARK: - Private
+}
+
+struct ReindexNoteFTSTransaction: GRDBTransaction {
+    // MARK: - Property
+    let noteId: String
+    let title: String
+    let summary: String?
+    let body: String
+
+    // MARK: - Initializer
+    init(noteId: String, title: String, summary: String?, body: String) {
+        self.noteId = noteId
+        self.title = title
+        self.summary = summary
+        self.body = body
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
+        let enrich = try FetchNoteEnrichTextTransaction(noteId: noteId).perform(db)
         let (_, rows) = SectionEdit.sectionRows(body)
-        
+
         try db.execute(sql: "DELETE FROM notes_fts WHERE id = ?", arguments: [noteId])
         try db.execute(sql: """
             INSERT INTO notes_fts (id, section, title, summary, body, enrich)
             VALUES (?, '', ?, ?, ?, ?)
             """, arguments: [noteId, title, summary, body.trimmingTrailingNewlines(), enrich])
-        
+
         for row in rows {
             try db.execute(sql: """
                 INSERT INTO notes_fts (id, section, title, summary, body, enrich)
@@ -170,56 +153,94 @@ enum Notes {
                 """, arguments: [noteId, row.path, row.text])
         }
     }
-    
-    static func enrichText(_ db: Database, noteId: String) throws -> String {
+
+    // MARK: - Private
+}
+
+struct FetchNoteEnrichTextTransaction: GRDBTransaction {
+    // MARK: - Property
+    let noteId: String
+
+    // MARK: - Initializer
+    init(noteId: String) {
+        self.noteId = noteId
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> String {
         let terms = try String.fetchAll(db, sql: """
             SELECT term FROM note_retrieval_terms
             WHERE note_id = ? AND status = 'active'
             ORDER BY kind, term
             """, arguments: [noteId])
-        
+
         return terms.joined(separator: "\n")
     }
-    
-    static func syncEnrich(_ db: Database, noteId: String) throws {
-        guard try exists(db, nid: noteId) else { return }
-        
-        let enrich = try enrichText(db, noteId: noteId)
-        
+
+    // MARK: - Private
+}
+
+struct SyncNoteEnrichTransaction: GRDBTransaction {
+    // MARK: - Property
+    let noteId: String
+
+    // MARK: - Initializer
+    init(noteId: String) {
+        self.noteId = noteId
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
+        guard try NoteExistsTransaction(nid: noteId).perform(db) else { return }
+
+        let enrich = try FetchNoteEnrichTextTransaction(noteId: noteId).perform(db)
+
         try db.execute(
             sql: "UPDATE notes_fts SET enrich = ? WHERE id = ? AND section = ''",
             arguments: [enrich, noteId]
         )
     }
-    
-    static func refreshReferenceLinks(
-        _ db: Database,
-        nid: String,
-        body: String,
-        now: Int
-    ) throws {
+
+    // MARK: - Private
+}
+
+struct RefreshReferenceLinksTransaction: GRDBTransaction {
+    // MARK: - Property
+    let nid: String
+    let body: String
+    let now: Int
+
+    // MARK: - Initializer
+    init(nid: String, body: String, now: Int) {
+        self.nid = nid
+        self.body = body
+        self.now = now
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
         let nsBody = body as NSString
         let range = NSRange(location: 0, length: nsBody.length)
         var candidates = Set<String>()
-        
-        for regex in [backtickIdRegex, wikilinkRegex] {
+
+        for regex in [Notes.backtickIdRegex, Notes.wikilinkRegex] {
             regex.enumerateMatches(in: body, range: range) { match, _, _ in
                 guard let match else { return }
-                
+
                 candidates.insert(nsBody.substring(with: match.range(at: 1)))
             }
         }
-        
+
         candidates.remove(nid)
-        
+
         try db.execute(sql: "DELETE FROM note_ref_markers WHERE src = ?", arguments: [nid])
-        
+
         for marker in candidates.sorted() {
             try db.execute(sql: """
                 INSERT INTO note_ref_markers (src, marker, created_at) VALUES (?, ?, ?)
                 """, arguments: [nid, marker, now])
         }
-        
+
         try db.execute(
             sql: "DELETE FROM note_links WHERE src = ? AND kind = ?",
             arguments: [nid, Links.kindReference]
@@ -237,10 +258,25 @@ enum Notes {
             WHERE m.marker = ? AND m.src != ?
             """, arguments: [nid, Links.kindReference, now, now, nid, nid])
     }
-    
-    static func activate(_ db: Database, ids: [String], now: Int) throws {
+
+    // MARK: - Private
+}
+
+struct ActivateNotesTransaction: GRDBTransaction {
+    // MARK: - Property
+    let ids: [String]
+    let now: Int
+
+    // MARK: - Initializer
+    init(ids: [String], now: Int) {
+        self.ids = ids
+        self.now = now
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
         guard !ids.isEmpty else { return }
-        
+
         for noteId in ids {
             try db.execute(sql: """
                 INSERT INTO note_usage (note_id, hit_count, last_retrieved_at, created_at)
@@ -255,17 +291,56 @@ enum Notes {
                 """, arguments: [now, noteId])
         }
     }
-    
-    static func delete(_ db: Database, nid: String) throws {
+
+    // MARK: - Private
+}
+
+struct DeleteNoteRowTransaction: GRDBTransaction {
+    // MARK: - Property
+    let nid: String
+
+    // MARK: - Initializer
+    init(nid: String) {
+        self.nid = nid
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
         try db.execute(sql: "DELETE FROM notes WHERE id = ?", arguments: [nid])
         try db.execute(sql: "DELETE FROM notes_fts WHERE id = ?", arguments: [nid])
     }
-    
-    static func exists(_ db: Database, nid: String) throws -> Bool {
+
+    // MARK: - Private
+}
+
+struct NoteExistsTransaction: GRDBTransaction {
+    // MARK: - Property
+    let nid: String
+
+    // MARK: - Initializer
+    init(nid: String) {
+        self.nid = nid
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> Bool {
         try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id = ?", arguments: [nid]) != nil
     }
-    
-    static func pathOf(_ db: Database, nid: String) throws -> URL? {
+
+    // MARK: - Private
+}
+
+struct FetchNotePathTransaction: GRDBTransaction {
+    // MARK: - Property
+    let nid: String
+
+    // MARK: - Initializer
+    init(nid: String) {
+        self.nid = nid
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> URL? {
         guard let relativePath = try String.fetchOne(
             db,
             sql: "SELECT path FROM notes WHERE id = ?",
@@ -273,84 +348,190 @@ enum Notes {
         ) else {
             return nil
         }
-        
+
         return Paths.brainRoot.appendingPathComponent(relativePath)
     }
-    
-    static func listByAxis(_ db: Database, axis: String) throws -> [(id: String, path: String)] {
+
+    // MARK: - Private
+}
+
+struct ListNotesByAxisTransaction: GRDBTransaction {
+    // MARK: - Property
+    let axis: String
+
+    // MARK: - Initializer
+    init(axis: String) {
+        self.axis = axis
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> [(id: String, path: String)] {
         let rows = try Row.fetchAll(
             db,
             sql: "SELECT id, path FROM notes WHERE axis = ?",
             arguments: [axis]
         )
-        
+
         return rows.map { row in (id: row["id"], path: row["path"]) }
     }
-    
-    static func existingIds(_ db: Database) throws -> Set<String> {
+
+    // MARK: - Private
+}
+
+struct FetchNoteIdsTransaction: GRDBTransaction {
+    // MARK: - Initializer
+    init() { }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> Set<String> {
         Set(try String.fetchAll(db, sql: "SELECT id FROM notes"))
     }
-    
-    static func eagerCount(_ db: Database) throws -> Int {
+
+    // MARK: - Private
+}
+
+struct CountEagerNotesTransaction: GRDBTransaction {
+    // MARK: - Initializer
+    init() { }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> Int {
         try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM notes WHERE \(Policy.eager(""))") ?? 0
     }
-    
-    static func allPathsRel(_ db: Database) throws -> [(id: String, path: String)] {
+
+    // MARK: - Private
+}
+
+struct FetchAllNotePathsTransaction: GRDBTransaction {
+    // MARK: - Initializer
+    init() { }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> [(id: String, path: String)] {
         let rows = try Row.fetchAll(db, sql: "SELECT id, path FROM notes")
-        
+
         return rows.map { row in (id: row["id"], path: row["path"]) }
     }
-    
-    static func setAxis(_ db: Database, fromAxis: String, toAxis: String) throws -> Int {
+
+    // MARK: - Private
+}
+
+struct SetNotesAxisTransaction: GRDBTransaction {
+    // MARK: - Property
+    let fromAxis: String
+    let toAxis: String
+
+    // MARK: - Initializer
+    init(fromAxis: String, toAxis: String) {
+        self.fromAxis = fromAxis
+        self.toAxis = toAxis
+    }
+
+    // MARK: - Public
+    @discardableResult
+    func perform(_ db: Database) throws -> Int {
         try db.execute(
             sql: "UPDATE notes SET axis = ? WHERE axis = ?",
             arguments: [toAxis, fromAxis]
         )
-        
+
         return db.changesCount
     }
-    
-    static func setPath(
-        _ db: Database,
-        nid: String,
-        newRel: String,
-        fileMtime: Int,
-        indexedAt: Int
-    ) throws {
+
+    // MARK: - Private
+}
+
+struct SetNotePathTransaction: GRDBTransaction {
+    // MARK: - Property
+    let nid: String
+    let newRel: String
+    let fileMtime: Int
+    let indexedAt: Int
+
+    // MARK: - Initializer
+    init(nid: String, newRel: String, fileMtime: Int, indexedAt: Int) {
+        self.nid = nid
+        self.newRel = newRel
+        self.fileMtime = fileMtime
+        self.indexedAt = indexedAt
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
         try db.execute(
             sql: "UPDATE notes SET path = ?, file_mtime = ?, indexed_at = ? WHERE id = ?",
             arguments: [newRel, fileMtime, indexedAt, nid]
         )
     }
-    
-    static func setStale(_ db: Database, nid: String, stale: Bool) throws {
+
+    // MARK: - Private
+}
+
+struct SetNoteStaleTransaction: GRDBTransaction {
+    // MARK: - Property
+    let nid: String
+    let stale: Bool
+
+    // MARK: - Initializer
+    init(nid: String, stale: Bool) {
+        self.nid = nid
+        self.stale = stale
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
         try db.execute(
             sql: "UPDATE notes SET stale = ? WHERE id = ?",
             arguments: [stale ? 1 : 0, nid]
         )
     }
-    
-    static func recordLifecycleEvent(
-        _ db: Database,
-        nid: String,
-        kind: String,
-        reason: String?,
-        now: Int
-    ) throws {
+
+    // MARK: - Private
+}
+
+struct RecordNoteLifecycleEventTransaction: GRDBTransaction {
+    // MARK: - Property
+    let nid: String
+    let kind: String
+    let reason: String?
+    let now: Int
+
+    // MARK: - Initializer
+    init(nid: String, kind: String, reason: String?, now: Int) {
+        self.nid = nid
+        self.kind = kind
+        self.reason = reason
+        self.now = now
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
         let trimmedReason = reason.map { text in String(text.prefix(200)) }
-        
+
         try db.execute(sql: """
             INSERT INTO note_lifecycle_events (note_id, kind, reason, created_at)
             VALUES (?, ?, ?, ?)
             """, arguments: [nid, kind, trimmedReason, now])
     }
-    
-    static func stampLifecycle(
-        _ db: Database,
-        nid: String,
-        now: Int,
-        isNew: Bool
-    ) throws {
+
+    // MARK: - Private
+}
+
+struct StampNoteLifecycleTransaction: GRDBTransaction {
+    // MARK: - Property
+    let nid: String
+    let now: Int
+    let isNew: Bool
+
+    // MARK: - Initializer
+    init(nid: String, now: Int, isNew: Bool) {
+        self.nid = nid
+        self.now = now
+        self.isNew = isNew
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
         guard let row = try Row.fetchOne(
             db,
             sql: "SELECT path FROM notes WHERE id = ?",
@@ -358,7 +539,7 @@ enum Notes {
         ) else {
             throw NotesError.stampedFileVanished(nid: nid, path: "(no notes row)")
         }
-        
+
         let relativePath: String = row["path"]
         let previousCreated = (try Int.fetchOne(
             db,
@@ -370,9 +551,9 @@ enum Notes {
         let wordCount = SectionEdit.wordCount(body)
         let sectionCount = SectionEdit.sectionCount(body)
         var created = previousCreated != 0 ? previousCreated : now
-        
+
         if isNew { created = now }
-        
+
         try db.execute(
             sql: "UPDATE notes SET edited_at = ?, word_count = ?, section_count = ? WHERE id = ?",
             arguments: [now, wordCount, sectionCount, nid]
@@ -382,21 +563,60 @@ enum Notes {
             ON CONFLICT(note_id) DO UPDATE SET created_at = excluded.created_at
             """, arguments: [nid, created])
     }
-    
-    static func ftsClear(_ db: Database, nid: String) throws {
+
+    // MARK: - Private
+}
+
+struct ClearNoteFTSTransaction: GRDBTransaction {
+    // MARK: - Property
+    let nid: String
+
+    // MARK: - Initializer
+    init(nid: String) {
+        self.nid = nid
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
         try db.execute(sql: "DELETE FROM notes_fts WHERE id = ?", arguments: [nid])
     }
-    
-    static func ftsSetMetaOnly(
-        _ db: Database,
-        nid: String,
-        title: String,
-        summary: String?
-    ) throws {
-        try reindexFTS(db, noteId: nid, title: title, summary: summary ?? "", body: "")
+
+    // MARK: - Private
+}
+
+struct SetNoteFTSMetaOnlyTransaction: GRDBTransaction {
+    // MARK: - Property
+    let nid: String
+    let title: String
+    let summary: String?
+
+    // MARK: - Initializer
+    init(nid: String, title: String, summary: String?) {
+        self.nid = nid
+        self.title = title
+        self.summary = summary
     }
-    
-    static func get(_ db: Database, nid: String) throws -> (URL, FrontmatterDoc, String)? {
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
+        try ReindexNoteFTSTransaction(noteId: nid, title: title, summary: summary ?? "", body: "")
+            .perform(db)
+    }
+
+    // MARK: - Private
+}
+
+struct FetchNoteTransaction: GRDBTransaction {
+    // MARK: - Property
+    let nid: String
+
+    // MARK: - Initializer
+    init(nid: String) {
+        self.nid = nid
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> (URL, FrontmatterDoc, String)? {
         guard let relativePath = try String.fetchOne(
             db,
             sql: "SELECT path FROM notes WHERE id = ?",
@@ -404,114 +624,71 @@ enum Notes {
         ) else {
             return nil
         }
-        
+
         let path = Paths.brainRoot.appendingPathComponent(relativePath)
         let text = try String(contentsOf: path, encoding: .utf8)
         let (fields, body) = try Frontmatter.parse(text)
-        
+
         return (path, fields, body)
     }
-    
+
+    // MARK: - Private
+}
+
+struct ReindexNoteFileTransaction: GRDBTransaction {
+    // MARK: - Property
+    let path: URL
+
+    // MARK: - Initializer
+    init(path: URL) {
+        self.path = path
+    }
+
+    // MARK: - Public
     @discardableResult
-    static func reindexFile(_ db: Database, path: URL) throws -> String {
+    func perform(_ db: Database) throws -> String {
         if let rejection = Paths.liveNoteRejection(of: path) {
             throw NotesError.notALiveNote(
                 path: Paths.relative(of: path) ?? path.path,
                 reason: rejection
             )
         }
-        
+
         let now = Int(Date().timeIntervalSince1970)
 
         var text = try String(contentsOf: path, encoding: .utf8)
         var (fields, body) = try Frontmatter.parse(text)
         let tagsChanged = try normalizeTags(db, &fields)
-        
+
         if tagsChanged {
             text = Frontmatter.dump(fields) + body
             try text.write(to: path, atomically: true, encoding: .utf8)
         }
-        
-        return try upsert(db, file: path, fields: fields, body: body, raw: text, now: now)
+
+        return try UpsertNoteTransaction(file: path, fields: fields, body: body, raw: text, now: now)
+            .perform(db)
     }
-    
+
     // MARK: - Private
-    private static func normalizeTags(
+    private func normalizeTags(
         _ db: Database,
         _ doc: inout FrontmatterDoc
     ) throws -> Bool {
         guard !doc.tags.isEmpty else { return false }
-        
+
         var seen = Set<String>()
         var normalized: [String] = []
-        
+
         for tag in doc.tags {
             let canonical = try CanonicalizeTagTransaction(tag: tag).perform(db)
-            
+
             if seen.insert(canonical).inserted { normalized.append(canonical) }
         }
-        
+
         if normalized == doc.tags { return false }
-        
+
         doc.tags = normalized
-        
+
         return true
-    }
-}
-
-struct NoteUnreadable: Error, CustomStringConvertible {
-    // MARK: - Property
-    let path: String
-    let reason: String
-    
-    var description: String { "unreadable note file \(path): \(reason)" }
-    
-    // MARK: - Initializer
-    // MARK: - Public
-    // MARK: - Private
-}
-
-enum NotesError: Error, CustomStringConvertible {
-    case idMissing
-    case invalidPriority(String)
-    case notUnderBrainRoot(String)
-    case notALiveNote(path: String, reason: String)
-    case unknownIds([String])
-    case trashUnreadable(nid: String, files: [String], matched: Bool)
-    case stampedFileVanished(nid: String, path: String)
-    case noteFileMissing(path: String)
-    
-    var description: String {
-        switch self {
-        case .idMissing:
-            return "id missing"
-        
-        case .invalidPriority(let priority):
-            return "invalid priority: \(priority)"
-        
-        case .notUnderBrainRoot(let path):
-            return "file not under BRAIN_ROOT: \(path)"
-        
-        case .notALiveNote(let path, let reason):
-            return "not a live note: \(path) — \(reason)"
-        
-        case .unknownIds(let ids):
-            return "unknown id: \(ids.joined(separator: ", "))"
-        
-        case .noteFileMissing(let path):
-            return "note file does not exist: \(path)"
-        
-        case .stampedFileVanished(let nid, let path):
-            return "note file vanished between write and stamp: \(nid) → \(path)"
-        
-        case .trashUnreadable(let nid, let files, let matched):
-            let why = matched
-                ? "a readable incarnation of '\(nid)' was found, but an unreadable trash file may be a "
-                    + "later one — restoring the readable one would quietly bring back an older version"
-                : "one of them may be '\(nid)' itself, so 'not in trash' would be a guess"
-            
-            return "cannot resolve '\(nid)' in trash — \(files.count) trash file(s) unreadable; "
-                + why + ": \(files.joined(separator: "; "))"
-        }
     }
 }

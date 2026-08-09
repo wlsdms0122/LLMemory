@@ -207,7 +207,7 @@ public enum HandlersEnrichment {
             let edgesPurged = db.changesCount
             
             for noteId in affected {
-                try Notes.syncEnrich(db, noteId: noteId)
+                try SyncNoteEnrichTransaction(noteId: noteId).perform(db)
             }
             
             return [
@@ -264,7 +264,7 @@ public enum HandlersEnrichment {
             
             let reason = op["reason"] as? String
             
-            try Notes.recordLifecycleEvent(db, nid: src, kind: kind, reason: reason, now: now)
+            try RecordNoteLifecycleEventTransaction(nid: src, kind: kind, reason: reason, now: now).perform(db)
             
             return [
                 "status": "ok",

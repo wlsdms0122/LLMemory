@@ -68,7 +68,7 @@ struct StructuralLossInvariantTests {
         #expect(home.createNote(id: "trsh-snap", content: "## A\nsecond\n").status == "ok")
         
         // When
-        let source = try home.read { database in try Notes.pathOf(database, nid: "trsh-snap") }
+        let source = try home.read { database in try FetchNotePathTransaction(nid: "trsh-snap").perform(database) }
         
         guard let source, let predicted = Handlers.trashDestination(source) else {
             throw TestFailure("setup: no trash destination for the live note")

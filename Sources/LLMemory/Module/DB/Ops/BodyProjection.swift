@@ -96,7 +96,7 @@ enum BodyProjection {
     ) throws -> String? {
         if let staged = context.stagedBodies[noteId] { return staged }
         
-        guard let path = try Notes.pathOf(db, nid: noteId) else { return nil }
+        guard let path = try FetchNotePathTransaction(nid: noteId).perform(db) else { return nil }
         
         return (try? Notes.readNoteIfPresent(at: path))??.body
     }

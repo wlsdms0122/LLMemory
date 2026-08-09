@@ -129,7 +129,7 @@ struct ValidatePendingTermsTransaction: GRDBTransaction {
         }
 
         for noteId in touchedNotes {
-            try Notes.syncEnrich(db, noteId: noteId)
+            try SyncNoteEnrichTransaction(noteId: noteId).perform(db)
         }
 
         return result

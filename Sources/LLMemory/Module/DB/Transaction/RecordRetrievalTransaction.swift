@@ -38,7 +38,7 @@ public struct RecordRetrievalTransaction: LegacyWriteTransaction {
 
         if !parameter.activateIds.isEmpty {
             try connection.write { db in
-                try Notes.activate(db, ids: parameter.activateIds, now: now)
+                try ActivateNotesTransaction(ids: parameter.activateIds, now: now).perform(db)
             }
         }
 

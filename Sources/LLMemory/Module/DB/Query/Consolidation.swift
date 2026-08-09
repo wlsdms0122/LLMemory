@@ -343,13 +343,11 @@ public enum Consolidation {
                 continue
             }
             
-            try Notes.reindexFTS(
-                db,
-                noteId: noteId,
+            try ReindexNoteFTSTransaction(noteId: noteId,
                 title: title,
                 summary: summary ?? "",
                 body: body
-            )
+            ).perform(db)
             refilled += 1
         }
         
@@ -357,7 +355,7 @@ public enum Consolidation {
     }
 
     public static func integrityL1(_ db: Database) throws -> (checked: Int, issues: [String]) {
-        let rows = try Notes.allPathsRel(db)
+        let rows = try FetchAllNotePathsTransaction().perform(db)
         let issues = try rows.compactMap { row -> String? in
             let path = Paths.brainRoot.appendingPathComponent(row.path)
             

@@ -48,7 +48,7 @@ struct SectionInvariantExitInvariantTests {
         
         // Then
         #expect(result.status == "ok", "soft delete turned out to be one-way: \(result.error)")
-        #expect(try home.read { database in try Notes.exists(database, nid: "cr-note") })
+        #expect(try home.read { database in try NoteExistsTransaction(nid: "cr-note").perform(database) })
     }
     
     @Test("a note that already has a duplicate heading can still be migrated to another axis")

@@ -28,7 +28,7 @@ struct LiveNoteGateInvariantTests {
         
         // When
         #expect(throws: (any Error).self, "a trashed file was reindexed back into live notes") {
-            _ = try home.database().write { database in try Notes.reindexFile(database, path: trashed) }
+            _ = try home.database().write { database in try ReindexNoteFileTransaction(path: trashed).perform(database) }
         }
         
         // Then

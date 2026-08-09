@@ -272,7 +272,7 @@ public enum Handlers {
     
     public static func existingState(_ db: Database) throws -> ExistingState {
         ExistingState(
-            ids: try Notes.existingIds(db),
+            ids: try FetchNoteIdsTransaction().perform(db),
             axes: try FetchAxisNamesTransaction().perform(db)
         )
     }
@@ -306,7 +306,7 @@ public enum Handlers {
         db: Database
     ) throws -> String? {
         if context.inFlightIds.contains(nid) { return nil }
-        if try Notes.exists(db, nid: nid) { return nil }
+        if try NoteExistsTransaction(nid: nid).perform(db) { return nil }
         
         return "unknown id: \(nid)"
     }
@@ -335,7 +335,7 @@ public enum Handlers {
         opLabel: String,
         now: Int
     ) throws {
-        try Notes.recordLifecycleEvent(db, nid: nid, kind: "edited", reason: opLabel, now: now)
+        try RecordNoteLifecycleEventTransaction(nid: nid, kind: "edited", reason: opLabel, now: now).perform(db)
     }
     
     public static func seedInitialLinks(_ db: Database, nid: String, tags: [String]) throws {

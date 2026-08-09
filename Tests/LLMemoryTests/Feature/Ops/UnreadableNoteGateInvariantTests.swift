@@ -306,7 +306,7 @@ struct UnreadableNoteGateInvariantTests {
     private func stampLifecycle(of noteId: String) throws {
         try home.storage.writeLock {
             try home.database().write { database in
-                try Notes.stampLifecycle(database, nid: noteId, now: 1, isNew: false)
+                try StampNoteLifecycleTransaction(nid: noteId, now: 1, isNew: false).perform(database)
             }
         }
     }

@@ -38,7 +38,7 @@ public enum HandlersBasic {
             if hasTemplate {
                 let templateId = op["template"] as! String
                 
-                if !(try Notes.exists(db, nid: templateId))
+                if !(try NoteExistsTransaction(nid: templateId).perform(db))
                     && !context.inFlightIds.contains(templateId) {
                     return "unknown template note: \(templateId)"
                 }
@@ -145,15 +145,13 @@ public enum HandlersBasic {
                 try EnsureAxisTransaction(axis: axis, description: axisDescription, now: now).perform(db)
             }
             
-            try Notes.reindexFile(db, path: path)
-            try Notes.stampLifecycle(db, nid: noteId, now: now, isNew: true)
-            try Notes.recordLifecycleEvent(
-                db,
-                nid: noteId,
+            try ReindexNoteFileTransaction(path: path).perform(db)
+            try StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: true).perform(db)
+            try RecordNoteLifecycleEventTransaction(nid: noteId,
                 kind: "created",
                 reason: op["rationale"] as? String,
                 now: now
-            )
+            ).perform(db)
             try Handlers.seedInitialLinks(db, nid: noteId, tags: doc.tags)
             
             return [
@@ -241,7 +239,7 @@ public enum HandlersBasic {
         write: { op, db in
             let noteId = op["id"] as! String
             
-            guard let path = try Notes.pathOf(db, nid: noteId),
+            guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -264,11 +262,11 @@ public enum HandlersBasic {
             )
             
             try (Frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
-            try Notes.reindexFile(db, path: path)
+            try ReindexNoteFileTransaction(path: path).perform(db)
             
             let now = Int(Date().timeIntervalSince1970)
             
-            try Notes.stampLifecycle(db, nid: noteId, now: now, isNew: false)
+            try StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false).perform(db)
             try Handlers.recordEdit(
                 db,
                 nid: noteId,
@@ -289,7 +287,7 @@ public enum HandlersBasic {
         effect: { _ in [:] },
         touches: { op, db in
             guard let noteId = op["id"] as? String,
-                let path = try Notes.pathOf(db, nid: noteId)
+                let path = try FetchNotePathTransaction(nid: noteId).perform(db)
             else {
                 return []
             }
@@ -340,7 +338,7 @@ public enum HandlersBasic {
             do {
                 var probe = FrontmatterDoc()
                 
-                if let path = try Notes.pathOf(db, nid: noteId),
+                if let path = try FetchNotePathTransaction(nid: noteId).perform(db),
                     let read = try Notes.readNoteIfPresent(at: path) {
                     probe = read.doc
                 }
@@ -355,7 +353,7 @@ public enum HandlersBasic {
         write: { op, db in
             let noteId = op["id"] as! String
             
-            guard let path = try Notes.pathOf(db, nid: noteId),
+            guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -369,11 +367,11 @@ public enum HandlersBasic {
             
             try Handlers.mergeFields(&doc, fields)
             try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-            try Notes.reindexFile(db, path: path)
+            try ReindexNoteFileTransaction(path: path).perform(db)
             
             let now = Int(Date().timeIntervalSince1970)
             
-            try Notes.stampLifecycle(db, nid: noteId, now: now, isNew: false)
+            try StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false).perform(db)
             
             let keys = fields.keys.sorted().joined(separator: ",")
             
@@ -389,7 +387,7 @@ public enum HandlersBasic {
         effect: { _ in [:] },
         touches: { op, db in
             guard let noteId = op["id"] as? String,
-                let path = try Notes.pathOf(db, nid: noteId)
+                let path = try FetchNotePathTransaction(nid: noteId).perform(db)
             else {
                 return []
             }
@@ -426,7 +424,7 @@ public enum HandlersBasic {
         write: { op, db in
             let noteId = op["id"] as! String
             
-            guard let path = try Notes.pathOf(db, nid: noteId),
+            guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -441,11 +439,11 @@ public enum HandlersBasic {
             let newBody = try SectionEdit.rename(body, path: sectionPath, newTitle: newTitle)
             
             try (Frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
-            try Notes.reindexFile(db, path: path)
+            try ReindexNoteFileTransaction(path: path).perform(db)
             
             let now = Int(Date().timeIntervalSince1970)
             
-            try Notes.stampLifecycle(db, nid: noteId, now: now, isNew: false)
+            try StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false).perform(db)
             try Handlers.recordEdit(db, nid: noteId, opLabel: "rename_section", now: now)
             
             return [
@@ -458,7 +456,7 @@ public enum HandlersBasic {
         effect: { _ in [:] },
         touches: { op, db in
             guard let noteId = op["id"] as? String,
-                let path = try Notes.pathOf(db, nid: noteId)
+                let path = try FetchNotePathTransaction(nid: noteId).perform(db)
             else {
                 return []
             }
@@ -497,7 +495,7 @@ public enum HandlersBasic {
             let now = Int(Date().timeIntervalSince1970)
             let noteId = op["id"] as! String
             
-            guard let path = try Notes.pathOf(db, nid: noteId),
+            guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -514,15 +512,13 @@ public enum HandlersBasic {
             }
             
             try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-            try Notes.reindexFile(db, path: path)
-            try Notes.setStale(db, nid: noteId, stale: true)
-            try Notes.recordLifecycleEvent(
-                db,
-                nid: noteId,
+            try ReindexNoteFileTransaction(path: path).perform(db)
+            try SetNoteStaleTransaction(nid: noteId, stale: true).perform(db)
+            try RecordNoteLifecycleEventTransaction(nid: noteId,
                 kind: "invalidated",
                 reason: op["reason"] as? String,
                 now: now
-            )
+            ).perform(db)
             
             let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(100)
             
@@ -537,7 +533,7 @@ public enum HandlersBasic {
         effect: { op in ["invalidates": [op["id"] as? String ?? ""]] },
         touches: { op, db in
             guard let noteId = op["id"] as? String,
-                let path = try Notes.pathOf(db, nid: noteId)
+                let path = try FetchNotePathTransaction(nid: noteId).perform(db)
             else {
                 return []
             }
@@ -580,7 +576,7 @@ public enum HandlersBasic {
             let now = Int(Date().timeIntervalSince1970)
             let noteId = op["id"] as! String
             
-            guard let path = try Notes.pathOf(db, nid: noteId),
+            guard let path = try FetchNotePathTransaction(nid: noteId).perform(db),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw NSError(domain: "Handlers", code: 1, userInfo: [
@@ -594,22 +590,20 @@ public enum HandlersBasic {
             doc.invalidatedReason = nil
             
             try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-            try Notes.reindexFile(db, path: path)
-            try Notes.setStale(db, nid: noteId, stale: false)
-            try Notes.recordLifecycleEvent(
-                db,
-                nid: noteId,
+            try ReindexNoteFileTransaction(path: path).perform(db)
+            try SetNoteStaleTransaction(nid: noteId, stale: false).perform(db)
+            try RecordNoteLifecycleEventTransaction(nid: noteId,
                 kind: "revalidated",
                 reason: op["reason"] as? String,
                 now: now
-            )
+            ).perform(db)
             
             return ["status": "ok", "path": path.path, "ids": [noteId], "note": "revalidated"]
         },
         effect: { _ in [:] },
         touches: { op, db in
             guard let noteId = op["id"] as? String,
-                let path = try Notes.pathOf(db, nid: noteId)
+                let path = try FetchNotePathTransaction(nid: noteId).perform(db)
             else {
                 return []
             }
@@ -654,13 +648,11 @@ public enum HandlersBasic {
                 now: now
             )
                 .perform(db)
-            try Notes.recordLifecycleEvent(
-                db,
-                nid: noteId,
+            try RecordNoteLifecycleEventTransaction(nid: noteId,
                 kind: "source_rebased",
                 reason: op["reason"] as? String,
                 now: now
-            )
+            ).perform(db)
             
             return ["status": "ok", "ids": [noteId], "note": "source re-baselined"]
         },

@@ -160,7 +160,7 @@ public enum Indexer {
 
             do {
                 let noteId = try queue.write { db in
-                    try Notes.reindexFile(db, path: path)
+                    try ReindexNoteFileTransaction(path: path).perform(db)
                 }
                 let relativePath = Paths.relative(of: path) ?? path.path
 
@@ -221,14 +221,12 @@ public enum Indexer {
                 return
             }
             
-            try Notes.upsert(
-                db,
-                file: note.file,
+            try UpsertNoteTransaction(file: note.file,
                 fields: note.fields,
                 body: note.body,
                 raw: note.raw,
                 now: now
-            )
+            ).perform(db)
             changed += 1
         }
         
@@ -252,7 +250,7 @@ public enum Indexer {
         }
         
         for orphan in orphans {
-            try Notes.delete(db, nid: orphan)
+            try DeleteNoteRowTransaction(nid: orphan).perform(db)
         }
         
         if rebuild {
@@ -529,7 +527,7 @@ public enum Indexer {
                 ok = false
             }
             
-            let eagerCount = try Notes.eagerCount(db)
+            let eagerCount = try CountEagerNotesTransaction().perform(db)
             
             if eagerCount > eagerCap {
                 messages.append("L3\teager-cap-exceeded\t\(eagerCount)/\(eagerCap)")

@@ -355,7 +355,7 @@ struct TemplateTests {
         
         let queue = try home.storage.connect()
         
-        #expect(try !queue.read { db in try Notes.exists(db, nid: "doc-4") })
+        #expect(try !queue.read { db in try NoteExistsTransaction(nid: "doc-4").perform(db) })
     }
     
     @Test("editing a template revalidates the documents bound to it")
@@ -401,14 +401,14 @@ struct TemplateTests {
         
         try (text + "# C\nguidance C.\n").write(to: templateFile, atomically: true, encoding: .utf8)
         
-        _ = try home.storage.writeLock { try queue.write { db in try Notes.reindexFile(db, path: templateFile) } }
+        _ = try home.storage.writeLock { try queue.write { db in try ReindexNoteFileTransaction(path: templateFile).perform(db) } }
         
         let result = OpsEngine.apply(home.storage, ["ops": [[
             "op": "delete_note", "id": "doc-d", "reason": "drift cleanup"
         ]], "rationale": "t"])
         
         #expect(result.status == "ok")
-        #expect(try !queue.read { db in try Notes.exists(db, nid: "doc-d") })
+        #expect(try !queue.read { db in try NoteExistsTransaction(nid: "doc-d").perform(db) })
     }
     
     @Test("a templated or locked note is not a reorganisation candidate")

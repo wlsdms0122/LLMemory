@@ -160,7 +160,7 @@ extension BrainHome {
     }
 
     func reindexFile(at file: URL) throws {
-        try write { database in _ = try Notes.reindexFile(database, path: file) }
+        try write { database in _ = try ReindexNoteFileTransaction(path: file).perform(database) }
     }
 
     func reindexNote(id: String) throws {
