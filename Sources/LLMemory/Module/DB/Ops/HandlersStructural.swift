@@ -122,7 +122,7 @@ public enum HandlersStructural {
             
             if (op["force"] as? Bool) == true { return nil }
             
-            let inbound = try Links.hasInbound(db, noteId: noteId)
+            let inbound = try FetchInboundBlockersTransaction(noteId: noteId).perform(db)
             
             if !inbound.isEmpty {
                 return "inbound links exist (src: \(inbound.joined(separator: ", "))) — resolve them or set force=true"
@@ -340,7 +340,7 @@ public enum HandlersStructural {
                 }
                 
                 try Notes.syncEnrich(db, noteId: newId)
-                try Links.normalizeUndirected(db, nodeId: newId)
+                try NormalizeUndirectedLinksTransaction(nodeId: newId).perform(db)
             }
             
             try Notes.stampLifecycle(db, nid: newId, now: now, isNew: false)
@@ -960,7 +960,7 @@ public enum HandlersStructural {
             let (srcDoc, srcBody) = try Frontmatter.parse(
                 try String(contentsOf: srcPath, encoding: .utf8)
             )
-            let (outboundEdges, inboundEdges) = try Links.fanForSplit(db, fromId: fromId)
+            let (outboundEdges, inboundEdges) = try FetchLinkFanTransaction(fromId: fromId).perform(db)
             let routing = parseRouting(op)
             let srcTerms = try Row.fetchAll(db, sql: """
                 SELECT kind, term, provenance FROM note_retrieval_terms WHERE note_id = ? AND status = 'active'
@@ -1075,8 +1075,7 @@ public enum HandlersStructural {
                 let src = outbound ? child : other
                 let dst = outbound ? other : child
                 
-                try Links.insertRedistributed(
-                    db,
+                try AddLinkTransaction(
                     src: src,
                     dst: dst,
                     kind: edge.kind,
@@ -1085,6 +1084,7 @@ public enum HandlersStructural {
                     lastActivatedAt: edge.lastActivatedAt,
                     provenance: edge.provenance
                 )
+                    .perform(db)
             }
             
             func redistribute(_ edges: [Links.Edge], outbound: Bool) throws {
@@ -1151,13 +1151,13 @@ public enum HandlersStructural {
             try redistribute(outboundEdges, outbound: true)
             try redistribute(inboundEdges, outbound: false)
             
-            for noteId in newIds { try Links.normalizeUndirected(db, nodeId: noteId) }
+            for noteId in newIds { try NormalizeUndirectedLinksTransaction(nodeId: noteId).perform(db) }
             
-            try Links.linkSiblings(
-                db,
+            try LinkSiblingsTransaction(
                 ids: sourceSurvives ? newIds + [fromId] : newIds,
                 now: now
             )
+                .perform(db)
             
             if !sourceSurvives {
                 for row in srcTerms {
@@ -1210,7 +1210,7 @@ public enum HandlersStructural {
                     }
                 }
                 
-                try Links.deleteForNote(db, noteId: fromId)
+                try DeleteNoteLinksTransaction(noteId: fromId).perform(db)
             }
             
             return [
@@ -1355,7 +1355,7 @@ public enum HandlersStructural {
                     reason: "merged into \(intoId)",
                     now: now
                 ).perform(db)
-                try Links.redirectForMerge(db, fromId: fromId, intoId: intoId)
+                try RedirectLinksForMergeTransaction(fromId: fromId, intoId: intoId).perform(db)
                 try NoteArtifacts.absorbForMerge(db, from: fromId, into: intoId)
                 try Notes.delete(db, nid: fromId)
             }

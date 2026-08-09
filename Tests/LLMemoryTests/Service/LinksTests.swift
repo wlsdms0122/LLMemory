@@ -81,7 +81,7 @@ struct LinksTests {
         try seedPair()
         
         // Then
-        #expect(try Links.strengthen(home.database(), pairs: [("temp-a", "temp-b")]) == 1)
+        #expect(try home.database().write { db in try StrengthenLinksTransaction(pairs: [("temp-a", "temp-b")]).perform(db) } == 1)
     }
     
     @Test("strengthening a note against itself does nothing")
@@ -90,7 +90,7 @@ struct LinksTests {
         try seedPair()
         
         // Then
-        #expect(try Links.strengthen(home.database(), pairs: [("temp-a", "temp-a")]) == 0)
+        #expect(try home.database().write { db in try StrengthenLinksTransaction(pairs: [("temp-a", "temp-a")]).perform(db) } == 0)
     }
     
     @Test("rebirth strengthens the learned edge and leaves the fact edge exactly as it was")
@@ -101,7 +101,7 @@ struct LinksTests {
         try home.linkNotes("temp-a", "temp-b", kind: "cooccur", weight: 0.5)
         
         // When
-        _ = try Links.rebirth(home.database(), noteIds: ["temp-a", "temp-b"])
+        _ = try home.database().write { db in try RebirthLinksTransaction(noteIds: ["temp-a", "temp-b"]).perform(db) }
         
         // Then
         let weights = try home.read { database -> [String: Double] in
@@ -152,7 +152,7 @@ struct LinksTests {
         }
         
         // When
-        let expanded = try Links.expand(home.database(), noteIds: ["exp-hub"], limit: 3).map(\.id)
+        let expanded = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["exp-hub"], limit: 3).perform(db) }.map(\.id)
         
         // Then
         #expect(expanded == ["exp-n1", "exp-n2", "exp-n3"], "a tie must cut by id ascending — got \(expanded)")
@@ -167,7 +167,7 @@ struct LinksTests {
         try home.linkNotes("sib-assoc", "sib-hub", kind: "cooccur", weight: 0.6)
         
         // When
-        let expanded = try Links.expand(home.database(), noteIds: ["sib-hub"], limit: 3).map(\.id)
+        let expanded = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["sib-hub"], limit: 3).perform(db) }.map(\.id)
         
         // Then
         #expect(expanded.first == "sib-assoc",

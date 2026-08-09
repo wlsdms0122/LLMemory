@@ -260,7 +260,7 @@ public enum HandlersEnrichment {
             let dst = op["dst"] as! String
             let kind = op["kind"] as! String
             
-            try Links.insertLineage(db, src: src, dst: dst, kind: kind, now: now)
+            try InsertLineageLinkTransaction(src: src, dst: dst, kind: kind, now: now).perform(db)
             
             let reason = op["reason"] as? String
             

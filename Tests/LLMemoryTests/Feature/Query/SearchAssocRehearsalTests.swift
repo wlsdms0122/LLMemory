@@ -29,12 +29,15 @@ struct SearchAssocRehearsalTests {
         home.createNote(id: "areh-a", title: "alpha", content: "## A\nzephyrquasar context\n")
         home.createNote(id: "areh-b", title: "beta", content: "## A\nzephyrquasar context\n")
         
-        _ = try Links.strengthen(home.database(), 
-            pairs: [("areh-a", "areh-b")],
-            kind: Links.kindAssoc,
-            step: 0.5,
-            cap: 1.0
-        )
+        _ = try home.database().write { db in
+            try StrengthenLinksTransaction(
+                pairs: [("areh-a", "areh-b")],
+                kind: Links.kindAssoc,
+                step: 0.5,
+                cap: 1.0
+            )
+                .perform(db)
+        }
         
         #expect(try assocWeight(between: "areh-a", and: "areh-b") == 0.5)
         

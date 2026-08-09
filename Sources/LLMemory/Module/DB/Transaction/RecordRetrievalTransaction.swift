@@ -44,11 +44,13 @@ public struct RecordRetrievalTransaction: LegacyWriteTransaction {
 
         if !parameter.strengthenPairs.isEmpty {
             do {
-                _ = try Links.strengthen(
-                    connection,
-                    pairs: parameter.strengthenPairs.map { pair in (pair.source, pair.destination) },
-                    cap: 1.0
-                )
+                _ = try connection.write { db in
+                    try StrengthenLinksTransaction(
+                        pairs: parameter.strengthenPairs.map { pair in (pair.source, pair.destination) },
+                        cap: 1.0
+                    )
+                        .perform(db)
+                }
             } catch {
                 degraded.append("strengthen: \(error)")
             }
@@ -56,10 +58,12 @@ public struct RecordRetrievalTransaction: LegacyWriteTransaction {
 
         if parameter.rebirthRanked.count >= 2 {
             do {
-                _ = try Links.rebirth(
-                    connection,
-                    rankedIds: parameter.rebirthRanked.map { ranked in (ranked.id, ranked.factor) }
-                )
+                _ = try connection.write { db in
+                    try RebirthLinksTransaction(
+                        rankedIds: parameter.rebirthRanked.map { ranked in (ranked.id, ranked.factor) }
+                    )
+                        .perform(db)
+                }
             } catch {
                 degraded.append("rebirth: \(error)")
             }

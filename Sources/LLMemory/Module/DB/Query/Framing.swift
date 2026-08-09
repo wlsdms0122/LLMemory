@@ -258,12 +258,14 @@ public enum Framing {
         
         if !similarNotes.isEmpty {
             do {
-                linked = try Links.expand(
-                    queue,
-                    noteIds: similarNotes.map { note in note.id },
-                    hops: expandHops,
-                    kind: linkKind
-                )
+                linked = try queue.read { db in
+                    try ExpandLinksTransaction(
+                        noteIds: similarNotes.map { note in note.id },
+                        hops: expandHops,
+                        kind: linkKind
+                    )
+                        .perform(db)
+                }
             } catch {
                 degraded.append("linked: \(error)")
             }

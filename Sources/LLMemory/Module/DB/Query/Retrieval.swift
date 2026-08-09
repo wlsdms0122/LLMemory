@@ -363,7 +363,7 @@ public enum Retrieval {
     
     static func structure(_ queue: any DatabaseReader, axis: String?) throws -> Reads.StructureResult {
                 let axes = try axesWithCounts(queue)
-        let distribution = try Links.distribution(queue)
+        let distribution = try queue.read { db in try FetchLinkDistributionTransaction().perform(db) }
         var stats: AxisStats? = nil
         
         if let axis {
@@ -517,12 +517,14 @@ public enum Retrieval {
         var extra: [Links.ExpandedNote] = []
         
         if expand > 0 {
-            extra = (try? Links.expand(
-                queue,
-                noteIds: rows.map { row in row.id },
-                hops: 1,
-                limit: expand
-            )) ?? []
+            extra = (try? queue.read { db in
+                try ExpandLinksTransaction(
+                    noteIds: rows.map { row in row.id },
+                    hops: 1,
+                    limit: expand
+                )
+                    .perform(db)
+            }) ?? []
         }
         
         let hitIds = rows.map { row in row.id } + extra.map { note in note.id }

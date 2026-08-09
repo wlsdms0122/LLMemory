@@ -440,7 +440,7 @@ public enum Consolidation {
         var decay: (decayed: Int, pruned: Int) = (0, 0)
 
         try queue.write { db in
-            decay = try Links.decayAndPrune(db)
+            decay = try DecayAndPruneLinksTransaction().perform(db)
         }
 
         Events.record(
