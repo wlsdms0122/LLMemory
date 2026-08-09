@@ -247,7 +247,7 @@ struct ReadsTests {
     
     // MARK: - Private
     @discardableResult
-    private func createWithEntities(id: String, entities: [String]) -> OperationsEngine.Result {
+    private func createWithEntities(id: String, entities: [String]) -> OperationsResult {
         home.createNote(id: id, content: "## S\nbody\n", fields: ["entities": entities])
     }
 }

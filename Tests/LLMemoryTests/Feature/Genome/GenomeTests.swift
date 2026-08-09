@@ -92,7 +92,7 @@ struct GenomeTests {
     @Test("the homeostatic tick cannot move a gene that is not mutable")
     func lockedGeneGuard() throws {
         try home.database().write { database in
-            #expect(throws: GenomeService.WriteError.self) {
+            #expect(throws: GenomeWriteError.self) {
                 try home.container.genome.setGene(
                     GRDBScope(database), id: "links.decay_factor", value: 0.8,
                     cause: "homeostasis:test", detail: nil, requireMutable: true, now: 1
@@ -352,7 +352,7 @@ struct GenomeTests {
         // Then
         #expect(unchanged.queriesReplayed == 1)
         #expect(unchanged.queriesChanged == 0)
-        #expect(throws: GenomeService.WriteError.self) {
+        #expect(throws: GenomeWriteError.self) {
             _ = try home.readScope { scope in
                 try home.container.genome.shadow(
                     scope,

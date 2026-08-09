@@ -20,7 +20,7 @@ public struct Consolidate {
         try await service.integrate()
     }
 
-    public func homeostasis() async throws -> ConsolidateService.HomeostasisReport {
+    public func homeostasis() async throws -> Consolidation.HomeostasisReport {
         try await service.homeostasis()
     }
 

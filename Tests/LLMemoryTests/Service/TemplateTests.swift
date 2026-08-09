@@ -227,7 +227,7 @@ struct TemplateTests {
     }
     
     // ops integration
-    private func makeTemplate(locked: Bool = true) -> OperationsEngine.Result {
+    private func makeTemplate(locked: Bool = true) -> OperationsResult {
         OperationsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "tpl-spec", "axis": "template",
             "title": "Spec template", "summary": "s", "tags": ["template"],

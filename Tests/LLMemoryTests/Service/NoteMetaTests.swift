@@ -116,7 +116,7 @@ struct NoteMetaTests {
     }
     
     @discardableResult
-    private func set(noteId: String, value: String) -> OperationsEngine.Result {
+    private func set(noteId: String, value: String) -> OperationsResult {
         home.apply([
             "op": "set_note_meta", "id": noteId,
             "namespace": "journal", "key": "affect", "value": value

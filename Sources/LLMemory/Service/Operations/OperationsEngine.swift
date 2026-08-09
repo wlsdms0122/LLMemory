@@ -8,143 +8,6 @@
 import Foundation
 
 public struct OperationsEngine: Sendable {
-    public struct OperationResult: Encodable, Sendable {
-        // MARK: - Property
-        public let op: String
-        public let status: String
-        public let note: String
-        public let paths: [String]
-        public let ids: [String]
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    public struct Result: Encodable, Sendable {
-        public enum CodingKeys: String, CodingKey {
-            case status, rationale, conflict
-            case opResults = "ops"
-            case error
-            case rejectedIndex = "rejected_index"
-            case recoveryFailed = "recovery_failed"
-            case degradedPasses = "degraded_passes"
-        }
-        
-        // MARK: - Property
-        public let status: String
-        public let opResults: [OperationResult]
-        public let error: String
-        public let rejectedIndex: Int?
-        public let rationale: String
-        public let recoveryFailed: [String]
-        public let conflict: SplitConflict?
-        // Best-effort passes that failed and rolled back, by name — the
-        // caller distinguishes "nothing to do" from "pass degraded" without
-        // digging through the event log. Error detail lives in the trace
-        // event, keeping this a stable pass-name vocabulary.
-        public let degradedPasses: [String]
-        
-        // MARK: - Initializer
-        public init(
-            status: String,
-            opResults: [OperationResult],
-            error: String,
-            rejectedIndex: Int?,
-            rationale: String,
-            recoveryFailed: [String],
-            conflict: SplitConflict? = nil,
-            degradedPasses: [String] = []
-        ) {
-            self.status = status
-            self.opResults = opResults
-            self.error = error
-            self.rejectedIndex = rejectedIndex
-            self.rationale = rationale
-            self.recoveryFailed = recoveryFailed
-            self.conflict = conflict
-            self.degradedPasses = degradedPasses
-        }
-        
-        // MARK: - Public
-        public func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            
-            try container.encode(status, forKey: .status)
-            try container.encode(rationale, forKey: .rationale)
-            try container.encode(opResults, forKey: .opResults)
-            
-            if !error.isEmpty { try container.encode(error, forKey: .error) }
-            
-            if let rejectedIndex { try container.encode(rejectedIndex, forKey: .rejectedIndex) }
-            
-            if !recoveryFailed.isEmpty {
-                try container.encode(recoveryFailed, forKey: .recoveryFailed)
-            }
-            
-            if let conflict { try container.encode(conflict, forKey: .conflict) }
-            
-            if !degradedPasses.isEmpty {
-                try container.encode(degradedPasses, forKey: .degradedPasses)
-            }
-        }
-        
-        // MARK: - Private
-    }
-    
-    public struct SplitConflict: Error, Encodable, Sendable {
-        public enum CodingKeys: String, CodingKey {
-            case fromId = "from_id"
-            case unresolved = "unresolved"
-        }
-        
-        // MARK: - Property
-        public let fromId: String
-        public let unresolved: [NoteArtifacts.RouteArtifact]
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        public func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            
-            try container.encode(fromId, forKey: .fromId)
-            try container.encode(unresolved, forKey: .unresolved)
-        }
-        
-        // MARK: - Private
-    }
-    
-    public struct DryRunResult: Encodable, Sendable {
-        public enum CodingKeys: String, CodingKey {
-            case status
-            case opCount = "op_count"
-            case error
-            case rejectedIndex = "rejected_index"
-        }
-        
-        // MARK: - Property
-        public let status: String
-        public let opCount: Int?
-        public let error: String?
-        public let rejectedIndex: Int?
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        public func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            
-            try container.encode(status, forKey: .status)
-            
-            if let opCount { try container.encode(opCount, forKey: .opCount) }
-            
-            if let error { try container.encode(error, forKey: .error) }
-            
-            if let rejectedIndex { try container.encode(rejectedIndex, forKey: .rejectedIndex) }
-        }
-        
-        // MARK: - Private
-    }
-    
     // MARK: - Property
     let genome: GenomeService
     let ruleset: RulesetService
@@ -188,11 +51,11 @@ public struct OperationsEngine: Sendable {
         _ payload: [String: Any],
         sessionId: String? = nil,
         ruleset: String? = nil
-    ) -> Result {
+    ) -> OperationsResult {
         let rationale = payload["rationale"] as? String ?? ""
         
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
-            return Result(
+            return OperationsResult(
                 status: "rejected",
                 opResults: [],
                 error: "ops must be non-empty list",
@@ -206,7 +69,7 @@ public struct OperationsEngine: Sendable {
         do {
             effectiveRulesetId = try RulesetResolution.resolve(cliRuleset: ruleset)
         } catch let resolutionError as RulesetResolution.Error {
-            return Result(
+            return OperationsResult(
                 status: "rejected",
                 opResults: [],
                 error: resolutionError.message,
@@ -215,7 +78,7 @@ public struct OperationsEngine: Sendable {
                 recoveryFailed: []
             )
         } catch {
-            return Result(
+            return OperationsResult(
                 status: "rejected",
                 opResults: [],
                 error: "\(error)",
@@ -225,14 +88,14 @@ public struct OperationsEngine: Sendable {
             )
         }
         
-        let result: Result
+        let result: OperationsResult
 
         do {
             if let rulesetId = effectiveRulesetId {
                 let exists = try scope.run(RulesetExistsTransaction(id: rulesetId))
                 
                 if !exists {
-                    return Result(
+                    return OperationsResult(
                         status: "rejected",
                         opResults: [],
                         error: "unknown ruleset: \(rulesetId)",
@@ -251,7 +114,7 @@ public struct OperationsEngine: Sendable {
                 effectiveRulesetId: effectiveRulesetId
             )
         } catch let conflict as SplitConflict {
-            result = Result(
+            result = OperationsResult(
                 status: "conflict",
                 opResults: [],
                 error: "split_note '\(conflict.fromId)' has \(conflict.unresolved.count) artifact(s) whose ownership across the new notes is a semantic call — re-issue with `routing` assigning each to children (to:[\"id\"]), copying (to:[\"a\",\"b\"]), or dropping (to:[]). Omitted artifacts are dropped; cooccur/reference are auto-handled.",
@@ -261,7 +124,7 @@ public struct OperationsEngine: Sendable {
                 conflict: conflict
             )
         } catch {
-            result = Result(
+            result = OperationsResult(
                 status: "failed",
                 opResults: [],
                 error: "\(error)",
@@ -289,7 +152,7 @@ public struct OperationsEngine: Sendable {
         sessionId: String?,
         rationale: String,
         effectiveRulesetId: String?
-    ) throws -> Result {
+    ) throws -> OperationsResult {
         let now = Int(Date().timeIntervalSince1970)
         let applyContext = HandlerContext(sessionId: sessionId, now: now)
 
@@ -311,7 +174,7 @@ public struct OperationsEngine: Sendable {
                 sessionId: sessionId
             ))
             
-            return Result(
+            return OperationsResult(
                 status: "rejected",
                 opResults: [],
                 error: message,
@@ -338,7 +201,7 @@ public struct OperationsEngine: Sendable {
                 sessionId: sessionId
             ))
             
-            return Result(
+            return OperationsResult(
                 status: "rejected",
                 opResults: [],
                 error: message,
@@ -402,7 +265,7 @@ public struct OperationsEngine: Sendable {
         if let (index, conflict) = splitConflict {
             let recovery = restoreFiles(backups)
             
-            return Result(
+            return OperationsResult(
                 status: "conflict",
                 opResults: [],
                 error: "split_note '\(conflict.fromId)' has \(conflict.unresolved.count) artifact(s) whose ownership across the new notes is a semantic call — re-issue with `routing` assigning each to children (to:[\"id\"]), copying (to:[\"a\",\"b\"]), or dropping (to:[]). Omitted artifacts are dropped; cooccur/reference are auto-handled.",
@@ -430,7 +293,7 @@ public struct OperationsEngine: Sendable {
                 sessionId: sessionId
             ))
             
-            return Result(
+            return OperationsResult(
                 status: "failed",
                 opResults: results,
                 error: message,
@@ -479,7 +342,7 @@ public struct OperationsEngine: Sendable {
             }
         }
 
-        return Result(
+        return OperationsResult(
             status: "ok",
             opResults: results,
             error: "",
@@ -490,9 +353,9 @@ public struct OperationsEngine: Sendable {
         )
 }
 
-    public func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], sessionId: String? = nil, ruleset: String? = nil) -> DryRunResult {
+    public func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], sessionId: String? = nil, ruleset: String? = nil) -> OperationsDryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
-            return DryRunResult(
+            return OperationsDryRunResult(
                 status: "rejected",
                 opCount: nil,
                 error: "ops must be non-empty list",
@@ -504,14 +367,14 @@ public struct OperationsEngine: Sendable {
         do {
             effectiveRulesetId = try RulesetResolution.resolve(cliRuleset: ruleset)
         } catch let resolutionError as RulesetResolution.Error {
-            return DryRunResult(
+            return OperationsDryRunResult(
                 status: "rejected",
                 opCount: nil,
                 error: resolutionError.message,
                 rejectedIndex: nil
             )
         } catch {
-            return DryRunResult(
+            return OperationsDryRunResult(
                 status: "rejected",
                 opCount: nil,
                 error: "\(error)",
@@ -524,7 +387,7 @@ public struct OperationsEngine: Sendable {
                 let exists = try scope.run(RulesetExistsTransaction(id: rulesetId))
                 
                 if !exists {
-                    return DryRunResult(
+                    return OperationsDryRunResult(
                         status: "rejected",
                         opCount: nil,
                         error: "unknown ruleset: \(rulesetId)",
@@ -536,7 +399,7 @@ public struct OperationsEngine: Sendable {
             let result: (String?, Int?)? = try validate(opsRaw, scope: scope, rulesetId: effectiveRulesetId, sessionId: sessionId)
             
             if let (message, index) = result {
-                return DryRunResult(
+                return OperationsDryRunResult(
                     status: "rejected",
                     opCount: nil,
                     error: message,
@@ -544,21 +407,21 @@ public struct OperationsEngine: Sendable {
                 )
             }
             
-            return DryRunResult(
+            return OperationsDryRunResult(
                 status: "ok",
                 opCount: opsRaw.count,
                 error: nil,
                 rejectedIndex: nil
             )
         } catch let conflict as SplitConflict {
-            return DryRunResult(
+            return OperationsDryRunResult(
                 status: "conflict",
                 opCount: nil,
                 error: "split_note '\(conflict.fromId)' needs routing for \(conflict.unresolved.count) ambiguous artifact(s)",
                 rejectedIndex: nil
             )
         } catch {
-            return DryRunResult(
+            return OperationsDryRunResult(
                 status: "rejected",
                 opCount: nil,
                 error: "\(error)",

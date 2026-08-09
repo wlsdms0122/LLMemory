@@ -333,7 +333,7 @@ struct OperationsDescribe: ParsableCommand {
     // MARK: - Private
 }
 
-private func opsResultBlocks(_ result: OperationsEngine.Result) -> [PlainBlock] {
+private func opsResultBlocks(_ result: OperationsResult) -> [PlainBlock] {
     var blocks: [PlainBlock] = [
         .text(result.status == "ok"
             ? "ok  (\(result.opResults.count) ops)"
@@ -353,7 +353,7 @@ private func opsResultBlocks(_ result: OperationsEngine.Result) -> [PlainBlock] 
     return blocks
 }
 
-private func opsResultBlocks(_ result: OperationsEngine.DryRunResult) -> [PlainBlock] {
+private func opsResultBlocks(_ result: OperationsDryRunResult) -> [PlainBlock] {
     let suffix = result.opCount.map { count in "  (\(count) ops)" } ?? ""
     var blocks: [PlainBlock] = []
     

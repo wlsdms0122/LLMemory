@@ -21,7 +21,7 @@ public struct Operations {
         payloadJSON: String,
         cliSessionId: String = "",
         ruleset: String? = nil
-    ) async -> OperationsEngine.Result {
+    ) async -> OperationsResult {
         await service.apply(
             payloadJSON: payloadJSON,
             cliSessionId: cliSessionId,
@@ -33,7 +33,7 @@ public struct Operations {
         payloadJSON: String,
         cliSessionId: String = "",
         ruleset: String? = nil
-    ) async -> OperationsEngine.DryRunResult {
+    ) async -> OperationsDryRunResult {
         await service.dryRun(
             payloadJSON: payloadJSON,
             cliSessionId: cliSessionId,

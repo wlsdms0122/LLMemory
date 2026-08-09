@@ -45,12 +45,12 @@ extension BrainHome {
     var container: Container { Container(storage: storage) }
 
     @discardableResult
-    func apply(_ operations: [[String: Any]], rationale: String = "test") -> OperationsEngine.Result {
+    func apply(_ operations: [[String: Any]], rationale: String = "test") -> OperationsResult {
         OperationsEngine.apply(storage, ["ops": operations, "rationale": rationale])
     }
 
     @discardableResult
-    func apply(_ operation: [String: Any], rationale: String = "test") -> OperationsEngine.Result {
+    func apply(_ operation: [String: Any], rationale: String = "test") -> OperationsResult {
         apply([operation], rationale: rationale)
     }
 
@@ -63,7 +63,7 @@ extension BrainHome {
         tags: [String]? = nil,
         content: String = "## A\nbody\n",
         fields: [String: Any] = [:]
-    ) -> OperationsEngine.Result {
+    ) -> OperationsResult {
         var operation: [String: Any] = [
             "op": "create_note",
             "id": id,

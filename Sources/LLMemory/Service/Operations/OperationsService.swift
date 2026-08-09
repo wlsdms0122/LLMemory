@@ -30,7 +30,7 @@ public struct OperationsService: Sendable {
         payloadJSON: String,
         cliSessionId: String = "",
         ruleset: String? = nil
-    ) async -> OperationsEngine.Result {
+    ) async -> OperationsResult {
         // Session resolution happens here, below every surface, with the
         // sibling services' convention: the CLI override wins, the
         // environment is the fallback — so the observation policy never
@@ -41,7 +41,7 @@ public struct OperationsService: Sendable {
         // not open the write scope. The string is decoded again inside the
         // scope because [String: Any] cannot cross the Sendable wall.
         guard OperationsEngine.decodePayload(payloadJSON) != nil else {
-            return OperationsEngine.Result(
+            return OperationsResult(
                 status: "rejected",
                 opResults: [],
                 error: "payload must be a JSON object",
@@ -54,7 +54,7 @@ public struct OperationsService: Sendable {
         do {
             let result = try await storage.run { scope in
                 guard let payload = OperationsEngine.decodePayload(payloadJSON) else {
-                    return OperationsEngine.Result(
+                    return OperationsResult(
                         status: "rejected",
                         opResults: [],
                         error: "payload must be a JSON object",
@@ -70,7 +70,7 @@ public struct OperationsService: Sendable {
             return result
         } catch {
             // Nothing ran (connect/lock failure) — the cache was never primed.
-            return OperationsEngine.Result(
+            return OperationsResult(
                 status: "unavailable",
                 opResults: [],
                 error: "\(error)",
@@ -85,13 +85,13 @@ public struct OperationsService: Sendable {
         payloadJSON: String,
         cliSessionId: String = "",
         ruleset: String? = nil
-    ) async -> OperationsEngine.DryRunResult {
+    ) async -> OperationsDryRunResult {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
 
         do {
             return try await storage.read { scope in
                 guard let payload = OperationsEngine.decodePayload(payloadJSON) else {
-                    return OperationsEngine.DryRunResult(
+                    return OperationsDryRunResult(
                         status: "rejected",
                         opCount: nil,
                         error: "payload must be a JSON object",
@@ -102,7 +102,7 @@ public struct OperationsService: Sendable {
                 return engine.dryRun(scope, payload, sessionId: sessionId, ruleset: ruleset)
             }
         } catch {
-            return OperationsEngine.DryRunResult(
+            return OperationsDryRunResult(
                 status: "unavailable",
                 opCount: nil,
                 error: "\(error)",

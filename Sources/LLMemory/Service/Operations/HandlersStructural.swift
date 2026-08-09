@@ -918,7 +918,7 @@ public enum HandlersStructural {
                 let uncovered = try uncoveredRouteArtifacts(scope, fromId: fromId, routing: routing)
                 
                 if !uncovered.isEmpty {
-                    throw OperationsEngine.SplitConflict(fromId: fromId, unresolved: uncovered)
+                    throw SplitConflict(fromId: fromId, unresolved: uncovered)
                 }
             }
             
@@ -1011,7 +1011,7 @@ public enum HandlersStructural {
                 let uncovered = try uncoveredRouteArtifacts(scope.readOnly, fromId: fromId, routing: routing)
                 
                 if !uncovered.isEmpty {
-                    throw OperationsEngine.SplitConflict(fromId: fromId, unresolved: uncovered)
+                    throw SplitConflict(fromId: fromId, unresolved: uncovered)
                 }
             }
             

@@ -41,7 +41,7 @@ struct GenomeCommand: ParsableCommand {
 struct GenomeList: AsyncParsableCommand {
     struct Output: Encodable {
         // MARK: - Property
-        let genes: [GenomeService.ListRow]
+        let genes: [GeneListRow]
         
         // MARK: - Initializer
         // MARK: - Public
@@ -104,7 +104,7 @@ struct GenomeList: AsyncParsableCommand {
 struct GenomeHistory: AsyncParsableCommand {
     struct Output: Encodable {
         // MARK: - Property
-        let events: [GenomeService.HistoryRow]
+        let events: [GeneHistoryRow]
         
         // MARK: - Initializer
         // MARK: - Public

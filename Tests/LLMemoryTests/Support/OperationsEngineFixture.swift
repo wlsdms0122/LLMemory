@@ -20,12 +20,12 @@ extension OperationsEngine {
         _ payload: [String: Any],
         sessionId: String? = nil,
         ruleset: String? = nil
-    ) -> Result {
+    ) -> OperationsResult {
         do {
             let json = try Self.encodePayload(payload)
 
             guard let decoded = OperationsEngine.decodePayload(json) else {
-                return Result(
+                return OperationsResult(
                     status: "rejected",
                     opResults: [],
                     error: "payload must be a JSON object",
@@ -41,7 +41,7 @@ extension OperationsEngine {
                 }
             }
         } catch {
-            return Result(
+            return OperationsResult(
                 status: "failed",
                 opResults: [],
                 error: "\(error)",
@@ -56,12 +56,12 @@ extension OperationsEngine {
         _ storage: GRDBStorage,
         _ payload: [String: Any],
         ruleset: String? = nil
-    ) -> DryRunResult {
+    ) -> OperationsDryRunResult {
         do {
             let json = try Self.encodePayload(payload)
 
             guard let decoded = OperationsEngine.decodePayload(json) else {
-                return DryRunResult(
+                return OperationsDryRunResult(
                     status: "rejected",
                     opCount: nil,
                     error: "payload must be a JSON object",
@@ -73,7 +73,7 @@ extension OperationsEngine {
                 Container(storage: storage).operations.engine.dryRun(GRDBReadScope(db), decoded, ruleset: ruleset)
             }
         } catch {
-            return DryRunResult(
+            return OperationsDryRunResult(
                 status: "rejected",
                 opCount: nil,
                 error: "\(error)",

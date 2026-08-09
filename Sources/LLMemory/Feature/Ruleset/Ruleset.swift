@@ -17,18 +17,18 @@ public struct Ruleset {
     }
 
     // MARK: - Public
-    public func list() async throws -> [RulesetService.Summary] {
+    public func list() async throws -> [RulesetSummary] {
         try await service.list()
     }
 
-    public func show(id: String) async throws -> RulesetService.ShowResult? {
+    public func show(id: String) async throws -> RulesetShowResult? {
         try await service.show(id: id)
     }
 
     public func effective(
         ruleset: String,
         axis: String
-    ) async throws -> RulesetService.Effective? {
+    ) async throws -> RulesetEffective? {
         try await service.effective(ruleset: ruleset, axis: axis)
     }
 

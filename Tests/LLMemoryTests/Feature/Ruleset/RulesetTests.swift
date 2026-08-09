@@ -163,7 +163,7 @@ struct RulesetTests {
         try seedRuleset(id: "rs-shape", rules: [("ops.deny", #"{"axis":"*","ops":"delete_note"}"#)])
         
         // Then
-        #expect(throws: RulesetService.RulesetError.self) {
+        #expect(throws: RulesetError.self) {
             _ = try resolve(axis: "tech", rulesetIds: ["rs-shape"])
         }
     }
@@ -174,7 +174,7 @@ struct RulesetTests {
         try seedRuleset(id: "rs-req", rules: [("ops.whitelist", #"{"axis":"*"}"#)])
         
         // Then
-        #expect(throws: RulesetService.RulesetError.self) {
+        #expect(throws: RulesetError.self) {
             _ = try resolve(axis: "tech", rulesetIds: ["rs-req"])
         }
     }
@@ -185,7 +185,7 @@ struct RulesetTests {
         try seedRuleset(id: "rs-mode", rules: [("consolidate.mode", #"{"axis":"*","mode":"paused"}"#)])
         
         // Then
-        #expect(throws: RulesetService.RulesetError.self) {
+        #expect(throws: RulesetError.self) {
             _ = try resolve(axis: "tech", rulesetIds: ["rs-mode"])
         }
     }
@@ -224,7 +224,7 @@ struct RulesetTests {
         try home.storage.writeLock { try home.database().write(body) }
     }
     
-    private func resolve(axis: String, rulesetIds: [String]) throws -> RulesetService.Effective {
+    private func resolve(axis: String, rulesetIds: [String]) throws -> RulesetEffective {
         try home.readScope { scope in
             try home.container.ruleset.effective(scope, axis: axis, rulesetIds: rulesetIds)
         }

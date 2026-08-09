@@ -13,108 +13,6 @@ import Storage
 // genome transactions; the code-owned catalog and value cache live in the
 // Genome module.
 public struct GenomeService: Sendable {
-    public enum WriteError: Error, CustomStringConvertible {
-        case unknownGene(String)
-        case outOfBounds(String, Double, Genes.Gene)
-        case notInteger(String, Double)
-        case locked(String)
-
-        public var description: String {
-            switch self {
-            case .unknownGene(let id):
-                return "unknown gene: '\(id)' — see `genome list` for the catalog"
-
-            case .outOfBounds(let id, let value, let gene):
-                return "gene '\(id)' value \(value) is outside bounds [\(gene.min), \(gene.max)]"
-
-            case .notInteger(let id, let value):
-                return "gene '\(id)' takes whole numbers — got \(value)"
-
-            case .locked(let id):
-                return "gene '\(id)' is locked (write-path) — homeostasis may not adjust it"
-            }
-        }
-    }
-
-    public struct ListRow: Encodable, Sendable {
-        enum CodingKeys: String, CodingKey {
-            case id, value
-            case wildType = "wild_type"
-            case min, max, mutable, source, summary
-        }
-
-        // MARK: - Property
-        public let id: String
-        public let value: Double
-        public let wildType: Double
-        public let min: Double
-        public let max: Double
-        public let mutable: Bool
-        public let source: String
-        public let summary: String
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-
-    public struct HistoryRow: Encodable, Sendable {
-        enum CodingKeys: String, CodingKey {
-            case geneId = "gene_id"
-            case oldValue = "old_value"
-            case newValue = "new_value"
-            case cause, detail, ts
-        }
-
-        // MARK: - Property
-        public let geneId: String
-        public let oldValue: Double?
-        public let newValue: Double
-        public let cause: String
-        public let detail: String?
-        public let ts: Int
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-
-    public struct ShadowResult: Encodable, Sendable {
-        public struct QueryDiff: Encodable, Sendable {
-            // MARK: - Property
-            public let query: String
-            public let baseline: [String]
-            public let candidate: [String]
-            public let entered: [String]
-            public let dropped: [String]
-
-            // MARK: - Initializer
-            // MARK: - Public
-            // MARK: - Private
-        }
-
-        enum CodingKeys: String, CodingKey {
-            case gene
-            case baselineValue = "baseline_value"
-            case candidateValue = "candidate_value"
-            case queriesReplayed = "queries_replayed"
-            case queriesChanged = "queries_changed"
-            case diffs
-        }
-
-        // MARK: - Property
-        public let gene: String
-        public let baselineValue: Double
-        public let candidateValue: Double
-        public let queriesReplayed: Int
-        public let queriesChanged: Int
-        public let diffs: [QueryDiff]
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-
     // MARK: - Property
     let storage: GRDBStorage
     let retrieval: RetrievalService
@@ -130,7 +28,7 @@ public struct GenomeService: Sendable {
     // mutation on the read path (read scopes read; only gated writers warm).
     // The connection gate stays: an uninitialized brain fails loud instead
     // of masquerading as wild-type.
-    public func list() async throws -> [ListRow] {
+    public func list() async throws -> [GeneListRow] {
         try await storage.read { scope in
             catalogRows(values: try scope.run(FetchGenomeValuesTransaction()))
         }
@@ -139,7 +37,7 @@ public struct GenomeService: Sendable {
     public func history(
         gene: String?,
         limit: Int
-    ) async throws -> [HistoryRow] {
+    ) async throws -> [GeneHistoryRow] {
         try await storage.read { scope in
             try history(scope, gene: gene, limit: limit)
         }
@@ -150,7 +48,7 @@ public struct GenomeService: Sendable {
         value: Double,
         limit: Int,
         sampleDiffs: Int
-    ) async throws -> ShadowResult {
+    ) async throws -> GenomeShadowResult {
         try await storage.read { scope in
             try shadow(scope, gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
         }
@@ -161,10 +59,10 @@ public struct GenomeService: Sendable {
         _ scope: GRDBReadScope,
         gene: String?,
         limit: Int
-    ) throws -> [HistoryRow] {
+    ) throws -> [GeneHistoryRow] {
         try scope.run(FetchGenomeEventsTransaction(geneId: gene, limit: limit))
             .map { event in
-                HistoryRow(
+                GeneHistoryRow(
                     geneId: event.geneId,
                     oldValue: event.oldValue,
                     newValue: event.newValue,
@@ -184,13 +82,13 @@ public struct GenomeService: Sendable {
         value: Double,
         limit: Int,
         sampleDiffs: Int
-    ) throws -> ShadowResult {
+    ) throws -> GenomeShadowResult {
         guard let definition = Genes.gene(gene) else {
-            throw WriteError.unknownGene(gene)
+            throw GenomeWriteError.unknownGene(gene)
         }
 
         guard value >= definition.min && value <= definition.max else {
-            throw WriteError.outOfBounds(gene, value, definition)
+            throw GenomeWriteError.outOfBounds(gene, value, definition)
         }
 
         let baselineValue = Genes.double(gene)
@@ -225,7 +123,7 @@ public struct GenomeService: Sendable {
             }
         }
 
-        var diffs: [ShadowResult.QueryDiff] = []
+        var diffs: [GenomeShadowResult.QueryDiff] = []
         var changed = 0
 
         for loggedQuery in logged {
@@ -240,7 +138,7 @@ public struct GenomeService: Sendable {
                     let candidateIds = Set(candidate)
 
                     diffs.append(
-                        ShadowResult.QueryDiff(
+                        GenomeShadowResult.QueryDiff(
                             query: "\(loggedQuery.command): \(loggedQuery.text)",
                             baseline: baseline,
                             candidate: candidate,
@@ -252,7 +150,7 @@ public struct GenomeService: Sendable {
             }
         }
 
-        return ShadowResult(
+        return GenomeShadowResult(
             gene: gene,
             baselineValue: baselineValue,
             candidateValue: value,
@@ -274,16 +172,16 @@ public struct GenomeService: Sendable {
         requireMutable: Bool,
         now: Int
     ) throws -> (old: Double, new: Double) {
-        guard let gene = Genes.gene(id) else { throw WriteError.unknownGene(id) }
+        guard let gene = Genes.gene(id) else { throw GenomeWriteError.unknownGene(id) }
 
-        if requireMutable && !gene.mutable { throw WriteError.locked(id) }
+        if requireMutable && !gene.mutable { throw GenomeWriteError.locked(id) }
 
         guard value >= gene.min && value <= gene.max else {
-            throw WriteError.outOfBounds(id, value, gene)
+            throw GenomeWriteError.outOfBounds(id, value, gene)
         }
 
         if gene.integer && value != value.rounded() {
-            throw WriteError.notInteger(id, value)
+            throw GenomeWriteError.notInteger(id, value)
         }
 
         let old = Genes.cached(id) ?? Config.getDouble(id, default: gene.wildType)
@@ -311,7 +209,7 @@ public struct GenomeService: Sendable {
         cause: String,
         now: Int
     ) throws -> Double {
-        guard let gene = Genes.gene(id) else { throw WriteError.unknownGene(id) }
+        guard let gene = Genes.gene(id) else { throw GenomeWriteError.unknownGene(id) }
 
         let old = Genes.cached(id) ?? Config.getDouble(id, default: gene.wildType)
 
@@ -333,11 +231,11 @@ public struct GenomeService: Sendable {
     // MARK: - Private
     // Catalog mapping over an explicit value snapshot — same value/source
     // semantics as Genes.double/source, without touching the process cache.
-    private func catalogRows(values: [String: Double]) -> [ListRow] {
+    private func catalogRows(values: [String: Double]) -> [GeneListRow] {
         Genes.catalog.map { gene in
             let configValue = Config.getDouble(gene.id, default: gene.wildType)
 
-            return ListRow(
+            return GeneListRow(
                 id: gene.id,
                 value: values[gene.id] ?? configValue,
                 wildType: gene.wildType,

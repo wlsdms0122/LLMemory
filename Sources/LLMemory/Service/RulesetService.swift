@@ -12,18 +12,6 @@ import Storage
 // typing, precedence folding into an Effective policy, and the observation
 // surfaces. Row access rides ruleset transactions.
 public struct RulesetService: Sendable {
-    enum RulesetError: Error, CustomStringConvertible {
-        case malformedParams(ruleId: Int64, rulesetId: String, detail: String)
-
-        var description: String {
-            switch self {
-            case .malformedParams(let ruleId, let rulesetId, let detail):
-                return "rule #\(ruleId) in ruleset '\(rulesetId)' is malformed: \(detail) — "
-                    + "fix or disable the row (a broken policy must not fail open)"
-            }
-        }
-    }
-
     enum Kind {
         static let opsWhitelist = "ops.whitelist"
         static let opsDeny = "ops.deny"
@@ -32,25 +20,6 @@ public struct RulesetService: Sendable {
         static let staleAutoMark = "stale.auto_mark"
         static let frontmatterSchema = "frontmatter.schema"
         static let noteOwnerRequired = "note.owner_required"
-    }
-
-    public enum ConsolidateMode: String, Encodable, Sendable {
-        case auto
-        case signalOnly = "signal_only"
-        case off
-
-        fileprivate var severity: Int {
-            switch self {
-            case .auto:
-                return 0
-
-            case .signalOnly:
-                return 1
-
-            case .off:
-                return 2
-            }
-        }
     }
 
     struct Rule {
@@ -124,88 +93,6 @@ public struct RulesetService: Sendable {
         // MARK: - Private
     }
 
-    public struct Effective: Encodable, Sendable {
-        // MARK: - Property
-        public var opsWhitelist: Set<String>?
-        public var opsDeny: Set<String>
-        public var consolidateMode: ConsolidateMode
-        public var mergeAuto: Bool
-        public var staleAutoMark: Bool
-        public var ownerRequired: Bool
-        public var frontmatterSchemas: [String]
-        public var frontmatterRequired: Set<String>
-        public var appliedRulesets: [String]
-
-        // MARK: - Initializer
-        public init() {
-            self.opsWhitelist = nil
-            self.opsDeny = []
-            self.consolidateMode = .auto
-            self.mergeAuto = true
-            self.staleAutoMark = true
-            self.ownerRequired = false
-            self.frontmatterSchemas = []
-            self.frontmatterRequired = []
-            self.appliedRulesets = []
-        }
-
-        // MARK: - Public
-        func allows(op: String) -> (ok: Bool, reason: String?) {
-            if opsDeny.contains("*") {
-                return (false, "op '\(op)' blocked by ops.deny ['*']")
-            }
-
-            if opsDeny.contains(op) {
-                return (false, "op '\(op)' is in ops.deny")
-            }
-
-            if let opsWhitelist, !opsWhitelist.contains("*"), !opsWhitelist.contains(op) {
-                let list = opsWhitelist.sorted().joined(separator: ",")
-
-                return (false, "op '\(op)' not in ops.whitelist [\(list)]")
-            }
-
-            return (true, nil)
-        }
-
-        // MARK: - Private
-    }
-
-    public struct Summary: Sendable {
-        // MARK: - Property
-        public let id: String
-        public let name: String
-        public let description: String?
-        public let ruleCount: Int
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-
-    public struct RuleView: Sendable {
-        // MARK: - Property
-        public let id: Int64
-        public let kind: String
-        public let paramsJSON: String
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-
-    public struct ShowResult: Sendable {
-        // MARK: - Property
-        public let id: String
-        public let name: String
-        public let description: String?
-        public let rules: [RuleView]
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-
     // MARK: - Property
     let storage: GRDBStorage
 
@@ -215,10 +102,10 @@ public struct RulesetService: Sendable {
     }
 
     // MARK: - Public
-    public func list() async throws -> [Summary] {
+    public func list() async throws -> [RulesetSummary] {
         try await storage.read { scope in
             try scope.run(FetchRulesetsTransaction()).map { ruleset in
-                Summary(
+                RulesetSummary(
                     id: ruleset.id,
                     name: ruleset.name,
                     description: ruleset.description,
@@ -228,7 +115,7 @@ public struct RulesetService: Sendable {
         }
     }
 
-    public func show(id: String) async throws -> ShowResult? {
+    public func show(id: String) async throws -> RulesetShowResult? {
         try await storage.read { scope in
             guard let ruleset = try scope.run(FetchRulesetTransaction(id: id)) else { return nil }
 
@@ -236,7 +123,7 @@ public struct RulesetService: Sendable {
                 RuleView(id: rule.id, kind: rule.kind, paramsJSON: rule.paramsRaw)
             }
 
-            return ShowResult(
+            return RulesetShowResult(
                 id: ruleset.id,
                 name: ruleset.name,
                 description: ruleset.description,
@@ -248,7 +135,7 @@ public struct RulesetService: Sendable {
     public func effective(
         ruleset: String,
         axis: String
-    ) async throws -> Effective? {
+    ) async throws -> RulesetEffective? {
         try await storage.read { scope in
             guard try scope.run(RulesetExistsTransaction(id: ruleset)) else { return nil }
 
@@ -263,8 +150,8 @@ public struct RulesetService: Sendable {
         _ scope: GRDBReadScope,
         axis: String,
         rulesetIds: [String]
-    ) throws -> Effective {
-        var effective = Effective()
+    ) throws -> RulesetEffective {
+        var effective = RulesetEffective()
         effective.appliedRulesets = rulesetIds
         var whitelistInitialized = false
 

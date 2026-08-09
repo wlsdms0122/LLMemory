@@ -10,38 +10,7 @@ import Storage
 
 // Consolidation-domain service — the periodic hygiene passes.
 public struct ConsolidateService: Sendable {
-    public struct HomeostasisReport: Encodable, Sendable {
-        enum CodingKeys: String, CodingKey {
-            case windowsProcessed = "windows_processed"
-            case expandSeen = "expand_seen"
-            case expandLanded = "expand_landed"
-            case sampleSeen = "sample_seen"
-            case sampleLanded = "sample_landed"
-            case evaluated
-            case landingRate = "landing_rate"
-            case adjustedGene = "adjusted_gene"
-            case oldValue = "old_value"
-            case newValue = "new_value"
-            case note
-        }
 
-        // MARK: - Property
-        public let windowsProcessed: Int
-        public let expandSeen: Int
-        public let expandLanded: Int
-        public let sampleSeen: Int
-        public let sampleLanded: Int
-        public let evaluated: Bool
-        public let landingRate: Double?
-        public let adjustedGene: String?
-        public let oldValue: Double?
-        public let newValue: Double?
-        public let note: String
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
 
     // MARK: - Property
     static let homeostasisWatermarkKey = "homeostasis.window_watermark"
@@ -137,7 +106,7 @@ public struct ConsolidateService: Sendable {
         }
     }
 
-    public func homeostasis() async throws -> HomeostasisReport {
+    public func homeostasis() async throws -> Consolidation.HomeostasisReport {
         let now = Int(Date().timeIntervalSince1970)
         let report = try await storage.run { scope in
             _ = try scope.run(DeriveActivityWindowsTransaction(now: now))
@@ -338,7 +307,7 @@ public struct ConsolidateService: Sendable {
     // The deterministic metaplasticity tick — reacts only to measured waste
     // (expand hits that never land), one step, within bounds, wild-type as
     // the ceiling. Windows are consumed exactly once via the watermark.
-    func homeostasisTick(_ scope: GRDBScope, now: Int) throws -> HomeostasisReport {
+    func homeostasisTick(_ scope: GRDBScope, now: Int) throws -> Consolidation.HomeostasisReport {
         let watermark = Int(
             try scope.run(FetchConfigValueTransaction(key: Self.homeostasisWatermarkKey, default: "0"))
         ) ?? 0
@@ -422,7 +391,7 @@ public struct ConsolidateService: Sendable {
         try scope.run(SetConfigValueTransaction(key: Self.homeostasisSeenKey, value: String(remainderSeen)))
         try scope.run(SetConfigValueTransaction(key: Self.homeostasisLandedKey, value: String(remainderLanded)))
 
-        return HomeostasisReport(
+        return Consolidation.HomeostasisReport(
             windowsProcessed: windows.count,
             expandSeen: cohortSeen,
             expandLanded: cohortLanded,
