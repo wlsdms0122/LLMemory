@@ -656,7 +656,7 @@ struct StaleSourceRule: NoteLintRule {
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintEngine.Finding] {
         note.doc.source
             .filter { source in
-                NoteSources.isDriftCheckable(source)
+                SourceFingerprint.isDriftCheckable(source)
                     && !FileManager.default.fileExists(
                         atPath: (source as NSString).expandingTildeInPath
                     )
@@ -974,7 +974,7 @@ struct TemplateDriftRule: NoteDBLintRule {
     func check(_ db: Database, note: NoteLintInput) throws -> [LintEngine.Finding] {
         guard let templateId = note.doc.template, !templateId.isEmpty else { return [] }
         
-        guard let frame = try Template.loadFrame(db, templateId: templateId) else {
+        guard let frame = try LoadTemplateFrameTransaction(templateId: templateId).perform(db) else {
             return [.init("template note '\(templateId)' not found — cannot validate frame")]
         }
         

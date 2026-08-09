@@ -648,12 +648,12 @@ public enum HandlersBasic {
             let now = Int(Date().timeIntervalSince1970)
             let noteId = op["id"] as! String
             
-            try NoteSources.rebase(
-                db,
+            try RebaseNoteSourceTransaction(
                 noteId: noteId,
-                paths: try NoteSources.noteSourcePaths(db, noteId: noteId),
+                paths: try FetchNoteSourcePathsTransaction(noteId: noteId).perform(db),
                 now: now
             )
+                .perform(db)
             try Notes.recordLifecycleEvent(
                 db,
                 nid: noteId,

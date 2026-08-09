@@ -1022,7 +1022,7 @@ public enum HandlersStructural {
                     encoding: .utf8
                 )
                 try Notes.reindexFile(db, path: childPath)
-                try NoteSources.inheritObservation(db, from: fromId, to: childId)
+                try InheritSourceObservationTransaction(from: fromId, to: childId).perform(db)
                 try Notes.stampLifecycle(db, nid: childId, now: now, isNew: true)
                 
                 written.append(childPath)

@@ -869,7 +869,7 @@ public enum OpsEngine {
                 ? path.deletingPathExtension().lastPathComponent
                 : doc.id
             
-            guard let frame = (try? Template.loadFrame(db, templateId: templateId)) ?? nil else {
+            guard let frame = (try? LoadTemplateFrameTransaction(templateId: templateId).perform(db)) ?? nil else {
                 violations.append("\(noteId): unknown template '\(templateId)'")
                 continue
             }

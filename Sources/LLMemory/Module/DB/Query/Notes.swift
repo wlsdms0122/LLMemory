@@ -116,7 +116,7 @@ enum Notes {
             sql: "INSERT OR IGNORE INTO note_usage (note_id, created_at) VALUES (?, ?)",
             arguments: [fields.id, mtime]
         )
-        try NoteSources.projectRefs(db, noteId: fields.id, paths: fields.source, now: now)
+        try ProjectNoteRefsTransaction(noteId: fields.id, paths: fields.source, now: now).perform(db)
         try db.execute(sql: "DELETE FROM tags WHERE note_id = ?", arguments: [fields.id])
         
         for tag in fields.tags {

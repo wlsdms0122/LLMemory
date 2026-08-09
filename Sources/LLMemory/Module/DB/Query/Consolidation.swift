@@ -463,7 +463,7 @@ public enum Consolidation {
         var axisSummary: AxisReport!
         var tagSummary: TagReport!
         var eventsCompacted = 0
-        var sourceVerify = NoteSources.BulkVerifyResult(
+        var sourceVerify = SourceVerifyResult(
             total: 0,
             rechecked: 0,
             stillFresh: 0,
@@ -491,7 +491,7 @@ public enum Consolidation {
             ).compacted
             axisSummary = try axisReport(db)
             tagSummary = try tagReport(db)
-            sourceVerify = try NoteSources.bulkVerify(db, now: now)
+            sourceVerify = try VerifySourcesTransaction(now: now).perform(db)
             
             let axisPrune = try pruneEmptyAxes(db)
             let tagPrune = try pruneUnusedVocabTags(db)

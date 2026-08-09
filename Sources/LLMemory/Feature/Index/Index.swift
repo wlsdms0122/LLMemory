@@ -64,7 +64,7 @@ public struct Index {
         try await IndexService.buildVectors(session.storage)
     }
 
-    public func verifySources() async throws -> NoteSources.BulkVerifyResult {
+    public func verifySources() async throws -> SourceVerifyResult {
         try await IndexService.verifySources(session.storage)
     }
 

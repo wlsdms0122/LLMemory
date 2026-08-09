@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import GRDB
 
 public enum Template {
     public struct FrameNode: Encodable {
@@ -126,12 +125,6 @@ public enum Template {
         return roots
             .sorted { lhs, rhs in sections[lhs].lineStart < sections[rhs].lineStart }
             .map(build)
-    }
-    
-    static func loadFrame(_ db: Database, templateId: String) throws -> [FrameNode]? {
-        guard let (_, _, body) = try Notes.get(db, nid: templateId) else { return nil }
-        
-        return parseFrame(body)
     }
     
     static func validate(documentBody: String, frame: [FrameNode]) -> String? {

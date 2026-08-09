@@ -39,8 +39,8 @@ public enum IndexService {
         try await storage.run(BuildVectorsTransaction())
     }
 
-    public static func verifySources(_ storage: GRDBStorage) async throws -> NoteSources.BulkVerifyResult {
-        try await storage.run(VerifySourcesTransaction())
+    public static func verifySources(_ storage: GRDBStorage) async throws -> SourceVerifyResult {
+        try await storage.run { scope in try scope.run(VerifySourcesTransaction()) }
     }
 
     public static func validateTerms(

@@ -453,7 +453,7 @@ public enum Handlers {
         let templateId = (op["template"] as? String).flatMap { value in value.isEmpty ? nil : value }
         
         if let templateId, content.isEmpty,
-            let frame = try Template.loadFrame(db, templateId: templateId) {
+            let frame = try LoadTemplateFrameTransaction(templateId: templateId).perform(db) {
             content = Template.scaffold(frame)
         }
         
