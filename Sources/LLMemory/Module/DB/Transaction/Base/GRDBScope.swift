@@ -27,9 +27,21 @@ public struct GRDBScope {
     }
 
     // MARK: - Public
+    // Every transaction is its own atomic unit — a SAVEPOINT wraps perform,
+    // so a failure a caller swallows (try?) cannot leave half the
+    // transaction's statements behind in the scope's commit. The scope
+    // remains the outer rollback boundary; savepoints nest freely.
     @discardableResult
     public func run<T: GRDBTransaction>(_ transaction: T) throws -> T.Result {
-        try transaction.perform(db)
+        var result: T.Result!
+
+        try db.inSavepoint {
+            result = try transaction.perform(db)
+
+            return .commit
+        }
+
+        return result
     }
 
     // A nested rollback unit inside the scope — the operation engine rolls
