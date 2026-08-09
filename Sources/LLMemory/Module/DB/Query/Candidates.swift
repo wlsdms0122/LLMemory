@@ -177,8 +177,8 @@ public enum Candidates {
               AND n.section_count >= ?
             ORDER BY n.word_count DESC, n.id ASC
             """, arguments: [minWords, minSections])
-        let dismissals = try Dismissals.byNote(db, kind: "split")
-        let generation = try Dismissals.generation(db)
+        let dismissals = try FetchDismissalsByNoteTransaction(kind: "split").perform(db)
+        let generation = try FetchCandidateGenerationTransaction().perform(db)
         var candidates: [SplitCandidate] = []
         
         for row in rows {

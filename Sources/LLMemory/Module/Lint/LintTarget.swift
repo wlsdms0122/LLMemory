@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum LintTarget: Equatable, Hashable {
+public enum LintTarget: Equatable, Hashable, Sendable {
     case note(String)
     case corpus(String)
     

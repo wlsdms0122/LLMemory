@@ -131,11 +131,11 @@ public enum Lint {
     }
     
     static func suppressDismissed(_ db: Database, _ issues: [Issue]) throws -> [Issue] {
-        let dismissals = try Dismissals.lintDismissals(db)
+        let dismissals = try FetchLintDismissalsTransaction().perform(db)
         
         if dismissals.isEmpty { return issues }
         
-        let generation = try Dismissals.generation(db)
+        let generation = try FetchCandidateGenerationTransaction().perform(db)
         var shapes: [String: (words: Int, sections: Int)] = [:]
         
         return try issues.filter { issue in

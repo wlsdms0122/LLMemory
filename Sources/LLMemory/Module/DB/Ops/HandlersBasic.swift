@@ -847,13 +847,10 @@ public enum HandlersBasic {
                 kind = Dismissals.lintKind(code, fingerprint: matched.dismissalKey)
             }
             
-            try Dismissals.record(
-                db,
-                target: target,
+            try RecordDismissalTransaction(target: target,
                 kind: kind,
                 reason: op["reason"] as? String,
-                now: now
-            )
+                now: now).perform(db)
             
             let ids: [String] = {
                 if case .note(let noteId) = target { return [noteId] }

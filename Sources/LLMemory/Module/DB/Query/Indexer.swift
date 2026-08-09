@@ -255,7 +255,7 @@ public enum Indexer {
         
         if rebuild {
             try RestoreArtifactsAfterRebuildTransaction().perform(db)
-            try Dismissals.bumpGeneration(db)
+            try BumpCandidateGenerationTransaction().perform(db)
         }
         
         if rebuild && !errors.isEmpty {

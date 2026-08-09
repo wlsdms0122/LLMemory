@@ -214,7 +214,7 @@ struct DismissalsTests {
             "a change in tag usage is not evidence about a corpus judgement")
         
         // When
-        try home.database().write { database in try Dismissals.bumpGeneration(database) }
+        try home.database().write { database in try BumpCandidateGenerationTransaction().perform(database) }
         
         // Then
         #expect(try lintIssues(code: "tag-near-duplicate").count == 1, "a reorganisation must reopen it")

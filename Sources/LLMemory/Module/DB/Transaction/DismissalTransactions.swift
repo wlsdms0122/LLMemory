@@ -1,5 +1,5 @@
 //
-//  Dismissals.swift
+//  DismissalTransactions.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -77,143 +77,21 @@ enum Dismissals {
         return String(body[body.startIndex..<cut])
     }
     
-    static func generation(_ db: Database) throws -> Int {
-        (try Int.fetchOne(
-            db,
-            sql: "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'candidate_generation'"
-        )) ?? 0
-    }
+
     
-    static func bumpGeneration(_ db: Database) throws {
-        let generation = try generation(db)
-        
-        try db.execute(sql: """
-            INSERT INTO meta (key, value) VALUES ('candidate_generation', ?)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value
-            """, arguments: [String(generation + 1)])
-    }
+
     
-    static func record(
-        _ db: Database,
-        target: LintTarget,
-        kind: String,
-        reason: String?,
-        now: Int
-    ) throws {
-        switch target {
-        case .note(let noteId):
-            try record(db, noteId: noteId, kind: kind, reason: reason, now: now)
-        
-        case .corpus(let key):
-            try db.execute(sql: """
-                INSERT INTO corpus_dismissals
-                    (target_key, kind, dismiss_count, generation, reason, last_dismissed_at)
-                VALUES (?, ?, 1, ?, ?, ?)
-                ON CONFLICT(target_key, kind) DO UPDATE SET
-                    dismiss_count = dismiss_count + 1,
-                    generation = excluded.generation,
-                    reason = excluded.reason,
-                    last_dismissed_at = excluded.last_dismissed_at
-                """, arguments: [key, kind, try generation(db), reason, now])
-        }
-    }
+
     
-    static func record(
-        _ db: Database,
-        noteId: String,
-        kind: String,
-        reason: String?,
-        now: Int
-    ) throws {
-        let shape = try Row.fetchOne(
-            db,
-            sql: "SELECT word_count, section_count FROM notes WHERE id = ?",
-            arguments: [noteId]
-        )
-        let wordCount = (shape?["word_count"] as Int?) ?? 0
-        let sectionCount = (shape?["section_count"] as Int?) ?? 0
-        let generation = try generation(db)
-        
-        try db.execute(sql: """
-            INSERT INTO candidate_dismissals
-                (note_id, kind, dismiss_count, word_count, section_count, generation, reason, last_dismissed_at)
-            VALUES (?, ?, 1, ?, ?, ?, ?, ?)
-            ON CONFLICT(note_id, kind) DO UPDATE SET
-                dismiss_count = dismiss_count + 1,
-                word_count = excluded.word_count,
-                section_count = excluded.section_count,
-                generation = excluded.generation,
-                reason = excluded.reason,
-                last_dismissed_at = excluded.last_dismissed_at
-            """, arguments: [noteId, kind, wordCount, sectionCount, generation, reason, now])
-    }
+
     
     static func lintLookupKey(_ target: LintTarget, _ kind: String) -> String {
         "\(target.storageKey)\u{0}\(kind)"
     }
     
-    static func lintDismissals(_ db: Database) throws -> [String: Dismissal] {
-        var dismissals: [String: Dismissal] = [:]
-        let noteRows = try Row.fetchAll(db, sql: """
-            SELECT note_id, kind, dismiss_count, word_count, section_count, generation
-            FROM candidate_dismissals WHERE kind LIKE ?
-            """, arguments: [lintPrefix + "%"])
-        
-        for row in noteRows {
-            let kind: String = row["kind"]
-            
-            guard lintCode(of: kind) != nil else { continue }
-            
-            dismissals[lintLookupKey(.note(row["note_id"]), kind)] = Dismissal(
-                kind: kind,
-                dismissCount: row["dismiss_count"] as Int? ?? 1,
-                wordCount: row["word_count"] as Int? ?? 0,
-                sectionCount: row["section_count"] as Int? ?? 0,
-                generation: row["generation"] as Int? ?? 0
-            )
-        }
-        
-        let corpusRows = try Row.fetchAll(db, sql: """
-            SELECT target_key, kind, dismiss_count, generation
-            FROM corpus_dismissals WHERE kind LIKE ?
-            """, arguments: [lintPrefix + "%"])
-        
-        for row in corpusRows {
-            let kind: String = row["kind"]
-            
-            guard lintCode(of: kind) != nil else { continue }
-            
-            dismissals[lintLookupKey(.corpus(row["target_key"]), kind)] = Dismissal(
-                kind: kind,
-                dismissCount: row["dismiss_count"] as Int? ?? 1,
-                wordCount: 0,
-                sectionCount: 0,
-                generation: row["generation"] as Int? ?? 0
-            )
-        }
-        
-        return dismissals
-    }
+
     
-    static func byNote(_ db: Database, kind: String) throws -> [String: Dismissal] {
-        let rows = try Row.fetchAll(db, sql: """
-            SELECT note_id, dismiss_count, word_count, section_count, generation
-            FROM candidate_dismissals WHERE kind = ?
-            """, arguments: [kind])
-        var dismissals: [String: Dismissal] = [:]
-        
-        for row in rows {
-            dismissals[row["note_id"]] = Dismissal(
-                kind: kind,
-                dismissCount: row["dismiss_count"] as Int? ?? 1,
-                wordCount: row["word_count"] as Int? ?? 0,
-                sectionCount: row["section_count"] as Int? ?? 0,
-                generation: row["generation"] as Int? ?? 0
-            )
-        }
-        
-        return dismissals
-    }
+
     
     static func gate(
         _ dismissal: Dismissal?,
@@ -267,5 +145,186 @@ enum Dismissals {
         return Verdict(surface: false, annotation: nil)
     }
     
+    // MARK: - Private
+}
+
+struct FetchCandidateGenerationTransaction: GRDBTransaction {
+    // MARK: - Initializer
+    init() { }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> Int {
+        (try Int.fetchOne(
+            db,
+            sql: "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'candidate_generation'"
+        )) ?? 0
+    }
+
+    // MARK: - Private
+}
+
+struct BumpCandidateGenerationTransaction: GRDBTransaction {
+    // MARK: - Initializer
+    init() { }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
+        let generation = try FetchCandidateGenerationTransaction().perform(db)
+        
+        try db.execute(sql: """
+            INSERT INTO meta (key, value) VALUES ('candidate_generation', ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """, arguments: [String(generation + 1)])
+    }
+
+    // MARK: - Private
+}
+
+struct RecordDismissalTransaction: GRDBTransaction {
+    // MARK: - Property
+    let target: LintTarget
+    let kind: String
+    let reason: String?
+    let now: Int
+
+    // MARK: - Initializer
+    init(target: LintTarget, kind: String, reason: String?, now: Int) {
+        self.target = target
+        self.kind = kind
+        self.reason = reason
+        self.now = now
+    }
+
+    init(noteId: String, kind: String, reason: String?, now: Int) {
+        self.init(target: .note(noteId), kind: kind, reason: reason, now: now)
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
+        switch target {
+        case .note(let noteId):
+            try recordNote(db, noteId: noteId)
+        
+        case .corpus(let key):
+            try db.execute(sql: """
+                INSERT INTO corpus_dismissals
+                    (target_key, kind, dismiss_count, generation, reason, last_dismissed_at)
+                VALUES (?, ?, 1, ?, ?, ?)
+                ON CONFLICT(target_key, kind) DO UPDATE SET
+                    dismiss_count = dismiss_count + 1,
+                    generation = excluded.generation,
+                    reason = excluded.reason,
+                    last_dismissed_at = excluded.last_dismissed_at
+                """, arguments: [key, kind, try FetchCandidateGenerationTransaction().perform(db), reason, now])
+        }
+    }
+
+    // MARK: - Private
+    private func recordNote(_ db: Database, noteId: String) throws {
+        let shape = try Row.fetchOne(
+            db,
+            sql: "SELECT word_count, section_count FROM notes WHERE id = ?",
+            arguments: [noteId]
+        )
+        let wordCount = (shape?["word_count"] as Int?) ?? 0
+        let sectionCount = (shape?["section_count"] as Int?) ?? 0
+        let generation = try FetchCandidateGenerationTransaction().perform(db)
+        
+        try db.execute(sql: """
+            INSERT INTO candidate_dismissals
+                (note_id, kind, dismiss_count, word_count, section_count, generation, reason, last_dismissed_at)
+            VALUES (?, ?, 1, ?, ?, ?, ?, ?)
+            ON CONFLICT(note_id, kind) DO UPDATE SET
+                dismiss_count = dismiss_count + 1,
+                word_count = excluded.word_count,
+                section_count = excluded.section_count,
+                generation = excluded.generation,
+                reason = excluded.reason,
+                last_dismissed_at = excluded.last_dismissed_at
+            """, arguments: [noteId, kind, wordCount, sectionCount, generation, reason, now])
+    }
+}
+
+struct FetchLintDismissalsTransaction: GRDBTransaction {
+    // MARK: - Initializer
+    init() { }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> [String: Dismissals.Dismissal] {
+        var dismissals: [String: Dismissals.Dismissal] = [:]
+        let noteRows = try Row.fetchAll(db, sql: """
+            SELECT note_id, kind, dismiss_count, word_count, section_count, generation
+            FROM candidate_dismissals WHERE kind LIKE ?
+            """, arguments: [Dismissals.lintPrefix + "%"])
+        
+        for row in noteRows {
+            let kind: String = row["kind"]
+            
+            guard Dismissals.lintCode(of: kind) != nil else { continue }
+            
+            dismissals[Dismissals.lintLookupKey(.note(row["note_id"]), kind)] = Dismissals.Dismissal(
+                kind: kind,
+                dismissCount: row["dismiss_count"] as Int? ?? 1,
+                wordCount: row["word_count"] as Int? ?? 0,
+                sectionCount: row["section_count"] as Int? ?? 0,
+                generation: row["generation"] as Int? ?? 0
+            )
+        }
+        
+        let corpusRows = try Row.fetchAll(db, sql: """
+            SELECT target_key, kind, dismiss_count, generation
+            FROM corpus_dismissals WHERE kind LIKE ?
+            """, arguments: [Dismissals.lintPrefix + "%"])
+        
+        for row in corpusRows {
+            let kind: String = row["kind"]
+            
+            guard Dismissals.lintCode(of: kind) != nil else { continue }
+            
+            dismissals[Dismissals.lintLookupKey(.corpus(row["target_key"]), kind)] = Dismissals.Dismissal(
+                kind: kind,
+                dismissCount: row["dismiss_count"] as Int? ?? 1,
+                wordCount: 0,
+                sectionCount: 0,
+                generation: row["generation"] as Int? ?? 0
+            )
+        }
+        
+        return dismissals
+    }
+
+    // MARK: - Private
+}
+
+struct FetchDismissalsByNoteTransaction: GRDBTransaction {
+    // MARK: - Property
+    let kind: String
+
+    // MARK: - Initializer
+    init(kind: String) {
+        self.kind = kind
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> [String: Dismissals.Dismissal] {
+        let rows = try Row.fetchAll(db, sql: """
+            SELECT note_id, dismiss_count, word_count, section_count, generation
+            FROM candidate_dismissals WHERE kind = ?
+            """, arguments: [kind])
+        var dismissals: [String: Dismissals.Dismissal] = [:]
+        
+        for row in rows {
+            dismissals[row["note_id"]] = Dismissals.Dismissal(
+                kind: kind,
+                dismissCount: row["dismiss_count"] as Int? ?? 1,
+                wordCount: row["word_count"] as Int? ?? 0,
+                sectionCount: row["section_count"] as Int? ?? 0,
+                generation: row["generation"] as Int? ?? 0
+            )
+        }
+        
+        return dismissals
+    }
+
     // MARK: - Private
 }
