@@ -89,7 +89,7 @@ public enum Retrieval {
         ids: [String],
         cliSessionId: String = ""
     ) throws -> (found: [Reads.GetNote], missing: [String], record: Retrieval.Record?) {
-        let byId = try queue.read { db in try Reads.catalog(db, ids: ids) }
+        let byId = try queue.read { db in try FetchNoteCatalogTransaction(ids: ids).perform(db) }
         var found: [Reads.GetNote] = []
         var missing: [String] = []
         
@@ -354,7 +354,7 @@ public enum Retrieval {
     }
     
     static func entity(_ queue: any DatabaseReader, name: String?, limit: Int) throws -> [Reads.EntityHit] {
-        return try queue.read { db in try Reads.entityLookup(db, name: name, limit: limit) }
+        return try queue.read { db in try LookupEntitiesTransaction(name: name, limit: limit).perform(db) }
     }
     
     static func listAxes(_ queue: any DatabaseReader) throws -> [(axis: String, description: String?, count: Int)] {
@@ -419,7 +419,7 @@ public enum Retrieval {
             limit: limit
         )
         
-        return try queue.read { db in try Reads.list(db, filter) }
+        return try queue.read { db in try ListNoteRowsTransaction(filter).perform(db) }
     }
     
     static func history(
@@ -427,7 +427,7 @@ public enum Retrieval {
         noteId: String,
         limit: Int
     ) throws -> [Reads.HistoryEvent] {
-        return try queue.read { db in try Reads.history(db, noteId: noteId, limit: limit) }
+        return try queue.read { db in try FetchNoteHistoryTransaction(noteId: noteId, limit: limit).perform(db) }
     }
     
     static func lint(

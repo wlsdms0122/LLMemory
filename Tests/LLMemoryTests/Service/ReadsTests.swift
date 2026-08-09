@@ -31,7 +31,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let map = try Reads.catalog(db, ids: ["cat-a", "nope"])
+            let map = try FetchNoteCatalogTransaction(ids: ["cat-a", "nope"]).perform(db)
         
         // Then
             #expect(map["cat-a"] != nil)
@@ -54,7 +54,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let empty = try Reads.catalog(db, ids: [])
+            let empty = try FetchNoteCatalogTransaction(ids: []).perform(db)
         
         // Then
             #expect(empty.isEmpty)
@@ -77,7 +77,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let note = try Reads.catalog(db, ids: ["cat-hit"])["cat-hit"]
+            let note = try FetchNoteCatalogTransaction(ids: ["cat-hit"]).perform(db)["cat-hit"]
         
         // Then
             #expect(note?.hitCount == 7)
@@ -98,7 +98,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let eager = try Reads.list(db, .init(priority: "eager")).map { row in row.id }
+            let eager = try ListNoteRowsTransaction(.init(priority: "eager")).perform(db).map { row in row.id }
         
         // Then
             #expect(eager.contains("list-eager"))
@@ -113,7 +113,7 @@ struct ReadsTests {
         
         // When
         let row = try home.read { database in
-            try Reads.list(database, .init()).first { row in row.id == "ls-a" }
+            try ListNoteRowsTransaction(.init()).perform(database).first { row in row.id == "ls-a" }
         }
         
         // Then
@@ -130,7 +130,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let tech = try Reads.list(db, .init(axis: "tech")).map { row in row.id }
+            let tech = try ListNoteRowsTransaction(.init(axis: "tech")).perform(db).map { row in row.id }
         
         // Then
             #expect(tech == ["ax-tech"])
@@ -146,12 +146,12 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let staleOnly = try Reads.list(db, .init(sourceStale: true))
+            let staleOnly = try ListNoteRowsTransaction(.init(sourceStale: true)).perform(db)
         
         // Then
             #expect(staleOnly.isEmpty)
             
-            let all = try Reads.list(db, .init())
+            let all = try ListNoteRowsTransaction(.init()).perform(db)
             
             #expect(all.first { row in row.id == "ss-note" }?.sourceStale == false)
         }
@@ -166,7 +166,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let capped = try Reads.list(db, .init(limit: 2))
+            let capped = try ListNoteRowsTransaction(.init(limit: 2)).perform(db)
         
         // Then
             #expect(capped.count == 2)
@@ -184,7 +184,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let hits = try Reads.entityLookup(db, name: "PIIMaskingTransformer", limit: 30)
+            let hits = try LookupEntitiesTransaction(name: "PIIMaskingTransformer", limit: 30).perform(db)
             let ids = Set(hits.map { hit in hit.noteId })
         
         // Then
@@ -202,7 +202,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let all = try Reads.entityLookup(db, name: nil, limit: 30)
+            let all = try LookupEntitiesTransaction(name: nil, limit: 30).perform(db)
         
         // Then
             #expect(all.count >= 1)
@@ -219,7 +219,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let events = try Reads.history(db, noteId: "hist-a", limit: 50)
+            let events = try FetchNoteHistoryTransaction(noteId: "hist-a", limit: 50).perform(db)
         
         // Then
             #expect(events.contains { event in event.kind == "created" })
@@ -238,7 +238,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let one = try Reads.history(db, noteId: "hist-b", limit: 1)
+            let one = try FetchNoteHistoryTransaction(noteId: "hist-b", limit: 1).perform(db)
         
         // Then
             #expect(one.count == 1)

@@ -50,8 +50,8 @@ struct CutTotalOrderInvariantTests {
         try seedEntityIndex(ids: ids)
         
         // When
-        let named = try home.read { database in try Reads.entityLookup(database, name: "acme", limit: 3) }
-        let all = try home.read { database in try Reads.entityLookup(database, name: nil, limit: 3) }
+        let named = try home.read { database in try LookupEntitiesTransaction(name: "acme", limit: 3).perform(database) }
+        let all = try home.read { database in try LookupEntitiesTransaction(name: nil, limit: 3).perform(database) }
         
         // Then
         #expect(named.map(\.noteId) == ["lk-n1", "lk-n2", "lk-n3"])
