@@ -35,7 +35,9 @@ public final class Session {
         self.context = context
         self.home = context.home
         self.storage = GRDBStorage(
-            databaseURL: context.home.appendingPathComponent("data/memory.db"),
+            // The one spelling of the DB location is Paths.db — resolved under
+            // this context explicitly rather than through the fallback.
+            databaseURL: context.bind { Paths.db },
             migrations: Self.migrations,
             context: context
         )

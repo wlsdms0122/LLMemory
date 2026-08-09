@@ -52,6 +52,8 @@ llmemory operations vocab --home <state-root>           # 최신 op 카탈로그
 llmemory operations describe <op> --home <state-root>   # op 별 field schema + 예시
 ```
 
+정본 철자는 `operations`, 축약 `ops` 도 같은 그룹에 닿는다 (alias).
+
 | 그룹 | 역할 |
 |------|------|
 | `init` | 최초 setup (idempotent) — 스키마 + README + 운용 정책 씨드 |
