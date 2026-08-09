@@ -8,7 +8,7 @@
 import Foundation
 
 public enum Template {
-    public struct FrameNode: Encodable {
+    public struct FrameNode: Encodable, Sendable {
         enum CodingKeys: String, CodingKey {
             case level
             case title

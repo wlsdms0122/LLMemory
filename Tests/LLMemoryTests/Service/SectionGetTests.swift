@@ -32,7 +32,7 @@ struct SectionGetTests {
         ).status == "ok")
         
         // When
-        let (note, slices, _) = try Retrieval.getSections(home.database(), id: "doc", sections: ["## A"])
+        let (note, slices, _) = try home.database().read { db in try NotesService.getSections(GRDBScope(db), id: "doc", sections: ["## A"]) }
         
         // Then
         #expect(note.id == "doc")
@@ -50,7 +50,7 @@ struct SectionGetTests {
         
         // Then
         #expect(throws: SectionError.self) {
-            _ = try Retrieval.getSections(home.database(), id: "doc2", sections: ["## Nope"])
+            _ = try home.database().read { db in try NotesService.getSections(GRDBScope(db), id: "doc2", sections: ["## Nope"]) }
         }
     }
     
@@ -63,7 +63,7 @@ struct SectionGetTests {
         ).status == "ok")
         
         // When
-        let (_, entries, _) = try Retrieval.toc(home.database(), id: "doc3")
+        let (_, entries, _) = try home.database().read { db in try NotesService.toc(GRDBScope(db), id: "doc3") }
         
         // Then
         #expect(entries.map(\.path) == ["## A", "## A > ### A1"])

@@ -27,7 +27,7 @@ public struct QueryFeature {
         excludeAxes: [String],
         raw: Bool
     ) async throws -> (rows: [Search.SearchRow], extra: [Links.ExpandedNote]) {
-        try await QueryService.search(
+        try await RetrievalService.search(
             session.storage,
             query: query,
             axis: axis,
@@ -46,7 +46,7 @@ public struct QueryFeature {
         cliSessionId: String,
         includeBodies: Bool
     ) async throws -> Framing.RelatedResult {
-        try await QueryService.related(
+        try await RetrievalService.related(
             session.storage,
             text: text,
             kind: kind,
@@ -59,40 +59,40 @@ public struct QueryFeature {
         ids: [String],
         cliSessionId: String = ""
     ) async throws -> (found: [Reads.GetNote], missing: [String]) {
-        try await QueryService.get(session.storage, ids: ids, cliSessionId: cliSessionId)
+        try await NotesService.get(session.storage, ids: ids, cliSessionId: cliSessionId)
     }
 
     public func getSections(
         id: String,
         sections: [String]
     ) async throws -> (note: Reads.GetNote, slices: [Reads.SectionSlice]) {
-        try await QueryService.getSections(session.storage, id: id, sections: sections)
+        try await NotesService.getSections(session.storage, id: id, sections: sections)
     }
 
     public func getBudget(
         id: String,
         budget: Int
     ) async throws -> (note: Reads.GetNote, cut: Reads.BudgetCut) {
-        try await QueryService.getBudget(session.storage, id: id, budget: budget)
+        try await NotesService.getBudget(session.storage, id: id, budget: budget)
     }
 
     public func toc(
         id: String
     ) async throws -> (note: Reads.GetNote, entries: [Reads.TocEntry]) {
-        try await QueryService.toc(session.storage, id: id)
+        try await NotesService.toc(session.storage, id: id)
     }
 
     public func template(
         id: String
     ) async throws -> (note: Reads.GetNote, frame: [Template.FrameNode]) {
-        try await QueryService.template(session.storage, id: id)
+        try await NotesService.template(session.storage, id: id)
     }
 
     public func metaById(
         noteId: String,
         namespace: String?
     ) async throws -> [String: [String: String]] {
-        try await QueryService.metaById(session.storage, noteId: noteId, namespace: namespace)
+        try await NotesService.metaById(session.storage, noteId: noteId, namespace: namespace)
     }
 
     public func metaByKV(
@@ -101,7 +101,7 @@ public struct QueryFeature {
         value: String?,
         limit: Int
     ) async throws -> [(noteId: String, value: String)] {
-        try await QueryService.metaByKV(
+        try await NotesService.metaByKV(
             session.storage,
             namespace: namespace,
             key: key,
@@ -114,17 +114,17 @@ public struct QueryFeature {
         name: String?,
         limit: Int
     ) async throws -> [Reads.EntityHit] {
-        try await QueryService.entity(session.storage, name: name, limit: limit)
+        try await RetrievalService.entity(session.storage, name: name, limit: limit)
     }
 
     public func listAxes() async throws -> [(axis: String, description: String?, count: Int)] {
-        try await QueryService.listAxes(session.storage)
+        try await NotesService.listAxes(session.storage)
     }
 
     public func structure(
         axis: String?
     ) async throws -> Reads.StructureResult {
-        try await QueryService.structure(session.storage, axis: axis)
+        try await NotesService.structure(session.storage, axis: axis)
     }
 
     public func neighbors(
@@ -132,23 +132,23 @@ public struct QueryFeature {
         k: Int,
         cliSessionId: String = ""
     ) async throws -> [Candidates.NeighborScore] {
-        try await QueryService.neighbors(session.storage, id: id, k: k, cliSessionId: cliSessionId)
+        try await RetrievalService.neighbors(session.storage, id: id, k: k, cliSessionId: cliSessionId)
     }
 
     public func noteStats(
         id: String
     ) async throws -> NoteStats? {
-        try await QueryService.noteStats(session.storage, id: id)
+        try await StatsService.noteStats(session.storage, id: id)
     }
 
     public func axisStats(
         axis: String
     ) async throws -> AxisStats {
-        try await QueryService.axisStats(session.storage, axis: axis)
+        try await StatsService.axisStats(session.storage, axis: axis)
     }
 
     public func overallStats() async throws -> OverallStats {
-        try await QueryService.overallStats(session.storage)
+        try await StatsService.overallStats(session.storage)
     }
 
     public func list(
@@ -158,7 +158,7 @@ public struct QueryFeature {
         sourceStale: Bool,
         limit: Int?
     ) async throws -> [Reads.ListRow] {
-        try await QueryService.list(
+        try await NotesService.list(
             session.storage,
             priority: priority,
             axis: axis,
@@ -172,7 +172,7 @@ public struct QueryFeature {
         noteId: String,
         limit: Int
     ) async throws -> [Reads.HistoryEvent] {
-        try await QueryService.history(session.storage, noteId: noteId, limit: limit)
+        try await NotesService.history(session.storage, noteId: noteId, limit: limit)
     }
 
     public func lint(
@@ -182,7 +182,7 @@ public struct QueryFeature {
         limit: Int? = nil,
         includeDismissed: Bool = false
     ) async throws -> [Lint.Issue] {
-        try await QueryService.lint(
+        try await LintService.lint(
             session.storage,
             id: id,
             code: code,
@@ -193,14 +193,14 @@ public struct QueryFeature {
     }
 
     public func enrichment() async throws -> EnrichmentStatus {
-        try await QueryService.enrichment(session.storage)
+        try await EnrichmentService.status(session.storage)
     }
 
     public func candidates(
         kinds: [String],
         limit: Int
     ) async throws -> [String: Candidates.Batch] {
-        try await QueryService.candidates(session.storage, kinds: kinds, limit: limit)
+        try await ConsolidateService.candidates(session.storage, kinds: kinds, limit: limit)
     }
 
     // MARK: - Private

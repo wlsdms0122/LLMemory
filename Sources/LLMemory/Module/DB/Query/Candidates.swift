@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 public enum Candidates {
-    public struct SplitCandidate {
+    public struct SplitCandidate: Sendable {
         // MARK: - Property
         public let id: String
         public let axis: String
@@ -25,7 +25,7 @@ public enum Candidates {
         // MARK: - Private
     }
     
-    public struct SectionSketch {
+    public struct SectionSketch: Sendable {
         // MARK: - Property
         public let path: String
         public let title: String
@@ -36,7 +36,7 @@ public enum Candidates {
         // MARK: - Private
     }
     
-    public struct FlaggedCandidate {
+    public struct FlaggedCandidate: Sendable {
         // MARK: - Property
         public let id: String
         public let reason: String?
@@ -50,7 +50,7 @@ public enum Candidates {
         // MARK: - Private
     }
     
-    public struct NeighborScore {
+    public struct NeighborScore: Sendable {
         // MARK: - Property
         public var id: String
         public var axis: String
@@ -66,8 +66,8 @@ public enum Candidates {
         // MARK: - Private
     }
     
-    public struct Cluster {
-        public struct Member {
+    public struct Cluster: Sendable {
+        public struct Member: Sendable {
             // MARK: - Property
             package let id: String
             package let axis: String
@@ -79,7 +79,7 @@ public enum Candidates {
             // MARK: - Private
         }
         
-        public struct Edge {
+        public struct Edge: Sendable {
             // MARK: - Property
             public let a: String
             package let b: String
@@ -103,8 +103,8 @@ public enum Candidates {
         // MARK: - Private
     }
     
-    public struct MissingEdge {
-        public struct Member {
+    public struct MissingEdge: Sendable {
+        public struct Member: Sendable {
             // MARK: - Property
             public let id: String
             public let axis: String
@@ -127,8 +127,8 @@ public enum Candidates {
         // MARK: - Private
     }
     
-    public struct NearDuplicate {
-        public struct Member {
+    public struct NearDuplicate: Sendable {
+        public struct Member: Sendable {
             // MARK: - Property
             public let id: String
             public let axis: String
@@ -956,7 +956,7 @@ public enum Candidates {
 }
 
 public extension Candidates {
-    enum Batch {
+    enum Batch: Sendable {
         case split([SplitCandidate])
         case flagged([FlaggedCandidate])
         case clusters([Cluster])

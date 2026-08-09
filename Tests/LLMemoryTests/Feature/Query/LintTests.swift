@@ -118,10 +118,10 @@ struct LintTests {
         try home.overwriteBody(of: "lf-broken", with: "## A\nx\n## A\ny\n")
         
         // When
-        let all = try Retrieval.lint(home.database())
-        let errors = try Retrieval.lint(home.database(), severity: "error")
-        let onlyEnrich = try Retrieval.lint(home.database(), code: "enrich-thin")
-        let capped = try Retrieval.lint(home.database(), limit: 1)
+        let all = try home.read { db in try LintScanTransaction().perform(db) }
+        let errors = try home.read { db in try LintScanTransaction(severity: "error").perform(db) }
+        let onlyEnrich = try home.read { db in try LintScanTransaction(code: "enrich-thin").perform(db) }
+        let capped = try home.read { db in try LintScanTransaction(limit: 1).perform(db) }
         
         // Then
         #expect(all.contains { issue in issue.severity == "error" })
@@ -370,6 +370,6 @@ struct LintTests {
     }
     
     private func isolatedSubjects() throws -> [String] {
-        try Retrieval.lint(home.database(), code: "isolated").map(\.target.subject)
+        try home.read { db in try LintScanTransaction(code: "isolated").perform(db) }.map(\.target.subject)
     }
 }

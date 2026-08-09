@@ -435,7 +435,7 @@ struct FragmentationLintTests {
     }
     
     private func lint(id: String? = nil, code: String, includeDismissed: Bool = false) throws -> [Lint.Issue] {
-        try Retrieval.lint(home.database(), id: id, code: code, includeDismissed: includeDismissed)
+        try home.read { db in try LintScanTransaction(id: id, code: code, includeDismissed: includeDismissed).perform(db) }
     }
     
     private func subjects(of code: String) throws -> [String] {

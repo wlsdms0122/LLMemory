@@ -46,6 +46,19 @@ enum Events {
     }
     
     static func record(
+        _ db: Database,
+        kind: String,
+        payloadJSON: String,
+        sessionId: String? = nil,
+        ts: Int? = nil
+    ) {
+        let timestamp = ts ?? Int(Date().timeIntervalSince1970)
+        var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId, payload: payloadJSON)
+
+        try? record.insert(db)
+    }
+
+    static func record(
         _ queue: any DatabaseWriter,
         kind: String,
         payloadJSON: String,

@@ -529,7 +529,7 @@ struct ConsolidateCandidates: AsyncParsableCommand {
     func run() async throws {
         let brain = Brain(home: global.home)
         
-        let validKinds = Retrieval.candidateValidKinds + ["all", "retrieval", "structural"]
+        let validKinds = ConsolidateService.candidateValidKinds + ["all", "retrieval", "structural"]
         
         if !Set(validKinds).contains(kind) {
             let choices = validKinds.map { choice in "'\(choice)'" }.joined(separator: ", ")
@@ -544,15 +544,15 @@ struct ConsolidateCandidates: AsyncParsableCommand {
         
         switch kind {
         case "all":
-            kinds = Retrieval.candidateValidKinds
+            kinds = ConsolidateService.candidateValidKinds
             groupMode = true
         
         case "retrieval":
-            kinds = Retrieval.candidateRetrievalKinds
+            kinds = ConsolidateService.candidateRetrievalKinds
             groupMode = true
         
         case "structural":
-            kinds = Retrieval.candidateStructuralKinds
+            kinds = ConsolidateService.candidateStructuralKinds
             groupMode = true
         
         default:

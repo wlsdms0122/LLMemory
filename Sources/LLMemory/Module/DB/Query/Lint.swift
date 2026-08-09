@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 public enum Lint {
-    public struct Issue: Encodable {
+    public struct Issue: Encodable, Sendable {
         public enum CodingKeys: String, CodingKey {
             case severity, code, message, subject
             case targetScope = "target_scope"

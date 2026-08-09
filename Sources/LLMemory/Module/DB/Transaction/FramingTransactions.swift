@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 public enum Framing {
-    public struct AxisRow {
+    public struct AxisRow: Sendable {
         // MARK: - Property
         public let axis: String
         public let count: Int
@@ -21,7 +21,7 @@ public enum Framing {
         // MARK: - Private
     }
     
-    public struct SimilarNote {
+    public struct SimilarNote: Sendable {
         // MARK: - Property
         public let id: String
         public let axis: String
@@ -36,7 +36,7 @@ public enum Framing {
         // MARK: - Private
     }
     
-    public struct Snapshot {
+    public struct Snapshot: Sendable {
         // MARK: - Property
         public var keywords: [String]
         public var axes: [AxisRow]
@@ -106,95 +106,7 @@ public enum Framing {
     
 
     
-    static func snapshot(
-        _ queue: any DatabaseReader,
-        userInput: String,
-        agentOutput: String,
-        similarLimit: Int? = nil,
-        expandHops: Int? = nil,
-        linkKind: String? = nil,
-        sessionId: String? = nil
-    ) throws -> Snapshot {
-        let similarLimit = similarLimit ?? Genome.int("related.similar_limit")
-        let expandHops = expandHops ?? Genome.int("related.expand_hops")
-        let text = "\(userInput)\n\(agentOutput)"
-        let keywords = extractKeywords(text)
-        let entityHints = NoteText.extractEntityHints(text)
-        var similarNotes: [SimilarNote] = []
-        var axes: [AxisRow] = []
-        var topTagCounts: [(String, Int)] = []
-        var cooccurrences: [(String, String, Int)] = []
-        var vocabEntries: [String] = []
-        var entityHits: [EntityHit] = []
-        
-        try queue.read { db in
-            similarNotes = try FetchSimilarNotesTransaction(
-                keywords: keywords,
-                limit: similarLimit,
-                sessionId: sessionId
-            )
-                .perform(db)
-            
-            let similarTagSet = Set(similarNotes.flatMap { note in note.tags })
-            axes = try FetchAxesInfoTransaction().perform(db)
-            topTagCounts = try FetchTopTagsTransaction().perform(db)
-            cooccurrences = try FetchTagCooccurrenceTransaction(tags: similarTagSet.sorted()).perform(db)
-            vocabEntries = try FetchTagVocabTransaction().perform(db)
-            entityHits = try FetchEntityHitsTransaction(entities: entityHints).perform(db)
-        }
-        
-        var degraded: [String] = []
-        var linked: [Links.ExpandedNote] = []
-        
-        if !similarNotes.isEmpty {
-            do {
-                linked = try queue.read { db in
-                    try ExpandLinksTransaction(
-                        noteIds: similarNotes.map { note in note.id },
-                        hops: expandHops,
-                        kind: linkKind
-                    )
-                        .perform(db)
-                }
-            } catch {
-                degraded.append("linked: \(error)")
-            }
-        }
-        
-        var vectorLinked: [VectorHit] = []
-        
-        if !similarNotes.isEmpty {
-            let already = Set(similarNotes.map { note in note.id })
-                .union(linked.map { note in note.id })
-            
-            do {
-                vectorLinked = try queue.read { db in
-                    try ExpandByVectorsTransaction(
-                        seedIds: similarNotes.map { note in note.id },
-                        limit: similarLimit,
-                        excludeIds: already
-                    )
-                        .perform(db)
-                }
-            } catch {
-                degraded.append("vector_linked: \(error)")
-            }
-        }
-        
-        return Snapshot(
-            keywords: keywords,
-            axes: axes,
-            similar: similarNotes,
-            linked: linked,
-            vectorLinked: vectorLinked,
-            topTags: topTagCounts,
-            cooccur: cooccurrences,
-            vocab: vocabEntries,
-            entityHints: entityHints,
-            entityHits: entityHits,
-            degraded: degraded
-        )
-    }
+
     
     // MARK: - Private
     static func ftsQuery(_ keywords: [String]) -> String {
@@ -207,7 +119,7 @@ public enum Framing {
 }
 
 public extension Framing {
-    struct RelatedResult {
+    struct RelatedResult: Sendable {
         // MARK: - Property
         public let snapshot: Framing.Snapshot
         public let bodies: [String: String]

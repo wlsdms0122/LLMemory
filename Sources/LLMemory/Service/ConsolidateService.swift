@@ -11,8 +11,23 @@ import Storage
 // Consolidation-domain service — the periodic hygiene passes.
 public enum ConsolidateService {
     // MARK: - Property
+    // Candidate-kind catalog — code-owned vocabulary for the surfacing CLI.
+    public static let candidateRetrievalKinds = Candidates.retrievalKinds
+    public static let candidateStructuralKinds = Candidates.structuralKinds
+    public static var candidateValidKinds: [String] { Candidates.validKinds }
+
     // MARK: - Initializer
     // MARK: - Public
+    public static func candidates(
+        _ storage: GRDBStorage,
+        kinds: [String],
+        limit: Int
+    ) async throws -> [String: Candidates.Batch] {
+        try await storage.read { scope in
+            try scope.run(FetchCandidateBatchesTransaction(kinds: kinds, limit: limit))
+        }
+    }
+
     public static func integrate(_ storage: GRDBStorage) async throws -> Consolidation.IntegrateResult {
         try await storage.run(IntegrateTransaction())
     }

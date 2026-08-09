@@ -10,7 +10,7 @@ import GRDB
 
 // Read-surface DTOs and the catalog/list/entity/history transactions.
 public enum Reads {
-    struct CatalogNote {
+    struct CatalogNote: Sendable {
         // MARK: - Property
         let id: String
         let path: String
@@ -27,7 +27,7 @@ public enum Reads {
         // MARK: - Private
     }
     
-    public struct ListRow: Encodable {
+    public struct ListRow: Encodable, Sendable {
         enum CodingKeys: String, CodingKey {
             case id, axis, title, summary, priority, stale
             case sourceStale = "source_stale"
@@ -78,7 +78,7 @@ public enum Reads {
         // MARK: - Private
     }
     
-    public struct EntityHit: Encodable {
+    public struct EntityHit: Encodable, Sendable {
         enum CodingKeys: String, CodingKey {
             case entity, axis, summary
             case noteId = "note_id"
@@ -99,7 +99,7 @@ public enum Reads {
         // MARK: - Private
     }
     
-    public struct HistoryEvent: Encodable {
+    public struct HistoryEvent: Encodable, Sendable {
         // MARK: - Property
         public let kind: String
         public let reason: String?
@@ -125,7 +125,7 @@ public enum Reads {
 }
 
 public extension Reads {
-    struct NoteFrontmatter: Encodable {
+    struct NoteFrontmatter: Encodable, Sendable {
         // MARK: - Property
         private let doc: FrontmatterDoc
         
@@ -142,7 +142,7 @@ public extension Reads {
         // MARK: - Private
     }
     
-    struct GetNote {
+    struct GetNote: Sendable {
         // MARK: - Property
         public let id, axis, path: String
         public let frontmatter: NoteFrontmatter
@@ -155,7 +155,7 @@ public extension Reads {
         // MARK: - Private
     }
     
-    struct SectionSlice {
+    struct SectionSlice: Sendable {
         // MARK: - Property
         public let path: String
         public let text: String
@@ -165,7 +165,7 @@ public extension Reads {
         // MARK: - Private
     }
     
-    struct TocEntry {
+    struct TocEntry: Sendable {
         // MARK: - Property
         public let path: String
         public let words: Int
@@ -175,7 +175,7 @@ public extension Reads {
         // MARK: - Private
     }
     
-    struct BudgetCut {
+    struct BudgetCut: Sendable {
         // MARK: - Property
         public let shown: String
         public let shownSections: [TocEntry]
@@ -191,7 +191,7 @@ public extension Reads {
         // MARK: - Private
     }
     
-    struct StructureResult {
+    struct StructureResult: Sendable {
         // MARK: - Property
         public let axes: [(axis: String, description: String?, count: Int)]
         public let distribution: Links.Distribution

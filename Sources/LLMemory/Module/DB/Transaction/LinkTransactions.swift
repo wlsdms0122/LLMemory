@@ -11,7 +11,7 @@ import GRDB
 // The link-graph vocabulary — edge kinds, their direction/lifecycle
 // classes, and the note_links transactions.
 public enum Links {
-    public struct Distribution {
+    public struct Distribution: Sendable {
         // MARK: - Property
         public let byKind: [(kind: String, count: Int, min: Double, avg: Double, max: Double)]
         public let weightBuckets: [String: Int]
@@ -22,7 +22,7 @@ public enum Links {
         // MARK: - Private
     }
 
-    public struct ExpandedNote {
+    public struct ExpandedNote: Sendable {
         // MARK: - Property
         public let id: String
         public let axis: String

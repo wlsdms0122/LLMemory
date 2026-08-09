@@ -146,11 +146,9 @@ public enum GenomeService {
         limit: Int,
         sampleDiffs: Int
     ) async throws -> ShadowResult {
-        try await storage.run(
-            GeneShadowTransaction(
-                .init(gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
-            )
-        )
+        try await storage.read { scope in
+            try shadow(scope, gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
+        }
     }
 
     // MARK: - Internal
@@ -185,6 +183,94 @@ public enum GenomeService {
                     ts: event.ts
                 )
             }
+    }
+
+
+    // Offline reranking — replays the logged retrieval queries against the
+    // current corpus under a candidate gene value. The override lives only in
+    // the in-process cache for the duration of the replay; nothing commits.
+    static func shadow(
+        _ scope: GRDBScope,
+        gene: String,
+        value: Double,
+        limit: Int,
+        sampleDiffs: Int
+    ) throws -> ShadowResult {
+        guard let definition = Genome.gene(gene) else {
+            throw WriteError.unknownGene(gene)
+        }
+
+        guard value >= definition.min && value <= definition.max else {
+            throw WriteError.outOfBounds(gene, value, definition)
+        }
+
+        let baselineValue = Genome.double(gene)
+        let logged = try scope.run(FetchLoggedRetrievalQueriesTransaction(limit: limit))
+
+        func replayIds(
+            _ loggedQuery: FetchLoggedRetrievalQueriesTransaction.LoggedQuery
+        ) throws -> [String] {
+            switch loggedQuery.command {
+            case "search":
+                return try scope.run(
+                    SearchNotesFTSTransaction(
+                        query: loggedQuery.text,
+                        axis: loggedQuery.axis,
+                        limit: loggedQuery.limit,
+                        sessionId: loggedQuery.sessionId
+                    )
+                )
+                    .map { hit in hit.id }
+
+            default:
+                let snapshot = try RetrievalService.snapshot(
+                    scope,
+                    userInput: loggedQuery.text,
+                    agentOutput: "",
+                    sessionId: loggedQuery.sessionId
+                )
+
+                return snapshot.similar.map { note in note.id }
+                    + snapshot.linked.map { note in note.id }
+                    + snapshot.vectorLinked.map { note in note.id }
+            }
+        }
+
+        var diffs: [ShadowResult.QueryDiff] = []
+        var changed = 0
+
+        for loggedQuery in logged {
+            let baseline = try replayIds(loggedQuery)
+            let candidate = try Genome.withOverride(gene, value) { try replayIds(loggedQuery) }
+
+            if baseline != candidate {
+                changed += 1
+
+                if diffs.count < sampleDiffs {
+                    let baselineIds = Set(baseline)
+                    let candidateIds = Set(candidate)
+
+                    diffs.append(
+                        ShadowResult.QueryDiff(
+                            query: "\(loggedQuery.command): \(loggedQuery.text)",
+                            baseline: baseline,
+                            candidate: candidate,
+                            entered: candidate.filter { id in !baselineIds.contains(id) },
+                            dropped: baseline.filter { id in !candidateIds.contains(id) }
+                        )
+                    )
+                }
+            }
+        }
+
+        return ShadowResult(
+            gene: gene,
+            baselineValue: baselineValue,
+            candidateValue: value,
+            queriesReplayed: logged.count,
+            queriesChanged: changed,
+            diffs: diffs
+        )
     }
 
     // The one write path for gene values — validates against the code-owned

@@ -55,12 +55,15 @@ struct RelatedFailLoudTests {
 
         // Then
         #expect(throws: DBError.self) {
-            _ = try Retrieval.related(home.database(), 
-                text: "gate note",
-                kind: nil,
-                cliSessionId: "",
-                includeBodies: false
-            )
+            _ = try home.database().read { db in
+                try RetrievalService.related(
+                    GRDBScope(db),
+                    text: "gate note",
+                    kind: nil,
+                    sessionId: nil,
+                    includeBodies: false
+                )
+            }
         }
 
         // Restore the ledger so the fixture can tear the home down through a working connection.
