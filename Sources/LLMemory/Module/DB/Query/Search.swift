@@ -104,12 +104,12 @@ public enum Search {
         let prior: [String: Double]
         if let sessionId, !sessionId.isEmpty {
             let windowMin = Genome.int("priming.window_min")
-            prior = (try? Priming.axisPrior(
-                db,
+            prior = (try? ComputeAxisPriorTransaction(
                 sessionId: sessionId,
                 windowSec: windowMin * 60,
                 now: now
-            )) ?? [:]
+            )
+                .perform(db)) ?? [:]
         } else {
             prior = [:]
         }

@@ -1061,14 +1061,14 @@ public enum HandlersBasic {
         write: { op, db in
             let now = Int(Date().timeIntervalSince1970)
             
-            try NoteMeta.setValue(
-                db,
+            try UpsertNoteMetaTransaction(
                 noteId: op["id"] as! String,
                 namespace: op["namespace"] as! String,
                 key: op["key"] as! String,
                 value: op["value"] as! String,
                 now: now
             )
+                .perform(db)
             
             return [
                 "status": "ok",
@@ -1104,12 +1104,12 @@ public enum HandlersBasic {
             return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, db: db)
         },
         write: { op, db in
-            let deleted = try NoteMeta.delete(
-                db,
+            let deleted = try DeleteNoteMetaTransaction(
                 noteId: op["id"] as! String,
                 namespace: op["namespace"] as! String,
                 key: op["key"] as! String
             )
+                .perform(db)
             
             return ["status": "ok", "ids": [op["id"]!], "note": "deleted \(deleted) meta row(s)"]
         },

@@ -331,7 +331,7 @@ public enum Retrieval {
         namespace: String?
     ) throws -> [String: [String: String]] {
         return try queue.read { db in
-            try NoteMeta.getAll(db, noteId: noteId, namespace: namespace)
+            try FetchNoteMetaTransaction(noteId: noteId, namespace: namespace).perform(db)
         }
     }
     
@@ -343,13 +343,13 @@ public enum Retrieval {
         limit: Int
     ) throws -> [(noteId: String, value: String)] {
         return try queue.read { db in
-            try NoteMeta.findByKV(
-                db,
+            try FindNoteMetaByKVTransaction(
                 namespace: namespace,
                 key: key,
                 value: value,
                 limit: limit
             )
+                .perform(db)
         }
     }
     

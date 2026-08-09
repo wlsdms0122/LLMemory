@@ -47,7 +47,7 @@ public enum Framing {
         public var cooccur: [(String, String, Int)]
         public var vocab: [String]
         public var entityHints: [String]
-        public var entityHits: [Entities.Hit]
+        public var entityHits: [EntityHit]
         public var degraded: [String] = []
         
         // MARK: - Initializer
@@ -155,12 +155,12 @@ public enum Framing {
         
         if let sessionId, !sessionId.isEmpty {
             let windowMin = Genome.int("priming.window_min")
-            prior = (try? Priming.axisPrior(
-                db,
+            prior = (try? ComputeAxisPriorTransaction(
                 sessionId: sessionId,
                 windowSec: windowMin * 60,
                 now: now
-            )) ?? [:]
+            )
+                .perform(db)) ?? [:]
         } else {
             prior = [:]
         }
@@ -235,7 +235,7 @@ public enum Framing {
         var topTagCounts: [(String, Int)] = []
         var cooccurrences: [(String, String, Int)] = []
         var vocabEntries: [String] = []
-        var entityHits: [Entities.Hit] = []
+        var entityHits: [EntityHit] = []
         
         try queue.read { db in
             similarNotes = try similar(
@@ -250,7 +250,7 @@ public enum Framing {
             topTagCounts = try topTags(db)
             cooccurrences = try cooccurFor(db, tags: similarTagSet.sorted())
             vocabEntries = try vocab(db)
-            entityHits = try Entities.hits(db, entities: entityHints)
+            entityHits = try FetchEntityHitsTransaction(entities: entityHints).perform(db)
         }
         
         var degraded: [String] = []

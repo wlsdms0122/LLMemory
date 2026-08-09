@@ -154,7 +154,7 @@ public enum HandlersStructural {
             )
             
             try Notes.delete(db, nid: noteId)
-            try Entities.deleteForNote(db, noteId: noteId)
+            try DeleteNoteEntitiesTransaction(noteId: noteId).perform(db)
             try Ripple.deleteForNote(db, noteId: noteId)
             
             let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(80)

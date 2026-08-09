@@ -129,12 +129,12 @@ enum Notes {
             )
         }
         
-        try Entities.reconcile(
-            db,
+        try ReconcileNoteEntitiesTransaction(
             entities: fields.entities ?? [],
             noteId: fields.id,
             now: now
         )
+            .perform(db)
         try reindexFTS(
             db,
             noteId: fields.id,

@@ -125,7 +125,7 @@ struct NoteMetaTests {
     
     private func value(of noteId: String) throws -> String? {
         try home.read { database in
-            try NoteMeta.get(database, noteId: noteId, namespace: "journal", key: "affect")
+            try FetchNoteMetaValueTransaction(noteId: noteId, namespace: "journal", key: "affect").perform(database)
         }
     }
 }

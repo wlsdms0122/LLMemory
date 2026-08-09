@@ -1053,7 +1053,7 @@ struct EnrichmentTests {
         #expect((row["reason"] as String) == "from reason", "reason must follow the freshest dismissal (from)")
     }
     
-    // Entities.hits — archived/stale surfacing gate
+    // FetchEntityHitsTransaction — archived/stale surfacing gate
     @Test("a stale note is left off the entity hit surface")
     func entityHitsExcludesStale() throws {
         // Given
@@ -1078,7 +1078,7 @@ struct EnrichmentTests {
         }
         
         // When
-        let hits = try queue.read { db in try Entities.hits(db, entities: ["EH-99"], limitPerEntity: 10) }
+        let hits = try queue.read { db in try FetchEntityHitsTransaction(entities: ["EH-99"], limitPerEntity: 10).perform(db) }
         
         // Then
         #expect(hits.count == 3)

@@ -34,7 +34,7 @@ struct CutTotalOrderInvariantTests {
         
         // When
         let hits = try home.read { database in
-            try Entities.hits(database, entities: ["acme"], limitPerEntity: 3)
+            try FetchEntityHitsTransaction(entities: ["acme"], limitPerEntity: 3).perform(database)
         }
         
         // Then

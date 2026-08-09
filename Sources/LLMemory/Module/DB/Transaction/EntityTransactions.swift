@@ -1,59 +1,79 @@
 //
-//  Entities.swift
+//  EntityTransactions.swift
 //  LLMemory
 //
-//  Created by JSilver on 8/7/26.
+//  Created by JSilver on 8/9/26.
 //
 
 import Foundation
 import GRDB
 
-public enum Entities {
-    public struct Hit {
-        // MARK: - Property
-        public let entity: String
-        public let noteId: String
-        public let axis: String?
-        public let lastSeenAt: Int
-        public let hitCount: Int
-        public let title: String?
-        public let summary: String?
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
+// entity_index transactions — the per-note entity registry and its
+// freshness-gated lookup.
+public struct EntityHit: Sendable {
     // MARK: - Property
+    public let entity: String
+    public let noteId: String
+    public let axis: String?
+    public let lastSeenAt: Int
+    public let hitCount: Int
+    public let title: String?
+    public let summary: String?
+
     // MARK: - Initializer
     // MARK: - Public
-    static func deleteForNote(_ db: Database, noteId: String) throws {
+    // MARK: - Private
+}
+
+struct DeleteNoteEntitiesTransaction: GRDBTransaction {
+    // MARK: - Property
+    let noteId: String
+
+    // MARK: - Initializer
+    init(noteId: String) {
+        self.noteId = noteId
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
         try db.execute(sql: "DELETE FROM entity_index WHERE note_id = ?", arguments: [noteId])
     }
-    
-    static func reconcile(
-        _ db: Database,
-        entities: [String],
-        noteId: String,
-        now: Int
-    ) throws {
+
+    // MARK: - Private
+}
+
+struct ReconcileNoteEntitiesTransaction: GRDBTransaction {
+    // MARK: - Property
+    let entities: [String]
+    let noteId: String
+    let now: Int
+
+    // MARK: - Initializer
+    init(entities: [String], noteId: String, now: Int) {
+        self.entities = entities
+        self.noteId = noteId
+        self.now = now
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws {
         let want = entities.filter { entity in
             !entity.trimmingCharacters(in: .whitespaces).isEmpty
         }
-        
+
         if want.isEmpty {
-            try deleteForNote(db, noteId: noteId)
-            
+            try DeleteNoteEntitiesTransaction(noteId: noteId).perform(db)
+
             return
         }
-        
+
         let placeholders = want.map { _ in "?" }.joined(separator: ",")
-        
+
         try db.execute(
             sql: "DELETE FROM entity_index WHERE note_id = ? AND entity NOT IN (\(placeholders))",
             arguments: StatementArguments([noteId] + want)
         )
-        
+
         for entity in want {
             try db.execute(sql: """
                 INSERT OR IGNORE INTO entity_index (entity, note_id, last_seen_at, hit_count)
@@ -61,16 +81,27 @@ public enum Entities {
                 """, arguments: [entity, noteId, now])
         }
     }
-    
-    static func hits(
-        _ db: Database,
-        entities: [String],
-        limitPerEntity: Int = 5
-    ) throws -> [Hit] {
+
+    // MARK: - Private
+}
+
+struct FetchEntityHitsTransaction: GRDBTransaction {
+    // MARK: - Property
+    let entities: [String]
+    let limitPerEntity: Int
+
+    // MARK: - Initializer
+    init(entities: [String], limitPerEntity: Int = 5) {
+        self.entities = entities
+        self.limitPerEntity = limitPerEntity
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> [EntityHit] {
         guard !entities.isEmpty else { return [] }
-        
-        var hits: [Hit] = []
-        
+
+        var hits: [EntityHit] = []
+
         for entity in entities where !entity.isEmpty {
             var sql = """
                 SELECT ei.note_id, n.axis, ei.last_seen_at, ei.hit_count, n.title, n.summary
@@ -80,12 +111,12 @@ public enum Entities {
                 AND \(Policy.fresh())
                 """
             sql += " ORDER BY ei.last_seen_at DESC, ei.note_id ASC LIMIT ?"
-            
+
             let rows = try Row.fetchAll(db, sql: sql, arguments: [entity, limitPerEntity])
-            
+
             for row in rows {
                 hits.append(
-                    Hit(
+                    EntityHit(
                         entity: entity,
                         noteId: row["note_id"],
                         axis: row["axis"] as String?,
@@ -97,9 +128,9 @@ public enum Entities {
                 )
             }
         }
-        
+
         return hits
     }
-    
+
     // MARK: - Private
 }
