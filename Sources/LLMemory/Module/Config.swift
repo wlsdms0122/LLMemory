@@ -14,8 +14,16 @@ enum Config {
     
     private static let nilSentinel = "\u{0}__NIL__"
     
-    nonisolated(unsafe) private static var cache: [String: String] = [:]
-    nonisolated(unsafe) private static var warmed = false
+    // The cache lives on the bound brain's context — resolution follows
+    // whichever brain's scope is executing.
+    private static var cache: [String: String] {
+        get { BrainContext.resolved.configCache }
+        set { BrainContext.resolved.configCache = newValue }
+    }
+    private static var warmed: Bool {
+        get { BrainContext.resolved.configWarmed }
+        set { BrainContext.resolved.configWarmed = newValue }
+    }
     
     // MARK: - Initializer
     // MARK: - Public
@@ -51,7 +59,7 @@ enum Config {
     // leaves the existing caches untouched. At construction there is nothing
     // to correct yet, so keeping stale-but-committed values beats emptying.
     static func warmCache(_ storage: GRDBStorage) {
-        try? loadCommitted(storage)
+        storage.context.bind { try? loadCommitted(storage) }
     }
 
     // Rollback repair — the caches may hold values a rolled-back transaction
@@ -59,10 +67,12 @@ enum Config {
     // leave those in place: an unknown committed state reads as empty (and
     // falls to defaults), never as the rolled-back values.
     static func repairCache(_ storage: GRDBStorage) {
-        do {
-            try loadCommitted(storage)
-        } catch {
-            invalidateCache()
+        storage.context.bind {
+            do {
+                try loadCommitted(storage)
+            } catch {
+                invalidateCache()
+            }
         }
     }
 

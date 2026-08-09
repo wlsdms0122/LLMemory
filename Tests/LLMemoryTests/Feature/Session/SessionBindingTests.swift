@@ -67,9 +67,35 @@ struct SessionBindingTests {
 
         // Constructing the second session moved the process-global Paths remnant; put it back
         // so the fixture tears down against its own home.
-        Paths.configure(home: home.path)
-        Config.invalidateCache()
-        Config.warmCache(home.storage)
+        BrainContext.adoptFallback(home.session.context)
+        home.session.rewarm()
+    }
+
+    // The cycle-5 contract: paths and parameter caches follow the executing
+    // brain's scope, not whichever Session was constructed last.
+    @Test("two live sessions keep their own paths and caches — scoped work resolves per brain")
+    func scopedWorkResolvesPerBrain() throws {
+        // Given — a probe value primed into the fixture's own context
+        try home.write { database in
+            try Config.set("binding-probe", value: "mine", txDB: database)
+        }
+
+        // When — constructing a second session moves the ambient fallback
+        let second = try SecondaryHome()
+
+        #expect(Paths.brainRoot == second.session.home,
+            "the ambient fallback did not move to the newest session")
+
+        // Then — the first storage's scoped work still resolves its own brain
+        let (root, probe) = try home.storage.writeLock {
+            (Paths.brainRoot, Config.getString("binding-probe", default: ""))
+        }
+
+        #expect(root == home.session.home, "a scope resolved another brain's paths")
+        #expect(probe == "mine", "a scope resolved another brain's config cache")
+
+        BrainContext.adoptFallback(home.session.context)
+        home.session.rewarm()
     }
 
     @Test("a storage caches its connection — reconnecting yields the same queue")

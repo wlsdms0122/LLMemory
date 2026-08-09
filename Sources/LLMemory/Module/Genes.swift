@@ -81,7 +81,11 @@ public enum Genes {
              summary: "익명 활성화의 시간창 추정 gap (관측 정책 — 기록에 영구 반영)")
     ]
 
-    nonisolated(unsafe) private static var cache: [String: Double] = [:]
+    // The value cache lives on the bound brain's context.
+    private static var cache: [String: Double] {
+        get { BrainContext.resolved.genesCache }
+        set { BrainContext.resolved.genesCache = newValue }
+    }
 
     // MARK: - Initializer
     // MARK: - Public

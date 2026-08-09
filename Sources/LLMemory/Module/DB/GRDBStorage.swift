@@ -15,6 +15,12 @@ public protocol GRDBStorable: DBStorable where Connection == any DatabaseWriter 
 
 public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // MARK: - Property
+    // The owning brain's ambient state — bound as a task-local around every
+    // scope body, so Paths/Config/Genes resolve to this brain while its
+    // transactions run (async GRDB closures leave the caller's task, so the
+    // binding happens inside them, not just around the call).
+    let context: BrainContext
+
     private let databaseURL: URL
     private let migrations: [any GRDBMigration]
 
@@ -44,10 +50,12 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // MARK: - Initializer
     public init(
         databaseURL: URL,
-        migrations: [any GRDBMigration]
+        migrations: [any GRDBMigration],
+        context: BrainContext
     ) {
         self.databaseURL = databaseURL
         self.migrations = migrations
+        self.context = context
     }
 
     // MARK: - Lifecycle
@@ -196,7 +204,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         do {
             return try await connection.write { db in
-                try body(GRDBScope(db))
+                try self.context.bind { try body(GRDBScope(db)) }
             }
         } catch {
             // The scope threw — body failure or the commit step itself
@@ -218,7 +226,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     @discardableResult
     public func read<T: Sendable>(_ body: @escaping @Sendable (GRDBReadScope) throws -> T) async throws -> T {
         try await connect().read { db in
-            try body(GRDBReadScope(db))
+            try self.context.bind { try body(GRDBReadScope(db)) }
         }
     }
 
@@ -235,7 +243,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         defer { releaseLock() }
 
-        return try body()
+        return try context.bind(body)
     }
 
     // MARK: - Private

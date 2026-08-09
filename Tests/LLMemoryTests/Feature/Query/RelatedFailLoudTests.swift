@@ -37,9 +37,8 @@ struct RelatedFailLoudTests {
         }
         
         // Rebind the fixture home so its teardown runs against its own paths.
-        Paths.configure(home: home.path)
-        Config.invalidateCache()
-        Config.warmCache(home.storage)
+        BrainContext.adoptFallback(home.session.context)
+        home.session.rewarm()
     }
     
     @Test("related on a brain whose schema does not match the binary throws")

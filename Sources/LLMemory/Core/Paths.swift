@@ -7,10 +7,10 @@
 
 import Foundation
 
+// Path vocabulary over the bound brain home — every value resolves through
+// BrainContext, so the answers follow whichever brain's scope is executing.
 enum Paths {
     // MARK: - Property
-    nonisolated(unsafe) private static var home: URL?
-    
     static var brainRoot: URL { root() }
     static var dataDirectory: URL { root().appendingPathComponent("data") }
     
@@ -27,19 +27,6 @@ enum Paths {
     // MARK: - Initializer
     
     // MARK: - Public
-    @discardableResult
-    static func configure(home: String) -> Bool {
-        let expanded = URL(fileURLWithPath: (home as NSString).expandingTildeInPath)
-        let next = expanded.resolvingSymlinksInPath()
-            .standardized
-        let changed = Paths.home
-            .map { path in canonical(path) != canonical(next) } ?? true
-        
-        Paths.home = next
-        
-        return changed
-    }
-    
     static func relative(of file: URL) -> String? {
         let abs = canonical(file)
         let root = canonical(brainRoot)
@@ -119,11 +106,7 @@ enum Paths {
     
     // MARK: - Private
     private static func root() -> URL {
-        guard let home else {
-            fatalError("paths.configure(home) 미호출 — memory CLI 는 --home 필수")
-        }
-        
-        return home
+        BrainContext.resolved.home
     }
     
     private static func canonical(_ url: URL) -> String {

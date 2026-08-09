@@ -20,21 +20,27 @@ public final class Session {
 
     public let home: URL
     public let storage: GRDBStorage
+    let context: BrainContext
 
     // MARK: - Initializer
     public init(home: String) {
-        // Paths and the Config/Genome caches are still process-global remnants —
-        // services read them ambiently. One live Session per process until they
-        // move onto this instance.
-        Paths.configure(home: home)
+        // The context carries this brain's paths and parameter caches; the
+        // storage binds it around every scope. It also becomes the process
+        // fallback so ambient reads outside any scope (file walks before a
+        // scope opens, CLI startup) keep resolving in single-brain flows.
+        let context = BrainContext(home: home)
 
-        self.home = Paths.brainRoot
+        BrainContext.adoptFallback(context)
+
+        self.context = context
+        self.home = context.home
         self.storage = GRDBStorage(
-            databaseURL: Paths.db,
-            migrations: Self.migrations
+            databaseURL: context.home.appendingPathComponent("data/memory.db"),
+            migrations: Self.migrations,
+            context: context
         )
 
-        Config.invalidateCache()
+        context.bind { Config.invalidateCache() }
         Config.warmCache(storage)
     }
 
@@ -43,7 +49,7 @@ public final class Session {
     // database first comes into existence or migrates (init/update), since the
     // constructor may have warmed against a database that was not there yet.
     public func rewarm() {
-        Config.invalidateCache()
+        context.bind { Config.invalidateCache() }
         Config.warmCache(storage)
     }
 

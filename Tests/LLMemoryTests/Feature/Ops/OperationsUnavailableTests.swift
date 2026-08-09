@@ -21,9 +21,11 @@ struct OperationsUnavailableTests {
     @Test("a connect failure is normalized to the unavailable status, not an exception")
     func connectFailureNormalizesToUnavailable() async {
         // Given
+        let home = "/nonexistent-\(UUID().uuidString)"
         let storage = GRDBStorage(
-            databaseURL: URL(fileURLWithPath: "/nonexistent-\(UUID().uuidString)/data/memory.db"),
-            migrations: []
+            databaseURL: URL(fileURLWithPath: "\(home)/data/memory.db"),
+            migrations: [],
+            context: BrainContext(home: home)
         )
         let operations = Container(storage: storage).operations
 
