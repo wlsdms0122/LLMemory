@@ -196,7 +196,7 @@ public enum OpsEngine {
         do {
             if let rulesetId = effectiveRulesetId {
                 let exists = try queue.read { db in
-                    try Ruleset.rulesetExists(db, id: rulesetId)
+                    try RulesetExistsTransaction(id: rulesetId).perform(db)
                 }
                 
                 if !exists {
@@ -453,7 +453,7 @@ public enum OpsEngine {
         
         do {
             if let rulesetId = effectiveRulesetId {
-                let exists = try queue.read { db in try Ruleset.rulesetExists(db, id: rulesetId) }
+                let exists = try queue.read { db in try RulesetExistsTransaction(id: rulesetId).perform(db) }
                 
                 if !exists {
                     return DryRunResult(
@@ -704,7 +704,7 @@ public enum OpsEngine {
         if axes.isEmpty { axes = ["*"] }
         
         for axis in axes.sorted() {
-            let effective = try Ruleset.effective(db, axis: axis, rulesetIds: [rulesetId])
+            let effective = try RulesetService.effective(GRDBScope(db), axis: axis, rulesetIds: [rulesetId])
             let (allowed, reason) = effective.allows(op: name)
             
             if !allowed {

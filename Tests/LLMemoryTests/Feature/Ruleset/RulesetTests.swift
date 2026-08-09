@@ -163,7 +163,7 @@ struct RulesetTests {
         try seedRuleset(id: "rs-shape", rules: [("ops.deny", #"{"axis":"*","ops":"delete_note"}"#)])
         
         // Then
-        #expect(throws: Ruleset.RulesetError.self) {
+        #expect(throws: RulesetService.RulesetError.self) {
             _ = try resolve(axis: "tech", rulesetIds: ["rs-shape"])
         }
     }
@@ -174,7 +174,7 @@ struct RulesetTests {
         try seedRuleset(id: "rs-req", rules: [("ops.whitelist", #"{"axis":"*"}"#)])
         
         // Then
-        #expect(throws: Ruleset.RulesetError.self) {
+        #expect(throws: RulesetService.RulesetError.self) {
             _ = try resolve(axis: "tech", rulesetIds: ["rs-req"])
         }
     }
@@ -185,7 +185,7 @@ struct RulesetTests {
         try seedRuleset(id: "rs-mode", rules: [("consolidate.mode", #"{"axis":"*","mode":"paused"}"#)])
         
         // Then
-        #expect(throws: Ruleset.RulesetError.self) {
+        #expect(throws: RulesetService.RulesetError.self) {
             _ = try resolve(axis: "tech", rulesetIds: ["rs-mode"])
         }
     }
@@ -196,8 +196,8 @@ struct RulesetTests {
         try seedRuleset(id: "present", rules: [("ops.whitelist", #"{"axis":"*","ops":["*"]}"#)])
         
         // When
-        let present = try home.read { database in try Ruleset.rulesetExists(database, id: "present") }
-        let absent = try home.read { database in try Ruleset.rulesetExists(database, id: "absent") }
+        let present = try home.read { database in try RulesetExistsTransaction(id: "present").perform(database) }
+        let absent = try home.read { database in try RulesetExistsTransaction(id: "absent").perform(database) }
         
         // Then
         #expect(present)
@@ -224,9 +224,9 @@ struct RulesetTests {
         try home.storage.writeLock { try home.database().write(body) }
     }
     
-    private func resolve(axis: String, rulesetIds: [String]) throws -> Ruleset.Effective {
+    private func resolve(axis: String, rulesetIds: [String]) throws -> RulesetService.Effective {
         try home.read { database in
-            try Ruleset.effective(database, axis: axis, rulesetIds: rulesetIds)
+            try RulesetService.effective(GRDBScope(database), axis: axis, rulesetIds: rulesetIds)
         }
     }
 }
