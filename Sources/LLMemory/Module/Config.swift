@@ -47,30 +47,23 @@ enum Config {
         Genes.invalidateCache()
     }
     
-    // Best-effort by contract, and swap-only: a failed read leaves the
-    // existing caches untouched instead of leaving them empty.
+    // Boot-time warm — best-effort by contract, and swap-only: a failed read
+    // leaves the existing caches untouched. At construction there is nothing
+    // to correct yet, so keeping stale-but-committed values beats emptying.
     static func warmCache(_ storage: GRDBStorage) {
+        try? loadCommitted(storage)
+    }
+
+    // Rollback repair — the caches may hold values a rolled-back transaction
+    // primed before its commit failed. A repair that also fails must not
+    // leave those in place: an unknown committed state reads as empty (and
+    // falls to defaults), never as the rolled-back values.
+    static func repairCache(_ storage: GRDBStorage) {
         do {
-            let queue = try storage.connect()
-            let rows = try queue.read { db in
-                try MetaRecord
-                    .filter(Column("key").like("\(prefix)%"))
-                    .fetchAll(db)
-            }
-            let genomeValues = try queue.read { db in
-                try FetchGenomeValuesTransaction().perform(db)
-            }
-            var fresh: [String: String] = [:]
-
-            for row in rows {
-                fresh[row.key] = row.value ?? nilSentinel
-            }
-
-            cache = fresh
-            warmed = true
-
-            Genes.warm(genomeValues)
-        } catch { }
+            try loadCommitted(storage)
+        } catch {
+            invalidateCache()
+        }
     }
 
     static func set(_ queue: any DatabaseWriter, _ key: String, value: Any) {
@@ -118,6 +111,30 @@ enum Config {
     }
     
     // MARK: - Private
+    // One snapshot for both caches — config rows and genome values come from
+    // the same read transaction, then swap in together.
+    private static func loadCommitted(_ storage: GRDBStorage) throws {
+        let queue = try storage.connect()
+        let (rows, genomeValues) = try queue.read { db in
+            (
+                try MetaRecord
+                    .filter(Column("key").like("\(prefix)%"))
+                    .fetchAll(db),
+                try FetchGenomeValuesTransaction().perform(db)
+            )
+        }
+        var fresh: [String: String] = [:]
+
+        for row in rows {
+            fresh[row.key] = row.value ?? nilSentinel
+        }
+
+        cache = fresh
+        warmed = true
+
+        Genes.warm(genomeValues)
+    }
+
     private static func fetch(_ key: String) -> String? {
         // Cache-only: the Session that owns this home warms the cache at construction.
         guard let value = cache[prefix + key] else { return nil }

@@ -41,8 +41,9 @@ public enum OperationsEngine {
         public let conflict: SplitConflict?
         // Best-effort passes that failed and rolled back, by name — the
         // caller distinguishes "nothing to do" from "pass degraded" without
-        // digging through the event log.
-        public var degradedPasses: [String]
+        // digging through the event log. Error detail lives in the trace
+        // event, keeping this a stable pass-name vocabulary.
+        public let degradedPasses: [String]
         
         // MARK: - Initializer
         public init(
@@ -221,41 +222,13 @@ public enum OperationsEngine {
                 }
             }
             
-            var txResult = try applySequence(
+            result = try applySequence(
                 scope,
                 opsRaw: opsRaw,
                 sessionId: sessionId,
                 rationale: rationale,
                 effectiveRulesetId: effectiveRulesetId
             )
-            
-            if txResult.status == "ok" {
-                let touched = enrichmentTouchedNotes(opsRaw)
-                
-                if !touched.isEmpty {
-                    // Best-effort, but atomically so — a failed validation
-                    // pass rolls back whole, and the degradation rides the
-                    // result (plus a trace event) instead of vanishing.
-                    if case .failure(let error)? =
-                        try? scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: touched)) }) {
-                        txResult.degradedPasses.append("term_validation: \(error)")
-
-                        try? scope.run(
-                            RecordEventTransaction(
-                                kind: Events.kindCapture,
-                                payload: [
-                                    "tx_status": "degraded",
-                                    "pass": "term_validation",
-                                    "error": "\(error)"
-                                ],
-                                sessionId: sessionId
-                            )
-                        )
-                    }
-                }
-            }
-            
-            result = txResult
         } catch let conflict as SplitConflict {
             result = Result(
                 status: "conflict",
@@ -449,7 +422,7 @@ public enum OperationsEngine {
         let opsSummary: [[String: Any]] = results.map { result in
             ["op": result.op, "status": result.status, "ids": result.ids]
         }
-        
+
         try? scope.run(RecordEventTransaction(
                                 kind: Events.kindCapture,
             payload: [
@@ -459,14 +432,40 @@ public enum OperationsEngine {
             ],
             sessionId: sessionId
         ))
-        
+
+        var degradedPasses: [String] = []
+        let touched = enrichmentTouchedNotes(opsRaw)
+
+        if !touched.isEmpty {
+            // Best-effort, but atomically so — a failed validation pass
+            // rolls back whole. The pass name rides the result; the error
+            // detail rides the trace event.
+            if case .failure(let error)? =
+                try? scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: touched)) }) {
+                degradedPasses.append("term_validation")
+
+                try? scope.run(
+                    RecordEventTransaction(
+                        kind: Events.kindCapture,
+                        payload: [
+                            "tx_status": "degraded",
+                            "pass": "term_validation",
+                            "error": "\(error)"
+                        ],
+                        sessionId: sessionId
+                    )
+                )
+            }
+        }
+
         return Result(
             status: "ok",
             opResults: results,
             error: "",
             rejectedIndex: nil,
             rationale: rationale,
-            recoveryFailed: []
+            recoveryFailed: [],
+            degradedPasses: degradedPasses
         )
 }
 

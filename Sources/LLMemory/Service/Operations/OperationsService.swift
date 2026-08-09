@@ -21,13 +21,14 @@ public enum OperationsService {
     public static func apply(
         _ storage: GRDBStorage,
         payloadJSON: String,
-        sessionId: String? = nil,
+        cliSessionId: String = "",
         ruleset: String? = nil
     ) async -> OperationsEngine.Result {
-        // Session resolution happens here, below every surface — a caller
-        // that omits the argument still gets the environment fallback, so
-        // the observation policy never silently loses its session filter.
-        let sessionId = sessionId ?? Env.retrievalSession(cli: nil)
+        // Session resolution happens here, below every surface, with the
+        // sibling services' convention: the CLI override wins, the
+        // environment is the fallback — so the observation policy never
+        // silently loses its session filter.
+        let sessionId = Env.retrievalSession(cli: cliSessionId)
 
         // Shape rejection happens before any lock — a malformed payload must
         // not open the write scope. The string is decoded again inside the
@@ -76,10 +77,10 @@ public enum OperationsService {
     public static func dryRun(
         _ storage: GRDBStorage,
         payloadJSON: String,
-        sessionId: String? = nil,
+        cliSessionId: String = "",
         ruleset: String? = nil
     ) async -> OperationsEngine.DryRunResult {
-        let sessionId = sessionId ?? Env.retrievalSession(cli: nil)
+        let sessionId = Env.retrievalSession(cli: cliSessionId)
 
         do {
             return try await storage.read { scope in

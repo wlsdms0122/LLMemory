@@ -77,7 +77,7 @@ struct OperationsApply: AsyncParsableCommand {
         
         let result = await brain.operations.apply(
             payloadJSON: payload,
-            sessionId: Session.retrievalSession(cli: global.sessionId),
+            cliSessionId: global.sessionId,
             ruleset: rulesetOption.rulesetId
         )
         
@@ -126,7 +126,7 @@ struct OperationsDryRun: AsyncParsableCommand {
         
         let result = await brain.operations.dryRun(
             payloadJSON: payload,
-            sessionId: Session.retrievalSession(cli: global.sessionId),
+            cliSessionId: global.sessionId,
             ruleset: rulesetOption.rulesetId
         )
         

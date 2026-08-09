@@ -19,26 +19,26 @@ public struct Operations {
     // MARK: - Public
     public func apply(
         payloadJSON: String,
-        sessionId: String? = nil,
+        cliSessionId: String = "",
         ruleset: String? = nil
     ) async -> OperationsEngine.Result {
         await OperationsService.apply(
             session.storage,
             payloadJSON: payloadJSON,
-            sessionId: sessionId,
+            cliSessionId: cliSessionId,
             ruleset: ruleset
         )
     }
 
     public func dryRun(
         payloadJSON: String,
-        sessionId: String? = nil,
+        cliSessionId: String = "",
         ruleset: String? = nil
     ) async -> OperationsEngine.DryRunResult {
         await OperationsService.dryRun(
             session.storage,
             payloadJSON: payloadJSON,
-            sessionId: sessionId,
+            cliSessionId: cliSessionId,
             ruleset: ruleset
         )
     }

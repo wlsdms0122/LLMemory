@@ -36,13 +36,18 @@ struct LiveNoteGateInvariantTests {
         #expect(try indexedRows(id: "live-1") == 0, "the trashed note came back in FTS")
     }
     
+    // Sync by fixture contract — MemoryHome holds its exclusion for the
+    // fixture's lifetime, so no test may suspend under it (an await here
+    // starves the pool and hangs the run). The locked write goes through
+    // writeLock; the async storage.run + exit-code surface is covered
+    // end-to-end by IndexCommandTests against the real binary.
     @Test("index reindex reports failure for a trashed path instead of quietly doing nothing")
     func indexReindexReportsFailureForATrashedPath() throws {
         // Given
         let trashed = try trashNote(id: "live-2")
-        
+
         // When
-        let outcomes = try home.database().write { db in
+        let outcomes = try home.write { db in
             try Indexer.reindexFiles(db, filePaths: [trashed.path])
         }
         let failed = outcomes.contains { outcome in
@@ -50,7 +55,7 @@ struct LiveNoteGateInvariantTests {
 
             return false
         }
-        
+
         // Then
         #expect(failed, "index reindex reported success for a trashed path")
         #expect(try noteRows(id: "live-2") == 0, "the trashed note came back as a live row")

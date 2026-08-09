@@ -64,7 +64,6 @@ public enum Indexer {
 
         // MARK: - Initializer
         // MARK: - Public
-
         // MARK: - Private
     }
 
@@ -97,7 +96,6 @@ public enum Indexer {
     private static let idRegex = try! NSRegularExpression(pattern: #"^[a-z0-9][a-z0-9-]*$"#)
 
     // MARK: - Initializer
-    // MARK: - Public
     // MARK: - Public
     // Caller holds the write lock (run's write marker or an explicit writeLock).
     // Scanning and parsing stay outside the transaction — only the reconcile
@@ -156,7 +154,6 @@ public enum Indexer {
 
         return Scan(pending: pending, scannedRels: scannedRels, errors: fileErrors)
     }
-
 
     static func check(_ queue: any DatabaseReader, level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
         try check(queue, rawLevel: level.rawValue)

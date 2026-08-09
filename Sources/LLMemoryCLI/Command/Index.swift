@@ -271,10 +271,15 @@ struct IndexBuild: AsyncParsableCommand {
             enum CodingKeys: String, CodingKey {
                 case path, error
                 case noteId = "note_id"
+                case relativePath = "relative_path"
             }
 
             // MARK: - Property
+            // One meaning per field: `path` is always the caller-supplied
+            // input path; `relativePath` (brain-root relative) exists only
+            // once a reindex succeeded.
             let path: String
+            let relativePath: String?
             let noteId: String?
             let error: String?
 
@@ -287,13 +292,46 @@ struct IndexBuild: AsyncParsableCommand {
             case reindexed, files
             case returnCode = "return_code"
         }
-        
+
         // MARK: - Property
         let reindexed: Int
         let returnCode: Int
         let files: [File]
-        
+
+        var failures: [File] {
+            files.filter { file in file.error != nil }
+        }
+
         // MARK: - Initializer
+        // The single partition — stderr, both render formats, and the exit
+        // code all derive from this one mapping.
+        init(outcomes: [Indexer.ReindexOutcome]) {
+            let files = outcomes.map { outcome -> File in
+                switch outcome.result {
+                case .reindexed(let noteId, let relativePath):
+                    return File(
+                        path: outcome.filePath,
+                        relativePath: relativePath,
+                        noteId: noteId,
+                        error: nil
+                    )
+
+                case .failure(let message):
+                    return File(
+                        path: outcome.filePath,
+                        relativePath: nil,
+                        noteId: nil,
+                        error: message
+                    )
+                }
+            }
+            let failed = files.filter { file in file.error != nil }.count
+
+            self.files = files
+            self.reindexed = files.count - failed
+            self.returnCode = failed == 0 ? 0 : 1
+        }
+
         // MARK: - Public
         // MARK: - Private
     }
@@ -347,52 +385,26 @@ struct IndexBuild: AsyncParsableCommand {
             if rebuild { throw ValidationError("--path and --rebuild are mutually exclusive") }
             
             // The scope has committed by the time outcomes return — output
-            // here means committed, and the format owns the rendering. One
-            // partition feeds stderr, both render formats, and the exit code.
-            let outcomes = try await brain.index.reindex(filePaths: path)
-            let files = outcomes.map { outcome -> ReindexOutput.File in
-                switch outcome.result {
-                case .reindexed(let noteId, let relativePath):
-                    return ReindexOutput.File(
-                        path: relativePath,
-                        noteId: noteId,
-                        error: nil
-                    )
+            // here means committed, and the format owns the rendering.
+            let output = ReindexOutput(outcomes: try await brain.index.reindex(filePaths: path))
 
-                case .failure(let message):
-                    return ReindexOutput.File(
-                        path: outcome.filePath,
-                        noteId: nil,
-                        error: message
-                    )
-                }
-            }
-            let failures = files.filter { file in file.error != nil }
-
-            for failure in failures {
+            for failure in output.failures {
                 FileHandle.standardError.write(
                     "ERROR \(failure.path): \(failure.error ?? "")\n".data(using: .utf8)!
                 )
             }
 
-            render(
-                ReindexOutput(
-                    reindexed: files.count - failures.count,
-                    returnCode: failures.isEmpty ? 0 : 1,
-                    files: files
-                ),
-                json: format.json
-            ) { output in
+            render(output, json: format.json) { output in
                 output.files.compactMap { file in
                     guard let noteId = file.noteId else { return nil }
 
-                    return .text("reindexed: \(noteId) (\(file.path))")
+                    return .text("reindexed: \(noteId) (\(file.relativePath ?? file.path))")
                 }
                 + [.text("reindexed: \(output.reindexed) path(s) (rc=\(output.returnCode))")]
             }
-            
-            if !failures.isEmpty { throw ExitCode(1) }
-            
+
+            if output.returnCode != 0 { throw ExitCode(1) }
+
             return
         }
         

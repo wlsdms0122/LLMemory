@@ -43,6 +43,29 @@ struct IndexCommandTests {
         #expect(searched.ids().contains("log-masking"))
     }
     
+    // The user-facing contract of "reindex reports failure": the real binary
+    // partitions successes from failures, writes failures to stderr, and
+    // exits 1 — the whole storage.run + exit-code path in one shot.
+    @Test("--path reindex partitions success from failure and exits 1")
+    func reindexReportsFailureThroughTheRealBinary() {
+        // Given — --path resolves relative arguments against the CWD, so the
+        // subprocess needs absolute paths into the fixture home.
+        let existing = brain.noteURL(id: "di-container", axis: "tech").path
+        let missing = brain.file("cortex/tech/missing.md").path
+
+        // When
+        let clean = brain.run(["index", "build", "--path", existing, "--json"])
+        let mixed = brain.run(["index", "build", "--path", existing, missing, "--json"])
+
+        // Then
+        #expect(clean.succeeded, "\(clean.standardError)")
+        #expect(clean.standardOutput.contains("\"return_code\""), "\(clean.standardOutput)")
+
+        #expect(mixed.exitCode == 1, "a failed path did not flip the exit code")
+        #expect(mixed.standardError.contains("missing.md"), "\(mixed.standardError)")
+        #expect(mixed.standardOutput.contains("di-container"), "the successful path vanished from the output")
+    }
+
     @Test("verify integrity at the deepest level reports a clean freshly-built brain")
     func verifyIntegrityAtLevelTwo() {
         // When

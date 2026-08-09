@@ -84,6 +84,10 @@ struct NoteSourceTrackedTransaction: GRDBReadTransaction {
 // the batch is judged with one hits query and one event scan.
 struct NotesSurfacedRecentlyTransaction: GRDBReadTransaction {
     // MARK: - Property
+    // Keeps each IN (...) under SQLite's bind-variable ceiling — batch size
+    // must not decide the judgement's error path.
+    private static let chunkSize = 500
+
     let noteIds: [String]
     let cutoff: Int
     let label: String?
@@ -95,20 +99,17 @@ struct NotesSurfacedRecentlyTransaction: GRDBReadTransaction {
         self.label = label
     }
 
-    // MARK: - Property
-    // Keeps each IN (...) under SQLite's bind-variable ceiling — batch size
-    // must not decide the judgement's error path.
-    private static let chunkSize = 500
-
     // MARK: - Public
     func perform(_ db: Database) throws -> Set<String> {
         guard !noteIds.isEmpty else { return [] }
 
         var surfaced = Set<String>()
         let wanted = Set(noteIds)
+        let chunks = stride(from: 0, to: noteIds.count, by: Self.chunkSize).map { start in
+            Array(noteIds[start..<min(start + Self.chunkSize, noteIds.count)])
+        }
 
-        for chunk in stride(from: 0, to: noteIds.count, by: Self.chunkSize)
-            .map({ start in Array(noteIds[start..<min(start + Self.chunkSize, noteIds.count)]) }) {
+        for chunk in chunks {
             let placeholders = chunk.map { _ in "?" }.joined(separator: ",")
 
             if let label, !label.isEmpty {
