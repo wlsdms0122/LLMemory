@@ -24,8 +24,22 @@ public enum OperationsService {
         sessionId: String? = nil,
         ruleset: String? = nil
     ) async -> OperationsEngine.Result {
+        // Shape rejection happens before any lock — a malformed payload must
+        // not open the write scope. The string is decoded again inside the
+        // scope because [String: Any] cannot cross the Sendable wall.
+        guard OperationsEngine.decodePayload(payloadJSON) != nil else {
+            return OperationsEngine.Result(
+                status: "rejected",
+                opResults: [],
+                error: "payload must be a JSON object",
+                rejectedIndex: nil,
+                rationale: "",
+                recoveryFailed: []
+            )
+        }
+
         do {
-            return try await storage.run { scope in
+            let result = try await storage.run { scope in
                 guard let payload = OperationsEngine.decodePayload(payloadJSON) else {
                     return OperationsEngine.Result(
                         status: "rejected",
@@ -39,7 +53,16 @@ public enum OperationsService {
 
                 return OperationsEngine.apply(scope, payload, sessionId: sessionId, ruleset: ruleset)
             }
+
+            // A rolled-back savepoint may have primed the in-process gene
+            // cache — repair it from committed state, outside the scope, so
+            // cache correctness never depends on the scope's throw behavior.
+            if result.status != "ok" { await rewarmGenes(storage) }
+
+            return result
         } catch {
+            await rewarmGenes(storage)
+
             return OperationsEngine.Result(
                 status: "unavailable",
                 opResults: [],
@@ -90,4 +113,11 @@ public enum OperationsService {
     }
 
     // MARK: - Private
+    private static func rewarmGenes(_ storage: GRDBStorage) async {
+        guard let values = try? await storage.read({ scope in
+            try scope.run(FetchGenomeValuesTransaction())
+        }) else { return }
+
+        Genes.warm(values)
+    }
 }

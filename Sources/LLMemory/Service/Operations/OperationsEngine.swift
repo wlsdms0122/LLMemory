@@ -378,8 +378,6 @@ public enum OperationsEngine {
                 )
             }()
             
-            if txResult.status != "ok" { rewarmGenome(scope) }
-            
             if txResult.status == "ok" {
                 let touched = enrichmentTouchedNotes(opsRaw)
                 
@@ -400,8 +398,6 @@ public enum OperationsEngine {
                 conflict: conflict
             )
         } catch {
-            rewarmGenome(scope)
-            
             return Result(
                 status: "failed",
                 opResults: [],
@@ -902,12 +898,3 @@ public enum OperationsEngine {
     }
 }
 
-private extension OperationsEngine {
-    // A rolled-back transaction may have primed the in-process gene cache —
-    // reload it from the committed state, tolerating a dead connection.
-    static func rewarmGenome(_ scope: GRDBScope) {
-        guard let values = try? scope.run(FetchGenomeValuesTransaction()) else { return }
-
-        Genes.warm(values)
-    }
-}
