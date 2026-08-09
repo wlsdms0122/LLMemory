@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import GRDB
 
 enum BodyProjection {
     // MARK: - Property

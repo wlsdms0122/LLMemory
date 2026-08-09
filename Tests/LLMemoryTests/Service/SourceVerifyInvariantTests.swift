@@ -578,8 +578,8 @@ struct SourceVerifyInvariantTests {
     func rebaseAuthorityIsConfinedToOpsHandlers() throws {
         // When
         let allowed: Set<String> = ["Module/DB/Transaction/SourceTransactions.swift",
-            "Module/DB/Ops/HandlersBasic.swift",
-            "Module/DB/Ops/HandlersStructural.swift"]
+            "Service/Operations/HandlersBasic.swift",
+            "Service/Operations/HandlersStructural.swift"]
         let root = PackageSource().file("Sources/LLMemory")
         let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)?
             .compactMap { element in element as? URL }

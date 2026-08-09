@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import GRDB
 
 public enum HandlersEnrichment {
     // MARK: - Property

@@ -40,8 +40,7 @@ struct AutoActuatorInvariantTests {
     // The engine's own module and the ops transactions are the only entries — every
     // other path goes surface → OpsService (the one decode door) and sees the status.
     private static func isOwner(_ url: URL) -> Bool {
-        url.path.contains("/Module/DB/Ops/")
-            || url.path.hasSuffix("Service/OpsService.swift")
+        url.path.contains("/Service/Operations/")
     }
     
     private static func callSites(of symbol: String, in url: URL) -> [String] {

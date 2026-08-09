@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import GRDB
 
 public struct OpField: Sendable, Encodable {
     enum CodingKeys: String, CodingKey {
