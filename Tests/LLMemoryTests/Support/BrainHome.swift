@@ -151,9 +151,9 @@ extension BrainHome {
 
             for noteId in ids {
                 try database.execute(sql: """
-                    INSERT INTO notes (id, axis, path, title, summary, priority, file_mtime, indexed_at)
-                    VALUES (?, ?, ?, ?, '', 'lazy', ?, ?)
-                    """, arguments: [noteId, axis, "tmp/\(noteId).md", noteId, now, now])
+                    INSERT INTO notes (id, axis, path, title, summary, priority)
+                    VALUES (?, ?, ?, ?, '', 'lazy')
+                    """, arguments: [noteId, axis, "tmp/\(noteId).md", noteId])
             }
         }
     }

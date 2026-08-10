@@ -102,25 +102,30 @@ struct MigrationGateInvariantTests {
     func checkConstraintDriftIsCaught() throws {
         // Given
         try home.database().write { database in
-            try database.execute(sql: "DROP TABLE rule")
+            try database.execute(sql: "DROP TABLE note_retrieval_terms")
             try database.execute(sql: """
-                CREATE TABLE rule (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  ruleset_id TEXT NOT NULL REFERENCES ruleset(id) ON DELETE CASCADE,
-                  kind TEXT NOT NULL,
-                  params TEXT NOT NULL,
-                  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0,1)),
-                  created_at INTEGER NOT NULL
+                CREATE TABLE note_retrieval_terms (
+                  note_id    TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+                  kind       TEXT NOT NULL,
+                  term       TEXT NOT NULL,
+                  status     TEXT NOT NULL DEFAULT 'pending',
+                  provenance TEXT,
+                  reject_reason TEXT,
+                  created_at   INTEGER NOT NULL,
+                  validated_at INTEGER,
+                  PRIMARY KEY (note_id, kind, term)
                 )
                 """)
-            try database.execute(sql: "CREATE INDEX idx_rule_ruleset ON rule(ruleset_id, enabled)")
+            try database.execute(sql: "CREATE INDEX idx_nrt_status ON note_retrieval_terms(status)")
+            try database.execute(sql: "CREATE INDEX idx_nrt_status_created ON note_retrieval_terms(status, created_at)")
+            try database.execute(sql: "CREATE INDEX idx_nrt_provenance ON note_retrieval_terms(provenance)")
 
             // When
             let messages = try SchemaShape(migrations: Session.migrations).check(database)
 
             // Then
             #expect(messages.contains { message in
-                message.contains("ddl-mismatch") && message.contains("rule")
+                message.contains("ddl-mismatch") && message.contains("note_retrieval_terms")
             }, "a missing CHECK passed as a shape match — got \(messages)")
         }
     }

@@ -94,9 +94,9 @@ struct RippleTests {
             
             for noteId in ["tmp-ripple-a", "tmp-ripple-b", "tmp-ripple-c"] {
                 try database.execute(sql: """
-                    INSERT INTO notes (id, axis, path, title, summary, priority, file_mtime, indexed_at)
-                    VALUES (?, 'flow', ?, ?, '', 'lazy', ?, ?)
-                    """, arguments: [noteId, "tmp/\(noteId).md", noteId, home.now, home.now])
+                    INSERT INTO notes (id, axis, path, title, summary, priority)
+                    VALUES (?, 'flow', ?, ?, '', 'lazy')
+                    """, arguments: [noteId, "tmp/\(noteId).md", noteId])
             }
         }
     }

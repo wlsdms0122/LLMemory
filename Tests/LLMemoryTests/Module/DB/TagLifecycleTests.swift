@@ -99,41 +99,6 @@ struct TagLifecycleTests {
         #expect(result.error.contains("alias of"), "the reason must reach the caller: \(result.error)")
     }
     
-    @Test("renaming a tag rewrites the file, so the recorded modification time follows it")
-    func renameTagRefreshesFileMtime() throws {
-        // Given
-        lifecycle.create("tdb-rtm1", axis: "tdbaxis", extraTags: ["mtag"])
-        
-        let file = try home.indexedPath(of: "tdb-rtm1")
-        let backdated = 1_000_000_000
-        
-        try FileManager.default.setAttributes(
-            [.modificationDate: Date(timeIntervalSince1970: TimeInterval(backdated))],
-            ofItemAtPath: file.path
-        )
-        try home.database().write { database in
-            try database.execute(
-                sql: "UPDATE notes SET file_mtime = ? WHERE id = 'tdb-rtm1'",
-                arguments: [backdated]
-            )
-        }
-        
-        // When
-        #expect(home.apply(["op": "rename_tag", "from_tag": "mtag", "to_tag": "mtag2"]).status == "ok")
-        
-        // Then
-        let recorded = try home.read { database in
-            try Int.fetchOne(database, sql: "SELECT file_mtime FROM notes WHERE id = 'tdb-rtm1'") ?? -1
-        }
-        let onDisk = Int(
-            (try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date)?
-                .timeIntervalSince1970 ?? -1
-        )
-        
-        #expect(recorded == onDisk, "the recorded time drifted from the file — recorded=\(recorded) disk=\(onDisk)")
-        #expect(recorded != backdated, "the rewrite did not actually happen")
-    }
-    
     @Test("creating a note with an aliased tag converges the file on the canonical spelling")
     func createWithAliasTagConvergesFileToCanonical() throws {
         // Given

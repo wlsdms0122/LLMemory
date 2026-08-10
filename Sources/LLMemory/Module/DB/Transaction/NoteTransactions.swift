@@ -60,15 +60,13 @@ struct UpsertNoteTransaction: GRDBTransaction {
 
         try db.execute(sql: """
             INSERT INTO notes (id, axis, path, title, summary, priority,
-                               file_mtime, indexed_at, stale,
-                               template, locked,
+                               stale, template, locked,
                                edited_at, word_count, section_count, content_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               axis=excluded.axis, path=excluded.path,
               title=excluded.title, summary=excluded.summary,
               priority=excluded.priority,
-              file_mtime=excluded.file_mtime, indexed_at=excluded.indexed_at,
               stale=excluded.stale,
               template=excluded.template, locked=excluded.locked,
               edited_at=excluded.edited_at,
@@ -78,7 +76,7 @@ struct UpsertNoteTransaction: GRDBTransaction {
             """, arguments: [
                 fields.id, axis, relativePath,
                 fields.title, fields.summary,
-                priority, mtime, now, staleFlag,
+                priority, staleFlag,
                 templateValue, lockedFlag,
                 mtime, wordCount, sectionCount, contentHash
             ])
@@ -445,22 +443,18 @@ struct SetNotePathTransaction: GRDBTransaction {
     // MARK: - Property
     let nid: String
     let newRel: String
-    let fileMtime: Int
-    let indexedAt: Int
 
     // MARK: - Initializer
-    init(nid: String, newRel: String, fileMtime: Int, indexedAt: Int) {
+    init(nid: String, newRel: String) {
         self.nid = nid
         self.newRel = newRel
-        self.fileMtime = fileMtime
-        self.indexedAt = indexedAt
     }
 
     // MARK: - Public
     func perform(_ db: Database) throws {
         try db.execute(
-            sql: "UPDATE notes SET path = ?, file_mtime = ?, indexed_at = ? WHERE id = ?",
-            arguments: [newRel, fileMtime, indexedAt, nid]
+            sql: "UPDATE notes SET path = ? WHERE id = ?",
+            arguments: [newRel, nid]
         )
     }
 

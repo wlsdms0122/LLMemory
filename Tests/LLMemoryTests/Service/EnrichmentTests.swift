@@ -331,41 +331,36 @@ struct EnrichmentTests {
         // Then
         #expect(home.apply([["op": "add_retrieval_terms", "id": "mig-src",
             "kind": "alias", "terms": ["zephyrine quasar"], "provenance": "t"]]).status == "ok")
-        #expect(home.apply([["op": "set_note_meta", "id": "mig-src",
-            "namespace": "test", "key": "k1", "value": "v1"]]).status == "ok")
         #expect(home.apply([["op": "migrate_note", "id": "mig-src", "new_id": "mig-dst"]]).status == "ok")
         
         let queue = try home.storage.connect()
-        let (term, meta, sourceGone, hit) = try queue.read { db -> (String?, String?, Bool, Bool) in
+        let (term, sourceGone, hit) = try queue.read { db -> (String?, Bool, Bool) in
             let term = try String.fetchOne(db, sql: "SELECT status FROM note_retrieval_terms WHERE note_id='mig-dst'")
-            let meta = try String.fetchOne(db, sql: "SELECT value FROM note_meta WHERE note_id='mig-dst' AND key='k1'")
             let sourceGone = (try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM notes WHERE id='mig-src'") ?? 0) == 0
             let hit = try String.fetchAll(db, sql: "SELECT id FROM notes_fts WHERE notes_fts MATCH ?",
                 arguments: ["\"zephyrine\""]).contains("mig-dst")
             
-            return (term, meta, sourceGone, hit)
+            return (term, sourceGone, hit)
         }
         
         #expect(term == "active")
-        #expect(meta == "v1")
         #expect(sourceGone)
         #expect(hit)
     }
     
-    @Test("a rebuild preserves note metadata")
-    func rebuildPreservesNoteMeta() throws {
+    @Test("a rebuild preserves ripple flags")
+    func rebuildPreservesRippleFlags() throws {
         // When
         home.createNote(id: "rbm-note", content: "## Body\nbody here\n")
         
         // Then
-        #expect(home.apply([["op": "set_note_meta", "id": "rbm-note",
-            "namespace": "test", "key": "k", "value": "preserved"]]).status == "ok")
+        #expect(home.apply([["op": "flag", "id": "rbm-note",
+            "kind": "reconsolidate", "reason": "preserved"]]).status == "ok")
         
         _ = try Indexer.buildLocked(home.database(), rebuild: true)
         
-        let queue = try home.storage.connect()
         let value = try home.read { db in
-            try String.fetchOne(db, sql: "SELECT value FROM note_meta WHERE note_id='rbm-note' AND key='k'")
+            try String.fetchOne(db, sql: "SELECT reason FROM ripple_flags WHERE note_id='rbm-note' AND flag='reconsolidate'")
         }
         
         #expect(value == "preserved")
@@ -524,8 +519,9 @@ struct EnrichmentTests {
         home.createNote(id: "spm-src", content: "## A\nalpha content\n## B\nbravo content\n")
         
         // Then
-        #expect(home.apply([["op": "set_note_meta", "id": "spm-src",
-            "namespace": "test", "key": "k", "value": "v"]]).status == "ok")
+        home.createNote(id: "spm-nbr", content: "## N\nneighbor content\n")
+        #expect(home.apply([["op": "propose_link", "src": "spm-src", "dst": "spm-nbr",
+            "kind": "assoc", "confidence": 0.9, "provenance": "t"]]).status == "ok")
         
         let into: [[String: Any]] = [
             ["id": "spm-a", "axis": "flow", "title": "A", "tags": ["flow"], "summary": "s", "sections": ["## A"]],

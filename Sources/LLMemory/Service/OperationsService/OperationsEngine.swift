@@ -10,15 +10,13 @@ import Foundation
 public struct OperationsEngine: Sendable {
     // MARK: - Property
     let genome: GenomeService
-    let ruleset: RulesetService
     // Assembled with the engine — handlers needing a collaborator captured
     // it at wiring time, so the registry is per-engine, not process-global.
     let registry: [String: OperationHandler]
 
     // MARK: - Initializer
-    init(genome: GenomeService, ruleset: RulesetService) {
+    init(genome: GenomeService) {
         self.genome = genome
-        self.ruleset = ruleset
         self.registry = HandlersRegistry.build(genome: genome)
     }
 
@@ -49,11 +47,10 @@ public struct OperationsEngine: Sendable {
     public func apply(
         _ scope: GRDBScope,
         _ payload: [String: Any],
-        sessionId: String? = nil,
-        ruleset: String? = nil
+        sessionId: String? = nil
     ) -> OperationsResult {
         let rationale = payload["rationale"] as? String ?? ""
-        
+
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return OperationsResult(
                 status: "rejected",
@@ -64,54 +61,15 @@ public struct OperationsEngine: Sendable {
                 recoveryFailed: []
             )
         }
-        
-        let effectiveRulesetId: String?
-        do {
-            effectiveRulesetId = try RulesetResolution.resolve(cliRuleset: ruleset)
-        } catch let resolutionError as RulesetResolution.Error {
-            return OperationsResult(
-                status: "rejected",
-                opResults: [],
-                error: resolutionError.message,
-                rejectedIndex: nil,
-                rationale: rationale,
-                recoveryFailed: []
-            )
-        } catch {
-            return OperationsResult(
-                status: "rejected",
-                opResults: [],
-                error: "\(error)",
-                rejectedIndex: nil,
-                rationale: rationale,
-                recoveryFailed: []
-            )
-        }
-        
+
         let result: OperationsResult
 
         do {
-            if let rulesetId = effectiveRulesetId {
-                let exists = try scope.run(RulesetExistsTransaction(id: rulesetId))
-                
-                if !exists {
-                    return OperationsResult(
-                        status: "rejected",
-                        opResults: [],
-                        error: "unknown ruleset: \(rulesetId)",
-                        rejectedIndex: nil,
-                        rationale: rationale,
-                        recoveryFailed: []
-                    )
-                }
-            }
-            
             result = try applySequence(
                 scope,
                 opsRaw: opsRaw,
                 sessionId: sessionId,
-                rationale: rationale,
-                effectiveRulesetId: effectiveRulesetId
+                rationale: rationale
             )
         } catch let conflict as SplitConflict {
             result = OperationsResult(
@@ -150,8 +108,7 @@ public struct OperationsEngine: Sendable {
         _ scope: GRDBScope,
         opsRaw: [[String: Any]],
         sessionId: String?,
-        rationale: String,
-        effectiveRulesetId: String?
+        rationale: String
     ) throws -> OperationsResult {
         let now = Int(Date().timeIntervalSince1970)
         let applyContext = HandlerContext(sessionId: sessionId, now: now)
@@ -159,7 +116,6 @@ public struct OperationsEngine: Sendable {
         if let (message, index) = try validate(
             opsRaw,
             scope: scope.readOnly,
-            rulesetId: effectiveRulesetId,
             sessionId: sessionId,
             now: now
         ) {
@@ -353,7 +309,7 @@ public struct OperationsEngine: Sendable {
         )
 }
 
-    public func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], sessionId: String? = nil, ruleset: String? = nil) -> OperationsDryRunResult {
+    public func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], sessionId: String? = nil) -> OperationsDryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return OperationsDryRunResult(
                 status: "rejected",
@@ -362,41 +318,9 @@ public struct OperationsEngine: Sendable {
                 rejectedIndex: nil
             )
         }
-        
-        let effectiveRulesetId: String?
+
         do {
-            effectiveRulesetId = try RulesetResolution.resolve(cliRuleset: ruleset)
-        } catch let resolutionError as RulesetResolution.Error {
-            return OperationsDryRunResult(
-                status: "rejected",
-                opCount: nil,
-                error: resolutionError.message,
-                rejectedIndex: nil
-            )
-        } catch {
-            return OperationsDryRunResult(
-                status: "rejected",
-                opCount: nil,
-                error: "\(error)",
-                rejectedIndex: nil
-            )
-        }
-        
-        do {
-            if let rulesetId = effectiveRulesetId {
-                let exists = try scope.run(RulesetExistsTransaction(id: rulesetId))
-                
-                if !exists {
-                    return OperationsDryRunResult(
-                        status: "rejected",
-                        opCount: nil,
-                        error: "unknown ruleset: \(rulesetId)",
-                        rejectedIndex: nil
-                    )
-                }
-            }
-            
-            let result: (String?, Int?)? = try validate(opsRaw, scope: scope, rulesetId: effectiveRulesetId, sessionId: sessionId)
+            let result: (String?, Int?)? = try validate(opsRaw, scope: scope, sessionId: sessionId)
             
             if let (message, index) = result {
                 return OperationsDryRunResult(
@@ -517,30 +441,18 @@ public struct OperationsEngine: Sendable {
     private func validate(
         _ ops: [[String: Any]],
         scope: GRDBReadScope,
-        rulesetId: String?,
         sessionId: String? = nil,
         now: Int = Int(Date().timeIntervalSince1970)
     ) throws -> (String, Int?)? {
         var context = HandlerContext(sessionId: sessionId, now: now)
-        
+
         for (index, op) in ops.enumerated() {
             guard let name = op["op"] as? String,
                 let handler = registry[name]
             else {
                 return ("op[\(index)] unknown: \(op["op"] ?? "nil")", index)
             }
-            
-            if let rulesetId,
-                let message = try rulesetGate(
-                    op: op,
-                    name: name,
-                    handler: handler,
-                    scope: scope,
-                    rulesetId: rulesetId
-                ) {
-                return ("op[\(index)] \(name): \(message)", index)
-            }
-            
+
             if let message = try lockedGate(
                 op: op,
                 name: name,
@@ -617,47 +529,6 @@ public struct OperationsEngine: Sendable {
         }
         
         return nil
-    }
-    
-    private func rulesetGate(
-        op: [String: Any],
-        name: String,
-        handler: OperationHandler,
-        scope: GRDBReadScope,
-        rulesetId: String
-    ) throws -> String? {
-        var axes = try extractAxes(op, schema: handler.schema, scope: scope)
-        
-        if axes.isEmpty { axes = ["*"] }
-        
-        for axis in axes.sorted() {
-            let effective = try ruleset.effective(scope, axis: axis, rulesetIds: [rulesetId])
-            let (allowed, reason) = effective.allows(op: name)
-            
-            if !allowed {
-                return "blocked by ruleset '\(rulesetId)' for axis '\(axis)': \(reason ?? "denied")"
-            }
-        }
-        
-        return nil
-    }
-    
-    private func extractAxes(
-        _ op: [String: Any],
-        schema: OperationSchema,
-        scope: GRDBReadScope
-    ) throws -> Set<String> {
-        var axes = schema.mentionedAxes(in: op)
-        
-        for noteId in schema.mentionedNoteIds(in: op) {
-            if let axis = try axisOf(noteId, scope: scope) { axes.insert(axis) }
-        }
-        
-        return axes
-    }
-    
-    private func axisOf(_ nid: String, scope: GRDBReadScope) throws -> String? {
-        try scope.run(FetchNoteAxisTransaction(nid: nid))
     }
     
     private func affectedPaths(_ ops: [[String: Any]], scope: GRDBReadScope) throws -> [URL] {

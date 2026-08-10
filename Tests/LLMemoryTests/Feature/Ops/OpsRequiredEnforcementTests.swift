@@ -62,8 +62,7 @@ struct OpsRequiredEnforcementTests {
         
         // Then
         #expect(violations.isEmpty, """
-            an id/axis-shaped field with no declared role is a blind spot for targetIds and ruleset \
-            axis extraction: \(violations.sorted().joined(separator: ", "))
+            an id/axis-shaped field with no declared role is a blind spot for targetIds: \(violations.sorted().joined(separator: ", "))
             """)
     }
     

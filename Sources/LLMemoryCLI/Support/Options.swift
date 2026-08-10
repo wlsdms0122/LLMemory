@@ -49,34 +49,6 @@ struct GlobalHomeOptions: ParsableArguments {
     // MARK: - Private
 }
 
-struct RulesetOption: ParsableArguments {
-    // MARK: - Property
-    @Option(
-        name: .long,
-        help: ArgumentHelp(
-            "Mutation policy id that gates this transaction.",
-            discussion: """
-                Resolution: LLMEMORY_RULESET_LOCKED=1 forces the env value \
-                LLMEMORY_RULESET (empty env ⇒ reject); otherwise this flag wins \
-                over env, env over no policy. Unset ⇒ no gating.
-
-                See `llmemory ruleset list` for defined policies.
-                """,
-            valueName: "id"
-        )
-    )
-    var ruleset: String = ""
-    
-    var rulesetId: String? {
-        let trimmed = ruleset.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        return trimmed.isEmpty ? nil : trimmed
-    }
-    
-    // MARK: - Initializer
-    // MARK: - Public
-    // MARK: - Private
-}
 
 struct OutputFormat: ParsableArguments {
     // MARK: - Property

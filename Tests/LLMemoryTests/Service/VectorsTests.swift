@@ -64,11 +64,11 @@ struct VectorsTests {
         
         #expect(blob.count == dimension * 4)
         
-        let model = try queue.read { db in
-            try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'vectors.model'")
+        let builtAt = try queue.read { db in
+            try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'vectors.built_at'")
         }
         
-        #expect(model == "ppmi-svd")
+        #expect(builtAt != nil)
     }
     
     @Test("expansion surfaces a note that shares no keyword but sits close in the graph")

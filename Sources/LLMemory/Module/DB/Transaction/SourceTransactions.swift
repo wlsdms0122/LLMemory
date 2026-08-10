@@ -137,12 +137,12 @@ struct RebaseNoteSourceTransaction: GRDBTransaction {
         }
 
         try db.execute(sql: """
-            INSERT INTO note_source (note_id, source_hash, source_checked_at, source_stale, decl_hash)
-            VALUES (?, ?, ?, 0, ?)
+            INSERT INTO note_source (note_id, source_hash, source_stale, decl_hash)
+            VALUES (?, ?, 0, ?)
             ON CONFLICT(note_id) DO UPDATE SET
-              source_hash = excluded.source_hash, source_checked_at = excluded.source_checked_at,
+              source_hash = excluded.source_hash,
               source_stale = 0, decl_hash = excluded.decl_hash
-            """, arguments: [noteId, fingerprint, now, declHash])
+            """, arguments: [noteId, fingerprint, declHash])
     }
 
     // MARK: - Private
@@ -162,8 +162,8 @@ struct InheritSourceObservationTransaction: GRDBTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws {
         try db.execute(sql: """
-            INSERT OR REPLACE INTO note_source (note_id, source_hash, source_checked_at, source_stale, decl_hash)
-            SELECT c.note_id, p.source_hash, p.source_checked_at, p.source_stale, p.decl_hash
+            INSERT OR REPLACE INTO note_source (note_id, source_hash, source_stale, decl_hash)
+            SELECT c.note_id, p.source_hash, p.source_stale, p.decl_hash
             FROM note_source p JOIN note_source c
               ON c.note_id = ? AND p.note_id = ? AND p.decl_hash = c.decl_hash
             """, arguments: [to, from])
@@ -226,8 +226,8 @@ struct VerifyNoteSourceTransaction: GRDBTransaction {
         let stale = current != stored
 
         try db.execute(
-            sql: "UPDATE note_source SET source_stale = ?, source_checked_at = ? WHERE note_id = ?",
-            arguments: [stale ? 1 : 0, timestamp, noteId]
+            sql: "UPDATE note_source SET source_stale = ? WHERE note_id = ?",
+            arguments: [stale ? 1 : 0, noteId]
         )
 
         return stale
@@ -331,8 +331,8 @@ struct VerifySourcesTransaction: GRDBTransaction {
             }
 
             try db.execute(
-                sql: "UPDATE note_source SET source_stale = ?, source_checked_at = ? WHERE note_id = ?",
-                arguments: [newStale, now, noteId]
+                sql: "UPDATE note_source SET source_stale = ? WHERE note_id = ?",
+                arguments: [newStale, noteId]
             )
         }
 
@@ -342,54 +342,3 @@ struct VerifySourcesTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteSourceStateTransaction: GRDBReadTransaction {
-    struct SourceState {
-        // MARK: - Property
-        let noteId: String
-        let fingerprint: String?
-        let sourceStale: Bool
-        let checkedAt: Int
-        let paths: [String]
-
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-
-    // MARK: - Property
-    let noteId: String
-
-    // MARK: - Initializer
-    init(noteId: String) {
-        self.noteId = noteId
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> SourceState {
-        let row = try Row.fetchOne(
-            db,
-            sql: "SELECT source_hash, source_stale, source_checked_at FROM note_source WHERE note_id = ?",
-            arguments: [noteId]
-        )
-
-        guard let row else {
-            return SourceState(
-                noteId: noteId,
-                fingerprint: nil,
-                sourceStale: false,
-                checkedAt: 0,
-                paths: []
-            )
-        }
-
-        return SourceState(
-            noteId: noteId,
-            fingerprint: row["source_hash"] as String?,
-            sourceStale: (row["source_stale"] as Int? ?? 0) != 0,
-            checkedAt: row["source_checked_at"] as Int? ?? 0,
-            paths: try FetchNoteSourcePathsTransaction(noteId: noteId).perform(db)
-        )
-    }
-
-    // MARK: - Private
-}

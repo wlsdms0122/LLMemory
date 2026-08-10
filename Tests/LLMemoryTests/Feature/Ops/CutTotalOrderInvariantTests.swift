@@ -193,11 +193,11 @@ struct CutTotalOrderInvariantTests {
             
             for noteId in ids.sorted(by: >) {
                 try database.execute(sql: """
-                    INSERT INTO notes (id, axis, path, title, summary, priority, file_mtime, indexed_at,
+                    INSERT INTO notes (id, axis, path, title, summary, priority,
                                        word_count, section_count)
-                    VALUES (?, 'flow', ?, ?, '', 'lazy', ?, ?, ?, ?)
+                    VALUES (?, 'flow', ?, ?, '', 'lazy', ?, ?)
                     """, arguments: [
-                        noteId, "tmp/\(noteId).md", noteId, home.now, home.now, wordCount, sectionCount
+                        noteId, "tmp/\(noteId).md", noteId, wordCount, sectionCount
                     ])
                 
                 let file = home.url.appendingPathComponent("tmp/\(noteId).md")

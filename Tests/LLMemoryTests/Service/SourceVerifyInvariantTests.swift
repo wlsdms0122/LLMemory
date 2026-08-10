@@ -93,11 +93,6 @@ struct SourceVerifyInvariantTests {
         
         let future = 9_999_999_999
         
-        try queue.write { db in
-            try db.execute(sql: "UPDATE note_source SET source_checked_at = ? WHERE note_id = 'src-1'",
-                arguments: [future])
-        }
-        
         // When
         let before = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT source_stale FROM note_source WHERE note_id = 'src-1'") ?? -1

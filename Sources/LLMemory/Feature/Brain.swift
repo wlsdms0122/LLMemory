@@ -20,7 +20,6 @@ public struct Brain {
     public let query: Query
     public let consolidate: Consolidate
     public let genome: Genome
-    public let ruleset: Ruleset
     public let operations: Operations
 
     // MARK: - Initializer
@@ -41,7 +40,6 @@ public struct Brain {
         )
         self.consolidate = Consolidate(service: container.consolidate)
         self.genome = Genome(service: container.genome)
-        self.ruleset = Ruleset(service: container.ruleset)
         self.operations = Operations(service: container.operations)
     }
 

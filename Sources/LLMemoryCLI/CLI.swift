@@ -25,9 +25,6 @@ struct LLMemoryCLI: AsyncParsableCommand {
                     --home <state-root>   Required. Path to brain home.
                     --session-id <id>     Override MEMORY_SESSION_ID for this call.
 
-                --ruleset <id> is NOT global — it is carried only by the mutators
-                (operations apply, operations dry-run), since it is inert everywhere else.
-
                 ok:   llmemory query search foo --home brain
                 bad:  llmemory --home brain query search foo
 
@@ -38,21 +35,18 @@ struct LLMemoryCLI: AsyncParsableCommand {
 
             ENVIRONMENT
                 MEMORY_SESSION_ID            Default for --session-id.
-                LLMEMORY_RULESET             Default for --ruleset.
-                LLMEMORY_RULESET_LOCKED=1    --ruleset ignored, env required.
 
             OUTPUT
                 JSON on stdout, one line per command, unless noted.
 
             SEE ALSO
-                operations apply, operations vocab, ruleset list
+                operations apply, operations vocab
             """,
         subcommands: [
             InitCommand.self,
             UpdateCommand.self,
             QueryCommand.self,
             OperationsCommand.self,
-            RulesetCommand.self,
             IndexCommand.self,
             ConsolidateCommand.self,
             GenomeCommand.self

@@ -322,17 +322,6 @@ struct QueryCommandTests {
         #expect(Set(surfaced).contains("log-masking"), "\(result.standardOutput)")
     }
     
-    @Test("meta reads the namespaced values written by set_note_meta")
-    func metaReadsNamespace() {
-        // When
-        let result = brain.run(["query", "meta", "--id", "di-container", "--json"])
-        
-        // Then
-        #expect(result.succeeded, "\(result.standardError)")
-        #expect(result.standardOutput.contains("source_thread"))
-        #expect(result.standardOutput.contains("slack://seed"))
-    }
-    
     @Test("history replays the lifecycle events recorded for a note")
     func historyShowsLifecycle() {
         // When

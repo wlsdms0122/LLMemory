@@ -69,8 +69,6 @@ struct OperationsApply: AsyncParsableCommand {
     
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
-    @OptionGroup var rulesetOption: RulesetOption
-    
     @Option(name: .long, help: "Transaction JSON. Reads stdin if omitted.")
     var input: String?
     
@@ -83,8 +81,7 @@ struct OperationsApply: AsyncParsableCommand {
         
         let result = await brain.operations.apply(
             payloadJSON: payload,
-            cliSessionId: global.sessionId,
-            ruleset: rulesetOption.rulesetId
+            cliSessionId: global.sessionId
         )
         
         render(result, json: format.json) { result in opsResultBlocks(result) }
@@ -118,8 +115,6 @@ struct OperationsDryRun: AsyncParsableCommand {
     
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
-    @OptionGroup var rulesetOption: RulesetOption
-    
     @Option(name: .long, help: "Transaction JSON. Reads stdin if omitted.")
     var input: String?
     
@@ -132,8 +127,7 @@ struct OperationsDryRun: AsyncParsableCommand {
         
         let result = await brain.operations.dryRun(
             payloadJSON: payload,
-            cliSessionId: global.sessionId,
-            ruleset: rulesetOption.rulesetId
+            cliSessionId: global.sessionId
         )
         
         render(result, json: format.json) { result in opsResultBlocks(result) }

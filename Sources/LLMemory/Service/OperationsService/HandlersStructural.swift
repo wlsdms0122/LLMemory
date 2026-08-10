@@ -472,16 +472,7 @@ public enum HandlersStructural {
             for (noteId, _) in rows {
                 let newPath = Handlers.pathFor(axis: toAxis, nid: noteId)
                 let newRelativePath = try Notes.relativeToBrainRoot(newPath)
-                let attributes = try? FileManager.default.attributesOfItem(atPath: newPath.path)
-                let mtime = Int(
-                    (attributes?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-                )
-                
-                try scope.run(SetNotePathTransaction(nid: noteId,
-                    newRel: newRelativePath,
-                    fileMtime: mtime,
-                    indexedAt: now
-                ))
+                try scope.run(SetNotePathTransaction(nid: noteId, newRel: newRelativePath))
             }
             
             let oldDirectory = Paths.notes.appendingPathComponent(fromAxis)
@@ -608,15 +599,7 @@ public enum HandlersStructural {
                 guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)) else { continue }
                 
                 let relativePath = try Notes.relativeToBrainRoot(path)
-                let modifiedAt = try FileManager.default
-                    .attributesOfItem(atPath: path.path)[.modificationDate] as? Date
-                let mtime = Int(modifiedAt?.timeIntervalSince1970 ?? 0)
-                
-                try scope.run(SetNotePathTransaction(nid: noteId,
-                    newRel: relativePath,
-                    fileMtime: mtime,
-                    indexedAt: now
-                ))
+                try scope.run(SetNotePathTransaction(nid: noteId, newRel: relativePath))
             }
             
             if addAlias {
@@ -795,7 +778,7 @@ public enum HandlersStructural {
                 .required("from_id", role: .noteId, "source note id"),
                 .required("into", role: .childSpecs, "list (≥2) of child specs: each requires {id, axis, title, tags, summary, sections}; optional {priority, source, content_prefix}"),
                 .optional("remainder", ##"{"keep": bool} — if true and remainder is non-empty, keep src note with leftover sections; default false (delete src)"##),
-                .optional("routing", ##"list resolving a split conflict — each {type:"link"|"term"|"meta", <identity>, to:[child ids]}. identity: link→{kind,neighbor}, term→{term}, meta→{namespace,key}. to=["a"] assign, ["a","b"] copy, []=drop; omitted artifacts drop. cooccur/reference are auto-handled. A source-deleting split with unrouted assoc/lineage links, active aliases, or note_meta returns a `conflict` listing them."##)
+                .optional("routing", ##"list resolving a split conflict — each {type:"link"|"term", <identity>, to:[child ids]}. identity: link→{kind,neighbor}, term→{term}. to=["a"] assign, ["a","b"] copy, []=drop; omitted artifacts drop. cooccur/reference are auto-handled. A source-deleting split with unrouted assoc/lineage links or active aliases returns a `conflict` listing them."##)
             ],
             example: ###"{"op":"split_note","from_id":"big-note","into":[{"id":"child-a","axis":"persona","title":"A","tags":["persona"],"summary":"...","sections":["## A"]},{"id":"child-b","axis":"persona","title":"B","tags":["persona"],"summary":"...","sections":["## B"]}]}"###
         ),
@@ -941,7 +924,6 @@ public enum HandlersStructural {
             let (outboundEdges, inboundEdges) = try scope.run(FetchLinkFanTransaction(fromId: fromId))
             let routing = parseRouting(op)
             let srcTerms = try scope.run(FetchActiveTermRowsTransaction(noteId: fromId))
-            let srcMeta = try scope.run(FetchNoteMetaRowsTransaction(noteId: fromId))
             var written: [URL] = []
             var newIds: [String] = []
             let now = context.now
@@ -1071,9 +1053,7 @@ public enum HandlersStructural {
                             type: "link",
                             kind: edge.kind,
                             neighbor: edge.other,
-                            term: nil,
-                            namespace: nil,
-                            key: nil
+                            term: nil
                         )] {
                             for noteId in targets {
                                 try insertEdge(
@@ -1141,9 +1121,7 @@ public enum HandlersStructural {
                         type: "term",
                         kind: nil,
                         neighbor: nil,
-                        term: term,
-                        namespace: nil,
-                        key: nil
+                        term: term
                     )] else {
                         continue
                     }
@@ -1155,34 +1133,6 @@ public enum HandlersStructural {
                             term: term,
                             provenance: provenance,
                             now: now
-                        ))
-                    }
-                }
-                
-                for row in srcMeta {
-                    let namespace = row.namespace
-                    let key = row.key
-                    let value = row.value
-                    let updated = row.updatedAt
-                    
-                    guard let targets = routing[routingKey(
-                        type: "meta",
-                        kind: nil,
-                        neighbor: nil,
-                        term: nil,
-                        namespace: namespace,
-                        key: key
-                    )] else {
-                        continue
-                    }
-                    
-                    for noteId in targets {
-                        try scope.run(InsertNoteMetaIfAbsentTransaction(
-                            noteId: noteId,
-                            namespace: namespace,
-                            key: key,
-                            value: value,
-                            updatedAt: updated
                         ))
                     }
                 }
@@ -1398,9 +1348,7 @@ public enum HandlersStructural {
         type: String,
         kind: String?,
         neighbor: String?,
-        term: String?,
-        namespace: String?,
-        key: String?
+        term: String?
     ) -> String {
         switch type {
         case "link":
@@ -1408,9 +1356,6 @@ public enum HandlersStructural {
         
         case "term":
             return "term\u{1}\(term ?? "")"
-        
-        case "meta":
-            return "meta\u{1}\(namespace ?? "")\u{1}\(key ?? "")"
         
         default:
             return "?\u{1}\(type)"
@@ -1422,9 +1367,7 @@ public enum HandlersStructural {
             type: artifact.type,
             kind: artifact.kind,
             neighbor: artifact.neighbor,
-            term: artifact.term,
-            namespace: artifact.namespace,
-            key: artifact.key
+            term: artifact.term
         )
     }
     
@@ -1439,9 +1382,7 @@ public enum HandlersStructural {
                 type: type,
                 kind: entry["kind"] as? String,
                 neighbor: entry["neighbor"] as? String,
-                term: entry["term"] as? String,
-                namespace: entry["namespace"] as? String,
-                key: entry["key"] as? String
+                term: entry["term"] as? String
             )] = targets
         }
         
@@ -1470,8 +1411,6 @@ public enum HandlersRegistry {
             "patch_section": HandlersBasic.patchSection,
             "set_frontmatter": HandlersBasic.setFrontmatter,
             "rename_section": HandlersBasic.renameSection,
-            "set_note_meta": HandlersBasic.setNoteMeta,
-            "delete_note_meta": HandlersBasic.deleteNoteMeta,
             "flag": HandlersBasic.flag,
             "resolve_flag": HandlersBasic.resolveFlag,
             "dismiss_candidate": HandlersBasic.dismissCandidate,

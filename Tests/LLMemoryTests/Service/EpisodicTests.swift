@@ -102,15 +102,11 @@ struct EpisodicTests {
     }
     
     @Test("the schema carries no leftover from the episodic-notes design", arguments: [
-        "episodic_notes", "axis_centroids", "tag_cooccur", "event_daily"
+        "episodic_notes", "axis_centroids", "tag_cooccur", "event_daily",
+        "ruleset", "rule", "note_meta"
     ])
     func retiredTablesAreGone(table: String) throws {
         #expect(try !tableExists(table), "\(table) is a retired table and must not exist")
-    }
-    
-    @Test("note_meta is the table that replaced them, and it is present")
-    func noteMetaTablePresent() throws {
-        #expect(try tableExists("note_meta"))
     }
     
     @Test("an axis has no kind column — an axis is not typed")

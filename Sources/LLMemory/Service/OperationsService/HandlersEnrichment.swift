@@ -172,7 +172,7 @@ public enum HandlersEnrichment {
     
     public static let purgeEnrichment = OperationHandler(
         schema: OperationSchema(
-            summary: "recall path for a noisy model/batch: reject every retrieval term and delete every assoc edge carrying the given provenance. Goes through the same transaction/ruleset gate as any op. Not a durable ban — a later re-proposal of a purged term re-opens it as pending (rows describe the latest proposal; validation re-judges it).",
+            summary: "recall path for a noisy model/batch: reject every retrieval term and delete every assoc edge carrying the given provenance. Goes through the same transaction gate as any op. Not a durable ban — a later re-proposal of a purged term re-opens it as pending (rows describe the latest proposal; validation re-judges it).",
             fields: [
                 .required("provenance", "producer id to purge (matches note_retrieval_terms.provenance and note_links.provenance exactly)")
             ],

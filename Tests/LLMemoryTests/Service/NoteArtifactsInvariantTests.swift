@@ -163,8 +163,6 @@ struct NoteArtifactsInvariantTests {
         // Then
         #expect(home.apply([["op": "add_retrieval_terms", "id": "rt-a", "kind": "alias",
             "terms": ["zephyrine quasar"], "provenance": "t"]]).status == "ok")
-        #expect(home.apply([["op": "set_note_meta", "id": "rt-a",
-            "namespace": "test", "key": "k", "value": "v"]]).status == "ok")
         #expect(home.apply([["op": "dismiss_candidate", "id": "rt-a", "kind": "split",
             "reason": "keep"]]).status == "ok")
         

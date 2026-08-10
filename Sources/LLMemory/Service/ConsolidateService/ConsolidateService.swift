@@ -228,8 +228,6 @@ public struct ConsolidateService: Sendable {
         let termsActivated = validationPass.activated
         let termsRejected = validationPass.rejected + staleRejected
 
-        try scope.run(MarkConsolidatedTransaction(now: now))
-
         let decay: (decayed: Int, pruned: Int) = (0, 0)
         var vectorBuild: VectorBuildResult?
 

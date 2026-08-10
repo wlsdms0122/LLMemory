@@ -100,7 +100,6 @@ final class CLIBrain {
         {"ops":[
           {"op":"propose_link","src":"di-container","dst":"log-masking","kind":"assoc","confidence":0.8,"provenance":"test:seed"},
           {"op":"add_retrieval_terms","id":"di-container","kind":"alias","terms":["DI 컨테이너","dependency injection container"],"provenance":"test:seed"},
-          {"op":"set_note_meta","id":"di-container","namespace":"capture","key":"source_thread","value":"slack://seed"},
           {"op":"flag","id":"log-masking","kind":"reconsolidate","reason":"near-duplicate suspect"}
         ],"rationale":"enrich"}
         """)

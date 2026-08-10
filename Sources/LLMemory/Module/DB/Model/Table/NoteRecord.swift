@@ -16,8 +16,6 @@ struct NoteRecord: Codable {
         case title
         case summary
         case priority
-        case fileMtime
-        case indexedAt
         case editedAt
         case stale
         case template
@@ -34,8 +32,6 @@ struct NoteRecord: Codable {
     let title: String
     let summary: String?
     let priority: String
-    let fileMtime: Int
-    let indexedAt: Int
     let editedAt: Int
     let stale: Bool
     let template: String?

@@ -12,7 +12,6 @@ struct NoteSourceRecord: Codable {
     enum CodingKeys: String, CodingKey {
         case noteId
         case sourceHash
-        case sourceCheckedAt
         case sourceStale
         case declHash
     }
@@ -20,7 +19,6 @@ struct NoteSourceRecord: Codable {
     // MARK: - Property
     let noteId: String
     let sourceHash: String?
-    let sourceCheckedAt: Int
     let sourceStale: Bool
     let declHash: String?
 

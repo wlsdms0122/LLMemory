@@ -18,8 +18,7 @@ extension OperationsEngine {
     static func apply(
         _ storage: GRDBStorage,
         _ payload: [String: Any],
-        sessionId: String? = nil,
-        ruleset: String? = nil
+        sessionId: String? = nil
     ) -> OperationsResult {
         do {
             let json = try Self.encodePayload(payload)
@@ -37,7 +36,7 @@ extension OperationsEngine {
 
             return try storage.writeLock {
                 try storage.connect().write { db in
-                    Container(storage: storage).operations.engine.apply(GRDBScope(db), decoded, sessionId: sessionId, ruleset: ruleset)
+                    Container(storage: storage).operations.engine.apply(GRDBScope(db), decoded, sessionId: sessionId)
                 }
             }
         } catch {
@@ -54,8 +53,7 @@ extension OperationsEngine {
 
     static func dryRun(
         _ storage: GRDBStorage,
-        _ payload: [String: Any],
-        ruleset: String? = nil
+        _ payload: [String: Any]
     ) -> OperationsDryRunResult {
         do {
             let json = try Self.encodePayload(payload)
@@ -70,7 +68,7 @@ extension OperationsEngine {
             }
 
             return try storage.connect().read { db in
-                Container(storage: storage).operations.engine.dryRun(GRDBReadScope(db), decoded, ruleset: ruleset)
+                Container(storage: storage).operations.engine.dryRun(GRDBReadScope(db), decoded)
             }
         } catch {
             return OperationsDryRunResult(

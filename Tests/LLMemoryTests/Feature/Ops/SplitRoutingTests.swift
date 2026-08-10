@@ -107,7 +107,7 @@ struct SplitRoutingTests {
     func keepWithEmptyRemainderStillConflictsOnUncovered() throws {
         // Given
         try seedSourceAndNeighbor()
-        try seedReviewMeta()
+        try seedAssocEdge()
         
         // When
         let result = home.apply([
@@ -118,9 +118,9 @@ struct SplitRoutingTests {
         #expect(result.status == "conflict",
             "keep:true with an empty remainder must still conflict on an uncovered artifact")
         #expect(result.conflict?.unresolved.contains { item in
-            item.type == "meta" && item.key == "status"
+            item.type == "link" && item.neighbor == "nbr"
         } == true)
-        #expect(try metaCount(noteId: "src") == 1, "a conflict must roll back, leaving the source's meta intact")
+        #expect(try assocEdges(touching: "src") == 1, "a conflict must roll back, leaving the source's edge intact")
     }
     
     @Test("a lineage edge drops without a conflict — it states a fact about the source, not the children")
@@ -147,23 +147,6 @@ struct SplitRoutingTests {
         
         #expect(result.status == "ok", "a lineage link must not raise a conflict — it drops")
         #expect(synthesized == 0, "a lineage edge must not be synthesized onto the children")
-    }
-    
-    @Test("routed metadata arrives verbatim on the chosen child and nowhere else")
-    func metaRoutedVerbatim() throws {
-        // Given
-        try seedSourceAndNeighbor()
-        try seedReviewMeta()
-        
-        // When
-        let result = split(routing: [
-            ["type": "meta", "namespace": "review", "key": "status", "to": ["rt-a"]]
-        ])
-        
-        // Then
-        #expect(result.status == "ok", "\(result.error)")
-        #expect(try reviewStatus(of: "rt-a") == "approved", "routed meta must arrive verbatim")
-        #expect(try reviewStatus(of: "rt-b") == nil, "meta must not appear on the unrouted child")
     }
     
     // MARK: - Private
@@ -204,14 +187,6 @@ struct SplitRoutingTests {
         }
     }
     
-    private func seedReviewMeta() throws {
-        let result = home.apply([
-            "op": "set_note_meta", "id": "src", "namespace": "review", "key": "status", "value": "approved"
-        ])
-        
-        #expect(result.status == "ok", "\(result.error)")
-    }
-    
     private func childCount() throws -> Int {
         try home.read { database in
             try Int.fetchOne(database, sql: "SELECT COUNT(*) FROM notes WHERE id IN ('rt-a','rt-b')") ?? 0
@@ -232,21 +207,4 @@ struct SplitRoutingTests {
         }
     }
     
-    private func metaCount(noteId: String) throws -> Int {
-        try home.read { database in
-            try Int.fetchOne(
-                database,
-                sql: "SELECT COUNT(*) FROM note_meta WHERE note_id = ? AND key='status'",
-                arguments: [noteId]
-            ) ?? 0
-        }
-    }
-    
-    private func reviewStatus(of noteId: String) throws -> String? {
-        try home.read { database in
-            try String.fetchOne(database, sql: """
-                SELECT value FROM note_meta WHERE note_id = ? AND namespace='review' AND key='status'
-                """, arguments: [noteId])
-        }
-    }
 }

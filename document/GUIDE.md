@@ -58,7 +58,7 @@ llmemory operations describe <op> --home <state-root>   # op 별 field schema + 
 |------|------|
 | `init` | 최초 setup (idempotent) — 스키마 + README + 운용 정책 씨드 |
 | `update` | 기존 brain 에 씨드·README 재적용 (저작 노트 불침범) |
-| `query` | 읽기 — search / get / related / neighbors / entity / meta / structure / stats / list / axes / history / lint / enrichment / template |
+| `query` | 읽기 — search / get / related / neighbors / entity / structure / stats / list / axes / history / lint / enrichment / template |
 | `operations` | 쓰기 — apply / dry-run (atomic transaction) / vocab / describe |
 | `index` | DB 유지보수 — build / verify (integrity/sources/terms) / vector |
 | `consolidate` | 주기 정리 (관심사 분리) — integrate(A 비파괴) / prune(B 시냅스 가지치기) / homeostasis(H 메타가소성 틱) / candidates / report |
@@ -307,7 +307,7 @@ DB 안의 migration 원장에 남는다. brain 이 binary 보다 뒤처져 있�
 
 > **주의 — DB 삭제는 "cortex 에서 재구성"이 아니라 "의미층 폐기"다.** markdown 이 SSoT 인 것은
 > `notes`(+tags/entities/source) 뿐이고, **의미층과 이력은 DB 에만 있다** — assoc/cooccur 엣지,
-> retrieval terms(alias·cue), `note_meta`, ripple flag, candidate dismissal, lifecycle 이벤트,
+> retrieval terms(alias·cue), ripple flag, candidate dismissal, lifecycle 이벤트,
 > hit 관측값. 지우면 전부 사라지고 재구성되지 않는다(enrich 가 시간을 들여 다시 쌓아야 한다).
 > migration 이 있으므로 스키마 변경으로 DB 를 지울 일은 원칙적으로 없다 — 손상 등으로
 > 재구성이 불가피하면 **먼저 `memory.db` 를 복사해두고**, init 후 그 사본에서 위 테이블을

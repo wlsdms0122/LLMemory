@@ -411,61 +411,6 @@ struct FetchActiveTermRowsTransaction: GRDBReadTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteMetaRowsTransaction: GRDBReadTransaction {
-    // MARK: - Property
-    let noteId: String
-
-    // MARK: - Initializer
-    init(noteId: String) {
-        self.noteId = noteId
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> [(namespace: String, key: String, value: String, updatedAt: Int)] {
-        try Row.fetchAll(db, sql: """
-            SELECT namespace, key, value, updated_at FROM note_meta WHERE note_id = ?
-            """, arguments: [noteId])
-            .map { row in
-                (
-                    namespace: row["namespace"],
-                    key: row["key"],
-                    value: row["value"],
-                    updatedAt: row["updated_at"]
-                )
-            }
-    }
-
-    // MARK: - Private
-}
-
-struct InsertNoteMetaIfAbsentTransaction: GRDBTransaction {
-    // MARK: - Property
-    let noteId: String
-    let namespace: String
-    let key: String
-    let value: String
-    let updatedAt: Int
-
-    // MARK: - Initializer
-    init(noteId: String, namespace: String, key: String, value: String, updatedAt: Int) {
-        self.noteId = noteId
-        self.namespace = namespace
-        self.key = key
-        self.value = value
-        self.updatedAt = updatedAt
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws {
-        try db.execute(sql: """
-            INSERT OR IGNORE INTO note_meta (note_id, namespace, key, value, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-            """, arguments: [noteId, namespace, key, value, updatedAt])
-    }
-
-    // MARK: - Private
-}
-
 struct NoteLockedAtPathTransaction: GRDBReadTransaction {
     // MARK: - Property
     let relativePath: String

@@ -10,7 +10,7 @@ import GRDB
 
 public struct RouteArtifact: Encodable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
-        case type, kind, neighbor, term, namespace, key
+        case type, kind, neighbor, term
     }
     
     // MARK: - Property
@@ -18,8 +18,6 @@ public struct RouteArtifact: Encodable, Equatable, Sendable {
     public let kind: String?
     public let neighbor: String?
     public let term: String?
-    public let namespace: String?
-    public let key: String?
     
     // MARK: - Initializer
     // MARK: - Public
@@ -31,8 +29,6 @@ public struct RouteArtifact: Encodable, Equatable, Sendable {
         if let kind { try container.encode(kind, forKey: .kind) }
         if let neighbor { try container.encode(neighbor, forKey: .neighbor) }
         if let term { try container.encode(term, forKey: .term) }
-        if let namespace { try container.encode(namespace, forKey: .namespace) }
-        if let key { try container.encode(key, forKey: .key) }
     }
     
     // MARK: - Private
@@ -56,7 +52,7 @@ public enum NoteArtifacts {
     
     // MARK: - Property
     static let identityTables = [
-        "note_retrieval_terms", "note_meta", "ripple_flags", "note_usage",
+        "note_retrieval_terms", "ripple_flags", "note_usage",
         "candidate_dismissals", "note_source"
     ]
     static let historyTables = ["note_lifecycle_events"]
@@ -67,7 +63,6 @@ public enum NoteArtifacts {
         "entity_index": .reconstructable,
         "note_links": .preserved,
         "note_retrieval_terms": .preserved,
-        "note_meta": .preserved,
         "ripple_flags": .preserved,
         "note_lifecycle_events": .preserved,
         "note_usage": .preserved,
@@ -83,7 +78,6 @@ public enum NoteArtifacts {
         "note_source": .rebuild,
         "note_vectors": .rebuild,
         "note_retrieval_terms": .routeRevalidate,
-        "note_meta": .route,
         "ripple_flags": .drop,
         "note_usage": .drop,
         "candidate_dismissals": .drop,
@@ -414,9 +408,7 @@ struct FetchSplitRouteTargetsTransaction: GRDBReadTransaction {
                         type: "link",
                         kind: row["kind"],
                         neighbor: row["neighbor"],
-                        term: nil,
-                        namespace: nil,
-                        key: nil
+                        term: nil
                     )
                 )
             }
@@ -441,29 +433,7 @@ struct FetchSplitRouteTargetsTransaction: GRDBReadTransaction {
                             type: "term",
                             kind: nil,
                             neighbor: nil,
-                            term: term,
-                            namespace: nil,
-                            key: nil
-                        )
-                    )
-                }
-            
-            case "note_meta":
-                let rows = try Row.fetchAll(
-                    db,
-                    sql: "SELECT namespace, key FROM note_meta WHERE note_id = ?",
-                    arguments: [noteId]
-                )
-                
-                for row in rows {
-                    artifacts.append(
-                        RouteArtifact(
-                            type: "meta",
-                            kind: nil,
-                            neighbor: nil,
-                            term: nil,
-                            namespace: row["namespace"],
-                            key: row["key"]
+                            term: term
                         )
                     )
                 }

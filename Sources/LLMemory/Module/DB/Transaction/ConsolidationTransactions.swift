@@ -239,29 +239,3 @@ struct FetchTagReportTransaction: GRDBReadTransaction {
     // MARK: - Private
 }
 
-struct MarkConsolidatedTransaction: GRDBTransaction {
-    // MARK: - Property
-    let now: Int
-
-    // MARK: - Initializer
-    init(now: Int) {
-        self.now = now
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws {
-        let count = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM notes") ?? 0
-        
-        for (key, value) in [
-            ("last_consolidation_at", String(now)),
-            ("last_consolidation_note_count", String(count))
-        ] {
-            try db.execute(sql: """
-                INSERT INTO meta (key, value) VALUES (?, ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """, arguments: [key, value])
-        }
-    }
-
-    // MARK: - Private
-}

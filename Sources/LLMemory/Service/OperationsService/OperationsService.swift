@@ -28,8 +28,7 @@ public struct OperationsService: Sendable {
     // MARK: - Public
     public func apply(
         payloadJSON: String,
-        cliSessionId: String = "",
-        ruleset: String? = nil
+        cliSessionId: String = ""
     ) async -> OperationsResult {
         // Session resolution happens here, below every surface, with the
         // sibling services' convention: the CLI override wins, the
@@ -64,7 +63,7 @@ public struct OperationsService: Sendable {
                     )
                 }
 
-                return engine.apply(scope, payload, sessionId: sessionId, ruleset: ruleset)
+                return engine.apply(scope, payload, sessionId: sessionId)
             }
 
             return result
@@ -83,8 +82,7 @@ public struct OperationsService: Sendable {
 
     public func dryRun(
         payloadJSON: String,
-        cliSessionId: String = "",
-        ruleset: String? = nil
+        cliSessionId: String = ""
     ) async -> OperationsDryRunResult {
         let sessionId = Environment.retrievalSession(cli: cliSessionId)
 
@@ -99,7 +97,7 @@ public struct OperationsService: Sendable {
                     )
                 }
 
-                return engine.dryRun(scope, payload, sessionId: sessionId, ruleset: ruleset)
+                return engine.dryRun(scope, payload, sessionId: sessionId)
             }
         } catch {
             return OperationsDryRunResult(

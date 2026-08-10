@@ -128,8 +128,8 @@ struct SourceGateInvariantTests {
         let path = try Self.writeNote("gate-6", source: "[\"\(grounding.path)\"]")
         try home.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db) }
         
-        let checkedBefore = try home.read { db in
-            try Int.fetchOne(db, sql: "SELECT source_checked_at FROM note_source WHERE note_id = 'gate-6'") ?? -1
+        let hashBefore = try home.read { db in
+            try String.fetchOne(db, sql: "SELECT source_hash FROM note_source WHERE note_id = 'gate-6'")
         }
         
         try Self.note(id: "gate-6", source: "[\(grounding.path)]")
@@ -143,12 +143,12 @@ struct SourceGateInvariantTests {
             "integrate reported a clean source pass over a note it could not verify")
         
         let row = try home.read { db in
-            try Row.fetchOne(db, sql: "SELECT source_checked_at FROM note_source WHERE note_id = 'gate-6'")
+            try Row.fetchOne(db, sql: "SELECT source_hash FROM note_source WHERE note_id = 'gate-6'")
         }
         
         #expect(row != nil, "integrate deleted the baseline of a note it merely could not read")
-        #expect(row?["source_checked_at"] as Int? == checkedBefore,
-            "the skipped note was stamped as if it had been verified")
+        #expect(row?["source_hash"] as String? == hashBefore,
+            "the skipped note's observation baseline moved as if it had been verified")
     }
     
     // 2. ops boundaries reject exactly what the file parser rejects

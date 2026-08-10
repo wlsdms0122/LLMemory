@@ -71,9 +71,9 @@ struct PruneAtomicityInvariantTests {
         
         for noteId in ["patom-a", "patom-b"] {
             try database.execute(sql: """
-                INSERT INTO notes (id, axis, path, title, summary, priority, file_mtime, indexed_at)
-                VALUES (?, 'flow', ?, ?, '', 'lazy', ?, ?)
-                """, arguments: [noteId, "tmp/\(noteId).md", noteId, home.now, home.now])
+                INSERT INTO notes (id, axis, path, title, summary, priority)
+                VALUES (?, 'flow', ?, ?, '', 'lazy')
+                """, arguments: [noteId, "tmp/\(noteId).md", noteId])
         }
         
         try database.execute(sql: """

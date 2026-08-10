@@ -9,7 +9,7 @@ import Foundation
 import Storage
 
 // Notes-domain service — body reads (whole, sections, budget, toc, frame),
-// enumeration, history, structure, and the note_meta side-table. Body reads
+// enumeration, history, and structure. Body reads
 // derive a retrieval record; RetrievalService applies it.
 public struct NotesService: Sendable {
     // MARK: - Property
@@ -126,33 +126,6 @@ public struct NotesService: Sendable {
         axis: String?
     ) async throws -> StructureResult {
         try await storage.read { scope in try structure(scope, axis: axis) }
-    }
-
-    public func metaById(
-        noteId: String,
-        namespace: String?
-    ) async throws -> [String: [String: String]] {
-        try await storage.read { scope in
-            try scope.run(FetchNoteMetaTransaction(noteId: noteId, namespace: namespace))
-        }
-    }
-
-    public func metaByKV(
-        namespace: String,
-        key: String,
-        value: String?,
-        limit: Int
-    ) async throws -> [(noteId: String, value: String)] {
-        try await storage.read { scope in
-            try scope.run(
-                FindNoteMetaByKVTransaction(
-                    namespace: namespace,
-                    key: key,
-                    value: value,
-                    limit: limit
-                )
-            )
-        }
     }
 
     // MARK: - Internal

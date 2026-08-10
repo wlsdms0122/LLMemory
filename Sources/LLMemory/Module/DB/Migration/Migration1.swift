@@ -63,9 +63,6 @@ CREATE TABLE IF NOT EXISTS notes (
   title TEXT NOT NULL,
   summary TEXT,
   priority TEXT NOT NULL DEFAULT 'lazy' CHECK (priority IN ('eager','lazy')),
-  -- timestamps (파일에서 파생)
-  file_mtime INTEGER NOT NULL,
-  indexed_at INTEGER NOT NULL,
   edited_at INTEGER NOT NULL DEFAULT 0,
   -- 의미적 부정 신호 (invalidate op). frontmatter 파생.
   stale INTEGER NOT NULL DEFAULT 0 CHECK (stale IN (0,1)),
@@ -77,7 +74,7 @@ CREATE TABLE IF NOT EXISTS notes (
   word_count INTEGER NOT NULL DEFAULT 0,
   section_count INTEGER NOT NULL DEFAULT 0,
   -- 투영 identity: 파일 원문 전체의 해시. 증분 skip 과 verify L2 가 이 하나로 판정한다
-  -- (초 단위 mtime 은 같은 초 편집을 가렸다 — 08-03). mtime 은 timestamp 관측만 담당.
+  -- (초 단위 mtime 은 같은 초 편집을 가렸다 — 08-03).
   content_hash TEXT NOT NULL DEFAULT ''
 );
 -- note_usage = engram 의 활성 동역학 (memory-trace). 매 회상마다 갱신, 마크다운 밖.
@@ -95,7 +92,6 @@ CREATE TABLE IF NOT EXISTS note_usage (
 CREATE TABLE IF NOT EXISTS note_source (
   note_id TEXT PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE,
   source_hash TEXT,
-  source_checked_at INTEGER NOT NULL DEFAULT 0,
   source_stale INTEGER NOT NULL DEFAULT 0 CHECK (source_stale IN (0,1)),
   decl_hash TEXT
 );
@@ -106,22 +102,6 @@ CREATE INDEX IF NOT EXISTS idx_notes_template ON notes(template);
 CREATE INDEX IF NOT EXISTS idx_notes_locked ON notes(locked);
 CREATE INDEX IF NOT EXISTS idx_note_usage_last_retrieved ON note_usage(last_retrieved_at);
 CREATE INDEX IF NOT EXISTS idx_note_source_stale ON note_source(source_stale);
-
--- ─────────────────────────────────────────────────────────
--- note_meta — namespaced kv. plugin/도메인 별 메타 저장소.
--- core 는 *해석 안 함* — namespace 는 plugin id, key/value 는 plugin 만 안다.
--- 예) journal 도메인: namespace='journal', key in {affect, compaction_stage, ...}
--- 노트 삭제 시 CASCADE 로 자동 청소. (namespace, key) 인덱스로 plugin 쿼리 효율.
--- ─────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS note_meta (
-  note_id   TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
-  namespace TEXT NOT NULL,
-  key       TEXT NOT NULL,
-  value     TEXT NOT NULL,
-  updated_at INTEGER NOT NULL,
-  PRIMARY KEY (note_id, namespace, key)
-);
-CREATE INDEX IF NOT EXISTS idx_note_meta_ns_key ON note_meta(namespace, key);
 
 -- ─────────────────────────────────────────────────────────
 -- note_lifecycle_events — append-only 이력.
@@ -302,31 +282,6 @@ CREATE TABLE IF NOT EXISTS entity_index (
 CREATE INDEX IF NOT EXISTS idx_entity_index_entity ON entity_index(entity);
 CREATE INDEX IF NOT EXISTS idx_entity_index_note ON entity_index(note_id);
 CREATE INDEX IF NOT EXISTS idx_entity_index_last_seen ON entity_index(last_seen_at);
-
--- ─────────────────────────────────────────────────────────
--- ruleset / rule — mutation 정책 ssot. 호출자가 `--ruleset <id>` (또는
--- LLMEMORY_RULESET env) 로 명시 선택. 미설정 시 정책 적용 안 함.
--- LLMEMORY_RULESET_LOCKED=1 은 CLI 옵션 우회를 막는 킬스위치.
--- ─────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS ruleset (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT,
-  created_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS rule (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ruleset_id TEXT NOT NULL REFERENCES ruleset(id) ON DELETE CASCADE,
-  kind TEXT NOT NULL,
-  -- 형태 관문: params 는 반드시 JSON object. 정책 게이트의 단일 읽기 경로(fetchRules)가
-  -- 깨진 행을 만나 조용히 버리면(fail-open) 제약만 사라진 채 게이트가 통과한다 —
-  -- 쓰기 시점에 막는다 (유일 생성 경로가 손 SQL seed 라 더더욱).
-  params TEXT NOT NULL CHECK (json_valid(params) AND json_type(params) = 'object'),
-  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0,1)),
-  created_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_rule_ruleset ON rule(ruleset_id, enabled);
 
 -- ─────────────────────────────────────────────────────────
 -- candidate_dismissals — 정리 후보(standing query)를 "통짜로 둔다"고 판단한 결정.

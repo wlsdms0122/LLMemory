@@ -308,13 +308,6 @@ public enum Indexer {
 
         let count = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM notes") ?? 0
 
-        for (key, value) in [("note_count", String(count)), ("last_build_at", String(now))] {
-            try db.execute(sql: """
-                INSERT INTO meta (key, value) VALUES (?, ?)
-                ON CONFLICT(key) DO UPDATE SET value=excluded.value
-                """, arguments: [key, value])
-        }
-
         return BuildResult(
             count: count,
             changed: changed,

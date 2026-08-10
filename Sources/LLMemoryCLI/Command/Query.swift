@@ -23,7 +23,7 @@ struct QueryCommand: ParsableCommand {
                 query related, query search, query get
             """,
         subcommands: [
-            QueryRelated.self, QuerySearch.self, QueryGet.self, QueryMeta.self,
+            QueryRelated.self, QuerySearch.self, QueryGet.self,
             QueryEntity.self, QueryStructure.self, QueryNeighbors.self,
             QueryStats.self, QueryList.self, QueryAxes.self,
             QueryHistory.self, QueryLint.self, QueryEnrichment.self,
@@ -1458,121 +1458,6 @@ struct QueryGet: AsyncParsableCommand {
         
         return pairs
     }
-}
-
-struct QueryMeta: AsyncParsableCommand {
-    struct ByIdOutput: Encodable {
-        // MARK: - Property
-        let id: String
-        let meta: [String: [String: String]]
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    struct ByKVRow: Encodable {
-        enum CodingKeys: String, CodingKey {
-            case noteId = "note_id"
-            case value
-        }
-        
-        // MARK: - Property
-        let noteId: String
-        let value: String
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    // MARK: - Property
-    static let configuration = CommandConfiguration(
-        commandName: "meta",
-        abstract: "Read namespaced plugin metadata (note_meta).",
-        discussion: """
-            Two modes.
-
-            MODES
-                --id <note>                              All kv for one note.
-                --namespace <ns> --key <k> [--value v]   Find notes by kv match.
-
-            EXAMPLES
-                llmemory query meta --id journal-260508 --home brain
-                llmemory query meta --namespace journal --key affect --value high --home brain
-            """
-    )
-    
-    @OptionGroup var global: GlobalHomeOptions
-    @OptionGroup var format: OutputFormat
-    
-    @Option(name: .long, help: "Note id (mode 1).")
-    var id: String?
-    
-    @Option(name: .long, help: "Plugin namespace (mode 2).")
-    var namespace: String?
-    
-    @Option(name: .long, help: "Meta key (mode 2).")
-    var key: String?
-    
-    @Option(name: .long, help: "Filter by value (mode 2, optional).")
-    var value: String?
-    
-    @Option(name: .long, help: "Max rows in mode 2 (default 100).")
-    var limit: Int = 100
-    
-    // MARK: - Initializer
-    // MARK: - Public
-    func run() async throws {
-        let brain = Brain(home: global.home)
-        
-        if let id {
-            let data = try await brain.query.metaById(
-                noteId: id,
-                namespace: namespace
-            )
-            
-            render(ByIdOutput(id: id, meta: data), json: format.json) { output in
-                var pairs: [(String, String)] = [("note_id", output.id)]
-                
-                for (namespace, values) in output.meta.sorted(by: { lhs, rhs in
-                    lhs.key < rhs.key
-                }) {
-                    for (key, value) in values.sorted(by: { lhs, rhs in lhs.key < rhs.key }) {
-                        pairs.append(("\(namespace).\(key)", value))
-                    }
-                }
-                
-                return [.keyValue(pairs)]
-            }
-            
-            return
-        }
-        
-        guard let namespace, let key else {
-            FileHandle.standardError.write(
-                "either --id or (--namespace + --key) is required\n".data(using: .utf8)!
-            )
-            
-            throw ExitCode(2)
-        }
-        
-        let rows = try await brain.query.metaByKV(
-            namespace: namespace,
-            key: key,
-            value: value,
-            limit: limit
-        )
-        
-        render(
-            rows.map { row in ByKVRow(noteId: row.noteId, value: row.value) },
-            json: format.json
-        ) { rows in
-            [.table(rows.map { row in [row.noteId, row.value] }, headers: ["note_id", "value"])]
-        }
-    }
-    
-    // MARK: - Private
 }
 
 struct QueryEntity: AsyncParsableCommand {

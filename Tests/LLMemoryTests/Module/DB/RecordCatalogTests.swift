@@ -45,8 +45,6 @@ struct RecordCatalogTests {
                 title: "Note A",
                 summary: "summary",
                 priority: "lazy",
-                fileMtime: 1,
-                indexedAt: 2,
                 editedAt: 3,
                 stale: false,
                 template: nil,
@@ -62,8 +60,6 @@ struct RecordCatalogTests {
                 title: "Note B",
                 summary: nil,
                 priority: "eager",
-                fileMtime: 1,
-                indexedAt: 2,
                 editedAt: 3,
                 stale: true,
                 template: nil,
@@ -77,12 +73,9 @@ struct RecordCatalogTests {
             try NoteSourceRecord(
                 noteId: "note-a",
                 sourceHash: "sh",
-                sourceCheckedAt: 4,
                 sourceStale: true,
                 declHash: "dh"
             ).insert(db)
-            try NoteMetaRecord(noteId: "note-a", namespace: "journal", key: "affect", value: "calm", updatedAt: 5)
-                .insert(db)
             try TagRecord(noteId: "note-a", tag: "swift").insert(db)
             try NoteLinkRecord(
                 src: "note-a",
@@ -171,18 +164,6 @@ struct RecordCatalogTests {
             var event = EventRecord(ts: 1, kind: "capture", sessionId: "s", payload: "{}")
             try event.insert(db)
             #expect(event.id != nil)
-
-            // ruleset/rule records are read-side — created_at has no default, so
-            // seed the rows the way production does (hand SQL).
-            try db.execute(
-                sql: "INSERT INTO ruleset (id, name, description, created_at) VALUES ('rs', 'ruleset', NULL, 1)"
-            )
-            try db.execute(
-                sql: """
-                    INSERT INTO rule (ruleset_id, kind, params, enabled, created_at)
-                    VALUES ('rs', 'axis-allowlist', '{}', 1, 1)
-                    """
-            )
         }
 
         try queue.read { db in
@@ -197,7 +178,6 @@ struct RecordCatalogTests {
 
             #expect(try NoteUsageRecord.fetchOne(db)?.hitCount == 3)
             #expect(try NoteSourceRecord.fetchOne(db)?.sourceStale == true)
-            #expect(try NoteMetaRecord.fetchOne(db)?.value == "calm")
             #expect(try TagRecord.fetchAll(db).count == 1)
             #expect(try NoteLinkRecord.fetchOne(db)?.weight == 0.4)
             #expect(try NoteRetrievalTermRecord.fetchOne(db)?.status == "pending")
@@ -213,8 +193,6 @@ struct RecordCatalogTests {
             #expect(try ActivityWindowRecord.fetchOne(db)?.label == "session")
             #expect(try RetrievalHitRecord.fetchOne(db)?.surfaceKind == "hit")
             #expect(try GenomeEventRecord.fetchOne(db)?.cause == "set_gene")
-            #expect(try RulesetRecord.fetchOne(db)?.name == "ruleset")
-            #expect(try RuleRecord.fetchOne(db)?.enabled == true)
         }
     }
 }

@@ -115,27 +115,6 @@ public struct Query {
         try await notes.template(id: id, cliSessionId: cliSessionId)
     }
 
-    public func metaById(
-        noteId: String,
-        namespace: String?
-    ) async throws -> [String: [String: String]] {
-        try await notes.metaById(noteId: noteId, namespace: namespace)
-    }
-
-    public func metaByKV(
-        namespace: String,
-        key: String,
-        value: String?,
-        limit: Int
-    ) async throws -> [(noteId: String, value: String)] {
-        try await notes.metaByKV(
-            namespace: namespace,
-            key: key,
-            value: value,
-            limit: limit
-        )
-    }
-
     public func entity(
         name: String?,
         limit: Int

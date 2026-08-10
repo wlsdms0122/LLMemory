@@ -163,8 +163,7 @@ struct BuildVectorsTransaction: GRDBTransaction {
 
         for (key, value) in [
             ("vectors.built_at", String(now)),
-            ("vectors.dim", String(dim)),
-            ("vectors.model", "ppmi-svd")
+            ("vectors.dim", String(dim))
         ] {
             try db.execute(sql: """
                 INSERT INTO meta (key, value) VALUES (?, ?)

@@ -121,8 +121,8 @@ struct TransactionTests {
         let result = OperationsEngine.dryRun(home.storage, [
             "ops": [
                 [
-                    "op": "set_note_meta", "id": "tx-dbo-1", "namespace": "probe",
-                    "key": "k", "value": "v"
+                    "op": "flag", "id": "tx-dbo-1", "kind": "reconsolidate",
+                    "reason": "probe"
                 ],
                 patchOp(id: "tx-dbo-1", section: "## NOPE")
             ],
