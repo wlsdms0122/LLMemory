@@ -76,7 +76,7 @@ public final class Session {
     }
 
     public static func retrievalSession(cli: String?) -> String? {
-        Env.retrievalSession(cli: cli)
+        Environment.retrievalSession(cli: cli)
     }
 
     // MARK: - Private

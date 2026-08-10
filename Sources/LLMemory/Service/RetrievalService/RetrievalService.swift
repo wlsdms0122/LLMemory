@@ -32,7 +32,7 @@ public struct RetrievalService: Sendable {
         excludeAxes: [String],
         raw: Bool
     ) async throws -> (rows: [SearchRow], extra: [ExpandedNote]) {
-        let sessionId = Env.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try search(
                 scope,
@@ -58,7 +58,7 @@ public struct RetrievalService: Sendable {
         cliSessionId: String,
         includeBodies: Bool
     ) async throws -> RelatedResult {
-        let sessionId = Env.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try related(
                 scope,
@@ -84,7 +84,7 @@ public struct RetrievalService: Sendable {
         k: Int,
         cliSessionId: String = ""
     ) async throws -> [NeighborScore] {
-        let sessionId = Env.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try neighbors(scope, id: id, k: k, sessionId: sessionId)
         }

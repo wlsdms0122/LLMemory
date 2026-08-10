@@ -1,5 +1,5 @@
 //
-//  Env.swift
+//  Environment.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum Env {
+enum Environment {
     static func retrievalSession(cli: String? = nil) -> String? {
         if let cli, !cli.isEmpty {
             return cli

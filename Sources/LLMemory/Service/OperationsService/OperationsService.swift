@@ -35,7 +35,7 @@ public struct OperationsService: Sendable {
         // sibling services' convention: the CLI override wins, the
         // environment is the fallback — so the observation policy never
         // silently loses its session filter.
-        let sessionId = Env.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
 
         // Shape rejection happens before any lock — a malformed payload must
         // not open the write scope. The string is decoded again inside the
@@ -86,7 +86,7 @@ public struct OperationsService: Sendable {
         cliSessionId: String = "",
         ruleset: String? = nil
     ) async -> OperationsDryRunResult {
-        let sessionId = Env.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
 
         do {
             return try await storage.read { scope in
