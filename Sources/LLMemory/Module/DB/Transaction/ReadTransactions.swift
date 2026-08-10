@@ -9,8 +9,11 @@ import Foundation
 import GRDB
 
 // Read-surface DTOs and the catalog/list/entity/history transactions.
-// Models are flat top-level types with a domain prefix where the bare
-// name is generic (NoteListRow) — same convention as the service results.
+// Models are flat top-level types; a domain prefix disambiguates where the
+// bare name could mean something else in this module (NoteListRow vs the
+// genome/ruleset rows, NoteView vs the NoteRecord table row). A name that
+// stands alone (TocEntry, BudgetCut) stays bare — same convention as the
+// service results.
 struct CatalogNote: Sendable {
     // MARK: - Property
     let id: String
@@ -22,7 +25,7 @@ struct CatalogNote: Sendable {
     let hitCount: Int
     let createdAt: Int
     let editedAt: Int
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -35,7 +38,7 @@ public struct NoteListRow: Encodable, Sendable {
         case createdAt = "created_at"
         case editedAt = "edited_at"
     }
-    
+
     // MARK: - Property
     public let id: String
     public let axis: String
@@ -46,7 +49,7 @@ public struct NoteListRow: Encodable, Sendable {
     public let sourceStale: Bool
     public let createdAt: Int
     public let editedAt: Int
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -59,7 +62,7 @@ struct NoteListFilter {
     var stale: Bool
     var sourceStale: Bool
     var limit: Int?
-    
+
     // MARK: - Initializer
     init(
         priority: String? = nil,
@@ -74,28 +77,7 @@ struct NoteListFilter {
         self.sourceStale = sourceStale
         self.limit = limit
     }
-    
-    // MARK: - Public
-    // MARK: - Private
-}
 
-public struct EntityQueryHit: Encodable, Sendable {
-    enum CodingKeys: String, CodingKey {
-        case entity, axis, summary
-        case noteId = "note_id"
-        case lastSeenAt = "last_seen_at"
-        case hitCount = "hit_count"
-    }
-    
-    // MARK: - Property
-    public let entity: String
-    public let noteId: String
-    public let axis: String?
-    public let summary: String?
-    public let lastSeenAt: Int
-    public let hitCount: Int
-    
-    // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
 }
@@ -105,29 +87,26 @@ public struct NoteHistoryEvent: Encodable, Sendable {
     public let kind: String
     public let reason: String?
     public let at: Int
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
 }
 
-// MARK: - Initializer
-// MARK: - Private
-
 public struct NoteFrontmatter: Encodable, Sendable {
     // MARK: - Property
     private let doc: FrontmatterDoc
-    
+
     // MARK: - Initializer
     init(_ doc: FrontmatterDoc) {
         self.doc = doc
     }
-    
+
     // MARK: - Public
     public func encode(to encoder: Encoder) throws {
         try doc.encode(to: encoder)
     }
-    
+
     // MARK: - Private
 }
 
@@ -138,7 +117,7 @@ public struct NoteView: Sendable {
     public let body: String
     public let hitCount, createdAt, editedAt: Int
     public let priority: String
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -148,7 +127,7 @@ public struct SectionSlice: Sendable {
     // MARK: - Property
     public let path: String
     public let text: String
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -158,7 +137,7 @@ public struct TocEntry: Sendable {
     // MARK: - Property
     public let path: String
     public let words: Int
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -172,9 +151,9 @@ public struct BudgetCut: Sendable {
     public let truncatedWithin: String?
     public let shownWords: Int
     public let totalWords: Int
-    
+
     public var truncated: Bool { !omitted.isEmpty || truncatedWithin != nil }
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -182,10 +161,10 @@ public struct BudgetCut: Sendable {
 
 public struct StructureResult: Sendable {
     // MARK: - Property
-    public let axes: [(axis: String, description: String?, count: Int)]
+    public let axes: [AxisRow]
     public let distribution: LinkDistribution
     public let axisStats: AxisStats?
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -203,7 +182,7 @@ struct FetchNoteCatalogTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [String: CatalogNote] {
         guard !ids.isEmpty else { return [:] }
-        
+
         let placeholders = ids.map { _ in "?" }.joined(separator: ",")
         let rows = try Row.fetchAll(db, sql: """
             SELECT n.id, n.path, n.axis, n.title, n.summary, n.priority,
@@ -213,7 +192,7 @@ struct FetchNoteCatalogTransaction: GRDBReadTransaction {
             WHERE n.id IN (\(placeholders))
             """, arguments: StatementArguments(ids))
         var catalog: [String: CatalogNote] = [:]
-        
+
         for row in rows {
             catalog[row["id"] as String] = CatalogNote(
                 id: row["id"],
@@ -227,7 +206,7 @@ struct FetchNoteCatalogTransaction: GRDBReadTransaction {
                 editedAt: row["edited_at"] as Int? ?? 0
             )
         }
-        
+
         return catalog
     }
 
@@ -247,20 +226,20 @@ struct ListNoteRowsTransaction: GRDBReadTransaction {
     func perform(_ db: Database) throws -> [NoteListRow] {
         var clauses: [String] = []
         var arguments: [DatabaseValueConvertible?] = []
-        
+
         if let priority = filter.priority {
             clauses.append("n.priority = ?")
             arguments.append(priority)
         }
-        
+
         if let axis = filter.axis {
             clauses.append("n.axis = ?")
             arguments.append(axis)
         }
-        
+
         if filter.stale { clauses.append("n.stale = 1") }
         if filter.sourceStale { clauses.append("s.source_stale = 1") }
-        
+
         var sql = """
             SELECT n.id, n.axis, n.title, n.summary, n.priority, n.stale,
                    COALESCE(s.source_stale, 0) AS source_stale,
@@ -270,9 +249,9 @@ struct ListNoteRowsTransaction: GRDBReadTransaction {
             \(clauses.isEmpty ? "" : "WHERE \(clauses.joined(separator: " AND "))")
             ORDER BY n.axis, n.id
             """
-        
+
         if let limit = filter.limit { sql += " LIMIT \(limit)" }
-        
+
         return try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
             .map { row in
                 NoteListRow(
@@ -304,35 +283,36 @@ struct LookupEntitiesTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [EntityQueryHit] {
+    func perform(_ db: Database) throws -> [EntityHit] {
         let sql: String
         let arguments: [DatabaseValueConvertible?]
-        
+
         if let name {
             sql = """
-                SELECT ei.entity, ei.note_id, n.axis, n.summary, ei.last_seen_at, ei.hit_count
+                SELECT ei.entity, ei.note_id, n.axis, n.title, n.summary, ei.last_seen_at, ei.hit_count
                 FROM entity_index ei LEFT JOIN notes n ON n.id = ei.note_id
                 WHERE ei.entity = ? ORDER BY ei.last_seen_at DESC, ei.note_id ASC LIMIT ?
                 """
             arguments = [name, limit]
         } else {
             sql = """
-                SELECT ei.entity, ei.note_id, n.axis, n.summary, ei.last_seen_at, ei.hit_count
+                SELECT ei.entity, ei.note_id, n.axis, n.title, n.summary, ei.last_seen_at, ei.hit_count
                 FROM entity_index ei LEFT JOIN notes n ON n.id = ei.note_id
                 ORDER BY ei.last_seen_at DESC, ei.entity ASC, ei.note_id ASC LIMIT ?
                 """
             arguments = [limit]
         }
-        
+
         return try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
             .map { row in
-                EntityQueryHit(
+                EntityHit(
                     entity: row["entity"],
                     noteId: row["note_id"],
                     axis: row["axis"] as String?,
-                    summary: row["summary"] as String?,
                     lastSeenAt: row["last_seen_at"] as Int? ?? 0,
-                    hitCount: row["hit_count"] as Int? ?? 0
+                    hitCount: row["hit_count"] as Int? ?? 0,
+                    title: row["title"] as String?,
+                    summary: row["summary"] as String?
                 )
             }
     }

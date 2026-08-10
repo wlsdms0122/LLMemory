@@ -31,7 +31,7 @@ public struct RetrievalService: Sendable {
         includeStale: Bool,
         excludeAxes: [String],
         raw: Bool
-    ) async throws -> (rows: [Search.SearchRow], extra: [ExpandedNote]) {
+    ) async throws -> (rows: [SearchRow], extra: [ExpandedNote]) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try search(
@@ -97,7 +97,7 @@ public struct RetrievalService: Sendable {
     public func entity(
         name: String?,
         limit: Int
-    ) async throws -> [EntityQueryHit] {
+    ) async throws -> [EntityHit] {
         try await storage.read { scope in
             try scope.run(LookupEntitiesTransaction(name: name, limit: limit))
         }
@@ -115,7 +115,7 @@ public struct RetrievalService: Sendable {
         excludeAxes: [String]? = nil,
         sinceTs: Int? = nil,
         raw: Bool = false
-    ) throws -> (rows: [Search.SearchRow], extra: [ExpandedNote], record: RetrievalRecord) {
+    ) throws -> (rows: [SearchRow], extra: [ExpandedNote], record: RetrievalRecord) {
         let rows = try scope.run(
             SearchNotesFTSTransaction(
                 query: query,
@@ -348,7 +348,7 @@ public struct RetrievalService: Sendable {
     }
 
     private func searchRanked(
-        rows: [Search.SearchRow],
+        rows: [SearchRow],
         extra: [ExpandedNote]
     ) -> [RetrievalRecord.Ranked] {
         let boost = Genes.double("rebirth.search_boost")

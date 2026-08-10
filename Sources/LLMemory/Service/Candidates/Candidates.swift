@@ -84,26 +84,28 @@ public struct NeighborScore: Sendable {
     // MARK: - Private
 }
 
-public struct CandidateCluster: Sendable {
-    public struct Member: Sendable {
-        // MARK: - Property
-        package let id: String
-        package let axis: String
-        package let title: String
-        package let summary: String?
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
+// One note as a candidate-family member — shared by cluster, missing-edge
+// and near-duplicate findings.
+public struct CandidateMember: Sendable {
+    // MARK: - Property
+    public let id: String
+    public let axis: String
+    public let title: String
+    public let summary: String?
     
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public struct CandidateCluster: Sendable {
     public struct Edge: Sendable {
         // MARK: - Property
         public let a: String
-        package let b: String
+        public let b: String
         public let fts: Double
-        package let entity: Double
-        package let link: Double
+        public let entity: Double
+        public let link: Double
         
         // MARK: - Initializer
         // MARK: - Public
@@ -113,7 +115,7 @@ public struct CandidateCluster: Sendable {
     // MARK: - Property
     public let size: Int
     public let axes: [String]
-    public let members: [Member]
+    public let members: [CandidateMember]
     public let edges: [Edge]
     
     // MARK: - Initializer
@@ -122,21 +124,9 @@ public struct CandidateCluster: Sendable {
 }
 
 public struct MissingEdge: Sendable {
-    public struct Member: Sendable {
-        // MARK: - Property
-        public let id: String
-        public let axis: String
-        public let title: String
-        public let summary: String?
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
     // MARK: - Property
-    public let a: Member
-    public let b: Member
+    public let a: CandidateMember
+    public let b: CandidateMember
     public let source: String
     public let score: Double
     
@@ -146,21 +136,9 @@ public struct MissingEdge: Sendable {
 }
 
 public struct NearDuplicate: Sendable {
-    public struct Member: Sendable {
-        // MARK: - Property
-        public let id: String
-        public let axis: String
-        public let title: String
-        public let summary: String?
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
     // MARK: - Property
-    public let a: Member
-    public let b: Member
+    public let a: CandidateMember
+    public let b: CandidateMember
     public let fts: Double
     public let entity: Double
     public let link: Double
@@ -458,7 +436,7 @@ public enum Candidates {
         for (_, members) in groups where members.count >= minSize && members.count <= cap {
             let rows = try scope.run(FetchClusterMemberRowsTransaction(ids: members))
             let memberStructs = rows.map { row in
-                CandidateCluster.Member(
+                CandidateMember(
                     id: row.id,
                     axis: row.axis,
                     title: row.title,
@@ -508,10 +486,10 @@ public enum Candidates {
             degree[pair.dst, default: 0] += 1
         }
         
-        var meta: [String: MissingEdge.Member] = [:]
+        var meta: [String: CandidateMember] = [:]
         
         for row in try scope.run(FetchSurfaceMetaRowsTransaction()) {
-            meta[row.id] = MissingEdge.Member(
+            meta[row.id] = CandidateMember(
                 id: row.id,
                 axis: row.axis,
                 title: row.title,

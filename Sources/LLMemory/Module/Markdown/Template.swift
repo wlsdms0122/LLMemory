@@ -7,37 +7,37 @@
 
 import Foundation
 
-public enum Template {
-    public struct FrameNode: Encodable, Sendable {
-        enum CodingKeys: String, CodingKey {
-            case level
-            case title
-            case guide
-            case children
-        }
-        
-        // MARK: - Property
-        public let level: Int
-        public let title: String
-        public let norm: String
-        public let guide: String
-        public let children: [FrameNode]
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        public func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            
-            try container.encode(level, forKey: .level)
-            try container.encode(title, forKey: .title)
-            try container.encode(guide, forKey: .guide)
-            
-            if !children.isEmpty { try container.encode(children, forKey: .children) }
-        }
-        
-        // MARK: - Private
+public struct TemplateFrameNode: Encodable, Sendable {
+    enum CodingKeys: String, CodingKey {
+        case level
+        case title
+        case guide
+        case children
     }
     
+    // MARK: - Property
+    public let level: Int
+    public let title: String
+    public let norm: String
+    public let guide: String
+    public let children: [TemplateFrameNode]
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(level, forKey: .level)
+        try container.encode(title, forKey: .title)
+        try container.encode(guide, forKey: .guide)
+        
+        if !children.isEmpty { try container.encode(children, forKey: .children) }
+    }
+    
+    // MARK: - Private
+}
+
+public enum Template {
     // MARK: - Property
     private static let leadingMarkerRegex = try! NSRegularExpression(
         pattern: #"^\s*(?:[0-9]+[.)]?|[①-⑳]|[-*•◦])\s+"#
@@ -45,7 +45,7 @@ public enum Template {
     
     // MARK: - Initializer
     // MARK: - Public
-    public static func parseFrame(_ body: String) -> [FrameNode] {
+    public static func parseFrame(_ body: String) -> [TemplateFrameNode] {
         parseTree(body, withGuides: true)
     }
     
@@ -63,7 +63,7 @@ public enum Template {
         return normalized.trimmingCharacters(in: .whitespaces).lowercased()
     }
     
-    static func parseTree(_ body: String, withGuides: Bool) -> [FrameNode] {
+    static func parseTree(_ body: String, withGuides: Bool) -> [TemplateFrameNode] {
         let lines = body.unicodeLines()
         let sections = SectionEdit.splitSections(body)
         
@@ -107,13 +107,13 @@ public enum Template {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
         
-        func build(_ index: Int) -> FrameNode {
+        func build(_ index: Int) -> TemplateFrameNode {
             let section = sections[index]
             let children = (childIndices[index] ?? []).sorted { lhs, rhs in
                 sections[lhs].lineStart < sections[rhs].lineStart
             }
             
-            return FrameNode(
+            return TemplateFrameNode(
                 level: section.level,
                 title: section.title,
                 norm: normalize(section.title),
@@ -127,16 +127,16 @@ public enum Template {
             .map(build)
     }
     
-    static func validate(documentBody: String, frame: [FrameNode]) -> String? {
+    static func validate(documentBody: String, frame: [TemplateFrameNode]) -> String? {
         let documentTree = parseTree(documentBody, withGuides: false)
         
         return matchLevel(frame: frame, doc: documentTree, pathPrefix: "")
     }
     
-    static func scaffold(_ frame: [FrameNode]) -> String {
+    static func scaffold(_ frame: [TemplateFrameNode]) -> String {
         var lines: [String] = []
         
-        func emit(_ nodes: [FrameNode]) {
+        func emit(_ nodes: [TemplateFrameNode]) {
             for node in nodes {
                 lines.append(headingLabel(node))
                 lines.append("")
@@ -152,13 +152,13 @@ public enum Template {
     }
     
     // MARK: - Private
-    private static func headingLabel(_ node: FrameNode) -> String {
+    private static func headingLabel(_ node: TemplateFrameNode) -> String {
         "\(String(repeating: "#", count: node.level)) \(node.title)"
     }
     
     private static func matchLevel(
-        frame: [FrameNode],
-        doc: [FrameNode],
+        frame: [TemplateFrameNode],
+        doc: [TemplateFrameNode],
         pathPrefix: String
     ) -> String? {
         if frame.isEmpty { return nil }

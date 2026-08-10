@@ -82,7 +82,7 @@ public struct NotesService: Sendable {
     public func template(
         id: String,
         cliSessionId: String = ""
-    ) async throws -> (note: NoteView, frame: [Template.FrameNode]) {
+    ) async throws -> (note: NoteView, frame: [TemplateFrameNode]) {
         let sessionId = Env.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in try template(scope, id: id, sessionId: sessionId) }
 
@@ -118,7 +118,7 @@ public struct NotesService: Sendable {
         }
     }
 
-    public func listAxes() async throws -> [(axis: String, description: String?, count: Int)] {
+    public func listAxes() async throws -> [AxisRow] {
         try await storage.read { scope in try scope.run(FetchAxesWithCountsTransaction()) }
     }
 
@@ -264,7 +264,7 @@ public struct NotesService: Sendable {
         _ scope: GRDBReadScope,
         id: String,
         sessionId: String?
-    ) throws -> (note: NoteView, frame: [Template.FrameNode], record: RetrievalRecord?) {
+    ) throws -> (note: NoteView, frame: [TemplateFrameNode], record: RetrievalRecord?) {
         let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {

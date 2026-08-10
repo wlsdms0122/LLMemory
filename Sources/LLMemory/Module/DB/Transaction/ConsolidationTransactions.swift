@@ -190,13 +190,13 @@ struct FetchAxisReportTransaction: GRDBReadTransaction {
         }
         let small = all
             .filter { entry in entry.2 <= low }
-            .map { entry in (axis: entry.0, count: entry.2) }
+            .map { entry in AxisCount(axis: entry.0, count: entry.2) }
         let large = all
             .filter { entry in entry.2 >= high }
-            .map { entry in (axis: entry.0, count: entry.2) }
+            .map { entry in AxisCount(axis: entry.0, count: entry.2) }
         
         return ConsolidateAxisReport(
-            all: all.map { entry in (axis: entry.0, description: entry.1, count: entry.2) },
+            all: all.map { entry in AxisRow(axis: entry.0, description: entry.1, count: entry.2) },
             small: small,
             large: large
         )
@@ -226,7 +226,7 @@ struct FetchTagReportTransaction: GRDBReadTransaction {
         let rare = all
             .filter { entry in entry.1 <= lowFreq }
             .prefix(limit)
-            .map { entry in (tag: entry.0, count: entry.1) }
+            .map { entry in TagCount(tag: entry.0, count: entry.1) }
         let unused = try String.fetchAll(db, sql: """
             SELECT tv.tag FROM tag_vocab tv
             LEFT JOIN tags t ON t.tag = tv.tag WHERE t.tag IS NULL

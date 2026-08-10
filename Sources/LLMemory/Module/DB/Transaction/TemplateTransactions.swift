@@ -20,7 +20,7 @@ struct LoadTemplateFrameTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Template.FrameNode]? {
+    func perform(_ db: Database) throws -> [TemplateFrameNode]? {
         guard let (_, _, body) = try FetchNoteTransaction(nid: templateId).perform(db) else { return nil }
 
         return Template.parseFrame(body)

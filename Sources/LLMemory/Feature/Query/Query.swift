@@ -43,7 +43,7 @@ public struct Query {
         includeStale: Bool,
         excludeAxes: [String],
         raw: Bool
-    ) async throws -> (rows: [Search.SearchRow], extra: [ExpandedNote]) {
+    ) async throws -> (rows: [SearchRow], extra: [ExpandedNote]) {
         try await retrieval.search(
             query: query,
             axis: axis,
@@ -111,7 +111,7 @@ public struct Query {
     public func template(
         id: String,
         cliSessionId: String = ""
-    ) async throws -> (note: NoteView, frame: [Template.FrameNode]) {
+    ) async throws -> (note: NoteView, frame: [TemplateFrameNode]) {
         try await notes.template(id: id, cliSessionId: cliSessionId)
     }
 
@@ -139,11 +139,11 @@ public struct Query {
     public func entity(
         name: String?,
         limit: Int
-    ) async throws -> [EntityQueryHit] {
+    ) async throws -> [EntityHit] {
         try await retrieval.entity(name: name, limit: limit)
     }
 
-    public func listAxes() async throws -> [(axis: String, description: String?, count: Int)] {
+    public func listAxes() async throws -> [AxisRow] {
         try await notes.listAxes()
     }
 

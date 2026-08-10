@@ -134,11 +134,11 @@ struct SectionAttributionTests {
         home.createNote(id: id, axis: "tech", title: title, tags: ["tech"], content: body)
     }
     
-    private func search(_ query: String) throws -> [Search.SearchRow] {
+    private func search(_ query: String) throws -> [SearchRow] {
         try home.read { database in try SearchNotesFTSTransaction(query: query).perform(database) }
     }
     
-    private func hit(for query: String, in noteId: String) throws -> Search.SearchRow? {
+    private func hit(for query: String, in noteId: String) throws -> SearchRow? {
         try search(query).first { hit in hit.id == noteId }
     }
 }

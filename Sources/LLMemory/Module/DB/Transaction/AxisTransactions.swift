@@ -13,7 +13,7 @@ struct FetchAxesWithCountsTransaction: GRDBReadTransaction {
     init() { }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [(axis: String, description: String?, count: Int)] {
+    func perform(_ db: Database) throws -> [AxisRow] {
         let rows = try Row.fetchAll(db, sql: """
             SELECT a.axis, a.description, COALESCE(COUNT(n.id), 0) AS c
             FROM axes a LEFT JOIN notes n ON n.axis = a.axis
@@ -21,7 +21,7 @@ struct FetchAxesWithCountsTransaction: GRDBReadTransaction {
             """)
 
         return rows.map { row in
-            (
+            AxisRow(
                 axis: row["axis"] as String,
                 description: row["description"] as String?,
                 count: row["c"] as Int

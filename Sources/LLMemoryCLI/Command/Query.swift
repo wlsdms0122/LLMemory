@@ -42,7 +42,7 @@ struct QueryTemplate: AsyncParsableCommand {
         let id: String
         let axis: String
         let path: String
-        let frame: [Template.FrameNode]
+        let frame: [TemplateFrameNode]
         
         // MARK: - Initializer
         // MARK: - Public
@@ -99,7 +99,7 @@ struct QueryTemplate: AsyncParsableCommand {
             
             var lines: [String] = []
             
-            func walk(_ nodes: [Template.FrameNode]) {
+            func walk(_ nodes: [TemplateFrameNode]) {
                 for node in nodes {
                     lines.append(String(repeating: "#", count: node.level) + " " + node.title)
                     
@@ -1576,6 +1576,29 @@ struct QueryMeta: AsyncParsableCommand {
 }
 
 struct QueryEntity: AsyncParsableCommand {
+    // The command owns its JSON shape — the module's EntityHit carries
+    // title for retrieval, but this surface never printed it.
+    struct Row: Encodable {
+        enum CodingKeys: String, CodingKey {
+            case entity, axis, summary
+            case noteId = "note_id"
+            case lastSeenAt = "last_seen_at"
+            case hitCount = "hit_count"
+        }
+
+        // MARK: - Property
+        let entity: String
+        let noteId: String
+        let axis: String?
+        let summary: String?
+        let lastSeenAt: Int
+        let hitCount: Int
+
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "entity",
@@ -1604,8 +1627,18 @@ struct QueryEntity: AsyncParsableCommand {
     func run() async throws {
         let brain = Brain(home: global.home)
         
-        let rows = try await brain.query.entity(name: name, limit: limit)
-        
+        let hits = try await brain.query.entity(name: name, limit: limit)
+        let rows = hits.map { hit in
+            Row(
+                entity: hit.entity,
+                noteId: hit.noteId,
+                axis: hit.axis,
+                summary: hit.summary,
+                lastSeenAt: hit.lastSeenAt,
+                hitCount: hit.hitCount
+            )
+        }
+
         render(rows, json: format.json) { rows in
             [
                 .table(

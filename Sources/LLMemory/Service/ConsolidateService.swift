@@ -279,21 +279,8 @@ public struct ConsolidateService: Sendable {
 
         return IntegrateResult(
             summary: summary,
-            axisReport: IntegrateResult.AxisReportOutput(
-                all: axisSummary.all.map { entry in
-                    .init(axis: entry.axis, description: entry.description, count: entry.count)
-                },
-                small: axisSummary.small.map { entry in
-                    .init(axis: entry.axis, count: entry.count)
-                },
-                large: axisSummary.large.map { entry in
-                    .init(axis: entry.axis, count: entry.count)
-                }
-            ),
-            tagReport: IntegrateResult.TagReportOutput(
-                rare: tagSummary.rare.map { entry in .init(tag: entry.tag, count: entry.count) },
-                unused: tagSummary.unused
-            ),
+            axisReport: axisSummary,
+            tagReport: tagSummary,
             prune: IntegrateResult.PruneReport(
                 axes: .init(pruned: prunedAxes, count: prunedAxes.count),
                 tagVocab: .init(pruned: prunedTags, count: prunedTags.count)

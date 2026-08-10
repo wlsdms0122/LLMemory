@@ -8,19 +8,26 @@
 import Foundation
 import GRDB
 
-public enum Search {
-    public typealias SearchRow = (
-        path: String,
-        axis: String,
-        id: String,
-        title: String,
-        summary: String?,
-        tagsCSV: String?,
-        isStale: Bool,
-        section: String?,
-        extra: Int?
-    )
+// One FTS hit — a struct rather than a tuple so surfaces can encode it
+// without mirroring (extra carries the shared-term count on expanded rows).
+public struct SearchRow: Sendable {
+    // MARK: - Property
+    public let path: String
+    public let axis: String
+    public let id: String
+    public let title: String
+    public let summary: String?
+    public let tagsCSV: String?
+    public let isStale: Bool
+    public let section: String?
+    public let extra: Int?
     
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+public enum Search {
     enum SearchError: LocalizedError {
         case invalidRawQuery(String)
         
@@ -107,7 +114,7 @@ public enum Search {
     private static func rowToSearchRow(_ row: Row, hasExtra: Bool) -> SearchRow {
         let section = (row["section"] as String?).flatMap { value in value.isEmpty ? nil : value }
         
-        return (
+        return SearchRow(
             path: row["path"],
             axis: row["axis"],
             id: row["id"],
@@ -154,7 +161,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [Search.SearchRow] {
+    func perform(_ db: Database) throws -> [SearchRow] {
         guard let matchExpr = Search.ftsMatchExpr(query, raw: raw) else { return [] }
         
         var sql = Search.rowSQL + """
@@ -204,7 +211,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
         do {
             arguments.append(fetchLimit)
             
-            let rawRows: [Search.SearchRow]
+            let rawRows: [SearchRow]
             do {
                 rawRows = try Search.fetchRows(db, sql: sql, arguments: arguments)
             } catch {

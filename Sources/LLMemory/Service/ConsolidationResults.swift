@@ -9,22 +9,83 @@ import Foundation
 
 // Consolidation result shapes — reports and summaries the consolidate
 // service returns, flat top-level models like the other service results.
-public struct ConsolidateAxisReport: Sendable {
+// The canonical axis/tag report rows — encoded as compact arrays
+// ([axis, description, count]), shared by every reporting surface.
+public struct AxisRow: Encodable, Sendable {
     // MARK: - Property
-    public let all: [(axis: String, description: String?, count: Int)]
-    public let small: [(axis: String, count: Int)]
-    public let large: [(axis: String, count: Int)]
-    
+    public let axis: String
+    public let description: String?
+    public let count: Int
+
+    // MARK: - Initializer
+    // MARK: - Public
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+
+        try container.encode(axis)
+
+        if let description {
+            try container.encode(description)
+        } else {
+            try container.encodeNil()
+        }
+
+        try container.encode(count)
+    }
+
+    // MARK: - Private
+}
+
+public struct AxisCount: Encodable, Sendable {
+    // MARK: - Property
+    public let axis: String
+    public let count: Int
+
+    // MARK: - Initializer
+    // MARK: - Public
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+
+        try container.encode(axis)
+        try container.encode(count)
+    }
+
+    // MARK: - Private
+}
+
+public struct TagCount: Encodable, Sendable {
+    // MARK: - Property
+    public let tag: String
+    public let count: Int
+
+    // MARK: - Initializer
+    // MARK: - Public
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+
+        try container.encode(tag)
+        try container.encode(count)
+    }
+
+    // MARK: - Private
+}
+
+public struct ConsolidateAxisReport: Encodable, Sendable {
+    // MARK: - Property
+    public let all: [AxisRow]
+    public let small: [AxisCount]
+    public let large: [AxisCount]
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
 }
 
-public struct ConsolidateTagReport: Sendable {
+public struct ConsolidateTagReport: Encodable, Sendable {
     // MARK: - Property
-    public let rare: [(tag: String, count: Int)]
+    public let rare: [TagCount]
     public let unused: [String]
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -38,7 +99,7 @@ public struct IntegrateResult: Encodable, Sendable {
         case prune
         case integrityL1 = "integrity_l1"
     }
-    
+
     public struct Summary: Encodable, Sendable {
         public enum CodingKeys: String, CodingKey {
             case eventsCompacted = "events_compacted"
@@ -66,7 +127,7 @@ public struct IntegrateResult: Encodable, Sendable {
             case vectorsBuilt = "vectors_built"
             case degradedPasses = "degraded_passes"
         }
-        
+
         // MARK: - Property
         public let eventsCompacted: Int
         public let smallAxes: Int
@@ -94,134 +155,54 @@ public struct IntegrateResult: Encodable, Sendable {
         // Best-effort passes that failed and rolled back, by name —
         // distinguishes "nothing to do" from "pass degraded".
         public let degradedPasses: [String]
-        
+
         // MARK: - Initializer
         // MARK: - Public
         // MARK: - Private
     }
-    
-    public struct AxisReportOutput: Encodable, Sendable {
-        // MARK: - Property
-        public let all: [AxisRow]
-        public let small: [AxisCount]
-        public let large: [AxisCount]
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    public struct AxisRow: Encodable, Sendable {
-        // MARK: - Property
-        public let axis: String
-        public let description: String?
-        public let count: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        public func encode(to encoder: Encoder) throws {
-            var container = encoder.unkeyedContainer()
-            
-            try container.encode(axis)
-            
-            if let description {
-                try container.encode(description)
-            } else {
-                try container.encodeNil()
-            }
-            
-            try container.encode(count)
-        }
-        
-        // MARK: - Private
-    }
-    
-    public struct AxisCount: Encodable, Sendable {
-        // MARK: - Property
-        public let axis: String
-        public let count: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        public func encode(to encoder: Encoder) throws {
-            var container = encoder.unkeyedContainer()
-            
-            try container.encode(axis)
-            try container.encode(count)
-        }
-        
-        // MARK: - Private
-    }
-    
-    public struct TagReportOutput: Encodable, Sendable {
-        // MARK: - Property
-        public let rare: [TagCount]
-        public let unused: [String]
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    public struct TagCount: Encodable, Sendable {
-        // MARK: - Property
-        public let tag: String
-        public let count: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        public func encode(to encoder: Encoder) throws {
-            var container = encoder.unkeyedContainer()
-            
-            try container.encode(tag)
-            try container.encode(count)
-        }
-        
-        // MARK: - Private
-    }
-    
+
     public struct PruneReport: Encodable, Sendable {
         public enum CodingKeys: String, CodingKey {
             case axes
             case tagVocab = "tag_vocab"
         }
-        
+
         public struct GroupReport: Encodable, Sendable {
             // MARK: - Property
             public let pruned: [String]
             public let count: Int
-            
+
             // MARK: - Initializer
             // MARK: - Public
             // MARK: - Private
         }
-        
+
         // MARK: - Property
         public let axes: GroupReport
         public let tagVocab: GroupReport
-        
+
         // MARK: - Initializer
         // MARK: - Public
         // MARK: - Private
     }
-    
+
     public struct IntegrityReport: Encodable, Sendable {
         // MARK: - Property
         public let checked: Int
         public let issues: [String]
-        
+
         // MARK: - Initializer
         // MARK: - Public
         // MARK: - Private
     }
-    
+
     // MARK: - Property
     public var summary: Summary
-    public let axisReport: AxisReportOutput
-    public let tagReport: TagReportOutput
+    public let axisReport: ConsolidateAxisReport
+    public let tagReport: ConsolidateTagReport
     public let prune: PruneReport
     public var integrityL1: IntegrityReport
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -232,18 +213,15 @@ public struct PruneResult: Encodable, Sendable {
         case linksDecayed = "links_decayed"
         case linksPruned = "links_pruned"
     }
-    
+
     // MARK: - Property
     public let linksDecayed: Int
     public let linksPruned: Int
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
 }
-
-// MARK: - Initializer
-// MARK: - Private
 
 public struct HomeostasisReport: Encodable, Sendable {
     enum CodingKeys: String, CodingKey {

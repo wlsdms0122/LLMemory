@@ -14,7 +14,7 @@ public struct AxisInfo: Sendable {
     public let count: Int
     public let description: String?
     public let topTags: [String]
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -29,7 +29,7 @@ public struct SimilarNote: Sendable {
     public let path: String
     public let tags: [String]
     public let section: String?
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -48,7 +48,7 @@ public struct FramingSnapshot: Sendable {
     public var entityHints: [String]
     public var entityHits: [EntityHit]
     public var degraded: [String] = []
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -58,14 +58,13 @@ public struct RelatedResult: Sendable {
     // MARK: - Property
     public let snapshot: FramingSnapshot
     public let bodies: [String: String]
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
 }
 
 public enum Framing {
-    
     // MARK: - Property
     static let stopwords: Set<String> = [
         "그리고", "하지만", "그런데", "그래서", "그러면", "이게", "저게", "이거",
@@ -76,59 +75,46 @@ public enum Framing {
         "you", "your", "they", "them", "their", "our", "out", "off", "about",
         "just", "into", "what", "when", "where", "which", "than", "then"
     ]
-    
+
     private static let wordRegex = try! NSRegularExpression(pattern: #"[A-Za-z0-9_가-힣]{2,}"#)
-    
+
     // MARK: - Initializer
     // MARK: - Public
     static func extractKeywords(_ text: String, limit: Int = 15) -> [String] {
         var frequency: [String: Int] = [:]
         let nsText = text as NSString
-        
+
         wordRegex.enumerateMatches(
             in: text,
             range: NSRange(location: 0, length: nsText.length)
         ) { match, _, _ in
             guard let match else { return }
-            
+
             let word = nsText.substring(with: match.range).lowercased()
-            
+
             if stopwords.contains(word) { return }
-            
+
             frequency[word, default: 0] += 1
         }
-        
+
         let ranked = frequency.sorted { lhs, rhs in
             if lhs.value != rhs.value { return lhs.value > rhs.value }
-            
+
             return lhs.key < rhs.key
         }
-        
+
         return ranked.prefix(limit).map { entry in entry.key }
     }
-    
 
-    
-
-    
-
-    
-
-    
-
-    
-
-    
     // MARK: - Private
     static func ftsQuery(_ keywords: [String]) -> String {
         let parts = keywords
             .filter { keyword in !keyword.isEmpty }
             .map { keyword in "\"\(keyword)\"" }
-        
+
         return parts.isEmpty ? "" : parts.joined(separator: " OR ")
     }
 }
-
 
 struct FetchAxesInfoTransaction: GRDBReadTransaction {
     // MARK: - Property
@@ -148,7 +134,7 @@ struct FetchAxesInfoTransaction: GRDBReadTransaction {
             GROUP BY a.axis ORDER BY a.axis
             """)
         var axes: [AxisInfo] = []
-        
+
         for row in rows {
             let axis: String = row["axis"]
             let topTags = try String.fetchAll(db, sql: """
@@ -156,7 +142,7 @@ struct FetchAxesInfoTransaction: GRDBReadTransaction {
                 WHERE n.axis = ?
                 GROUP BY t.tag ORDER BY COUNT(*) DESC, t.tag LIMIT ?
                 """, arguments: [axis, topTagsLimit])
-            
+
             axes.append(
                 AxisInfo(
                     axis: axis,
@@ -166,7 +152,7 @@ struct FetchAxesInfoTransaction: GRDBReadTransaction {
                 )
             )
         }
-        
+
         return axes
     }
 
@@ -191,9 +177,9 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [SimilarNote] {
         let matchExpr = Framing.ftsQuery(keywords)
-        
+
         if matchExpr.isEmpty { return [] }
-        
+
         var sql = """
                 SELECT n.id, n.axis, n.title, n.summary, n.path,
                        (SELECT group_concat(tag, ',') FROM tags WHERE note_id = n.id) AS tags,
@@ -202,14 +188,14 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
                 WHERE notes_fts MATCH ?
                 """
         var arguments: [DatabaseValueConvertible?] = [matchExpr]
-        
+
         if !includeStale {
             sql += " AND \(Policy.fresh())"
         }
-        
+
         let now = Int(Date().timeIntervalSince1970)
         let prior: [String: Double]
-        
+
         if let sessionId, !sessionId.isEmpty {
             let windowMin = Genes.int("priming.window_min")
             prior = (try? ComputeAxisPriorTransaction(
@@ -221,12 +207,12 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
         } else {
             prior = [:]
         }
-        
+
         let needsRerank = !prior.isEmpty
         let fetchLimit = Search.fetchPoolSize(limit: limit, needsRerank: needsRerank)
         sql += Search.noteAggregationSQL
         arguments.append(fetchLimit)
-        
+
         let rows = try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
         let pool: [SimilarNote] = rows.map { row in
             let tagsCSV = row["tags"] as String? ?? ""
@@ -234,7 +220,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
             let section = (row["section"] as String?).flatMap { value in
                 value.isEmpty ? nil : value
             }
-            
+
             return SimilarNote(
                 id: row["id"],
                 axis: row["axis"],
@@ -245,9 +231,9 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
                 section: section
             )
         }
-        
+
         if !needsRerank { return pool }
-        
+
         return Search.rerank(pool, prior: prior, limit: limit) { note in note.axis }
     }
 
@@ -270,7 +256,7 @@ struct FetchTopTagsTransaction: GRDBReadTransaction {
             sql: "SELECT tag, COUNT(*) c FROM tags GROUP BY tag ORDER BY c DESC, tag LIMIT ?",
             arguments: [limit]
         )
-        
+
         return rows.map { row in (row["tag"] as String, row["c"] as Int) }
     }
 
