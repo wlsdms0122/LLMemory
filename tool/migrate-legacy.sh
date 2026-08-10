@@ -23,19 +23,43 @@ LEGACY="$ROOT/data/memory.legacy-$STAMP.db"
 [ -f "$DB" ] || { echo "no DB at $DB" >&2; exit 1; }
 command -v sqlite3 >/dev/null || { echo "sqlite3 required" >&2; exit 1; }
 
-# 1. WAL-safe backup, then set the old file aside.
-sqlite3 "$DB" ".backup '$ROOT/data/backup-pre-migrate-$STAMP.db'"
-mv "$DB" "$LEGACY"
-rm -f "$DB-wal" "$DB-shm"
+# 1+2. Under llmemory's own write lock (data/.write.lock, flock — taken via
+#    python/fcntl since macOS ships no flock(1)): checkpoint the WAL into the
+#    main file, take a WAL-safe backup, and set the old file aside. Moving the
+#    DB under a live writer would orphan its WAL — the lock refuses that race.
+#    The lock is released before init below, which takes it itself; after the
+#    mv a concurrent llmemory fails loudly on the missing DB instead of
+#    corrupting anything.
+python3 - "$ROOT/data/.write.lock" "$DB" "$LEGACY" "$ROOT/data/backup-pre-migrate-$STAMP.db" <<'PY'
+import fcntl, os, sqlite3, sys
+lock_path, db_path, legacy_path, backup_path = sys.argv[1:5]
+lock = open(lock_path, "w")
+try:
+    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except OSError:
+    sys.exit(f"another llmemory process holds {lock_path} — stop it first")
+source = sqlite3.connect(db_path)
+source.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+backup = sqlite3.connect(backup_path)
+with backup:
+    source.backup(backup)
+backup.close()
+source.close()
+os.rename(db_path, legacy_path)
+for suffix in ("-wal", "-shm"):
+    try: os.remove(db_path + suffix)
+    except FileNotFoundError: pass
+PY
 
-# 2. Fresh canonical DB + markdown reprojection (notes/tags/entities/fts/ref markers).
+# 3. Fresh canonical DB + markdown reprojection (notes/tags/entities/fts/ref markers).
 "$LLMEMORY" init --home "$ROOT"
 
-# 3. Carry the non-projection state over. Ordering respects FKs
+# 4. Carry the non-projection state over. Ordering respects FKs
 #    (vocab before aliases, notes exist before every note_id FK,
 #    windows before hits). Projection tables are NOT copied — the
-#    reprojection in step 2 is their truth.
-sqlite3 "$DB" <<SQL
+#    reprojection in step 3 is their truth. -bail: one failed statement
+#    must roll the whole transaction back, never half-commit.
+sqlite3 -bail "$DB" <<SQL
 ATTACH DATABASE '$LEGACY' AS old;
 PRAGMA foreign_keys = ON;
 BEGIN;
@@ -131,8 +155,20 @@ COMMIT;
 DETACH DATABASE old;
 SQL
 
-# 4. Vectors are accepted-loss (derived) — rebuild, then reseed + verify.
+# 5. Vectors are accepted-loss (derived) — rebuild, then reseed + verify.
 "$LLMEMORY" index vector --home "$ROOT"
 "$LLMEMORY" update --home "$ROOT"
+
+# 6. Prove the carry-over — old/new row counts side by side. A shortfall is
+#    legitimate only for note_id-guarded tables whose notes no longer project.
+echo "carried rows (old -> new):"
+for t in note_usage note_source note_lifecycle_events note_links note_retrieval_terms \
+         entity_index ripple_flags candidate_dismissals corpus_dismissals events \
+         activity_windows retrieval_hits genome genome_events tag_vocab tag_aliases; do
+  o=$(sqlite3 -bail "$LEGACY" "SELECT COUNT(*) FROM $t")
+  n=$(sqlite3 -bail "$DB" "SELECT COUNT(*) FROM $t")
+  flag=""; [ "$o" != "$n" ] && flag="  <- CHECK"
+  printf '  %-24s %6s -> %-6s%s\n' "$t" "$o" "$n" "$flag"
+done
 
 echo "migrated. old DB kept at $LEGACY"

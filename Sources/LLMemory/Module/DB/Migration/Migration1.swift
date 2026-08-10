@@ -34,7 +34,6 @@ CREATE INDEX IF NOT EXISTS idx_tag_aliases_canonical ON tag_aliases(canonical);
 
 -- ─────────────────────────────────────────────────────────
 -- 분류 체계 (axes) — 라벨일 뿐. memory core 는 axis 이름으로 분기하지 않는다.
--- 도메인 의미는 plugin 이 axis 이름 또는 note_meta 의 자기 namespace 로 식별.
 -- 새 axis 는 capture 가 자유 추가.
 -- ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS axes (
@@ -45,7 +44,7 @@ CREATE TABLE IF NOT EXISTS axes (
 
 -- ─────────────────────────────────────────────────────────
 -- notes — *모든* 노트의 공통 정체성·위치·lifecycle 헤드.
--- 도메인 별 확장 메타는 note_meta (namespaced kv) 또는 frontmatter 가 SSoT.
+-- 도메인 별 확장 메타는 frontmatter 가 SSoT.
 -- axis 는 axes(axis) 에 FK — auto-create 는 코드 (vocab.ensure_axis) 가
 -- INSERT 전에 호출.
 --
@@ -157,8 +156,7 @@ CREATE INDEX IF NOT EXISTS idx_note_links_kw ON note_links(kind, weight DESC);
 
 -- ─────────────────────────────────────────────────────────
 -- note_retrieval_terms — LLM 이 capture 때 emit 하는 retrieval 보조 텍스트.
--- generic note_meta 에 넣지 않는다 — note_meta 는 core 가 해석 안 하는 opaque kv 라
--- 거기 숨기면 설계가 표면에서 사라진다. first-class 테이블로 올린다.
+-- 설계가 표면에서 읽히도록 first-class 테이블로 둔다.
 --   alias — 동의어·약어·한↔영 짝·조사 뗀 어근. BM25 synonymy 사각지대를 메움.
 --   cue   — "이 노트를 찾을 법한 질문". retrieval 을 query↔query 매칭으로(write-time HyDE).
 -- status pending→active/rejected 전이는 외부 op 가 아니라 llmemory 내부 검증
@@ -186,8 +184,7 @@ CREATE INDEX IF NOT EXISTS idx_nrt_provenance ON note_retrieval_terms(provenance
 -- ─────────────────────────────────────────────────────────
 -- note_vectors — note_links + 태그에서 유도한 dense 벡터. PPMI + truncated SVD.
 -- 외부 임베딩 모델 0 — word2vec/GloVe 가 하는 co-occurrence 행렬 분해와 동일.
--- 빌드 메타는 meta KV 에: vectors.built_at / vectors.dim /
--- vectors.model='ppmi-svd'.
+-- 빌드 메타는 meta KV 에: vectors.built_at / vectors.dim.
 -- ─────────────────────────────────────────────────────────
 -- ─────────────────────────────────────────────────────────
 -- note_ref_markers — 본문의 인용 마커(`id`/[[id]]) 를 *해석 성공 무관하게* 영속화.

@@ -86,7 +86,6 @@ public enum OpFieldRole: Sendable, Equatable {
     case plain
     case noteId
     case noteIdList
-    case axis
     case childSpecs
 }
 
@@ -124,32 +123,7 @@ public struct OperationSchema: Sendable, Encodable {
                     }
                 }
             
-            case .axis, .plain:
-                break
-            }
-        }
-        
-        return mentioned
-    }
-    
-    public func mentionedAxes(in op: [String: Any]) -> Set<String> {
-        var mentioned: Set<String> = []
-        
-        for field in fields {
-            switch field.role {
-            case .axis:
-                if let axis = op[field.name] as? String, !axis.isEmpty {
-                    mentioned.insert(axis)
-                }
-            
-            case .childSpecs:
-                for spec in (op[field.name] as? [[String: Any]]) ?? [] {
-                    if let axis = spec["axis"] as? String, !axis.isEmpty {
-                        mentioned.insert(axis)
-                    }
-                }
-            
-            case .noteId, .noteIdList, .plain:
+            case .plain:
                 break
             }
         }

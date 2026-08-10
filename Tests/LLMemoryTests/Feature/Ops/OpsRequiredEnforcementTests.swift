@@ -74,10 +74,6 @@ struct OpsRequiredEnforcementTests {
         
         // When
         let relocateIds = relocate.mentionedNoteIds(in: ["from_id": "a", "to_id": "b", "section": "## s"])
-        let splitAxes = split.mentionedAxes(in: [
-            "from_id": "a",
-            "into": [["id": "c1", "axis": "tech"], ["id": "c2", "axis": "flow"]]
-        ])
         let splitIds = split.mentionedNoteIds(in: [
             "from_id": "a",
             "into": [["id": "c1", "axis": "tech"]]
@@ -85,7 +81,6 @@ struct OpsRequiredEnforcementTests {
         
         // Then
         #expect(relocateIds == ["a", "b"], "the destination must be in scope — got \(relocateIds)")
-        #expect(splitAxes == ["tech", "flow"], "the children's arrival axes must be in scope — got \(splitAxes)")
         #expect(splitIds == ["a", "c1"])
     }
     
@@ -93,10 +88,9 @@ struct OpsRequiredEnforcementTests {
     private static func carriesScope(_ name: String) -> Bool {
         let identifiers = ["id", "ids", "src", "dst"]
         let isIdShaped = identifiers.contains(name) || name.hasSuffix("_id") || name.hasSuffix("_ids")
-        let isAxisShaped = name == "axis" || name.hasSuffix("_axis")
         let isSpecShaped = name == "into"
         
-        return isIdShaped || isAxisShaped || isSpecShaped
+        return isIdShaped || isSpecShaped
     }
     
     private func schema(of op: String) throws -> OperationSchema {

@@ -174,7 +174,7 @@ public enum HandlersStructural {
         schema: OperationSchema(
             summary: "update the description of an existing axis in the vocab",
             fields: [
-                .required("axis", role: .axis, "axis name; must already exist"),
+                .required("axis", "axis name; must already exist"),
                 .required("description", "non-empty description text")
             ],
             example: ##"{"op":"set_axis_description","axis":"persona","description":"persona/judgement notes about the user"}"##
@@ -223,7 +223,7 @@ public enum HandlersStructural {
             summary: "move a note to a different axis and/or rename its id (file relocates, frontmatter rewrites)",
             fields: [
                 .required("id", role: .noteId, "current note id"),
-                .optional("new_axis", role: .axis, "destination axis (must already exist); defaults to current axis"),
+                .optional("new_axis", "destination axis (must already exist); defaults to current axis"),
                 .optional("new_id", role: .noteId, "new id (lowercase + [a-z0-9-]); defaults to current id")
             ],
             example: ##"{"op":"migrate_note","id":"my-note","new_axis":"flow","new_id":"my-note-v2"}"##
@@ -361,8 +361,8 @@ public enum HandlersStructural {
         schema: OperationSchema(
             summary: "rename an axis across all notes (frontmatter, tags, files relocated)",
             fields: [
-                .required("from_axis", role: .axis, "current axis name; must exist"),
-                .required("to_axis", role: .axis, "new axis name (lowercase + [a-z0-9-]); must NOT exist")
+                .required("from_axis", "current axis name; must exist"),
+                .required("to_axis", "new axis name (lowercase + [a-z0-9-]); must NOT exist")
             ],
             example: ##"{"op":"rename_axis","from_axis":"oldname","to_axis":"newname"}"##
         ),
@@ -592,20 +592,23 @@ public enum HandlersStructural {
             }
             
             try scope.run(EnsureTagTransaction(tag: toTag, now: now))
-            
+            try scope.run(DropTagAliasClaimTransaction(alias: toTag))
+
+            // The rewritten files are the truth now — reproject each note so
+            // tags, content_hash and FTS follow the rename, same as every
+            // other file-rewriting handler. Retirement must come after: the
+            // vocab delete is FK-blocked until reprojection clears the old
+            // tag's rows.
             for noteId in affectedIds {
-                try scope.run(ReplaceNoteTagTransaction(noteId: noteId, fromTag: fromTag, toTag: toTag))
-                
                 guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)) else { continue }
-                
-                let relativePath = try Notes.relativeToBrainRoot(path)
-                try scope.run(SetNotePathTransaction(nid: noteId, newRel: relativePath))
+
+                try scope.run(ReindexNoteFileTransaction(path: path))
             }
-            
+
             if addAlias {
                 try scope.run(AddTagAliasTransaction(alias: fromTag, canonical: toTag, now: now))
             }
-            
+
             try scope.run(RetireTagTransaction(tag: fromTag, successor: toTag))
             
             let note = "renamed tag \(fromTag) -> \(toTag) (\(affectedIds.count) notes)"

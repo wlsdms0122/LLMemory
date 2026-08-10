@@ -13,7 +13,7 @@ public enum HandlersBasic {
         schema: OperationSchema(
             summary: "create a new note (file + DB row)",
             fields: [
-                .required("axis", role: .axis, "axis name; must also appear in tags"),
+                .required("axis", "axis name; must also appear in tags"),
                 .required("id", role: .noteId, "lowercase + [a-z0-9-], unique across active notes"),
                 .required("title", "human-readable note title"),
                 .required("tags", "non-empty string list; must include axis"),
