@@ -24,6 +24,8 @@ protocol CorpusDBLintRule: LintRuleMeta {
 struct NoteLintInput {
     // MARK: - Property
     let nid: String
+    // An `id:` the parser ignored, kept only so a rule can say it is there.
+    let declaredId: String?
     let doc: FrontmatterDoc
     let body: String
     let document: LintEngine.Document
@@ -57,6 +59,7 @@ enum LintRules {
     static let noteRules: [any NoteLintRule] = [
         InvalidIDRule(),
         InvalidPriorityRule(),
+        AddressInFrontmatterRule(),
         NoTagsRule(),
         EmptySummaryRule(),
         SummaryLongRule(),
@@ -511,6 +514,28 @@ struct InvalidPriorityRule: NoteLintRule {
         guard !Self.valid.contains(note.doc.priority) else { return [] }
         
         return [.init("priority must be eager|lazy: '\(note.doc.priority)'")]
+    }
+    
+    // MARK: - Private
+}
+
+// An `id:` line is ignored by the parser, which is exactly why it needs saying:
+// a note that writes an address in its text while living at another one reads as
+// authoritative and is not. Nothing breaks — the note is simply lying quietly.
+struct AddressInFrontmatterRule: NoteLintRule {
+    // MARK: - Property
+    let code = "address-in-frontmatter"
+    let severity = LintEngine.Severity.warn
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintEngine.Finding] {
+        guard let declared = note.declaredId else { return [] }
+        
+        return [.init(
+            "frontmatter declares 'id: \(declared)' — the address is where the file is "
+                + "(\(note.nid)), so remove the line"
+        )]
     }
     
     // MARK: - Private

@@ -146,6 +146,42 @@ struct PathIdInvariantTests {
     // The address is written once, as the file's location. A note that also
     // spelled its id in frontmatter would be carrying a second copy of the same
     // fact, and two copies of a fact are a disagreement waiting to happen.
+    @Test("a leftover id: line is ignored, and lint says it is there")
+    func aDeclaredIdIsIgnoredAndReported() throws {
+        // Given — a hand-written note that still spells its address in text.
+        let file = home.url.appendingPathComponent("cortex/stale/decl.md")
+
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try """
+        ---
+        id: something.else
+        title: t
+        priority: lazy
+        tags: [flow]
+        summary: s
+        ---
+
+        ## A
+        body
+        """.write(to: file, atomically: true, encoding: .utf8)
+        try home.reindexFile(at: file)
+
+        // Then — the location wins, and the lie is named rather than obeyed.
+        let ids = try home.read { database in
+            try String.fetchAll(database, sql: "SELECT id FROM notes ORDER BY id")
+        }
+
+        #expect(ids.contains("stale.decl") && !ids.contains("something.else"), "\(ids)")
+
+        let issues = try home.readScope { scope in try Lint.lintAll(scope) }
+            .filter { issue in issue.code == "address-in-frontmatter" }
+
+        #expect(!issues.isEmpty, "no rule named the declared address")
+    }
+
     @Test("a note declares no id — the file's location is the only place it lives")
     func theFileLocationIsTheOnlyAddress() throws {
         // Given

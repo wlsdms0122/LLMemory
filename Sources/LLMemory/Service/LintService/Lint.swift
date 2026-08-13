@@ -246,6 +246,28 @@ public enum Lint {
     }
     
     // MARK: - Private
+    // The frontmatter block only — an "id:" further down is prose.
+    private static func declaredId(in text: String) -> String? {
+        var seenOpen = false
+
+        for line in text.unicodeLines() {
+            if line == "---" {
+                if seenOpen { return nil }
+
+                seenOpen = true
+                continue
+            }
+
+            guard seenOpen else { return nil }
+
+            if line.hasPrefix("id:") {
+                return String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+            }
+        }
+
+        return nil
+    }
+
     private static func lintNote(
         _ scope: GRDBReadScope,
         nid: String,
@@ -264,20 +286,17 @@ public enum Lint {
         
         let document: FrontmatterDoc
         let body: String
+        let text: String
         do {
-            // Through the reader, not raw parse: the id comes from where the file
-            // is, and only the reader knows that.
-            guard let read = try Notes.readNoteIfPresent(at: path) else {
-                return [Issue("error", "file-missing", "file does not exist: \(relativePath)", .note(nid))]
-            }
-            
-            (document, body) = read
+            text = try String(contentsOf: path, encoding: .utf8)
+            (document, body) = try Frontmatter.parse(text)
         } catch {
             return [Issue("error", "frontmatter-parse", "parse failed: \(error)", .note(nid))]
         }
         
         let note = NoteLintInput(
             nid: nid,
+            declaredId: Self.declaredId(in: text),
             doc: document,
             body: body,
             document: LintRules.document(nid: nid, body: body)
