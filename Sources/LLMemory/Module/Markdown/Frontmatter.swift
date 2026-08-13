@@ -31,9 +31,9 @@ struct FrontmatterDoc: Equatable, Encodable, Sendable {
     }
     
     // MARK: - Property
-    // Not a frontmatter field — the file's location is the id, and this carries
-    // it for whoever read the file. Parsing text alone cannot fill it.
-    var id: String = ""
+    // No id. The file's location is the note's address, so a struct that mirrors
+    // what the file carries has no field for it — and no caller can read one
+    // that a raw parse never filled.
     var title: String = ""
     var priority: String = "lazy"
     var summary: String = ""

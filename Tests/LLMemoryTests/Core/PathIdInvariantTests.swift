@@ -157,8 +157,7 @@ struct PathIdInvariantTests {
 
         // Then
         #expect(!text.contains("\nid:"), "the note wrote its address down a second time")
-        #expect(try Notes.requireNote(at: file).doc.id == "x.y.z",
-            "reading a note is where its id comes from")
+        #expect(Paths.id(ofFile: file) == "x.y.z", "the location is where the id comes from")
 
         let indexed = try home.read { database in
             try String.fetchAll(database, sql: "SELECT id FROM notes WHERE id = 'x.y.z'")

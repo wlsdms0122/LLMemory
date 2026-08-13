@@ -38,17 +38,11 @@ enum Notes {
         return read
     }
     
-    // Reading is the only place an id can come from, because the id is where the
-    // file is. Nothing downstream has to ask whether the note agrees with its own
-    // location — there is no second copy to disagree with.
     static func readNoteIfPresent(at url: URL) throws -> (doc: FrontmatterDoc, body: String)? {
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         
         do {
-            var (doc, body) = try Frontmatter.parse(try String(contentsOf: url, encoding: .utf8))
-            doc.id = Paths.id(ofFile: url) ?? ""
-            
-            return (doc, body)
+            return try Frontmatter.parse(try String(contentsOf: url, encoding: .utf8))
         } catch {
             throw NoteUnreadable(path: url.path, reason: "\(error)")
         }

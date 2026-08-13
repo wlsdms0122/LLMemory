@@ -728,7 +728,6 @@ public enum HandlersStructural {
                 )
                 
                 var childDoc = FrontmatterDoc(
-                    id: childId,
                     title: child["title"] as? String ?? "",
                     priority: child["priority"] as? String ?? "lazy",
                     summary: child["summary"] as? String ?? "",

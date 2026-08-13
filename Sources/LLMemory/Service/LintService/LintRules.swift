@@ -483,16 +483,16 @@ struct InvalidIDRule: NoteLintRule {
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintEngine.Finding] {
-        let nsId = note.doc.id as NSString
+        let nsId = note.nid as NSString
         
         guard Paths.idRegex.firstMatch(
-            in: note.doc.id,
+            in: note.nid,
             range: NSRange(location: 0, length: nsId.length)
         ) == nil else {
             return []
         }
         
-        return [.init("id must be dot-joined kebab-case labels: '\(note.doc.id)'")]
+        return [.init("id must be dot-joined kebab-case labels: '\(note.nid)'")]
     }
     
     // MARK: - Private

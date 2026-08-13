@@ -656,9 +656,7 @@ public struct OperationsEngine: Sendable {
             
             guard let templateId = doc.template, !templateId.isEmpty else { continue }
             
-            let noteId = doc.id.isEmpty
-                ? (Paths.id(ofFile: path) ?? path.lastPathComponent)
-                : doc.id
+            let noteId = Paths.id(ofFile: path) ?? path.lastPathComponent
             
             guard let frame = (try? scope.run(LoadTemplateFrameTransaction(templateId: templateId))) ?? nil else {
                 violations.append("\(noteId): unknown template '\(templateId)'")

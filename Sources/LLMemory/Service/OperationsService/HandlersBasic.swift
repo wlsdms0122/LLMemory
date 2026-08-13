@@ -101,7 +101,6 @@ public enum HandlersBasic {
             
             let body = try Handlers.composeCreateBody(op, scope.readOnly)
             var doc = FrontmatterDoc(
-                id: noteId,
                 title: op["title"] as? String ?? "",
                 priority: op["priority"] as? String ?? "lazy",
                 summary: op["summary"] as? String ?? "",

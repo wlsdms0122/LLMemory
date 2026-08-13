@@ -17,7 +17,7 @@ struct FrontmatterTests {
     func roundTripDoesNotAccumulateBlankLines() throws {
         // Given
         var document = FrontmatterDoc(
-            id: "rt-1", title: "t",
+            title: "t",
             priority: "lazy", summary: "s", tags: ["tech"]
         )
         
@@ -42,7 +42,7 @@ struct FrontmatterTests {
     func multipleBlanksHealOnRewrite() throws {
         // Given
         let document = FrontmatterDoc(
-            id: "heal-1", title: "t",
+            title: "t",
             priority: "lazy", summary: "s", tags: ["tech"]
         )
         
@@ -63,7 +63,7 @@ struct FrontmatterTests {
     func noBlankAlsoHealsToCanonical() throws {
         // Given
         let document = FrontmatterDoc(
-            id: "heal-2", title: "t",
+            title: "t",
             priority: "lazy", summary: "s", tags: ["tech"]
         )
         

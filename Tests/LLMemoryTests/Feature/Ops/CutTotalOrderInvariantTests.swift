@@ -200,7 +200,7 @@ struct CutTotalOrderInvariantTests {
                     at: file.deletingLastPathComponent(),
                     withIntermediateDirectories: true
                 )
-                try (Frontmatter.dump(FrontmatterDoc(id: noteId, title: noteId))
+                try (Frontmatter.dump(FrontmatterDoc(title: noteId))
                     + "## A\nx\n## B\ny\n").write(to: file, atomically: true, encoding: .utf8)
             }
         }
