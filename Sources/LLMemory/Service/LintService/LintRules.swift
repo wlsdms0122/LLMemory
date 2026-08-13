@@ -64,7 +64,7 @@ enum LintRules {
         EmptySummaryRule(),
         SummaryLongRule(),
         EmptyTitleRule(),
-        UnknownFieldRule(),
+        FieldTypoRule(),
         StaleSourceRule(),
         EmptyBodyRule(),
         TinyBodyRule(),
@@ -594,17 +594,27 @@ struct EmptyTitleRule: NoteLintRule {
     // MARK: - Private
 }
 
-struct UnknownFieldRule: NoteLintRule {
+// A field llmemory does not know is not a defect — that is what custom fields
+// are. What is still a defect is a *near miss*: `summry:` parses fine, lands in
+// extra, and leaves the real summary empty. Only edit-distance-1 neighbours of a
+// first-class field are worth a word.
+struct FieldTypoRule: NoteLintRule {
     // MARK: - Property
-    let code = "unknown-field"
+    let code = "field-typo"
     let severity = LintEngine.Severity.warn
     
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintEngine.Finding] {
-        note.doc.extra.keys.sorted().map { field in
-            .init(
-                "unknown frontmatter field '\(field)' — typo or off-schema (preserved in extra)",
+        note.doc.extra.keys.sorted().compactMap { field in
+            guard let known = Frontmatter.knownFields.first(
+                where: { known in withinEdit1(field, known) }
+            ) else {
+                return nil
+            }
+            
+            return .init(
+                "custom field '\(field)' is one edit from '\(known)' — typo, or meant as its own field?",
                 key: "field:\(field)"
             )
         }

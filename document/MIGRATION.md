@@ -27,7 +27,8 @@ split routing 의 `type:"meta"` 가 함께 사라졌다.
 `tag-only-axis` 는 `tag-underclassified` 로 바뀌었다 — 판정(태그 1개)은 같고 이유가
 "축 태그뿐"에서 "들어오는 길이 하나뿐"으로 정정됐다. **코드가 바뀌었으니 이 코드로 걸어둔
 기존 dismissal 은 끊기고 경고가 한 번 되살아난다.** `tag-near-duplicate` 는 축 이름인 태그를
-건너뛰던 예외가 사라졌다 — 이제 그냥 태그다.
+건너뛰던 예외가 사라졌다 — 이제 그냥 태그다. `unknown-field` 는 `field-typo` 로 좁아졌다:
+모르는 필드는 이제 기능이라 결함이 아니고, 일급 필드와 edit-distance 1 인 것(`summry`)만 짚는다.
 
 ## 왜 스크립트인가
 

@@ -137,7 +137,7 @@ struct LintFindingIdentityInvariantTests {
         #expect(!clean.contains { issue in issue.code == "lint-rule-identity-collision" })
     }
     
-    @Test("two unknown fields on one note stay two findings — one review must not close both")
+    @Test("two mistyped fields on one note stay two findings — one review must not close both")
     func aCollidingRuleDoesNotSilenceTheRestOfTheSurface() throws {
         // Given
         home.createNote(id: "blast-note")
@@ -156,7 +156,7 @@ struct LintFindingIdentityInvariantTests {
         let issues = try home.readScope { scope in try Lint.lintAll(scope) }
         
         // Then
-        #expect(issues.filter { issue in issue.code == "unknown-field" }.count == 2,
+        #expect(issues.filter { issue in issue.code == "field-typo" }.count == 2,
             "the two mistyped fields collapsed onto one identity")
         #expect(!issues.contains { issue in issue.code == "lint-rule-identity-collision" })
     }

@@ -102,6 +102,14 @@ struct FrontmatterDoc: Equatable, Encodable, Sendable {
 
 enum Frontmatter {
     // MARK: - Property
+    // The keys parse() recognises. Everything else is a custom field — this list
+    // exists so a near-miss ('summry') can be told apart from an intended one.
+    static let knownFields: [String] = [
+        "id", "title", "axis", "priority", "summary", "tags", "entities",
+        "promoted_from", "source", "template", "locked", "stale",
+        "invalidated_at", "invalidated_reason", "trashed_at", "trashed_reason"
+    ]
+
     private static let frontmatterRegex: NSRegularExpression = try! NSRegularExpression(
         pattern: #"\A---\n(.*?)\n---\n+(.*)"#,
         options: [.dotMatchesLineSeparators]
