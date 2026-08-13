@@ -55,10 +55,28 @@ public struct NoteListRow: Encodable, Sendable {
     // MARK: - Private
 }
 
+// A custom frontmatter field to match on: the key alone means "has it",
+// key + value means "has it with exactly this value".
+public struct NoteFieldFilter: Sendable {
+    // MARK: - Property
+    public let key: String
+    public let value: String?
+
+    // MARK: - Initializer
+    public init(key: String, value: String?) {
+        self.key = key
+        self.value = value
+    }
+
+    // MARK: - Public
+    // MARK: - Private
+}
+
 struct NoteListFilter {
     // MARK: - Property
     var priority: String?
-    var axis: String?
+    var tags: [String]
+    var fields: [NoteFieldFilter]
     var stale: Bool
     var sourceStale: Bool
     var limit: Int?
@@ -66,13 +84,15 @@ struct NoteListFilter {
     // MARK: - Initializer
     init(
         priority: String? = nil,
-        axis: String? = nil,
+        tags: [String] = [],
+        fields: [NoteFieldFilter] = [],
         stale: Bool = false,
         sourceStale: Bool = false,
         limit: Int? = nil
     ) {
         self.priority = priority
-        self.axis = axis
+        self.tags = tags
+        self.fields = fields
         self.stale = stale
         self.sourceStale = sourceStale
         self.limit = limit
@@ -232,9 +252,25 @@ struct ListNoteRowsTransaction: GRDBReadTransaction {
             arguments.append(priority)
         }
 
-        if let axis = filter.axis {
-            clauses.append("n.axis = ?")
-            arguments.append(axis)
+        // Aliases exist so a caller may spell a tag either way — resolve before matching,
+        // since only the canonical spelling is stored on the note.
+        for tag in filter.tags {
+            clauses.append("EXISTS (SELECT 1 FROM tags t WHERE t.note_id = n.id AND t.tag = ?)")
+            arguments.append(try CanonicalizeTagTransaction(tag: tag).perform(db))
+        }
+
+        for field in filter.fields {
+            var clause = "EXISTS (SELECT 1 FROM note_extra x"
+                + " WHERE x.note_id = n.id AND x.key = ?"
+
+            arguments.append(field.key)
+
+            if let value = field.value {
+                clause += " AND x.value = ?"
+                arguments.append(value)
+            }
+
+            clauses.append(clause + ")")
         }
 
         if filter.stale { clauses.append("n.stale = 1") }

@@ -12,7 +12,6 @@ public struct AxisInfo: Sendable {
     // MARK: - Property
     public let axis: String
     public let count: Int
-    public let description: String?
     public let topTags: [String]
 
     // MARK: - Initializer
@@ -128,7 +127,7 @@ struct FetchAxesInfoTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [AxisInfo] {
         let rows = try Row.fetchAll(db, sql: """
-            SELECT a.axis, COALESCE(COUNT(n.id), 0) AS cnt, a.description
+            SELECT a.axis, COALESCE(COUNT(n.id), 0) AS cnt
             FROM axes a
             LEFT JOIN notes n ON n.axis = a.axis
             GROUP BY a.axis ORDER BY a.axis
@@ -147,7 +146,6 @@ struct FetchAxesInfoTransaction: GRDBReadTransaction {
                 AxisInfo(
                     axis: axis,
                     count: row["cnt"] as Int? ?? 0,
-                    description: row["description"] as String?,
                     topTags: topTags
                 )
             )
@@ -198,7 +196,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
 
         if let sessionId, !sessionId.isEmpty {
             let windowMin = Genes.int("priming.window_min")
-            prior = (try? ComputeAxisPriorTransaction(
+            prior = (try? ComputeTagPriorTransaction(
                 sessionId: sessionId,
                 windowSec: windowMin * 60,
                 now: now
@@ -234,7 +232,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
 
         if !needsRerank { return pool }
 
-        return Search.rerank(pool, prior: prior, limit: limit) { note in note.axis }
+        return Search.rerank(pool, prior: prior, limit: limit) { note in note.tags }
     }
 
     // MARK: - Private

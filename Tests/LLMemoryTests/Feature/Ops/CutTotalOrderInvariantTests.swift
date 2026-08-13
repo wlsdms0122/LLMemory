@@ -187,7 +187,7 @@ struct CutTotalOrderInvariantTests {
     private func seedNotes(ids: [String], wordCount: Int = 0, sectionCount: Int = 0) throws {
         try home.database().write { database in
             try database.execute(
-                sql: "INSERT OR IGNORE INTO axes (axis, description, created_at) VALUES ('flow','flow',?)",
+                sql: "INSERT OR IGNORE INTO axes (axis, created_at) VALUES ('flow',?)",
                 arguments: [home.now]
             )
             

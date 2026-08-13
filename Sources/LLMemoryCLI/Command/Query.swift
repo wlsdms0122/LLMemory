@@ -131,7 +131,6 @@ struct QueryAxes: AsyncParsableCommand {
         // MARK: - Property
         let axis: String
         let count: Int
-        let description: String?
         
         // MARK: - Initializer
         // MARK: - Public
@@ -162,14 +161,14 @@ struct QueryAxes: AsyncParsableCommand {
         
         let axes = try await brain.query.listAxes()
         let rows = axes.map { entry in
-            AxisRow(axis: entry.axis, count: entry.count, description: entry.description)
+            AxisRow(axis: entry.axis, count: entry.count)
         }
         
         render(rows, json: format.json) { rows in
             [
                 .table(
-                    rows.map { row in [row.axis, String(row.count), row.description ?? ""] },
-                    headers: ["axis", "count", "description"]
+                    rows.map { row in [row.axis, String(row.count)] },
+                    headers: ["axis", "count"]
                 )
             ]
         }
@@ -413,14 +412,13 @@ struct QueryRelated: AsyncParsableCommand {
     
     struct AxisRow: Encodable {
         enum CodingKeys: String, CodingKey {
-            case axis, count, description
+            case axis, count
             case topTags = "top_tags"
         }
         
         // MARK: - Property
         let axis: String
         let count: Int
-        let description: String?
         let topTags: [String]
         
         // MARK: - Initializer
@@ -430,7 +428,6 @@ struct QueryRelated: AsyncParsableCommand {
             
             try container.encode(axis, forKey: .axis)
             try container.encode(count, forKey: .count)
-            try container.encode(description, forKey: .description)
             try container.encode(topTags, forKey: .topTags)
         }
         
@@ -626,12 +623,7 @@ struct QueryRelated: AsyncParsableCommand {
             degraded: snapshot.degraded.isEmpty ? nil : snapshot.degraded,
             axes: full
                 ? snapshot.axes.map { axis in
-                    AxisRow(
-                        axis: axis.axis,
-                        count: axis.count,
-                        description: axis.description,
-                        topTags: axis.topTags
-                    )
+                    AxisRow(axis: axis.axis, count: axis.count, topTags: axis.topTags)
                 }
                 : nil,
             cooccur: full
@@ -672,14 +664,9 @@ struct QueryRelated: AsyncParsableCommand {
                 blocks.append(
                     .table(
                         axes.map { axis in
-                            [
-                                axis.axis,
-                                String(axis.count),
-                                axis.topTags.joined(separator: ","),
-                                axis.description ?? ""
-                            ]
+                            [axis.axis, String(axis.count), axis.topTags.joined(separator: ",")]
                         },
-                        headers: ["axis", "count", "top_tags", "description"]
+                        headers: ["axis", "count", "top_tags"]
                     )
                 )
             }
@@ -912,7 +899,7 @@ struct QuerySearch: AsyncParsableCommand {
 
             EXAMPLES
                 llmemory query search "ios log masking transformer" --home brain
-                llmemory query search "transfer" --axis tech --limit 10 --home brain
+                llmemory query search "transfer" --tag tech --limit 10 --home brain
                 llmemory query search "transfer NOT giro" --raw --home brain
             """
     )
@@ -923,8 +910,8 @@ struct QuerySearch: AsyncParsableCommand {
     @Argument(help: "FTS5 query string.")
     var query: String
     
-    @Option(name: .long, help: "Restrict to a single axis.")
-    var axis: String?
+    @Option(name: .long, help: "Restrict to notes carrying this tag. Repeatable — all must be present.")
+    var tag: [String] = []
     
     @Option(name: .long, help: "Max rows returned (default 5).")
     var limit: Int = 5
@@ -935,8 +922,8 @@ struct QuerySearch: AsyncParsableCommand {
     @Flag(name: .long, help: "Include notes marked stale.")
     var includeStale: Bool = false
     
-    @Option(name: .long, parsing: .upToNextOption, help: "Axes to exclude from search.")
-    var excludeAxes: [String] = []
+    @Option(name: .long, parsing: .upToNextOption, help: "Tags to exclude from search.")
+    var excludeTags: [String] = []
     
     @Flag(name: .long, help: "Treat the query as a verbatim FTS5 expression (AND/OR/NOT/\"phrase\"/prefix*) instead of tokenizing into an OR.")
     var raw: Bool = false
@@ -951,12 +938,12 @@ struct QuerySearch: AsyncParsableCommand {
         
         let (rows, extra) = try await brain.query.search(
             query: query,
-            axis: axis,
+            tags: tag,
             limit: limit,
             expand: expand,
             cliSessionId: global.sessionId,
             includeStale: includeStale,
-            excludeAxes: excludeAxes,
+            excludeTags: excludeTags,
             raw: raw
         )
         let output = Output(
@@ -1548,12 +1535,11 @@ struct QueryEntity: AsyncParsableCommand {
 struct QueryStructure: AsyncParsableCommand {
     struct AxisRow: Encodable {
         enum CodingKeys: String, CodingKey {
-            case axis, description, count
+            case axis, count
         }
         
         // MARK: - Property
         let axis: String
-        let description: String?
         let count: Int
         
         // MARK: - Initializer
@@ -1562,7 +1548,6 @@ struct QueryStructure: AsyncParsableCommand {
             var container = encoder.container(keyedBy: CodingKeys.self)
             
             try container.encode(axis, forKey: .axis)
-            try container.encode(description, forKey: .description)
             try container.encode(count, forKey: .count)
         }
         
@@ -1672,7 +1657,7 @@ struct QueryStructure: AsyncParsableCommand {
         }
         let output = Output(
             axes: structure.axes.map { entry in
-                AxisRow(axis: entry.axis, description: entry.description, count: entry.count)
+                AxisRow(axis: entry.axis, count: entry.count)
             },
             links: LinksReport(
                 byKind: distribution.byKind.map { entry in
@@ -1701,10 +1686,8 @@ struct QueryStructure: AsyncParsableCommand {
             var blocks: [PlainBlock] = [
                 .section("axes (\(output.axes.count))"),
                 .table(
-                    output.axes.map { row in
-                        [row.axis, String(row.count), row.description ?? ""]
-                    },
-                    headers: ["axis", "count", "description"]
+                    output.axes.map { row in [row.axis, String(row.count)] },
+                    headers: ["axis", "count"]
                 ),
                 .section("links by kind"),
                 .table(
@@ -2163,20 +2146,24 @@ struct QueryList: AsyncParsableCommand {
 
             EXAMPLES
                 llmemory query list --priority eager --home brain
-                llmemory query list --stale --axis persona --home brain
-                llmemory query list --axis skill --json --home brain
+                llmemory query list --stale --tag persona --home brain
+                llmemory query list --tag skill --json --home brain
+                llmemory query list --tag journal --field affect=high --home brain
             """
     )
-    
+
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
-    
+
     @Option(name: .long, help: "Match a priority (e.g. eager).")
     var priority: String?
-    
-    @Option(name: .long, help: "Match a single axis.")
-    var axis: String?
-    
+
+    @Option(name: .long, help: "Match a tag. Repeatable — all must be present.")
+    var tag: [String] = []
+
+    @Option(name: .long, help: "Match a custom frontmatter field: 'key' (present) or 'key=value'. Repeatable.")
+    var field: [String] = []
+
     @Flag(name: .long, help: "Match content-stale notes (stale = 1).")
     var stale: Bool = false
     
@@ -2196,7 +2183,8 @@ struct QueryList: AsyncParsableCommand {
         
         let rows = try await brain.query.list(
             priority: priority,
-            axis: axis,
+            tags: tag,
+            fields: try field.map { spec in try Self.parseField(spec) },
             stale: stale,
             sourceStale: sourceStale,
             limit: limit
@@ -2251,8 +2239,26 @@ struct QueryList: AsyncParsableCommand {
             ]
         }
     }
-    
+
     // MARK: - Private
+    private static func parseField(_ spec: String) throws -> NoteFieldFilter {
+        guard let separator = spec.firstIndex(of: "=") else {
+            guard !spec.isEmpty else {
+                throw ValidationError("--field needs a key: 'key' or 'key=value'")
+            }
+
+            return NoteFieldFilter(key: spec, value: nil)
+        }
+
+        let key = String(spec[spec.startIndex..<separator])
+        let value = String(spec[spec.index(after: separator)...])
+
+        guard !key.isEmpty, !value.isEmpty else {
+            throw ValidationError("--field '\(spec)' must be 'key' or 'key=value'")
+        }
+
+        return NoteFieldFilter(key: key, value: value)
+    }
 }
 
 struct QueryHistory: AsyncParsableCommand {

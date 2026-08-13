@@ -13,10 +13,10 @@ public enum HandlersBasic {
         schema: OperationSchema(
             summary: "create a new note (file + DB row)",
             fields: [
-                .required("axis", "axis name; must also appear in tags"),
+                .required("axis", "axis name — the cortex/ directory the file lands in"),
                 .required("id", role: .noteId, "lowercase + [a-z0-9-], unique across active notes"),
                 .required("title", "human-readable note title"),
-                .required("tags", "non-empty string list; must include axis"),
+                .required("tags", "non-empty string list — how the note is classified"),
                 .required("summary", "one-line summary used by retrieval"),
                 .required("content", unless: "template", "markdown body (frontmatter is generated). optional when 'template' is set — the template frame is scaffolded as empty sections"),
                 .optional("priority", "'eager' | 'lazy' (default 'lazy'); eager has cap"),
@@ -24,7 +24,6 @@ public enum HandlersBasic {
                 .optional("entities", "string list of named entities"),
                 .optional("template", "id of a template note this note follows (structured document). body must conform to the template frame; empty content is scaffolded"),
                 .optional("locked", "bool. true → human-only: subsequent operations mutation is refused, file is edited directly"),
-                .optional("axis_description", "required only when axis is brand new"),
                 .optional("rationale", "lifecycle event reason recorded on creation")
             ],
             example: ##"{"op":"create_note","axis":"persona","id":"my-note","title":"...","tags":["persona"],"summary":"...","content":"# body"}"##
@@ -57,11 +56,7 @@ public enum HandlersBasic {
                 return "tags must be non-empty list"
             }
             
-            let tagStrings = tags.compactMap { tag in tag as? String }
-            
             guard let axis = op["axis"] as? String else { return "axis required" }
-            
-            if !tagStrings.contains(axis) { return "axis tag missing from tags: \(axis)" }
             
             let priority = op["priority"] as? String ?? "lazy"
             
@@ -77,19 +72,13 @@ public enum HandlersBasic {
                 return "id collision: \(noteId) (use patch_section to update)"
             }
             
-            if !state.axes.contains(axis) && !context.inFlightAxes.contains(axis) {
-                let nsAxis = axis as NSString
-                
-                if Handlers.axisRegex.firstMatch(
-                    in: axis,
-                    range: NSRange(location: 0, length: nsAxis.length)
-                ) == nil {
-                    return "invalid axis format: \(axis)"
-                }
-                
-                if (op["axis_description"] as? String)?.isEmpty != false {
-                    return "axis '\(axis)' is new — provide axis_description"
-                }
+            let nsAxis = axis as NSString
+
+            if Handlers.axisRegex.firstMatch(
+                in: axis,
+                range: NSRange(location: 0, length: nsAxis.length)
+            ) == nil {
+                return "invalid axis format: \(axis)"
             }
             
             let path = Handlers.pathFor(axis: axis, nid: noteId)
@@ -139,10 +128,6 @@ public enum HandlersBasic {
             if !entities.isEmpty { doc.entities = entities }
             
             try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-            
-            if let axisDescription = op["axis_description"] as? String, !axisDescription.isEmpty {
-                try scope.run(EnsureAxisTransaction(axis: axis, description: axisDescription, now: now))
-            }
             
             try scope.run(ReindexNoteFileTransaction(path: path))
             try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: true))
@@ -297,12 +282,12 @@ public enum HandlersBasic {
     
     public static let setFrontmatter = OperationHandler(
         schema: OperationSchema(
-            summary: "merge frontmatter fields (mutable subset only)",
+            summary: "merge frontmatter fields (any field the note owns)",
             fields: [
                 .required("id", role: .noteId, "target note id"),
-                .required("fields", "non-empty dict of {title|summary|tags|priority|source|promoted_from: value}; tags must include axis if updated")
+                .required("fields", "non-empty dict. Known: title|summary|tags|priority|source|promoted_from|entities. Any other key is a custom field (scalar value, projected to note_extra); null removes it. Rejected: id/axis/template/locked/stale/invalidated_*/trashed_* — each has its own op")
             ],
-            example: ##"{"op":"set_frontmatter","id":"my-note","fields":{"summary":"updated summary","tags":["persona","new-tag"]}}"##
+            example: ##"{"op":"set_frontmatter","id":"my-note","fields":{"summary":"updated summary","affect":"high"}}"##
         ),
         validate: { op, context, scope in
             let noteId = op["id"] as? String ?? ""
@@ -315,14 +300,16 @@ public enum HandlersBasic {
                 return "fields must be non-empty dict"
             }
             
-            let illegal = fields.keys.filter { key in
-                !Handlers.frontmatterMutable.contains(key)
+            let reserved = fields.keys.filter { key in
+                Handlers.frontmatterReserved.contains(key)
             }
-            
-            if !illegal.isEmpty {
-                return "illegal fields: \(illegal.sorted()) (use rename_section/migrate_note/etc.; allowed=\(Handlers.frontmatterMutable.sorted()))"
+
+            if !reserved.isEmpty {
+                return "reserved fields: \(reserved.sorted()) — each has its own op "
+                    + "(migrate_note for id/axis, invalidate/revalidate for stale, "
+                    + "delete_note/restore_note for trashed_*; template/locked are file-only)"
             }
-            
+
             if let tags = fields["tags"] {
                 guard let array = tags as? [Any], !array.isEmpty else {
                     return "tags must be non-empty list"

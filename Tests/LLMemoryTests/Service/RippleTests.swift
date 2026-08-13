@@ -88,7 +88,7 @@ struct RippleTests {
     private func seedThreeNotes() throws {
         try home.database().write { database in
             try database.execute(
-                sql: "INSERT OR IGNORE INTO axes (axis, description, created_at) VALUES ('flow', 'flow', ?)",
+                sql: "INSERT OR IGNORE INTO axes (axis, created_at) VALUES ('flow', ?)",
                 arguments: [home.now]
             )
             

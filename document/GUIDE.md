@@ -90,7 +90,7 @@ llmemory query related --input '{"text":"..."}' --json --home <state-root>
 
 **키워드 FTS 검색**:
 ```
-llmemory query search "transfer" --axis tech --home <state-root>
+llmemory query search "transfer" --tag tech --home <state-root>
 ```
 
 **노트 본문 읽기** (직접 file Read 대신 — id 로 조회, 여러 개 동시 가능):
@@ -118,9 +118,20 @@ wrapper 의 자식 단위로 내려가 자르고, 헤딩이 아예 없는 본문
 스크립트에서 id 추출은 `--json` 파싱으로):
 ```
 llmemory query list --priority eager --home <state-root>
-llmemory query list --axis skill --json --home <state-root>
+llmemory query list --tag skill --json --home <state-root>
+llmemory query list --tag journal --field affect=high --home <state-root>
 ```
-필터는 AND 조합: `--priority` / `--axis` / `--stale` / `--source-stale` / `--limit`.
+필터는 AND 조합: `--priority` / `--tag` / `--field` / `--stale` / `--source-stale` / `--limit`.
+`--tag` 와 `--field` 는 반복 가능하고 전부 만족해야 걸린다.
+
+**분류는 태그, 주소는 axis.** `axis` 는 파일이 놓이는 `cortex/<axis>/` 디렉터리일 뿐이고
+지식의 분류는 전적으로 태그가 한다 — 하나의 지식이 여러 축에 걸칠 수 있으니 단일 값인
+axis 로는 분류가 안 된다. 검색·나열·세션 priming 전부 태그 위에서 돈다.
+
+**커스텀 frontmatter 필드.** frontmatter 는 일급 필드(title/summary/tags/…) 외에
+아무 키나 실을 수 있고, 그 값은 `note_extra` 로 투영돼 `--field` 로 질의된다.
+`set_frontmatter` 로 쓰고(값이 `null` 이면 삭제), 파일이 언제나 SSoT 다 —
+지식만 옮긴 뇌에서도 이 값은 파일과 함께 따라온다.
 
 **분화·승격의 사실 엣지**: `split_note` 는 자식들 사이에 `sibling` 을 자동으로 심는다.
 승격(낱개 → 요지/면)은 `link_lineage` 로 남긴다 — `propose_link`(감쇠하는 연상 제안)와 달리

@@ -226,9 +226,16 @@ public enum Handlers {
     public static let creatableFlagKinds: Set<String> = ["reconsolidate", "stale_ref"]
     public static let resolvableFlagKinds: Set<String> = creatableFlagKinds.union(["enrich_review"])
     public static let validPatchActions: Set<String> = ["replace", "append", "prepend", "remove"]
-    public static let frontmatterMutable: Set<String> = [
-        "title", "summary", "tags", "priority", "source", "promoted_from"
+    // Frontmatter is the SSoT of a note's knowledge, so set_frontmatter is open by
+    // default: any key it does not recognise lands in `extra` and is projected to
+    // note_extra. Only the fields below stay closed — each is either identity/path
+    // (moved by migrate_note), a lifecycle state owned by its own op, or human-only.
+    public static let frontmatterReserved: Set<String> = [
+        "id", "axis", "template", "locked",
+        "stale", "invalidated_at", "invalidated_reason",
+        "trashed_at", "trashed_reason"
     ]
+    public static let extraKeyRegex = try! NSRegularExpression(pattern: #"^[A-Za-z_]\w*$"#)
     
     // MARK: - Initializer
     // MARK: - Public
@@ -449,8 +456,6 @@ public enum Handlers {
     }
     
     static func mergeFields(_ doc: inout FrontmatterDoc, _ fields: [String: Any]) throws {
-        let axis = doc.axis
-        
         func string(_ key: String, _ value: Any) throws -> String {
             guard let string = value as? String else {
                 throw FieldTypeError(field: key, expected: "string", got: value)
@@ -470,44 +475,92 @@ public enum Handlers {
             
             return array.compactMap { element in element as? String }
         }
-        
+
+        // A custom field is one frontmatter line, so its value must be a scalar that
+        // survives the `key: value` round trip — no newlines, no nesting.
+        func scalar(_ key: String, _ value: Any) throws -> String {
+            let text: String
+
+            switch value {
+            case let bool as Bool:
+                text = bool ? "true" : "false"
+
+            case let int as Int:
+                text = String(int)
+
+            case let double as Double:
+                text = String(double)
+
+            case let string as String:
+                text = string
+
+            default:
+                throw FieldTypeError(field: key, expected: "string, number or bool", got: value)
+            }
+
+            let trimmed = text.trimmingCharacters(in: .whitespaces)
+
+            guard !trimmed.isEmpty, !trimmed.contains(where: \.isNewline) else {
+                throw FieldTypeError(
+                    field: key,
+                    expected: "a non-empty single-line value (null removes the field)",
+                    got: value
+                )
+            }
+
+            return trimmed
+        }
+
         for (key, value) in fields {
             switch key {
             case "title":
                 doc.title = try string(key, value)
-            
+
             case "summary":
                 doc.summary = try string(key, value)
-            
+
             case "tags":
-                let tags = try list(key, value)
-                
-                if !axis.isEmpty, !tags.contains(axis) {
-                    throw FieldTypeError(
-                        field: key,
-                        expected: "list containing the axis tag '\(axis)'",
-                        got: value
-                    )
-                }
-                
-                doc.tags = tags
-            
+                doc.tags = try list(key, value)
+
             case "priority":
                 doc.priority = try string(key, value)
-            
+
             case "source":
                 doc.source = try Frontmatter.decodeSource(value)
-            
+
             case "promoted_from":
                 let promotedFrom = try list(key, value)
                 doc.promotedFrom = promotedFrom.isEmpty ? nil : promotedFrom
-            
+
+            case "entities":
+                let entities = try list(key, value)
+                doc.entities = entities.isEmpty ? nil : entities
+
             default:
-                throw FieldTypeError(
-                    field: key,
-                    expected: "a known frontmatter field",
-                    got: value
-                )
+                guard frontmatterReserved.contains(key) == false else {
+                    throw FieldTypeError(
+                        field: key,
+                        expected: "a field set_frontmatter owns — '\(key)' has its own op",
+                        got: value
+                    )
+                }
+
+                guard extraKeyRegex.firstMatch(
+                    in: key,
+                    range: NSRange(location: 0, length: (key as NSString).length)
+                ) != nil else {
+                    throw FieldTypeError(
+                        field: key,
+                        expected: "a frontmatter key ([A-Za-z_]\\w*)",
+                        got: value
+                    )
+                }
+
+                if value is NSNull {
+                    doc.extra.removeValue(forKey: key)
+                } else {
+                    doc.extra[key] = try scalar(key, value)
+                }
             }
         }
     }

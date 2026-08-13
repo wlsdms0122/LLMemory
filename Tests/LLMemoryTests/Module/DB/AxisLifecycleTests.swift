@@ -10,8 +10,8 @@ import Foundation
 import GRDB
 @testable import LLMemory
 
-// An axis is a row, a set of note paths and a tag on every note filed under it. Renaming one has to
-// move all three together, or the corpus disagrees with itself.
+// An axis is a row and a set of note paths — the directory a note's file lives in, nothing more.
+// Classification is what tags are for, so a rename moves files and rows and leaves tags alone.
 @Suite("AxisLifecycle Tests", .serialized)
 struct AxisLifecycleTests {
     // MARK: - Property
@@ -25,48 +25,10 @@ struct AxisLifecycleTests {
     }
     
     // MARK: - Test
-    @Test("an axis description can be set on an axis that exists")
-    func setAxisDescriptionUpdates() throws {
-        // Given
-        lifecycle.create("tdb-x1", axis: "tdbaxis")
-        
-        // When
-        let result = home.apply([
-            "op": "set_axis_description", "axis": "tdbaxis", "description": "what this axis means"
-        ])
-        
-        // Then
-        #expect(result.status == "ok", "\(result.error)")
-        #expect(try lifecycle.axisDescription(of: "tdbaxis") == "what this axis means")
-    }
-    
-    @Test("describing an axis that does not exist is refused rather than creating one")
-    func setAxisDescriptionUnknownRejected() {
-        // When
-        let result = home.apply([
-            "op": "set_axis_description", "axis": "nope-axis-xyz", "description": "x"
-        ])
-        
-        // Then
-        #expect(result.status != "ok")
-    }
-    
-    @Test("a blank description is refused — an axis with no meaning stated is not described")
-    func setAxisDescriptionEmptyRejected() {
-        // Given
-        lifecycle.create("tdb-x2", axis: "tdbaxis")
-        
-        // When
-        let result = home.apply(["op": "set_axis_description", "axis": "tdbaxis", "description": "   "])
-        
-        // Then
-        #expect(result.status != "ok")
-    }
-    
-    @Test("renaming an axis moves its description, its rows, its files and its tag together")
+    @Test("renaming an axis moves its rows and its files together, and leaves tags alone")
     func renameAxisMovesFilesAndDB() throws {
         // Given
-        lifecycle.create("tdb-ra1", axis: "tdbaxis", axisDescription: "the original meaning", extraTags: ["alpha"])
+        lifecycle.create("tdb-ra1", axis: "tdbaxis", extraTags: ["alpha"])
         lifecycle.create("tdb-ra2", axis: "tdbaxis", extraTags: ["beta"])
         
         // When
@@ -74,7 +36,6 @@ struct AxisLifecycleTests {
         
         // Then
         #expect(result.status == "ok", "\(result.error)")
-        #expect(try lifecycle.axisDescription(of: "tdbaxis-renamed") == "the original meaning")
         #expect(try lifecycle.noteCount(axis: "tdbaxis-renamed") == 2)
         
         for (noteId, extraTag) in [("tdb-ra1", "alpha"), ("tdb-ra2", "beta")] {
@@ -83,9 +44,9 @@ struct AxisLifecycleTests {
             
             #expect(file.path.hasSuffix("tdbaxis-renamed/\(noteId).md"), "the file did not move")
             #expect(FileManager.default.fileExists(atPath: file.path))
-            #expect(tags.contains("tdbaxis-renamed"))
-            #expect(!tags.contains("tdbaxis"), "the old axis tag stayed behind")
             #expect(tags.contains(extraTag), "an unrelated tag must survive the rename")
+            #expect(tags.contains("tdbaxis"),
+                "a tag is classification — moving the drawer must not rewrite it")
         }
     }
     
@@ -115,46 +76,18 @@ struct AxisLifecycleTests {
         #expect(result.status != "ok")
     }
     
-    @Test("renaming an axis carries the old axis-tag's inbound aliases and retires the unused row")
-    func renameAxisRetiresOldAxisTag() throws {
+    @Test("an axis may be renamed onto a name the tag vocabulary already uses — the two do not collide")
+    func renameAxisOntoExistingTagAllowed() throws {
         // Given
         lifecycle.create("tdb-ax1", axis: "axgone", extraTags: ["legacy"])
         
-        #expect(home.apply([
-            "op": "rename_tag", "from_tag": "legacy", "to_tag": "axgone", "add_alias": true
-        ]).status == "ok")
-        
         // When
-        let renamed = home.apply(["op": "rename_axis", "from_axis": "axgone", "to_axis": "axnew"])
+        let renamed = home.apply(["op": "rename_axis", "from_axis": "axgone", "to_axis": "legacy"])
         
         // Then
         #expect(renamed.status == "ok", "\(renamed.error)")
-        #expect(try lifecycle.canonical(ofAlias: "legacy") == "axnew",
-            "an inbound alias must follow the axis tag it pointed at")
-        #expect(try !lifecycle.vocabularyContains("axgone"), "the unused old axis tag must be retired")
-        
-        // When — renaming onto a spelling that is an alias of something else.
-        lifecycle.create("tdb-ax3", axis: "axsrc")
-        
-        let refused = home.apply(["op": "rename_axis", "from_axis": "axsrc", "to_axis": "legacy"])
-        
-        // Then
-        #expect(refused.status != "ok")
-        #expect(refused.error.contains("alias"), "the reason must reach the caller: \(refused.error)")
-    }
-    
-    @Test("an old axis-tag still used elsewhere survives the rename — retiring it is rename_tag's call")
-    func renameAxisKeepsInUseAxisTag() throws {
-        // Given
-        lifecycle.create("tdb-bx1", axis: "bxgone")
-        lifecycle.create("tdb-bx2", axis: "bxother", extraTags: ["bxgone"])
-        
-        // When
-        let renamed = home.apply(["op": "rename_axis", "from_axis": "bxgone", "to_axis": "bxnew"])
-        
-        // Then
-        #expect(renamed.status == "ok", "\(renamed.error)")
-        #expect(try lifecycle.vocabularyContains("bxgone"), "a tag still in use outside the axis must survive")
-        #expect(try lifecycle.tags(of: "tdb-bx2").contains("bxgone"))
+        #expect(try lifecycle.noteCount(axis: "legacy") == 1)
+        #expect(try lifecycle.tags(of: "tdb-ax1").contains("legacy"),
+            "the note keeps the tag it always had, for its own reasons")
     }
 }

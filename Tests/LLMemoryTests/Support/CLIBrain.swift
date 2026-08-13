@@ -74,7 +74,7 @@ final class CLIBrain {
     private func seed() throws {
         try apply("""
         {"ops":[
-          {"op":"create_note","id":"di-container","axis":"tech","axis_description":"(test axis)","title":"TossDI Container 설계",
+          {"op":"create_note","id":"di-container","axis":"tech","title":"TossDI Container 설계",
            "summary":"의존성 주입 컨테이너","tags":["tech","swift"],
            "entities":["TossDIContainer","PIIMaskingTransformer"],
            "content":"## 구조\\nTossDIContainer 가 PIIMaskingTransformer 를 주입 한다.\\n## 비고\\nresolve 시점 캐싱.\\n"},
@@ -82,13 +82,13 @@ final class CLIBrain {
            "summary":"민감정보 마스킹","tags":["tech","ios"],
            "entities":["PIIMaskingTransformer"],
            "content":"## 구조\\nPIIMaskingTransformer 가 로그를 마스킹 한다.\\n"},
-          {"op":"create_note","id":"transfer-flow","axis":"flow","axis_description":"(test axis)","title":"이체 플로우",
+          {"op":"create_note","id":"transfer-flow","axis":"flow","title":"이체 플로우",
            "summary":"송금 처리 흐름","tags":["flow","transfer"],
            "content":"## 흐름\\nTransferService 가 이체를 처리한다.\\n"},
-          {"op":"create_note","id":"persona-tone","axis":"persona","axis_description":"(test axis)","title":"말투",
+          {"op":"create_note","id":"persona-tone","axis":"persona","title":"말투",
            "summary":"어조 규약","tags":["persona","tone"],
            "content":"## 톤\\n간결하고 직설적으로.\\n"},
-          {"op":"create_note","id":"old-journal","axis":"journal","axis_description":"(test axis)","title":"오래된 기록",
+          {"op":"create_note","id":"old-journal","axis":"journal","title":"오래된 기록",
            "summary":"보관 대상","tags":["journal"],
            "content":"## 기록\\n예전 작업 메모.\\n"}
         ],"rationale":"seed"}

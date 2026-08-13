@@ -26,7 +26,7 @@ struct VocabPruneTests {
     @Test("an axis left empty by a delete is pruned")
     func pruneEmptyAxesDropsEmptyAxis() throws {
         // Given
-        lifecycle.create("tdb-h1", axis: "tdbaxis", axisDescription: "temporary")
+        lifecycle.create("tdb-h1", axis: "tdbaxis")
         
         home.apply(["op": "delete_note", "id": "tdb-h1", "reason": "leave the axis empty"])
         
@@ -43,7 +43,7 @@ struct VocabPruneTests {
     @Test("an explicitly protected axis survives pruning even when empty")
     func pruneEmptyAxesHonorsProtectedSet() throws {
         // Given
-        lifecycle.create("tdb-h2", axis: "keepaxis", axisDescription: "protected")
+        lifecycle.create("tdb-h2", axis: "keepaxis")
 
         home.apply(["op": "delete_note", "id": "tdb-h2", "reason": "leave the axis empty"])
 

@@ -178,7 +178,6 @@ struct ConsolidateReport: AsyncParsableCommand {
         // MARK: - Property
         let axis: String
         let count: Int
-        let description: String?
         
         // MARK: - Initializer
         // MARK: - Public
@@ -241,13 +240,13 @@ struct ConsolidateReport: AsyncParsableCommand {
         let (axisReport, tagReport) = try await brain.consolidate.report()
         let report = ReportOutput(
             axes: axisReport.all.map { entry in
-                AxisRow(axis: entry.axis, count: entry.count, description: entry.description)
+                AxisRow(axis: entry.axis, count: entry.count)
             },
             smallAxes: axisReport.small.map { entry in
-                AxisRow(axis: entry.axis, count: entry.count, description: nil)
+                AxisRow(axis: entry.axis, count: entry.count)
             },
             largeAxes: axisReport.large.map { entry in
-                AxisRow(axis: entry.axis, count: entry.count, description: nil)
+                AxisRow(axis: entry.axis, count: entry.count)
             },
             rareTags: tagReport.rare.map { entry in
                 TagRow(tag: entry.tag, count: entry.count)
@@ -259,10 +258,8 @@ struct ConsolidateReport: AsyncParsableCommand {
             var blocks: [PlainBlock] = [
                 .section("axes (count asc)"),
                 .table(
-                    report.axes.map { row in
-                        [row.axis, String(row.count), row.description ?? ""]
-                    },
-                    headers: ["axis", "count", "description"]
+                    report.axes.map { row in [row.axis, String(row.count)] },
+                    headers: ["axis", "count"]
                 )
             ]
             

@@ -38,7 +38,6 @@ CREATE INDEX IF NOT EXISTS idx_tag_aliases_canonical ON tag_aliases(canonical);
 -- ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS axes (
   axis TEXT PRIMARY KEY,
-  description TEXT,
   created_at INTEGER NOT NULL
 );
 
@@ -130,6 +129,21 @@ CREATE TABLE IF NOT EXISTS tags (
   PRIMARY KEY (note_id, tag)
 );
 CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag);
+
+-- ─────────────────────────────────────────────────────────
+-- note_extra — frontmatter 의 비-일급 필드(FrontmatterDoc.extra) 투영.
+-- 도메인이 필요로 하는 메타(예: journal 의 affect)를 코드에 필드로 박지 않고
+-- 노트가 스스로 들고 다니게 하는 자리. **파일이 SSoT** — 여기는 질의 가능한 거울일
+-- 뿐이라 타임스탬프도 두지 않는다 (파일이 재생산하지 못하는 값은 투영이 아니다).
+-- 지식만 옮긴 뇌가 이 값을 잃지 않는 이유가 그것.
+-- ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS note_extra (
+  note_id TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  PRIMARY KEY (note_id, key)
+);
+CREATE INDEX IF NOT EXISTS idx_note_extra_key ON note_extra(key, value);
 
 -- ─────────────────────────────────────────────────────────
 -- note↔note 그래프. kind 는 코드 (service/links.py 의 KIND_*) 와 동기.

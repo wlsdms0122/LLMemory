@@ -93,14 +93,16 @@ public struct NotesService: Sendable {
 
     public func list(
         priority: String?,
-        axis: String?,
+        tags: [String],
+        fields: [NoteFieldFilter],
         stale: Bool,
         sourceStale: Bool,
         limit: Int?
     ) async throws -> [NoteListRow] {
         let filter = NoteListFilter(
             priority: priority,
-            axis: axis,
+            tags: tags,
+            fields: fields,
             stale: stale,
             sourceStale: sourceStale,
             limit: limit

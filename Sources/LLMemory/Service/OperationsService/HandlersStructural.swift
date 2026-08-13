@@ -170,54 +170,6 @@ public enum HandlersStructural {
         }
     )
     
-    public static let setAxisDescription = OperationHandler(
-        schema: OperationSchema(
-            summary: "update the description of an existing axis in the vocab",
-            fields: [
-                .required("axis", "axis name; must already exist"),
-                .required("description", "non-empty description text")
-            ],
-            example: ##"{"op":"set_axis_description","axis":"persona","description":"persona/judgement notes about the user"}"##
-        ),
-        validate: { op, _, scope in
-            let axis = op["axis"] as? String ?? ""
-            let nsAxis = axis as NSString
-            
-            if Handlers.axisRegex.firstMatch(
-                in: axis,
-                range: NSRange(location: 0, length: nsAxis.length)
-            ) == nil {
-                return "invalid axis format: \(axis)"
-            }
-            
-            guard let description = op["description"] as? String,
-                !description.trimmingCharacters(in: .whitespaces).isEmpty
-            else {
-                return "description must be non-empty string"
-            }
-            
-            if !(try scope.run(AxisExistsTransaction(axis: axis))) { return "unknown axis: \(axis)" }
-            
-            return nil
-        },
-        write: { op, context, scope in
-            let axis = op["axis"] as! String
-            let description = (op["description"] as! String)
-                .trimmingCharacters(in: .whitespaces)
-            
-            try scope.run(SetAxisDescriptionTransaction(axis: axis, description: description))
-            
-            return [
-                "status": "ok",
-                "ids": [],
-                "axis": axis,
-                "note": "axis description updated: \(axis)"
-            ]
-        },
-        effect: { _ in [:] },
-        touches: { _, _ in [] }
-    )
-    
     public static let migrateNote = OperationHandler(
         schema: OperationSchema(
             summary: "move a note to a different axis and/or rename its id (file relocates, frontmatter rewrites)",
@@ -359,7 +311,7 @@ public enum HandlersStructural {
     
     public static let renameAxis = OperationHandler(
         schema: OperationSchema(
-            summary: "rename an axis across all notes (frontmatter, tags, files relocated)",
+            summary: "rename an axis — files relocate, frontmatter axis follows (tags are untouched)",
             fields: [
                 .required("from_axis", "current axis name; must exist"),
                 .required("to_axis", "new axis name (lowercase + [a-z0-9-]); must NOT exist")
@@ -389,12 +341,6 @@ public enum HandlersStructural {
                 return "to_axis already exists: \(toAxis) (use migrate_note × N to merge into existing axis)"
             }
             
-            let canonical = try scope.run(CanonicalizeTagTransaction(tag: toAxis))
-            
-            if canonical != toAxis && canonical != fromAxis {
-                return "to_axis '\(toAxis)' is a tag alias of '\(canonical)' — pick another name or drop the alias first"
-            }
-            
             return nil
         },
         write: { op, context, scope in
@@ -402,11 +348,7 @@ public enum HandlersStructural {
             let toAxis = op["to_axis"] as! String
             let now = context.now
             let rows = try scope.run(ListNotesByAxisTransaction(axis: fromAxis))
-            let axisRow = try scope.run(FetchAxisTransaction(axis: fromAxis))
-            let description = axisRow?.description?.isEmpty == false
-                ? axisRow!.description!
-                : "(auto-created)"
-            let createdAt = axisRow?.createdAt ?? now
+            let createdAt = try scope.run(FetchAxisTransaction(axis: fromAxis)) ?? now
             
             for (noteId, relativePath) in rows {
                 let oldPath = Paths.brainRoot.appendingPathComponent(relativePath)
@@ -422,24 +364,6 @@ public enum HandlersStructural {
                 )
                 doc.axis = toAxis
                 
-                var newTags: [String] = []
-                var replaced = false
-                
-                for tag in doc.tags {
-                    if tag == fromAxis && !replaced {
-                        newTags.append(toAxis)
-                        replaced = true
-                    } else if tag == toAxis {
-                        continue
-                    } else {
-                        newTags.append(tag)
-                    }
-                }
-                
-                if !replaced { newTags.insert(toAxis, at: 0) }
-                
-                doc.tags = newTags
-                
                 let newPath = Handlers.pathFor(axis: toAxis, nid: noteId)
                 
                 try FileManager.default.createDirectory(
@@ -454,20 +378,11 @@ public enum HandlersStructural {
                 try FileManager.default.removeItem(at: oldPath)
             }
             
-            try scope.run(CreateAxisTransaction(axis: toAxis, description: description, createdAt: createdAt))
+            try scope.run(CreateAxisTransaction(axis: toAxis, createdAt: createdAt))
             
             _ = try scope.run(SetNotesAxisTransaction(fromAxis: fromAxis, toAxis: toAxis))
             
             try scope.run(DeleteAxisTransaction(axis: fromAxis))
-            try scope.run(EnsureTagTransaction(tag: toAxis, now: now))
-            
-            for (noteId, _) in rows {
-                try scope.run(ReplaceNoteTagTransaction(noteId: noteId, fromTag: fromAxis, toTag: toAxis))
-            }
-            
-            if !(try scope.run(TagInUseTransaction(tag: fromAxis))) {
-                try scope.run(RetireTagTransaction(tag: fromAxis, successor: toAxis))
-            }
             
             for (noteId, _) in rows {
                 let newPath = Handlers.pathFor(axis: toAxis, nid: noteId)
@@ -509,7 +424,7 @@ public enum HandlersStructural {
     
     public static let renameTag = OperationHandler(
         schema: OperationSchema(
-            summary: "rename a tag across all notes (refuses if from_tag is an axis — use rename_axis instead)",
+            summary: "rename a tag across all notes",
             fields: [
                 .required("from_tag", "current tag; must exist (in vocab or in use)"),
                 .required("to_tag", "new tag (lowercase + [a-z0-9-])"),
@@ -530,10 +445,6 @@ public enum HandlersStructural {
                 range: NSRange(location: 0, length: nsToTag.length)
             ) == nil {
                 return "invalid to_tag format: \(toTag)"
-            }
-            
-            if try scope.run(AxisExistsTransaction(axis: fromTag)) {
-                return "'\(fromTag)' is an axis name — use rename_axis instead"
             }
             
             let exists = try scope.run(TagVocabExistsTransaction(tag: fromTag))
@@ -1424,7 +1335,6 @@ public enum HandlersRegistry {
             "rebase_source": HandlersBasic.rebaseSource,
             "restore": HandlersStructural.restore,
             "delete_note": HandlersStructural.deleteNote,
-            "set_axis_description": HandlersStructural.setAxisDescription,
             "migrate_note": HandlersStructural.migrateNote,
             "rename_axis": HandlersStructural.renameAxis,
             "rename_tag": HandlersStructural.renameTag,

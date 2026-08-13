@@ -145,8 +145,8 @@ extension BrainHome {
     func seedBareNotes(ids: [String], axis: String = "flow") throws {
         try write { database in
             try database.execute(
-                sql: "INSERT OR IGNORE INTO axes (axis, description, created_at) VALUES (?, ?, ?)",
-                arguments: [axis, axis, now]
+                sql: "INSERT OR IGNORE INTO axes (axis, created_at) VALUES (?, ?)",
+                arguments: [axis, now]
             )
 
             for noteId in ids {

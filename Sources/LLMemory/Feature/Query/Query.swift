@@ -36,22 +36,22 @@ public struct Query {
     // MARK: - Public (domain surface — delegates to the injected services)
     public func search(
         query: String,
-        axis: String?,
+        tags: [String],
         limit: Int,
         expand: Int,
         cliSessionId: String,
         includeStale: Bool,
-        excludeAxes: [String],
+        excludeTags: [String],
         raw: Bool
     ) async throws -> (rows: [SearchRow], extra: [ExpandedNote]) {
         try await retrieval.search(
             query: query,
-            axis: axis,
+            tags: tags,
             limit: limit,
             expand: expand,
             cliSessionId: cliSessionId,
             includeStale: includeStale,
-            excludeAxes: excludeAxes,
+            excludeTags: excludeTags,
             raw: raw
         )
     }
@@ -158,14 +158,16 @@ public struct Query {
 
     public func list(
         priority: String?,
-        axis: String?,
+        tags: [String],
+        fields: [NoteFieldFilter],
         stale: Bool,
         sourceStale: Bool,
         limit: Int?
     ) async throws -> [NoteListRow] {
         try await notes.list(
             priority: priority,
-            axis: axis,
+            tags: tags,
+            fields: fields,
             stale: stale,
             sourceStale: sourceStale,
             limit: limit

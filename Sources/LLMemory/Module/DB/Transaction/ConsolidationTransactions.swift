@@ -181,22 +181,22 @@ struct FetchAxisReportTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> ConsolidateAxisReport {
         let rows = try Row.fetchAll(db, sql: """
-            SELECT a.axis, a.description, COALESCE(COUNT(n.id), 0) AS c
+            SELECT a.axis, COALESCE(COUNT(n.id), 0) AS c
             FROM axes a LEFT JOIN notes n ON n.axis = a.axis
             GROUP BY a.axis ORDER BY c ASC, a.axis
             """)
-        let all: [(String, String?, Int)] = rows.map { row in
-            (row["axis"] as String, row["description"] as String?, row["c"] as Int)
+        let all: [(String, Int)] = rows.map { row in
+            (row["axis"] as String, row["c"] as Int)
         }
         let small = all
-            .filter { entry in entry.2 <= low }
-            .map { entry in AxisCount(axis: entry.0, count: entry.2) }
+            .filter { entry in entry.1 <= low }
+            .map { entry in AxisCount(axis: entry.0, count: entry.1) }
         let large = all
-            .filter { entry in entry.2 >= high }
-            .map { entry in AxisCount(axis: entry.0, count: entry.2) }
+            .filter { entry in entry.1 >= high }
+            .map { entry in AxisCount(axis: entry.0, count: entry.1) }
         
         return ConsolidateAxisReport(
-            all: all.map { entry in AxisRow(axis: entry.0, description: entry.1, count: entry.2) },
+            all: all.map { entry in AxisRow(axis: entry.0, count: entry.1) },
             small: small,
             large: large
         )

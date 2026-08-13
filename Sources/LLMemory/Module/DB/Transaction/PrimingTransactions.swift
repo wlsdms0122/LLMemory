@@ -8,9 +8,11 @@
 import Foundation
 import GRDB
 
-// Derives the recent-retrieval axis prior for a session — the frequency
-// distribution of axes among recently surfaced notes.
-struct ComputeAxisPriorTransaction: GRDBReadTransaction {
+// Derives the recent-retrieval tag prior for a session — the frequency
+// distribution of tags among recently surfaced notes. Contextual reinstatement
+// runs over every tag a note carries, not one privileged category: a note lives
+// in as many contexts as it has tags, and the session decides which one is warm.
+struct ComputeTagPriorTransaction: GRDBReadTransaction {
     // MARK: - Property
     let sessionId: String
     let windowSec: Int
@@ -58,23 +60,21 @@ struct ComputeAxisPriorTransaction: GRDBReadTransaction {
 
         let unique = Array(Set(ids))
         let placeholders = Array(repeating: "?", count: unique.count).joined(separator: ",")
-        let axisRows = try Row.fetchAll(
+        let tagRows = try Row.fetchAll(
             db,
-            sql: "SELECT id, axis FROM notes WHERE id IN (\(placeholders))",
+            sql: "SELECT note_id, tag FROM tags WHERE note_id IN (\(placeholders))",
             arguments: StatementArguments(unique)
         )
-        var axisById: [String: String] = [:]
+        var tagsById: [String: [String]] = [:]
 
-        for row in axisRows {
-            axisById[row["id"] as String] = row["axis"] as String
+        for row in tagRows {
+            tagsById[row["note_id"] as String, default: []].append(row["tag"] as String)
         }
 
         var frequency: [String: Double] = [:]
 
         for id in ids {
-            guard let axis = axisById[id] else { continue }
-
-            frequency[axis, default: 0] += 1
+            for tag in tagsById[id] ?? [] { frequency[tag, default: 0] += 1 }
         }
 
         let total = frequency.values.reduce(0, +)

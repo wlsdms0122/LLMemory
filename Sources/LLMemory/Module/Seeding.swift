@@ -15,7 +15,6 @@ public enum Seeding {
     }
 
     // MARK: - Property
-    static let innateAxisDescription = "llmemory 가 갖고 태어나는 선천 지식 — cortex/.innate/ 에 심긴다"
 
     public struct Result: Sendable {
         // MARK: - Property
@@ -93,16 +92,6 @@ public enum Seeding {
         result.foreign = foreignFiles()
 
         return result
-    }
-
-    // Gives the innate axis its real description once innate notes exist. ensureAxis only
-    // replaces an empty or "(auto-created)" description, so a human edit survives.
-    public static func describeInnateAxis(_ db: Database) throws {
-        try DescribePopulatedAxisTransaction(
-            axis: Paths.innateAxis,
-            description: innateAxisDescription
-        )
-            .perform(db)
     }
 
     // MARK: - Private

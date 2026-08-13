@@ -70,20 +70,24 @@ public enum Search {
     
 
     
+    // The boost takes the item's *strongest* reinstated tag rather than the sum:
+    // a note that carries five tags is not five times more primed, and summing
+    // would make tag count itself a ranking signal.
     static func rerank<T>(
         _ pool: [T],
         prior: [String: Double],
         limit: Int,
-        axisOf: (T) -> String
+        tagsOf: (T) -> [String]
     ) -> [T] {
         let alpha = Genes.double("priming.alpha")
         let poolCount = Double(pool.count)
         let scored: [(index: Int, score: Double, item: T)] = pool.enumerated()
             .map { index, item in
                 let rankScore = poolCount - Double(index)
-                let axisBoost = alpha * (prior[axisOf(item)] ?? 0) * poolCount
-                
-                return (index, rankScore + axisBoost, item)
+                let warmth = tagsOf(item).compactMap { tag in prior[tag] }.max() ?? 0
+                let tagBoost = alpha * warmth * poolCount
+
+                return (index, rankScore + tagBoost, item)
             }
         
         return scored
@@ -131,10 +135,10 @@ public enum Search {
 struct SearchNotesFTSTransaction: GRDBReadTransaction {
     // MARK: - Property
     let query: String
-    let axis: String?
+    let tags: [String]
     let limit: Int
     let includeStale: Bool
-    let excludeAxes: [String]?
+    let excludeTags: [String]?
     let sinceTs: Int?
     let sessionId: String?
     let raw: Bool
@@ -142,19 +146,19 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init(
         query: String,
-        axis: String? = nil,
+        tags: [String] = [],
         limit: Int = 5,
         includeStale: Bool = false,
-        excludeAxes: [String]? = nil,
+        excludeTags: [String]? = nil,
         sinceTs: Int? = nil,
         sessionId: String? = nil,
         raw: Bool = false
     ) {
         self.query = query
-        self.axis = axis
+        self.tags = tags
         self.limit = limit
         self.includeStale = includeStale
-        self.excludeAxes = excludeAxes
+        self.excludeTags = excludeTags
         self.sinceTs = sinceTs
         self.sessionId = sessionId
         self.raw = raw
@@ -171,15 +175,20 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
             """
         var arguments: [DatabaseValueConvertible?] = [matchExpr]
         
-        if let axis {
-            sql += " AND n.axis = ?"
-            arguments.append(axis)
+        // Aliases exist so a caller may spell a tag either way — resolve before matching,
+        // since only the canonical spelling is stored on the note.
+        for tag in tags {
+            sql += " AND EXISTS (SELECT 1 FROM tags t WHERE t.note_id = n.id AND t.tag = ?)"
+            arguments.append(try CanonicalizeTagTransaction(tag: tag).perform(db))
         }
-        
-        if let excludeAxes, !excludeAxes.isEmpty {
-            let placeholders = Array(repeating: "?", count: excludeAxes.count).joined(separator: ",")
-            sql += " AND n.axis NOT IN (\(placeholders))"
-            arguments.append(contentsOf: excludeAxes)
+
+        if let excludeTags, !excludeTags.isEmpty {
+            let placeholders = Array(repeating: "?", count: excludeTags.count).joined(separator: ",")
+            sql += " AND NOT EXISTS (SELECT 1 FROM tags t WHERE t.note_id = n.id"
+                + " AND t.tag IN (\(placeholders)))"
+            arguments.append(contentsOf: try excludeTags.map { tag in
+                try CanonicalizeTagTransaction(tag: tag).perform(db)
+            })
         }
         
         let now = Int(Date().timeIntervalSince1970)
@@ -194,7 +203,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
         let prior: [String: Double]
         if let sessionId, !sessionId.isEmpty {
             let windowMin = Genes.int("priming.window_min")
-            prior = (try? ComputeAxisPriorTransaction(
+            prior = (try? ComputeTagPriorTransaction(
                 sessionId: sessionId,
                 windowSec: windowMin * 60,
                 now: now
@@ -224,7 +233,9 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
                 return Array(rawRows.prefix(limit))
             }
             
-            return Search.rerank(rawRows, prior: prior, limit: limit) { row in row.axis }
+            return Search.rerank(rawRows, prior: prior, limit: limit) { row in
+                (row.tagsCSV ?? "").split(separator: ",").map(String.init)
+            }
         }
     }
 

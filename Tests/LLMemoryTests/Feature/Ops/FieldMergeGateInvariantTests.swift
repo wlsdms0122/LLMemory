@@ -70,8 +70,8 @@ struct FieldMergeGateInvariantTests {
         #expect(try title(of: "mf-ok") == "new")
     }
     
-    @Test("dropping the axis tag is refused by dry-run and apply alike")
-    func droppingTheAxisTagIsRefusedByDryRunAndApplyAlike() {
+    @Test("a note may drop the tag that shares its axis name — the drawer does not dictate the label")
+    func droppingTheAxisTagIsAllowed() {
         // Given
         home.createNote(id: "ax-note", tags: ["flow", "x"])
         
@@ -81,11 +81,40 @@ struct FieldMergeGateInvariantTests {
         ]
         
         // Then
-        #expect(OperationsEngine.dryRun(home.storage, dropsAxisTag).status != "ok", "dry-run accepted what apply rejects")
-        #expect(OperationsEngine.apply(home.storage, dropsAxisTag).status != "ok")
+        #expect(OperationsEngine.dryRun(home.storage, dropsAxisTag).status == "ok")
+        #expect(OperationsEngine.apply(home.storage, dropsAxisTag).status == "ok")
+    }
+    
+    @Test("an unknown field is kept as a custom frontmatter field rather than refused")
+    func unknownFieldBecomesACustomField() throws {
+        // Given
+        home.createNote(id: "mf-extra", tags: ["flow"])
+        
+        // When
+        let result = home.apply([
+            "op": "set_frontmatter", "id": "mf-extra", "fields": ["affect": "high"]
+        ])
+        
+        // Then
+        #expect(result.status == "ok", "\(result.error)")
+        #expect(try home.read { database in
+            try String.fetchOne(
+                database,
+                sql: "SELECT value FROM note_extra WHERE note_id = ? AND key = ?",
+                arguments: ["mf-extra", "affect"]
+            )
+        } == "high")
+    }
+    
+    @Test("a field with its own op stays refused — set_frontmatter is not a back door to identity")
+    func reservedFieldStaysRefused() {
+        // Given
+        home.createNote(id: "mf-reserved", tags: ["flow"])
+        
+        // Then
         #expect(home.apply([
-            "op": "set_frontmatter", "id": "ax-note", "fields": ["tags": ["flow", "z"]]
-        ]).status == "ok", "a tag change that keeps the axis tag is fine")
+            "op": "set_frontmatter", "id": "mf-reserved", "fields": ["axis": "tech"]
+        ]).status != "ok")
     }
     
     // MARK: - Private

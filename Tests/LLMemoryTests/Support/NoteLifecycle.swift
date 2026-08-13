@@ -25,7 +25,6 @@ struct NoteLifecycle {
     func create(
         _ noteId: String,
         axis: String,
-        axisDescription: String = "(test axis)",
         extraTags: [String] = []
     ) -> OperationsResult {
         home.createNote(
@@ -34,19 +33,8 @@ struct NoteLifecycle {
             title: "test \(noteId)",
             summary: "test note \(noteId)",
             tags: [axis] + extraTags,
-            content: "# \(noteId)\n\nbody for \(noteId)\n",
-            fields: ["axis_description": axisDescription]
+            content: "# \(noteId)\n\nbody for \(noteId)\n"
         )
-    }
-    
-    func axisDescription(of axis: String) throws -> String? {
-        try home.read { database in
-            try String.fetchOne(
-                database,
-                sql: "SELECT description FROM axes WHERE axis = ?",
-                arguments: [axis]
-            )
-        }
     }
     
     func axisExists(_ axis: String) throws -> Bool {

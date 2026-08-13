@@ -130,7 +130,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let tech = try ListNoteRowsTransaction(.init(axis: "tech")).perform(db).map { row in row.id }
+            let tech = try ListNoteRowsTransaction(.init(tags: ["tech"])).perform(db).map { row in row.id }
         
         // Then
             #expect(tech == ["ax-tech"])

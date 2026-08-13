@@ -59,6 +59,7 @@ public enum NoteArtifacts {
     
     static let tableDisposition: [String: Disposition] = [
         "tags": .reconstructable,
+        "note_extra": .reconstructable,
         "note_ref_markers": .reconstructable,
         "entity_index": .reconstructable,
         "note_links": .preserved,
@@ -73,6 +74,7 @@ public enum NoteArtifacts {
     
     static let tableSplitPolicy: [String: SplitPolicy] = [
         "tags": .rebuild,
+        "note_extra": .rebuild,
         "note_ref_markers": .rebuild,
         "entity_index": .rebuild,
         "note_source": .rebuild,

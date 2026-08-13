@@ -65,7 +65,7 @@ struct PruneAtomicityInvariantTests {
     // link with a known starting weight is what it needs.
     private func seedAssocLink(_ database: Database, weight: Double) throws {
         try database.execute(
-            sql: "INSERT OR IGNORE INTO axes (axis, description, created_at) VALUES ('flow', 'flow', ?)",
+            sql: "INSERT OR IGNORE INTO axes (axis, created_at) VALUES ('flow', ?)",
             arguments: [home.now]
         )
         

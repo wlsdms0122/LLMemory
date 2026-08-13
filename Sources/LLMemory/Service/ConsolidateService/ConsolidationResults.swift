@@ -9,12 +9,11 @@ import Foundation
 
 // Consolidation result shapes — reports and summaries the consolidate
 // service returns, flat top-level models like the other service results.
-// The canonical axis/tag report rows — encoded as compact arrays
-// ([axis, description, count]), shared by every reporting surface.
+// The canonical axis report rows — encoded as compact arrays
+// ([axis, count]), shared by every reporting surface.
 public struct AxisRow: Encodable, Sendable {
     // MARK: - Property
     public let axis: String
-    public let description: String?
     public let count: Int
 
     // MARK: - Initializer
@@ -23,13 +22,6 @@ public struct AxisRow: Encodable, Sendable {
         var container = encoder.unkeyedContainer()
 
         try container.encode(axis)
-
-        if let description {
-            try container.encode(description)
-        } else {
-            try container.encodeNil()
-        }
-
         try container.encode(count)
     }
 

@@ -24,12 +24,12 @@ public struct RetrievalService: Sendable {
     // MARK: - Public
     public func search(
         query: String,
-        axis: String?,
+        tags: [String],
         limit: Int,
         expand: Int,
         cliSessionId: String,
         includeStale: Bool,
-        excludeAxes: [String],
+        excludeTags: [String],
         raw: Bool
     ) async throws -> (rows: [SearchRow], extra: [ExpandedNote]) {
         let sessionId = Environment.retrievalSession(cli: cliSessionId)
@@ -37,12 +37,12 @@ public struct RetrievalService: Sendable {
             try search(
                 scope,
                 query: query,
-                axis: axis,
+                tags: tags,
                 limit: limit,
                 expand: expand,
                 sessionId: sessionId,
                 includeStale: includeStale,
-                excludeAxes: excludeAxes.isEmpty ? nil : excludeAxes,
+                excludeTags: excludeTags.isEmpty ? nil : excludeTags,
                 raw: raw
             )
         }
@@ -107,22 +107,22 @@ public struct RetrievalService: Sendable {
     func search(
         _ scope: GRDBReadScope,
         query: String,
-        axis: String? = nil,
+        tags: [String] = [],
         limit: Int = 5,
         expand: Int = 0,
         sessionId: String? = nil,
         includeStale: Bool = false,
-        excludeAxes: [String]? = nil,
+        excludeTags: [String]? = nil,
         sinceTs: Int? = nil,
         raw: Bool = false
     ) throws -> (rows: [SearchRow], extra: [ExpandedNote], record: RetrievalRecord) {
         let rows = try scope.run(
             SearchNotesFTSTransaction(
                 query: query,
-                axis: axis,
+                tags: tags,
                 limit: limit,
                 includeStale: includeStale,
-                excludeAxes: excludeAxes,
+                excludeTags: excludeTags,
                 sinceTs: sinceTs,
                 sessionId: sessionId,
                 raw: raw
@@ -144,10 +144,10 @@ public struct RetrievalService: Sendable {
         let trimmedQuery = String(query.prefix(200))
         let payload: [(String, Any?)] = [
             ("query", trimmedQuery),
-            ("axis", axis),
+            ("tags", tags),
             ("limit", limit),
             ("include_stale", includeStale),
-            ("exclude_axes", excludeAxes as Any?),
+            ("exclude_tags", excludeTags as Any?),
             ("since_ts", sinceTs as Any?),
             ("hit_ids", rows.map { row in row.id }),
             ("expand_ids", extra.map { note in note.id })

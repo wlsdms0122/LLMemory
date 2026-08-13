@@ -15,7 +15,7 @@ struct FetchLoggedRetrievalQueriesTransaction: GRDBReadTransaction {
         // MARK: - Property
         let command: String
         let text: String
-        let axis: String?
+        let tags: [String]
         let limit: Int
         let sessionId: String?
 
@@ -56,7 +56,7 @@ struct FetchLoggedRetrievalQueriesTransaction: GRDBReadTransaction {
                     LoggedQuery(
                         command: "search",
                         text: text,
-                        axis: payload["axis"] as? String,
+                        tags: payload["tags"] as? [String] ?? [],
                         limit: payload["limit"] as? Int ?? 5,
                         sessionId: sessionId
                     )
@@ -66,7 +66,7 @@ struct FetchLoggedRetrievalQueriesTransaction: GRDBReadTransaction {
                     LoggedQuery(
                         command: "related",
                         text: text,
-                        axis: nil,
+                        tags: [],
                         limit: 5,
                         sessionId: sessionId
                     )

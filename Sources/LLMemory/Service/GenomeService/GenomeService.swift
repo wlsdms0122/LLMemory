@@ -102,7 +102,7 @@ public struct GenomeService: Sendable {
                 return try scope.run(
                     SearchNotesFTSTransaction(
                         query: loggedQuery.text,
-                        axis: loggedQuery.axis,
+                        tags: loggedQuery.tags,
                         limit: loggedQuery.limit,
                         sessionId: loggedQuery.sessionId
                     )

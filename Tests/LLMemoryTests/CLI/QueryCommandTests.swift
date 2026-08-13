@@ -57,10 +57,10 @@ struct QueryCommandTests {
         #expect(!ids.contains("transfer-flow"))
     }
     
-    @Test("--axis narrows the result set to that axis")
-    func searchAxisFilter() {
+    @Test("--tag narrows the result set to notes carrying that tag")
+    func searchTagFilter() {
         // When
-        let result = brain.run(["query", "search", "PIIMaskingTransformer", "--axis", "tech", "--json"])
+        let result = brain.run(["query", "search", "PIIMaskingTransformer", "--tag", "tech", "--json"])
         
         // Then
         let ids = Set(result.ids())
@@ -144,10 +144,10 @@ struct QueryCommandTests {
         #expect(!ids.contains("di-container"))
     }
     
-    @Test("list --axis selects on the axis")
-    func listAxisFilter() {
+    @Test("list --tag selects on the tag")
+    func listTagFilter() {
         // When
-        let result = brain.run(["query", "list", "--axis", "tech", "--json"])
+        let result = brain.run(["query", "list", "--tag", "tech", "--json"])
         
         // Then
         let ids = Set(result.ids())
@@ -161,7 +161,7 @@ struct QueryCommandTests {
     @Test("list rows carry id and axis in JSON")
     func listJsonShape() {
         // When
-        let result = brain.run(["query", "list", "--axis", "tech", "--json"])
+        let result = brain.run(["query", "list", "--tag", "tech", "--json"])
         
         // Then
         let row = (result.jsonArray() ?? []).first
@@ -174,9 +174,9 @@ struct QueryCommandTests {
     @Test("level and format are orthogonal — core stays core in both JSON and plain")
     func listLevelIsOrthogonalToFormat() {
         // When
-        let core = brain.run(["query", "list", "--axis", "tech", "--json"])
-        let verbose = brain.run(["query", "list", "--axis", "tech", "--verbose", "--json"])
-        let verbosePlain = brain.run(["query", "list", "--axis", "tech", "--verbose"])
+        let core = brain.run(["query", "list", "--tag", "tech", "--json"])
+        let verbose = brain.run(["query", "list", "--tag", "tech", "--verbose", "--json"])
+        let verbosePlain = brain.run(["query", "list", "--tag", "tech", "--verbose"])
         
         // Then
         let coreRow = core.jsonArray()?.first ?? [:]
@@ -196,7 +196,7 @@ struct QueryCommandTests {
     @Test("plain list is a table that carries the summary column")
     func listPlainCarriesSummary() {
         // When
-        let result = brain.run(["query", "list", "--axis", "tech"])
+        let result = brain.run(["query", "list", "--tag", "tech"])
         
         // Then
         let lines = result.standardOutput.split(separator: "\n").map(String.init)
@@ -205,6 +205,26 @@ struct QueryCommandTests {
         #expect(lines.first?.contains("summary") == true)
         #expect(lines.contains { line in line.contains("log-masking") })
         #expect(result.standardOutput.contains("Transformer"))
+    }
+    
+    @Test("--field selects on a custom frontmatter field, by key and by key=value")
+    func listCustomFieldFilter() {
+        // Given
+        _ = brain.run([
+            "operations", "apply", "--input",
+            #"{"ops":[{"op":"set_frontmatter","id":"old-journal","fields":{"affect":"high"}}],"rationale":"t"}"#
+        ])
+        
+        // When
+        let byKey = brain.run(["query", "list", "--field", "affect", "--json"])
+        let byValue = brain.run(["query", "list", "--field", "affect=high", "--json"])
+        let byOtherValue = brain.run(["query", "list", "--field", "affect=low", "--json"])
+        
+        // Then
+        #expect(byKey.succeeded, "\(byKey.standardError)")
+        #expect(Set(byKey.ids()) == ["old-journal"])
+        #expect(Set(byValue.ids()) == ["old-journal"])
+        #expect(byOtherValue.ids().isEmpty)
     }
     
     @Test("--source-stale resolves against the note_source join")

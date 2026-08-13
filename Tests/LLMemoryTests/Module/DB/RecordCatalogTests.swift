@@ -35,7 +35,7 @@ struct RecordCatalogTests {
     func recordsRoundTrip() throws {
         try queue.write { db in
             // Parents first — children hold foreign keys into them.
-            try AxisRecord(axis: "tech", description: "tech axis", createdAt: 1).insert(db)
+            try AxisRecord(axis: "tech", createdAt: 1).insert(db)
             try TagVocabRecord(tag: "swift", createdAt: 1).insert(db)
             try TagAliasRecord(alias: "스위프트", canonical: "swift", createdAt: 1).insert(db)
             try NoteRecord(
@@ -77,6 +77,7 @@ struct RecordCatalogTests {
                 declHash: "dh"
             ).insert(db)
             try TagRecord(noteId: "note-a", tag: "swift").insert(db)
+            try NoteExtraRecord(noteId: "note-a", key: "affect", value: "high").insert(db)
             try NoteLinkRecord(
                 src: "note-a",
                 dst: "note-b",

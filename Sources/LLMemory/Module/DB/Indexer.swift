@@ -507,7 +507,6 @@ public enum Indexer {
 
         if level < 3 { return (ok, messages) }
 
-        let axesSet = Set(try String.fetchAll(db, sql: "SELECT axis FROM axes"))
         let vocabSet = Set(try String.fetchAll(db, sql: "SELECT tag FROM tag_vocab"))
 
         for (_, row) in dbRows {
@@ -527,19 +526,7 @@ public enum Indexer {
                 ok = false
             }
 
-            if !axesSet.contains(row.axis) {
-                messages.append("L3\taxis-unregistered\t\(noteId)\taxis=\(row.axis)")
-                ok = false
-            }
-
             let tags = dbTagsById[noteId] ?? []
-
-            if !tags.contains(row.axis) {
-                messages.append(
-                    "L3\taxis-tag-missing\t\(noteId)\taxis=\(row.axis) tags=\(tags.sorted())"
-                )
-                ok = false
-            }
 
             for tag in tags.subtracting(vocabSet).sorted() {
                 messages.append("L3\ttag-not-in-vocab\t\(noteId)\t\(tag)")

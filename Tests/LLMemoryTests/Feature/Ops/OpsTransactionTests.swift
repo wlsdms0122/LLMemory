@@ -177,34 +177,34 @@ struct TransactionTests {
     @Test("a database-only op is rolled back when a later op in the batch fails")
     func dbOnlyOpRolledBackWhenLaterOpFails() throws {
         // Given
-        home.createNote(id: "tx-atom1", axis: "txaxis", tags: ["txaxis"],
-            fields: ["axis_description": "(auto-created)"])
+        home.createNote(id: "tx-atom1", axis: "flow", tags: ["flow"])
         
-        #expect(try axisDescription(of: "txaxis") == "(auto-created)")
+        #expect(try retrievalTermCount(of: "tx-atom1") == 0)
         
         // When
         let result = home.apply([
             [
-                "op": "set_axis_description", "axis": "txaxis",
-                "description": "must not survive the failure below"
+                "op": "add_retrieval_terms", "id": "tx-atom1",
+                "terms": [["kind": "alias", "term": "must not survive the failure below"]],
+                "provenance": "test"
             ],
             ["op": "delete_note", "id": "nope-does-not-exist-xyz", "reason": "force a failure"]
         ])
         
         // Then
         #expect(result.status != "ok")
-        #expect(try axisDescription(of: "txaxis") == "(auto-created)",
-            "set_axis_description wrote outside the transaction that failed")
+        #expect(try retrievalTermCount(of: "tx-atom1") == 0,
+            "add_retrieval_terms wrote outside the transaction that failed")
     }
     
     // MARK: - Private
-    private func axisDescription(of axis: String) throws -> String? {
+    private func retrievalTermCount(of noteId: String) throws -> Int {
         try home.read { database in
-            try String.fetchOne(
+            try Int.fetchOne(
                 database,
-                sql: "SELECT description FROM axes WHERE axis = ?",
-                arguments: [axis]
-            )
+                sql: "SELECT COUNT(*) FROM note_retrieval_terms WHERE note_id = ?",
+                arguments: [noteId]
+            ) ?? 0
         }
     }
     

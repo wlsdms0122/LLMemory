@@ -97,6 +97,15 @@ struct UpsertNoteTransaction: GRDBTransaction {
             )
         }
 
+        try db.execute(sql: "DELETE FROM note_extra WHERE note_id = ?", arguments: [fields.id])
+
+        for key in fields.extra.keys.sorted() {
+            try db.execute(
+                sql: "INSERT INTO note_extra (note_id, key, value) VALUES (?, ?, ?)",
+                arguments: [fields.id, key, fields.extra[key]]
+            )
+        }
+
         try ReconcileNoteEntitiesTransaction(
             entities: fields.entities ?? [],
             noteId: fields.id,

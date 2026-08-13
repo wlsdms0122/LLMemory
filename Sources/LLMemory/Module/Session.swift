@@ -69,7 +69,6 @@ public final class Session {
             let queue = try storage.connect()
             let built = try Indexer.buildLocked(queue, rebuild: false)
 
-            try queue.write { db in try Seeding.describeInnateAxis(db) }
 
             return built
         }

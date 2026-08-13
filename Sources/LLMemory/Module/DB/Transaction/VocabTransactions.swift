@@ -12,62 +12,22 @@ import GRDB
 struct EnsureAxisTransaction: GRDBTransaction {
     // MARK: - Property
     let axis: String
-    let description: String?
     let now: Int?
 
     // MARK: - Initializer
-    init(axis: String, description: String? = nil, now: Int? = nil) {
+    init(axis: String, now: Int? = nil) {
         self.axis = axis
-        self.description = description
         self.now = now
     }
 
     // MARK: - Public
     func perform(_ db: Database) throws {
         let timestamp = now ?? Int(Date().timeIntervalSince1970)
-        let description = description ?? "(auto-created)"
 
         try db.execute(
-            sql: """
-            INSERT INTO axes (axis, description, created_at) VALUES (?, ?, ?)
-            ON CONFLICT(axis) DO UPDATE SET
-              description = CASE
-                WHEN axes.description IS NULL OR axes.description = '' OR axes.description = '(auto-created)'
-                  THEN excluded.description
-                ELSE axes.description
-              END
-            """,
-            arguments: [axis, description, timestamp]
+            sql: "INSERT OR IGNORE INTO axes (axis, created_at) VALUES (?, ?)",
+            arguments: [axis, timestamp]
         )
-    }
-
-    // MARK: - Private
-}
-
-// EnsureAxis for an axis that only deserves its description once notes
-// actually live on it — a no-op while the axis is unused.
-struct DescribePopulatedAxisTransaction: GRDBTransaction {
-    // MARK: - Property
-    let axis: String
-    let description: String
-
-    // MARK: - Initializer
-    init(axis: String, description: String) {
-        self.axis = axis
-        self.description = description
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws {
-        let populated = try Int.fetchOne(
-            db,
-            sql: "SELECT 1 FROM notes WHERE axis = ? LIMIT 1",
-            arguments: [axis]
-        ) != nil
-
-        guard populated else { return }
-
-        try EnsureAxisTransaction(axis: axis, description: description).perform(db)
     }
 
     // MARK: - Private
@@ -159,37 +119,11 @@ struct FetchAxisTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> (description: String?, createdAt: Int)? {
-        let row = try Row.fetchOne(
+    func perform(_ db: Database) throws -> Int? {
+        try Int.fetchOne(
             db,
-            sql: "SELECT description, created_at FROM axes WHERE axis = ?",
+            sql: "SELECT created_at FROM axes WHERE axis = ?",
             arguments: [axis]
-        )
-
-        guard let row else { return nil }
-
-        return (row["description"] as String?, row["created_at"] as Int)
-    }
-
-    // MARK: - Private
-}
-
-struct SetAxisDescriptionTransaction: GRDBTransaction {
-    // MARK: - Property
-    let axis: String
-    let description: String
-
-    // MARK: - Initializer
-    init(axis: String, description: String) {
-        self.axis = axis
-        self.description = description
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws {
-        try db.execute(
-            sql: "UPDATE axes SET description = ? WHERE axis = ?",
-            arguments: [description, axis]
         )
     }
 
@@ -199,21 +133,19 @@ struct SetAxisDescriptionTransaction: GRDBTransaction {
 struct CreateAxisTransaction: GRDBTransaction {
     // MARK: - Property
     let axis: String
-    let description: String
     let createdAt: Int
 
     // MARK: - Initializer
-    init(axis: String, description: String, createdAt: Int) {
+    init(axis: String, createdAt: Int) {
         self.axis = axis
-        self.description = description
         self.createdAt = createdAt
     }
 
     // MARK: - Public
     func perform(_ db: Database) throws {
         try db.execute(
-            sql: "INSERT INTO axes (axis, description, created_at) VALUES (?, ?, ?)",
-            arguments: [axis, description, createdAt]
+            sql: "INSERT INTO axes (axis, created_at) VALUES (?, ?)",
+            arguments: [axis, createdAt]
         )
     }
 

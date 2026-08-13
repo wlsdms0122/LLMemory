@@ -77,7 +77,7 @@ struct InnateTests {
         }
     }
 
-    @Test("a fresh brain owns exactly the innate axis, described, and nothing else")
+    @Test("a fresh brain owns exactly the innate axis and nothing else")
     func freshBrainOwnsOnlyTheInnateAxis() throws {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-axes", seeded: false)
@@ -89,11 +89,6 @@ struct InnateTests {
 
         // Then
         #expect(axes == [Paths.innateAxis], "fresh brain axes: \(axes)")
-
-        let description = rows.first?["description"] as? String ?? ""
-
-        #expect(!description.isEmpty && description != "(auto-created)",
-            "the innate axis deserves a real description, got: \(description)")
     }
 
     @Test("re-running init keeps a local edit to a seed — init plants what is missing, nothing more")
