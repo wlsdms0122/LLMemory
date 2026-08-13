@@ -50,7 +50,7 @@ public enum Genes {
         Gene(id: "links.sibling_rank_weight", wildType: 0.3, min: 0.0, max: 1.0, mutable: true,
              summary: "sibling 엣지의 연상 랭킹 발언권 (사실성은 1.0 유지)"),
         Gene(id: "priming.alpha", wildType: 0.5, min: 0.0, max: 2.0, mutable: true,
-             summary: "최근 인출 축 prior 의 rerank 가중"),
+             summary: "최근 인출 태그 prior 의 rerank 가중"),
         Gene(id: "priming.window_min", wildType: 120, min: 10, max: 1440, mutable: true, integer: true,
              summary: "priming prior 가 보는 최근 인출 창 (분)"),
         Gene(id: "related.similar_limit", wildType: 5, min: 2, max: 12, mutable: true, integer: true,

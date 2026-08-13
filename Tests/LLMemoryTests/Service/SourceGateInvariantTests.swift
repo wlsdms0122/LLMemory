@@ -161,8 +161,7 @@ struct SourceGateInvariantTests {
         for bad in [[123], [NSNull()], [""], [["foo": "bar"]]] as [Any] {
             let op: [String: Any] = [
                 "op": "create_note", "id": "gate-ops", "axis": "flow",
-                "title": "t", "summary": "s", "tags": ["flow"], "content": "# body",
-                "axis_description": "(test)", "source": bad
+                "title": "t", "summary": "s", "tags": ["flow"], "content": "# body", "source": bad
             ]
             let dryRun = OperationsEngine.dryRun(home.storage, ["ops": [op], "rationale": "test"])
         
@@ -248,7 +247,6 @@ struct SourceGateInvariantTests {
         let result = home.apply([[
             "op": "create_note", "id": "gate-5", "axis": "flow",
             "title": "t", "summary": "s", "tags": ["flow"], "content": "# body",
-            "axis_description": "(test)",
             "source": ["/abs/a.swift", ["path": "/abs/b.swift"]] as [Any]
         ]])
         

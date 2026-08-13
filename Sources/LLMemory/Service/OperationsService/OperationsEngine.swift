@@ -493,10 +493,6 @@ public struct OperationsEngine: Sendable {
                 let noteId = op["id"] as? String, !noteId.isEmpty {
                 context.lockedInFlightIds.insert(noteId)
             }
-
-            if name == "create_note", let axis = op["axis"] as? String, !axis.isEmpty {
-                context.inFlightAxes.insert(axis)
-            }
         }
         
         return nil

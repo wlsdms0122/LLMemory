@@ -131,7 +131,7 @@ struct LiveNoteGateInvariantTests {
     // MARK: - Private
     @discardableResult
     private func trashNote(id: String) throws -> URL {
-        let created = home.createNote(id: id, content: "# body", fields: ["axis_description": "(test)"])
+        let created = home.createNote(id: id, content: "# body", fields: [:])
         
         #expect(created.status == "ok", "setup: create failed — \(created.error)")
         

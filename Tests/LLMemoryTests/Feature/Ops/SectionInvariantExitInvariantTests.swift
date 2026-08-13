@@ -58,8 +58,7 @@ struct SectionInvariantExitInvariantTests {
         
         // When
         let result = home.apply([
-            "op": "migrate_note", "id": "cm-note", "to_axis": "tech",
-            "axis_description": "tech", "reason": "test"
+            "op": "migrate_note", "id": "cm-note", "to_axis": "tech", "reason": "test"
         ])
         
         // Then

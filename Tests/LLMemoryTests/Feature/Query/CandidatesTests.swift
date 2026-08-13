@@ -30,7 +30,7 @@ struct CandidatesTests {
             id: "cand-inv-eager1",
             title: "eager protected",
             content: "## A\nbody\n",
-            fields: ["priority": "eager", "axis_description": "(test axis)"]
+            fields: ["priority": "eager"]
         )
         
         #expect(created.status == "ok", "failed to create the eager note: \(created.error)")

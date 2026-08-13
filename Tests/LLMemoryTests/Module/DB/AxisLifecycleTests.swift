@@ -64,6 +64,50 @@ struct AxisLifecycleTests {
         #expect(try lifecycle.noteCount(axis: "technology") == 1)
     }
     
+    @Test("every op that names an axis answers the same way — a directory is made on demand")
+    func anUnknownAxisIsCreatedByWhicheverOpNamesIt() throws {
+        // Given
+        lifecycle.create("tdb-g1", axis: "gateaxis")
+        lifecycle.create("tdb-g2", axis: "gateaxis")
+        
+        #expect(home.apply([
+            "op": "patch_section", "id": "tdb-g2", "section": "# tdb-g2",
+            "action": "append", "content": "## Left\nl\n\n## Right\nr\n"
+        ]).status == "ok")
+        
+        // Then — create already made 'gateaxis'; migrate and split may name a fresh one too
+        #expect(home.apply([
+            "op": "migrate_note", "id": "tdb-g1", "new_axis": "gate-migrated"
+        ]).status == "ok")
+        #expect(try lifecycle.noteCount(axis: "gate-migrated") == 1)
+        
+        let split = home.apply([
+            "op": "split_note", "from_id": "tdb-g2",
+            "into": [
+                [
+                    "id": "tdb-g2-a", "axis": "gate-split", "title": "A",
+                    "tags": ["alpha"], "summary": "a", "sections": ["# tdb-g2 > ## Left"]
+                ],
+                [
+                    "id": "tdb-g2-b", "axis": "gate-split", "title": "B",
+                    "tags": ["beta"], "summary": "b", "sections": ["# tdb-g2 > ## Right"]
+                ]
+            ]
+        ])
+        
+        #expect(split.status == "ok", "\(split.error)")
+        #expect(try lifecycle.noteCount(axis: "gate-split") == 2)
+        
+        // And all three refuse the same malformed name
+        for operation in [
+            ["op": "create_note", "id": "tdb-g3", "axis": "Bad Axis", "title": "t",
+             "tags": ["x"], "summary": "s", "content": "# t\n"] as [String: Any],
+            ["op": "migrate_note", "id": "tdb-g1", "new_axis": "Bad Axis"]
+        ] {
+            #expect(home.apply(operation).status != "ok", "\(operation)")
+        }
+    }
+    
     @Test("renaming onto an axis that already exists is refused rather than merging the two")
     func renameToExistingAxisRejected() {
         // Given

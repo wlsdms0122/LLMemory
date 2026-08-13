@@ -24,11 +24,11 @@ struct TagPriorTests {
     }
 
     // MARK: - Test
-    @Test("the prior counts every tag of every recently surfaced note, normalised to 1")
-    func priorSpreadsOverAllTagsOfAHit() throws {
+    @Test("a tag's prior is the share of recent hits carrying it, not its share of all tags")
+    func priorIsTheShareOfHitsCarryingTheTag() throws {
         // Given
         home.createNote(id: "tp-a", axis: "flow", tags: ["flow", "transfer"])
-        home.createNote(id: "tp-b", axis: "tech", tags: ["tech"])
+        home.createNote(id: "tp-b", axis: "tech", tags: ["flow", "tech"])
 
         try recordRetrieval(session: "s1", hits: ["tp-a", "tp-b"])
 
@@ -38,11 +38,11 @@ struct TagPriorTests {
                 .perform(database)
         }
 
-        // Then — three tag occurrences across the two hits
-        #expect(prior["flow"] == 1.0 / 3.0)
-        #expect(prior["transfer"] == 1.0 / 3.0)
-        #expect(prior["tech"] == 1.0 / 3.0)
-        #expect(prior.values.reduce(0, +) == 1.0)
+        // Then — a tag on every hit is a full 1.0 however many tags it shares a note with,
+        // so priming.alpha keeps meaning the same thing on a richly tagged corpus.
+        #expect(prior["flow"] == 1.0)
+        #expect(prior["transfer"] == 0.5)
+        #expect(prior["tech"] == 0.5)
     }
 
     @Test("another session's retrievals do not warm this one")

@@ -72,16 +72,24 @@ struct ComputeTagPriorTransaction: GRDBReadTransaction {
         }
 
         var frequency: [String: Double] = [:]
+        var counted = 0
 
         for id in ids {
-            for tag in tagsById[id] ?? [] { frequency[tag, default: 0] += 1 }
+            guard let tags = tagsById[id] else { continue }
+
+            counted += 1
+
+            for tag in tags { frequency[tag, default: 0] += 1 }
         }
 
-        let total = frequency.values.reduce(0, +)
+        // Normalised by the number of hits, not by how many tags they carried
+        // between them: a tag on every hit is a prior of 1, whether those notes
+        // wear one tag each or five. Dividing by tag occurrences would make the
+        // boost quietly weaker on a corpus that tags more richly, and
+        // priming.alpha means "how much say priming has" on a fixed scale.
+        guard counted > 0 else { return [:] }
 
-        guard total > 0 else { return [:] }
-
-        return frequency.mapValues { count in count / total }
+        return frequency.mapValues { count in count / Double(counted) }
     }
 
     // MARK: - Private

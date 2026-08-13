@@ -175,7 +175,7 @@ public enum HandlersStructural {
             summary: "move a note to a different axis and/or rename its id (file relocates, frontmatter rewrites)",
             fields: [
                 .required("id", role: .noteId, "current note id"),
-                .optional("new_axis", "destination axis (must already exist); defaults to current axis"),
+                .optional("new_axis", "destination axis — the cortex/ directory to move the file into; created if new. defaults to current axis"),
                 .optional("new_id", role: .noteId, "new id (lowercase + [a-z0-9-]); defaults to current id")
             ],
             example: ##"{"op":"migrate_note","id":"my-note","new_axis":"flow","new_id":"my-note-v2"}"##
@@ -198,9 +198,7 @@ public enum HandlersStructural {
                 newAxis = currentAxis
             }
             
-            if !state.axes.contains(newAxis) && !context.inFlightAxes.contains(newAxis) {
-                return "unknown new_axis: \(newAxis)"
-            }
+            if let rejection = Handlers.axisRejection(newAxis) { return rejection }
             
             let newId = (op["new_id"] as? String) ?? noteId
             let nsNewId = newId as NSString
@@ -348,7 +346,7 @@ public enum HandlersStructural {
             let toAxis = op["to_axis"] as! String
             let now = context.now
             let rows = try scope.run(ListNotesByAxisTransaction(axis: fromAxis))
-            let createdAt = try scope.run(FetchAxisTransaction(axis: fromAxis)) ?? now
+            let createdAt = try scope.run(FetchAxisCreatedAtTransaction(axis: fromAxis)) ?? now
             
             for (noteId, relativePath) in rows {
                 let oldPath = Paths.brainRoot.appendingPathComponent(relativePath)
@@ -746,17 +744,13 @@ public enum HandlersStructural {
                 
                 let axis = child["axis"] as! String
                 
-                if !state.axes.contains(axis) && !context.inFlightAxes.contains(axis) {
-                    return "into[\(index)] unknown axis: \(axis)"
+                if let rejection = Handlers.axisRejection(axis) {
+                    return "into[\(index)] \(rejection)"
                 }
                 
                 guard let tags = child["tags"] as? [Any], !tags.isEmpty else {
                     return "into[\(index)] tags must be non-empty list"
                 }
-                
-                let tagStrings = tags.compactMap { tag in tag as? String }
-                
-                if !tagStrings.contains(axis) { return "into[\(index)] axis tag missing: \(axis)" }
                 
                 guard let sections = child["sections"] as? [Any], !sections.isEmpty else {
                     return "into[\(index)] sections must be non-empty list"

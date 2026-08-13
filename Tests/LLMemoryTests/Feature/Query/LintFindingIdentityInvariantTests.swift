@@ -71,7 +71,7 @@ struct LintFindingIdentityInvariantTests {
         let result = home.createNote(
             id: "identity-3",
             content: Self.opsSafeRepeatingBody,
-            fields: ["axis_description": "(test)"]
+            fields: [:]
         )
         
         #expect(result.status == "ok", "setup: \(result.error)")

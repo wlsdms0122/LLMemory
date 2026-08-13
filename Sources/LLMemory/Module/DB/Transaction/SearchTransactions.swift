@@ -51,6 +51,38 @@ public enum Search {
     
     // MARK: - Initializer
     // MARK: - Public
+    // The one place that decides what "this note carries this tag" means in SQL.
+    // Aliases exist so a caller may spell a tag either way, and only the canonical
+    // spelling is stored on the note — so the resolution belongs here, with the
+    // clause it guards, rather than at each call site.
+    static func tagClause(
+        _ db: Database,
+        tags: [String],
+        negated: Bool = false
+    ) throws -> (clause: String, arguments: [String]) {
+        guard !tags.isEmpty else { return ("", []) }
+
+        let canonical = try tags.map { tag in
+            try CanonicalizeTagTransaction(tag: tag).perform(db)
+        }
+
+        if negated {
+            let placeholders = canonical.map { _ in "?" }.joined(separator: ",")
+
+            return (
+                "NOT EXISTS (SELECT 1 FROM tags t WHERE t.note_id = n.id"
+                    + " AND t.tag IN (\(placeholders)))",
+                canonical
+            )
+        }
+
+        let clauses = canonical.map { _ in
+            "EXISTS (SELECT 1 FROM tags t WHERE t.note_id = n.id AND t.tag = ?)"
+        }
+
+        return (clauses.joined(separator: " AND "), canonical)
+    }
+
     static func fetchPoolSize(limit: Int, needsRerank: Bool) -> Int {
         needsRerank ? limit + min(limit * 2, 30) : limit
     }
@@ -175,20 +207,12 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
             """
         var arguments: [DatabaseValueConvertible?] = [matchExpr]
         
-        // Aliases exist so a caller may spell a tag either way — resolve before matching,
-        // since only the canonical spelling is stored on the note.
-        for tag in tags {
-            sql += " AND EXISTS (SELECT 1 FROM tags t WHERE t.note_id = n.id AND t.tag = ?)"
-            arguments.append(try CanonicalizeTagTransaction(tag: tag).perform(db))
-        }
-
-        if let excludeTags, !excludeTags.isEmpty {
-            let placeholders = Array(repeating: "?", count: excludeTags.count).joined(separator: ",")
-            sql += " AND NOT EXISTS (SELECT 1 FROM tags t WHERE t.note_id = n.id"
-                + " AND t.tag IN (\(placeholders)))"
-            arguments.append(contentsOf: try excludeTags.map { tag in
-                try CanonicalizeTagTransaction(tag: tag).perform(db)
-            })
+        for (clause, tagArguments) in [
+            try Search.tagClause(db, tags: tags),
+            try Search.tagClause(db, tags: excludeTags ?? [], negated: true)
+        ] where !clause.isEmpty {
+            sql += " AND \(clause)"
+            arguments.append(contentsOf: tagArguments)
         }
         
         let now = Int(Date().timeIntervalSince1970)

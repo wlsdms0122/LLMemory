@@ -108,8 +108,7 @@ struct DismissalsTests {
         #expect(home.apply([
             "op": "create_note", "id": "big-5", "axis": "tech",
             "title": "uniqtoken big note", "summary": "summary", "tags": ["tech", "alpha", "beta"],
-            "content": Self.largeBody(sections: 4, wordsPerSection: 120) + "## extra\nzephyrquark marker\n",
-            "axis_description": "(test)"
+            "content": Self.largeBody(sections: 4, wordsPerSection: 120) + "## extra\nzephyrquark marker\n"
         ]).status == "ok")
         
         // When
@@ -330,7 +329,7 @@ struct DismissalsTests {
             title: "big note",
             tags: ["tech", "alpha", "beta"],
             content: Self.largeBody(sections: sections, wordsPerSection: wordsPerSection),
-            fields: ["axis_description": "(test)"]
+            fields: [:]
         )
     }
     
@@ -341,7 +340,7 @@ struct DismissalsTests {
             axis: "tech",
             tags: ["tech"] + tags,
             content: "## A\nbody text here\n",
-            fields: ["axis_description": "(test)"]
+            fields: [:]
         )
     }
     

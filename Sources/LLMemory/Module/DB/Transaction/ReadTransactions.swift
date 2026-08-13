@@ -252,11 +252,11 @@ struct ListNoteRowsTransaction: GRDBReadTransaction {
             arguments.append(priority)
         }
 
-        // Aliases exist so a caller may spell a tag either way — resolve before matching,
-        // since only the canonical spelling is stored on the note.
-        for tag in filter.tags {
-            clauses.append("EXISTS (SELECT 1 FROM tags t WHERE t.note_id = n.id AND t.tag = ?)")
-            arguments.append(try CanonicalizeTagTransaction(tag: tag).perform(db))
+        let (tagClause, tagArguments) = try Search.tagClause(db, tags: filter.tags)
+
+        if !tagClause.isEmpty {
+            clauses.append(tagClause)
+            arguments.append(contentsOf: tagArguments)
         }
 
         for field in filter.fields {

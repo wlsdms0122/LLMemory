@@ -29,8 +29,8 @@ command -v sqlite3 >/dev/null || { echo "sqlite3 required" >&2; exit 1; }
 #    but the legacy DB lacks aborts it *late*, mid-carry-over, with the DB already
 #    set aside. Names are cheap to compare up front — so compare them all and
 #    report every miss at once, rather than discovering them one abort at a time.
-python3 - "$DB" <<'PY'
-import os, sqlite3, sys
+python3 - "$DB" "$ROOT" <<'PY'
+import os, re, sqlite3, sys
 
 REQUIRED = {
     "tag_vocab": "tag created_at",
@@ -53,7 +53,11 @@ REQUIRED = {
     "meta": "key value",
 }
 
-db = sqlite3.connect(sys.argv[1])
+# Read-only: the write lock is taken in step 1, and the promise printed below is
+# "nothing was touched" — opening read-write could checkpoint a leftover WAL into
+# the file before the backup exists.
+db = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
+root = sys.argv[2]
 present = {row[0] for row in db.execute(
     "SELECT name FROM sqlite_master WHERE type = 'table'")}
 missing = []
@@ -77,21 +81,60 @@ if missing:
     sys.exit(1)
 
 # note_meta retired with no successor table — its rows would vanish silently.
-# Domain metadata now lives in frontmatter, which the reprojection reads, so the
-# values have to move to the files *before* this runs.
+# The values belong in frontmatter now, and step 3 reprojects frontmatter into
+# note_extra, so the move has to happen in the *files* before this runs. It cannot
+# be done with `set_frontmatter`: the old binary refuses custom keys, and the new
+# one writes the file and then dies reprojecting into a note_extra this DB does
+# not have yet. So the instruction is a line of markdown, which any editor can add.
+KEY_OK = re.compile(r"^[A-Za-z_]\w*$")
+
 if "note_meta" in present:
     rows = list(db.execute(
         "SELECT note_id, namespace, key, value FROM note_meta ORDER BY note_id, namespace, key"))
 
     if rows and not os.environ.get("ALLOW_NOTE_META_LOSS"):
-        print(f"note_meta still holds {len(rows)} row(s), and this migration drops the table.",
-              file=sys.stderr)
-        print("Move them into frontmatter first — one op per row:\n", file=sys.stderr)
+        paths = dict(db.execute("SELECT id, path FROM notes"))
+        # (note, key) is the frontmatter identity; note_meta's is (note, namespace,
+        # key). Two namespaces sharing a key on one note would collide into a single
+        # line, so those are named, not silently folded into one.
+        by_note_key = {}
 
         for note_id, namespace, key, value in rows:
-            print(f'  {{"op":"set_frontmatter","id":"{note_id}",'
-                  f'"fields":{{"{key}":"{value}"}}}}   # namespace={namespace}',
+            by_note_key.setdefault((note_id, key), []).append((namespace, value))
+
+        writable, blocked = [], []
+
+        for note_id, namespace, key, value in rows:
+            reason = None
+
+            if len(by_note_key[(note_id, key)]) > 1:
+                reason = f"key '{key}' appears under {len(by_note_key[(note_id, key)])} namespaces"
+            elif not KEY_OK.match(key):
+                reason = f"key '{key}' is not a frontmatter key ([A-Za-z_]\\w*)"
+            elif "\n" in value or not value.strip():
+                reason = "value is empty or spans lines"
+            elif note_id not in paths:
+                reason = "no note row — the file it belonged to is gone"
+
+            (blocked if reason else writable).append(
+                (note_id, namespace, key, value, reason))
+
+        print(f"note_meta still holds {len(rows)} row(s), and this migration drops the table.",
+              file=sys.stderr)
+        print("The values live in frontmatter now. Add these lines to the notes"
+              " (inside the --- block), then rerun:\n", file=sys.stderr)
+
+        for note_id, namespace, key, value, _ in writable:
+            print(f"  {os.path.join(root, paths[note_id])}", file=sys.stderr)
+            print(f"      {key}: {value}        # was note_meta {namespace}/{key}",
                   file=sys.stderr)
+
+        if blocked:
+            print("\nThese cannot become one frontmatter line as they stand —"
+                  " decide each by hand:", file=sys.stderr)
+
+            for note_id, namespace, key, value, reason in blocked:
+                print(f"  {note_id} {namespace}/{key} = {value!r} — {reason}", file=sys.stderr)
 
         print("\nnothing was touched. Rerun once note_meta is empty, or set\n"
               "ALLOW_NOTE_META_LOSS=1 to discard these values on purpose.", file=sys.stderr)

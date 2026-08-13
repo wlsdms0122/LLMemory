@@ -231,7 +231,6 @@ struct TemplateTests {
         OperationsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "tpl-spec", "axis": "template",
             "title": "Spec template", "summary": "s", "tags": ["template"],
-            "axis_description": "structured document templates",
             "content": Self.templateBody, "locked": locked
         ]], "rationale": "test"])
     }
@@ -383,7 +382,7 @@ struct TemplateTests {
         // Then
         #expect(OperationsEngine.apply(home.storage, ["ops": [[
             "op": "create_note", "id": "tpl-ab", "axis": "template", "title": "t",
-            "summary": "s", "tags": ["template"], "axis_description": "tpl",
+            "summary": "s", "tags": ["template"],
             "content": "# A\nguidance A.\n# B\nguidance B.", "locked": true
         ]], "rationale": "t"]).status == "ok")
         #expect(OperationsEngine.apply(home.storage, ["ops": [[

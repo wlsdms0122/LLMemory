@@ -184,9 +184,6 @@ public struct HandlerContext {
     public let now: Int
 
     public var inFlightIds: Set<String> = []
-    // Axes an earlier op in the same transaction introduces (create_note with axis_description).
-    // Later ops must see them as existing even though nothing is committed yet.
-    public var inFlightAxes: Set<String> = []
     public var invalidatedIds: Set<String> = []
     public var removedIds: Set<String> = []
     public var lockedInFlightIds: Set<String> = []
@@ -206,8 +203,38 @@ public struct HandlerContext {
 public struct ExistingState {
     // MARK: - Property
     public let ids: Set<String>
-    public let axes: Set<String>
     
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}
+
+// A field that exists but is not this op's to set. Each has an op of its own,
+// and the message says which — the whole point of refusing rather than merging.
+struct ReservedFieldError: Error, CustomStringConvertible {
+    // MARK: - Property
+    let field: String
+
+    var description: String {
+        let owner: String
+
+        switch field {
+        case "id", "axis":
+            owner = "migrate_note moves it"
+
+        case "stale", "invalidated_at", "invalidated_reason":
+            owner = "invalidate/revalidate own it"
+
+        case "trashed_at", "trashed_reason":
+            owner = "delete_note/restore_note own it"
+
+        default:
+            owner = "it is edited in the file only"
+        }
+
+        return "reserved field '\(field)' — \(owner)"
+    }
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -259,11 +286,38 @@ public enum Handlers {
         return Paths.notes.appendingPathComponent(axis).appendingPathComponent("\(nid).md")
     }
     
+    // Whatever an op carries that its own schema does not name. For the ops that
+    // author a note that is a custom frontmatter field — the caller means it for
+    // the note, not for the op, and the note is where it belongs.
+    public static func customFields(
+        of op: [String: Any],
+        declaredBy schema: OperationSchema
+    ) -> [String: Any] {
+        let declared = Set(schema.fields.map(\.name)).union(["op", "rationale"])
+
+        return op.filter { entry in !declared.contains(entry.key) }
+    }
+
+    // The single judgment on an axis name. An axis is the directory a note's file
+    // lives in — nothing registers a directory in advance, so every op that names
+    // one creates it on demand and only the spelling is checked. Keeping this in
+    // one place is what stops create/migrate/split from answering "is this axis
+    // allowed?" three different ways, which is exactly what they used to do.
+    public static func axisRejection(_ axis: String) -> String? {
+        let nsAxis = axis as NSString
+
+        guard axisRegex.firstMatch(
+            in: axis,
+            range: NSRange(location: 0, length: nsAxis.length)
+        ) == nil else {
+            return nil
+        }
+
+        return "invalid axis format: \(axis)"
+    }
+
     public static func existingState(_ scope: GRDBReadScope) throws -> ExistingState {
-        ExistingState(
-            ids: try scope.run(FetchNoteIdsTransaction()),
-            axes: try scope.run(FetchAxisNamesTransaction())
-        )
+        ExistingState(ids: try scope.run(FetchNoteIdsTransaction()))
     }
     
     public static func checkRequired(_ op: [String: Any], fields: [String]) -> String? {
@@ -538,11 +592,7 @@ public enum Handlers {
 
             default:
                 guard frontmatterReserved.contains(key) == false else {
-                    throw FieldTypeError(
-                        field: key,
-                        expected: "a field set_frontmatter owns — '\(key)' has its own op",
-                        got: value
-                    )
+                    throw ReservedFieldError(field: key)
                 }
 
                 guard extraKeyRegex.firstMatch(

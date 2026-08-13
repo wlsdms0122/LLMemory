@@ -293,7 +293,7 @@ struct UnreadableNoteGateInvariantTests {
     private func seedTemplate(id templateId: String, documentId: String) throws {
         #expect(home.apply([
             "op": "create_note", "id": templateId, "axis": "template", "title": "template",
-            "summary": "summary", "tags": ["template"], "axis_description": "tpl",
+            "summary": "summary", "tags": ["template"],
             "content": "# A\nguidance A.\n# B\nguidance B."
         ]).status == "ok")
         #expect(home.apply([

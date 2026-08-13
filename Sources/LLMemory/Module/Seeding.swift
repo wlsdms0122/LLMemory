@@ -14,8 +14,6 @@ public enum Seeding {
         case overwrite
     }
 
-    // MARK: - Property
-
     public struct Result: Sendable {
         // MARK: - Property
         public var planted: [String] = []

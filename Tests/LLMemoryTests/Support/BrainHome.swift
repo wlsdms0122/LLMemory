@@ -70,12 +70,9 @@ extension BrainHome {
             "axis": axis,
             "title": title,
             "summary": summary,
-            // The axis must appear in the tags, so defaulting to it keeps the two from drifting apart
-            // at a call site that only meant to change the axis.
+            // Defaulting the tag to the axis keeps most fixtures reading the way the corpus
+            // does — nothing requires it, so a test that cares passes its own tags.
             "tags": tags ?? [axis],
-            // Homes start with zero axes, so any axis a test names is brand new and create_note
-            // demands a description. Harmless when the axis already exists.
-            "axis_description": "(test axis)",
             "content": content
         ]
 

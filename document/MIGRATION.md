@@ -17,7 +17,8 @@
 
 CLI 표면에서는 `ruleset` 그룹, `operations apply/dry-run` 의 `--ruleset`,
 env `LLMEMORY_RULESET(_LOCKED)`, `query meta`, op `set_note_meta`/`delete_note_meta`,
-op `set_axis_description`, `create_note` 의 `axis_description`,
+op `set_axis_description`, `create_note` 의 `axis_description`(신규 axis 등록 게이트 포함 —
+이제 세 op 모두 철자만 맞으면 디렉터리를 만든다),
 split routing 의 `type:"meta"` 가 함께 사라졌다.
 
 `query search`/`query list` 의 `--axis`(및 `--exclude-axes`)는 `--tag`/`--exclude-tags` 로
@@ -45,9 +46,14 @@ DDL/테이블/컬럼 비교)에 걸리면 하드 실패한다. 이전 모양의 
 
 1. **shape 대조** — 이식이 이름으로 읽는 18개 테이블의 전 컬럼을 `PRAGMA table_info` 로
    대조하고, 없는 것을 **한 번에 모두** 찍고 중단한다.
-2. **`note_meta` 잔존 확인** — 행이 남아 있으면 그대로 사라지므로, 각 행을 그대로 실행할 수 있는
-   `set_frontmatter` op 로 찍어주고 중단한다. frontmatter 로 옮긴 뒤 다시 돌리면 된다
-   (값을 의도적으로 버릴 거면 `ALLOW_NOTE_META_LOSS=1`).
+2. **`note_meta` 잔존 확인** — 행이 남아 있으면 그대로 사라지므로, **어느 파일에 어떤 줄을
+   넣어야 하는지** 를 파일 경로와 함께 찍고 중단한다. `set_frontmatter` op 를 안내하지 않는
+   이유는 이 시점에 그 op 를 돌릴 수 있는 바이너리가 없기 때문이다 — 구 바이너리는 커스텀 키를
+   거부하고, 신 바이너리는 파일을 쓴 뒤 아직 없는 `note_extra` 에 투영하다 죽는다. 반면
+   markdown 한 줄은 편집기로 넣을 수 있고 3단계 재투영이 그대로 집어간다.
+   `(note, namespace, key)` 중 namespace 만 다른 동명 key, frontmatter 키 규칙
+   (`[A-Za-z_]\w*`)을 못 맞추는 key, 여러 줄 값은 한 줄로 접을 수 없으므로 **따로 열거만 하고
+   자동으로 뭉개지 않는다.** 값을 의도적으로 버릴 거면 `ALLOW_NOTE_META_LOSS=1`.
 
 `note_meta` 의 값은 frontmatter 커스텀 필드로 옮기면 `note_extra` 에 투영돼
 `query list --field <key>=<value>` 로 계속 질의된다 — 이번엔 파일이 SSoT 다.

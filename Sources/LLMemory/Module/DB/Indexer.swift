@@ -397,6 +397,12 @@ public enum Indexer {
             dbTagsById[noteId, default: []].insert(row["tag"])
         }
 
+        var dbExtraById: [String: [String: String]] = [:]
+
+        for row in try Row.fetchAll(db, sql: "SELECT note_id, key, value FROM note_extra") {
+            dbExtraById[row["note_id"] as String, default: [:]][row["key"] as String] = row["value"]
+        }
+
         let ftsIds = Set(try String.fetchAll(db, sql: "SELECT DISTINCT id FROM notes_fts"))
         let noteIds = Set(dbRows.values.map { row in row.id })
 
@@ -456,6 +462,26 @@ public enum Indexer {
 
                 messages.append(
                     "L2\ttag-mismatch\t\(row.id)\tonly_in_file=\(onlyFile) only_in_db=\(onlyDB)"
+                )
+                ok = false
+            }
+
+            // note_extra is a projection like tags are, so it gets the same eye:
+            // content_hash only proves the file has not moved since indexing, not
+            // that the projection wrote what the file says.
+            let dbExtra = dbExtraById[row.id] ?? [:]
+
+            if fields.extra != dbExtra {
+                let disagreeing = Set(fields.extra.keys).union(dbExtra.keys)
+                    .filter { key in fields.extra[key] != dbExtra[key] }
+                    .sorted()
+                let detail = disagreeing.map { key in
+                    "\(key): file=\(fields.extra[key].map { "'\($0)'" } ?? "-")"
+                        + " db=\(dbExtra[key].map { "'\($0)'" } ?? "-")"
+                }
+
+                messages.append(
+                    "L2\textra-mismatch\t\(row.id)\t\(detail.joined(separator: ", "))"
                 )
                 ok = false
             }

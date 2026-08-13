@@ -9,25 +9,27 @@ import Foundation
 
 public enum HandlersBasic {
     // MARK: - Property
+    static let createNoteSchema = OperationSchema(
+        summary: "create a new note (file + DB row)",
+        fields: [
+            .required("axis", "axis name — the cortex/ directory the file lands in"),
+            .required("id", role: .noteId, "lowercase + [a-z0-9-], unique across active notes"),
+            .required("title", "human-readable note title"),
+            .required("tags", "non-empty string list — how the note is classified"),
+            .required("summary", "one-line summary used by retrieval"),
+            .required("content", unless: "template", "markdown body (frontmatter is generated). optional when 'template' is set — the template frame is scaffolded as empty sections"),
+            .optional("priority", "'eager' | 'lazy' (default 'lazy'); eager has cap"),
+            .optional("source", "string or list of source refs. Local absolute paths are drift-tracked (source_stale); URLs/dates/relative refs are kept as provenance only."),
+            .optional("entities", "string list of named entities"),
+            .optional("template", "id of a template note this note follows (structured document). body must conform to the template frame; empty content is scaffolded"),
+            .optional("locked", "bool. true → human-only: subsequent operations mutation is refused, file is edited directly"),
+            .optional("rationale", "lifecycle event reason recorded on creation")
+        ],
+        example: ##"{"op":"create_note","axis":"persona","id":"my-note","title":"...","tags":["persona"],"summary":"...","content":"# body"}"##
+    )
+    
     public static let createNote = OperationHandler(
-        schema: OperationSchema(
-            summary: "create a new note (file + DB row)",
-            fields: [
-                .required("axis", "axis name — the cortex/ directory the file lands in"),
-                .required("id", role: .noteId, "lowercase + [a-z0-9-], unique across active notes"),
-                .required("title", "human-readable note title"),
-                .required("tags", "non-empty string list — how the note is classified"),
-                .required("summary", "one-line summary used by retrieval"),
-                .required("content", unless: "template", "markdown body (frontmatter is generated). optional when 'template' is set — the template frame is scaffolded as empty sections"),
-                .optional("priority", "'eager' | 'lazy' (default 'lazy'); eager has cap"),
-                .optional("source", "string or list of source refs. Local absolute paths are drift-tracked (source_stale); URLs/dates/relative refs are kept as provenance only."),
-                .optional("entities", "string list of named entities"),
-                .optional("template", "id of a template note this note follows (structured document). body must conform to the template frame; empty content is scaffolded"),
-                .optional("locked", "bool. true → human-only: subsequent operations mutation is refused, file is edited directly"),
-                .optional("rationale", "lifecycle event reason recorded on creation")
-            ],
-            example: ##"{"op":"create_note","axis":"persona","id":"my-note","title":"...","tags":["persona"],"summary":"...","content":"# body"}"##
-        ),
+        schema: createNoteSchema,
         validate: { op, context, scope in
             let hasTemplate = (op["template"] as? String).map { value in !value.isEmpty } ?? false
             
@@ -66,20 +68,21 @@ public enum HandlersBasic {
             
             if let rejection = Handlers.sourceInputError(op["source"]) { return rejection }
             
+            do {
+                var probe = FrontmatterDoc()
+                
+                try Handlers.mergeFields(&probe, Handlers.customFields(of: op, declaredBy: Self.createNoteSchema))
+            } catch {
+                return "\(error)"
+            }
+            
             let state = try Handlers.existingState(scope)
             
             if state.ids.contains(noteId) || context.inFlightIds.contains(noteId) {
                 return "id collision: \(noteId) (use patch_section to update)"
             }
             
-            let nsAxis = axis as NSString
-
-            if Handlers.axisRegex.firstMatch(
-                in: axis,
-                range: NSRange(location: 0, length: nsAxis.length)
-            ) == nil {
-                return "invalid axis format: \(axis)"
-            }
+            if let rejection = Handlers.axisRejection(axis) { return rejection }
             
             let path = Handlers.pathFor(axis: axis, nid: noteId)
             
@@ -127,6 +130,7 @@ public enum HandlersBasic {
             
             if !entities.isEmpty { doc.entities = entities }
             
+            try Handlers.mergeFields(&doc, Handlers.customFields(of: op, declaredBy: Self.createNoteSchema))
             try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
             
             try scope.run(ReindexNoteFileTransaction(path: path))
@@ -300,16 +304,6 @@ public enum HandlersBasic {
                 return "fields must be non-empty dict"
             }
             
-            let reserved = fields.keys.filter { key in
-                Handlers.frontmatterReserved.contains(key)
-            }
-
-            if !reserved.isEmpty {
-                return "reserved fields: \(reserved.sorted()) — each has its own op "
-                    + "(migrate_note for id/axis, invalidate/revalidate for stale, "
-                    + "delete_note/restore_note for trashed_*; template/locked are file-only)"
-            }
-
             if let tags = fields["tags"] {
                 guard let array = tags as? [Any], !array.isEmpty else {
                     return "tags must be non-empty list"

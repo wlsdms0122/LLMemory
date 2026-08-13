@@ -45,6 +45,15 @@ struct NoteExtraProjectionTests {
         #expect(try extras(of: "nx-a") == ["affect": "low"])
     }
 
+    @Test("create_note keeps a custom field too — the note owns it from birth")
+    func createCarriesCustomFields() throws {
+        // When
+        home.createNote(id: "nx-born", tags: ["flow"], fields: ["affect": "high"])
+
+        // Then
+        #expect(try extras(of: "nx-born") == ["affect": "high"])
+    }
+
     @Test("a rebuild from markdown alone reproduces note_extra — the file is the source")
     func rebuildReproducesFromMarkdown() throws {
         // Given

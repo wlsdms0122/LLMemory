@@ -130,8 +130,13 @@ axis 로는 분류가 안 된다. 검색·나열·세션 priming 전부 태그 �
 
 **커스텀 frontmatter 필드.** frontmatter 는 일급 필드(title/summary/tags/…) 외에
 아무 키나 실을 수 있고, 그 값은 `note_extra` 로 투영돼 `--field` 로 질의된다.
-`set_frontmatter` 로 쓰고(값이 `null` 이면 삭제), 파일이 언제나 SSoT 다 —
+`create_note`·`set_frontmatter` 둘 다 op 스키마에 없는 키를 그대로 노트의 필드로 받는다
+(스칼라 1줄, `set_frontmatter` 에서 값이 `null` 이면 삭제). 파일이 언제나 SSoT 다 —
 지식만 옮긴 뇌에서도 이 값은 파일과 함께 따라온다.
+
+**axis 는 만들면 생긴다.** axis 는 파일이 놓일 디렉터리 이름이라 미리 등록하는 절차가 없다 —
+`create_note`·`migrate_note`·`split_note` 전부 철자만 맞으면 그 자리에서 만든다. 오타로 생긴
+축은 `consolidate report` 의 small axes 에 노트 1~2개짜리로 드러난다.
 
 **분화·승격의 사실 엣지**: `split_note` 는 자식들 사이에 `sibling` 을 자동으로 심는다.
 승격(낱개 → 요지/면)은 `link_lineage` 로 남긴다 — `propose_link`(감쇠하는 연상 제안)와 달리

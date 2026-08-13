@@ -80,18 +80,6 @@ struct CanonicalizeTagTransaction: GRDBReadTransaction {
     // MARK: - Private
 }
 
-struct FetchAxisNamesTransaction: GRDBReadTransaction {
-    // MARK: - Initializer
-    init() { }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> Set<String> {
-        Set(try String.fetchAll(db, sql: "SELECT axis FROM axes"))
-    }
-
-    // MARK: - Private
-}
-
 struct AxisExistsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let axis: String
@@ -109,7 +97,7 @@ struct AxisExistsTransaction: GRDBReadTransaction {
     // MARK: - Private
 }
 
-struct FetchAxisTransaction: GRDBReadTransaction {
+struct FetchAxisCreatedAtTransaction: GRDBReadTransaction {
     // MARK: - Property
     let axis: String
 
