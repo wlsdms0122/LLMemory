@@ -87,38 +87,37 @@ public enum Seeding {
             }
         }
 
-        result.foreign = foreignFiles()
+        result.foreign = foreignNotes()
 
         return result
     }
 
     // MARK: - Private
-    // `update --override` makes cortex/innate/ exactly the shipped set — files the
-    // release does not ship are removed. Returns what was deleted.
+    // `update --override` makes cortex/innate/ exactly the shipped set — notes the
+    // release does not ship are removed. Returns the ids that were deleted.
+    //
+    // Note by note, never entry by entry. innate/ is an ordinary branch of the
+    // address space now, so `innate.docs.setup` puts a *directory* named docs at
+    // its top level; removing that entry would take the whole subtree with it,
+    // and a directory is not a thing the release ships or does not ship.
     public static func removeForeign() -> [String] {
         var removed: [String] = []
 
-        for name in foreignFiles() {
-            let file = Paths.innate.appendingPathComponent(name)
-
-            if (try? FileManager.default.removeItem(at: file)) != nil {
-                removed.append(name)
+        for id in foreignNotes() {
+            if (try? FileManager.default.removeItem(at: Paths.file(forId: id))) != nil {
+                removed.append(id)
             }
         }
 
         return removed
     }
 
-    private static func foreignFiles() -> [String] {
-        let shipped = Set(Innate.seeds.map { seed in Paths.file(forId: seed.id).lastPathComponent })
-        let entries = (try? FileManager.default.contentsOfDirectory(
-            at: Paths.innate,
-            includingPropertiesForKeys: nil
-        )) ?? []
+    private static func foreignNotes() -> [String] {
+        let shipped = Set(Innate.seeds.map { seed in seed.id })
 
-        return entries
-            .map { entry in entry.lastPathComponent }
-            .filter { name in !name.hasPrefix(".") && !shipped.contains(name) }
+        return Paths.scanNotes()
+            .compactMap { file in Paths.id(ofFile: file) }
+            .filter { id in id.hasPrefix(Paths.innateBranch + ".") && !shipped.contains(id) }
             .sorted()
     }
 

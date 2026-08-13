@@ -22,7 +22,8 @@ enum Paths {
     // Where the shipped innate seeds live. An ordinary branch of the address
     // space — being shipped is a fact about where a note came from, not about
     // where it sits, so nothing here is special-cased.
-    static var innate: URL { cortexRoot.appendingPathComponent("innate") }
+    static let innateBranch = "innate"
+    static var innate: URL { cortexRoot.appendingPathComponent(innateBranch) }
 
     // An id is labels joined by dots, and the dots are directory separators.
     static let idRegex = try! NSRegularExpression(pattern: #"^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)*$"#)
@@ -112,6 +113,29 @@ enum Paths {
         let file = file(forId: id)
 
         return relative(of: file) ?? file.path
+    }
+
+    // One definition of what a prefix is, because three quietly different ones
+    // is how two fields of the same response come to disagree.
+    static func labels(of id: String) -> [String] {
+        id.split(separator: ".").map(String.init)
+    }
+
+    // The ancestor of `id` that is `depth` labels long, or nil if the id is
+    // shorter than that. `branch(of: "a.b.c", depth: 1)` is "a".
+    static func branch(of id: String, depth: Int) -> String? {
+        let labels = labels(of: id)
+
+        guard labels.count >= depth, depth > 0 else { return nil }
+
+        return labels.prefix(depth).joined(separator: ".")
+    }
+
+    // At or under: the address itself is part of its own branch. Everything that
+    // aggregates over a branch means this — a note at `a.b` is as much a member
+    // of a.b as `a.b.c` is.
+    static func id(_ id: String, isWithin prefix: String) -> Bool {
+        id == prefix || id.hasPrefix(prefix + ".")
     }
 
     static func id(ofFile file: URL) -> String? {

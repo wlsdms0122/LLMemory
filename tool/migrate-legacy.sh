@@ -261,11 +261,25 @@ for note_id, axis, path in rows:
     text = open(source, encoding="utf-8").read()
     lines = text.split("\n")
     out = []
+    # Only between the opening --- and its close. A body line that begins with
+    # "id:" (a YAML example, a spec snippet) is prose, and the original is
+    # deleted right after this write — there is no second chance to notice.
+    in_frontmatter = False
+    seen_frontmatter = False
 
-    for line in lines:
-        if line.startswith("id:"):
+    for index, line in enumerate(lines):
+        if line == "---" and not seen_frontmatter:
+            if not in_frontmatter and index == 0:
+                in_frontmatter = True
+            elif in_frontmatter:
+                in_frontmatter, seen_frontmatter = False, True
+
+            out.append(line)
+            continue
+
+        if in_frontmatter and line.startswith("id:"):
             out.append("id: " + mapping[note_id])
-        elif line.startswith("axis:"):
+        elif in_frontmatter and line.startswith("axis:"):
             continue
         else:
             out.append(line)

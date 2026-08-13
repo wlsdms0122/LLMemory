@@ -40,8 +40,10 @@ id 는 이제 라벨을 `.` 으로 이은 것이고, 파일 경로는 그 순수
 - **`cortex/.innate/` → `cortex/innate/`** — 씨드 id 는 `innate.knowledge-fragmentation`.
   배포본이냐는 *어디 있냐*가 아니라 *어디서 왔냐*의 문제라 점 디렉터리 예외를 없앴다.
 - **예약 파일명 없음** — `README.md`·`INDEX.md`·`GUIDE.md`·`_` 접두를 스캔에서 건너뛰던
-  분기가 사라졌다. cortex 아래는 전부 지식이고, 이름이 id 규칙에 안 맞으면 조용히 사라지는
-  대신 `invalid-id` 로 드러난다.
+  분기가 사라졌다. cortex 아래는 전부 지식이다. **대신 아무 메모나 떨어뜨려 두면 안 된다** —
+  frontmatter 없는 파일은 인덱싱 에러가 되고, `index build --rebuild` 는 에러가 하나라도
+  있으면 전체를 중단한다(부분 재구축을 남기지 않는 기존 방침). 일반 인덱싱은 그 파일만
+  에러로 싣고 계속 간다. 초안은 cortex 밖에 둔다.
 
 `query search`/`query list` 의 `--axis`(및 `--exclude-axes`)는 `--tag`/`--exclude-tags` 로
 바뀌었다 — 분류는 태그가 한다. L3 lint 의

@@ -57,7 +57,7 @@ public enum HandlersBasic {
                 return "tags must be non-empty list"
             }
             
-                        let priority = op["priority"] as? String ?? "lazy"
+            let priority = op["priority"] as? String ?? "lazy"
             
             if !Handlers.validPriority.contains(priority) { return "invalid priority: \(priority)" }
             

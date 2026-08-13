@@ -251,6 +251,10 @@ public enum Indexer {
             existingByPath[Paths.relativeFile(forId: id)] = (id, row["content_hash"])
         }
 
+        // `seen` is claimed before the upsert on purpose: a file that fails to
+        // project — a duplicate id, an id that does not name its location — has
+        // still been observed, and orphan detection must not read the absence of
+        // a successful projection as the absence of a file.
         func reconcileOne(_ note: PendingNote) throws {
             if !note.fields.id.isEmpty {
                 if seen.contains(note.fields.id) {

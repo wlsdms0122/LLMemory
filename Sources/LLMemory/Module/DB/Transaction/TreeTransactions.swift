@@ -44,16 +44,17 @@ struct FetchTreeTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [TreeRow] {
         let all = try String.fetchAll(db, sql: "SELECT id FROM notes")
-        let ids = prefix.map { value in all.filter { id in id.hasPrefix(value + ".") } } ?? all
-        let depth = prefix.map { value in value.split(separator: ".").count } ?? 0
+        let ids = prefix.map { value in all.filter { id in Paths.id(id, isWithin: value) } } ?? all
+        let depth = prefix.map { value in Paths.labels(of: value).count } ?? 0
         var counts: [String: Int] = [:]
 
+        // A note sitting exactly at the prefix gets its own row rather than being
+        // dropped: the rows are how a branch's total breaks down, and a total
+        // that its own breakdown cannot reach is a number nobody can check.
         for id in ids {
-            let labels = id.split(separator: ".").map(String.init)
+            guard let branch = Paths.branch(of: id, depth: depth + 1) ?? prefix else { continue }
 
-            guard labels.count > depth else { continue }
-
-            counts[labels.prefix(depth + 1).joined(separator: "."), default: 0] += 1
+            counts[branch, default: 0] += 1
         }
 
         return counts.keys.sorted().map { key in TreeRow(prefix: key, notes: counts[key] ?? 0) }

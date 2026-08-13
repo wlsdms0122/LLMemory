@@ -263,14 +263,14 @@ struct InnateTests {
         #expect(try String(contentsOf: file, encoding: .utf8) == edited, "check must not write")
     }
 
-    @Test("a file the release does not ship is reported as foreign — and never touched")
+    @Test("a note the release does not ship is reported as foreign — and never touched")
     func foreignFileIsReportedNotTouched() throws {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-foreign")
         let stranger = brain.file("cortex/innate/hand-planted.md")
         let content = """
         ---
-        id: hand-planted
+        id: innate.hand-planted
         title: hand planted
         priority: lazy
         tags: [innate]
@@ -290,13 +290,13 @@ struct InnateTests {
         // Then
         #expect(!check.succeeded, "a foreign file is drift — check must exit 1")
         #expect(check.jsonObject()?["drift"] as? Bool == true, "\(check.standardOutput)")
-        #expect(checkForeign.contains("hand-planted.md"), "check must name the foreign file: \(check.standardOutput)")
+        #expect(checkForeign.contains("innate.hand-planted"), "check must name the foreign note: \(check.standardOutput)")
 
         let update = brain.run(["update", "--json"])
         let updateForeign = update.jsonObject()?["foreign"] as? [String] ?? []
 
         #expect(!update.succeeded, "a foreign file is drift — update must exit 1")
-        #expect(updateForeign.contains("hand-planted.md"), "update must report the foreign file: \(update.standardOutput)")
+        #expect(updateForeign.contains("innate.hand-planted"), "update must report the foreign note: \(update.standardOutput)")
         #expect(try String(contentsOf: stranger, encoding: .utf8) == content, "a warned update must not touch the file")
 
         // When — --override makes the space exactly the shipped set.
@@ -305,8 +305,60 @@ struct InnateTests {
 
         // Then
         #expect(overridden.succeeded, "\(overridden.standardError)")
-        #expect(removed.contains("hand-planted.md"), "--override must report the removal: \(overridden.standardOutput)")
-        #expect(!FileManager.default.fileExists(atPath: stranger.path), "--override must remove a foreign file")
+        #expect(removed.contains("innate.hand-planted"), "--override must report the removal: \(overridden.standardOutput)")
+        #expect(!FileManager.default.fileExists(atPath: stranger.path), "--override must remove a foreign note")
+    }
+    
+    // innate/ is an ordinary branch now, so a note addressed under it puts a
+    // directory at its top level. Removing entries rather than notes would take
+    // the whole subtree with it — a directory is not something a release ships.
+    @Test("--override removes foreign notes one by one, never a directory whole")
+    func overrideNeverDeletesASubtreeWhole() throws {
+        // Given
+        let brain = try CLIBrain(prefix: "llmemory-innate-subtree")
+        let nested = brain.file("cortex/innate/docs/setup.md")
+        
+        try FileManager.default.createDirectory(
+            at: nested.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try """
+        ---
+        id: innate.docs.setup
+        title: setup
+        priority: lazy
+        tags: [innate]
+        summary: authored under the innate branch
+        ---
+        
+        ## Note
+        mine, not the release's.
+        """.write(to: nested, atomically: true, encoding: .utf8)
+        
+        let sibling = brain.file("cortex/innate/docs/keep.md")
+        
+        try """
+        ---
+        id: innate.docs.keep
+        title: keep
+        priority: lazy
+        tags: [innate]
+        summary: also mine
+        ---
+        
+        ## Note
+        also mine.
+        """.write(to: sibling, atomically: true, encoding: .utf8)
+        
+        // When
+        let overridden = brain.run(["update", "--override", "--json"])
+        let removed = overridden.jsonObject()?["removed"] as? [String] ?? []
+        
+        // Then — both are foreign, so both go, but as two notes named by id.
+        #expect(overridden.succeeded, "\(overridden.standardError)")
+        #expect(Set(removed).isSuperset(of: ["innate.docs.setup", "innate.docs.keep"]),
+            "--override must name every removed note: \(overridden.standardOutput)")
+        #expect(!removed.contains("docs"), "a directory is not a note and must never be reported")
     }
 
     @Test("update touches seed ids only — an authored note is never in its scope")

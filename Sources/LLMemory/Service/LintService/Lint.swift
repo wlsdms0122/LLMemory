@@ -251,7 +251,7 @@ public enum Lint {
         nid: String,
         index: LintCorpusIndex
     ) throws -> [Issue] {
-        guard try scope.run(FetchNoteLintHeaderTransaction(nid: nid)) else {
+        guard try scope.run(NoteExistsTransaction(nid: nid)) else {
             return [Issue("error", "missing", "note not in db: \(nid)", .note(nid))]
         }
         

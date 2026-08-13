@@ -267,7 +267,7 @@ struct FetchNotesWithTagTransaction: GRDBReadTransaction {
     // MARK: - Private
 }
 
-struct FetchPathsWithTagTransaction: GRDBReadTransaction {
+struct FetchNoteIdsWithTagTransaction: GRDBReadTransaction {
     // MARK: - Property
     let tag: String
 

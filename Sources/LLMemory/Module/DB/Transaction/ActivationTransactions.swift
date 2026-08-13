@@ -346,23 +346,36 @@ struct FetchActivationStatsTransaction: GRDBReadTransaction {
         ) ?? 0
         // Grouped by the id's first label. The hit rows carry the id, so no
         // join is needed and a note deleted since the hit still counts under
-        // the branch it was retrieved from.
-        let prefixRows = try Row.fetchAll(db, sql: """
-            SELECT CASE WHEN instr(note_id, '.') > 0
-                        THEN substr(note_id, 1, instr(note_id, '.') - 1)
-                        ELSE note_id END AS prefix,
-                   COUNT(*) AS surfaced,
-                   SUM(CASE WHEN used_signal IS NOT NULL THEN 1 ELSE 0 END) AS used
-            FROM retrieval_hits
-            GROUP BY prefix ORDER BY surfaced DESC, prefix
+        // the branch it was retrieved from. Grouping happens in Swift so the
+        // one definition of a branch is the one that applies here too.
+        let hitRows = try Row.fetchAll(db, sql: """
+            SELECT note_id, used_signal FROM retrieval_hits
             """)
-        let byPrefix = prefixRows.map { row in
-            ActivationStats.PrefixRow(
-                prefix: row["prefix"],
-                surfaced: row["surfaced"],
-                used: row["used"] ?? 0
-            )
+        var surfacedBy: [String: Int] = [:]
+        var usedBy: [String: Int] = [:]
+
+        for row in hitRows {
+            let noteId: String = row["note_id"]
+            let branch = Paths.branch(of: noteId, depth: 1) ?? noteId
+
+            surfacedBy[branch, default: 0] += 1
+
+            if row["used_signal"] as String? != nil { usedBy[branch, default: 0] += 1 }
         }
+
+        let byPrefix = surfacedBy.keys
+            .sorted { lhs, rhs in
+                surfacedBy[lhs] != surfacedBy[rhs]
+                    ? surfacedBy[lhs]! > surfacedBy[rhs]!
+                    : lhs < rhs
+            }
+            .map { branch in
+                ActivationStats.PrefixRow(
+                    prefix: branch,
+                    surfaced: surfacedBy[branch] ?? 0,
+                    used: usedBy[branch] ?? 0
+                )
+            }
 
         return ActivationStats(
             windows: windows,

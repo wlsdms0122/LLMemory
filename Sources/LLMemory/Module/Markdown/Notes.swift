@@ -73,6 +73,7 @@ struct NoteUnreadable: Error, CustomStringConvertible {
 
 enum NotesError: Error, CustomStringConvertible {
     case idMissing
+    case addressMismatch(id: String, path: String)
     case invalidPriority(String)
     case notUnderBrainRoot(String)
     case notALiveNote(path: String, reason: String)
@@ -85,6 +86,10 @@ enum NotesError: Error, CustomStringConvertible {
         switch self {
         case .idMissing:
             return "id missing"
+        
+        case let .addressMismatch(id, path):
+            return "id '\(id)' does not name \(path) — the id is the address, "
+                + "so move the file or correct the id (whichever is wrong)"
         
         case .invalidPriority(let priority):
             return "invalid priority: \(priority)"

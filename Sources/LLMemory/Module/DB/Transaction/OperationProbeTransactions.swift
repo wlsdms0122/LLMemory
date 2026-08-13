@@ -415,7 +415,7 @@ struct NoteLockedTransaction: GRDBReadTransaction {
     // MARK: - Private
 }
 
-struct FetchTemplateDependentPathsTransaction: GRDBReadTransaction {
+struct FetchTemplateDependentNoteIdsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let templateIds: [String]
 
@@ -434,7 +434,7 @@ struct FetchTemplateDependentPathsTransaction: GRDBReadTransaction {
             db,
             sql: "SELECT id FROM notes WHERE template IN (\(placeholders))",
             arguments: StatementArguments(templateIds)
-        ).map(Paths.relativeFile(forId:))
+        )
     }
 
     // MARK: - Private

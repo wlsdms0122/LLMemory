@@ -37,13 +37,7 @@ struct FetchNoteSourcePathsTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [String] {
-        guard try Int.fetchOne(
-            db,
-            sql: "SELECT 1 FROM notes WHERE id = ?",
-            arguments: [noteId]
-        ) != nil else {
-            return []
-        }
+        guard try NoteExistsTransaction(nid: noteId).perform(db) else { return [] }
 
         return try Notes.requireNote(at: Paths.file(forId: noteId)).doc.source
     }

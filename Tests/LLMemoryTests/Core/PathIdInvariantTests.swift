@@ -74,6 +74,23 @@ struct PathIdInvariantTests {
         #expect(ok, "\(messages)")
     }
 
+    @Test("moving a node that has notes under it is refused, not silently halved")
+    func migrateRefusesToStrandDescendants() throws {
+        // Given
+        #expect(home.createNote(id: "p.q", content: "## A\nparent\n").status == "ok")
+        #expect(home.createNote(id: "p.q.r", content: "## A\nchild\n").status == "ok")
+        
+        // When
+        let result = home.apply(["op": "migrate_note", "id": "p.q", "new_id": "p.moved"])
+        
+        // Then
+        #expect(result.status != "ok")
+        #expect(result.error.contains("p.q.r"), "the refusal must name what would be stranded: \(result.error)")
+        
+        // And a leaf in the same branch still moves freely.
+        #expect(home.apply(["op": "migrate_note", "id": "p.q.r", "new_id": "p.moved"]).status == "ok")
+    }
+    
     @Test("the tree counts everything below a prefix, one level at a time")
     func treeCountsBelowEachBranch() throws {
         // Given
@@ -94,6 +111,30 @@ struct PathIdInvariantTests {
         #expect(under.map(\.prefix) == ["a.b", "a.d"])
         #expect(under.first { row in row.prefix == "a.b" }?.notes == 2,
             "a prefix that is itself a note counts alongside its children")
+    }
+
+    // The stats for a branch include the note sitting at the branch itself, so
+    // the tree rows have to reach that total — otherwise the two fields of one
+    // `structure --prefix` response disagree and neither can be checked.
+    @Test("a branch's rows add up to the branch's stats, including the node itself")
+    func treeRowsReconcileWithPrefixStats() throws {
+        // Given — a note at `m` and notes under it.
+        for id in ["m", "m.n", "m.n.o"] {
+            #expect(home.createNote(id: id, content: "## A\nbody\n").status == "ok")
+        }
+
+        // When
+        let rows = try home.read { database in
+            try FetchTreeTransaction(prefix: "m").perform(database)
+        }
+        let stats = try home.read { database in
+            try PrefixStatsTransaction(prefix: "m").perform(database)
+        }
+
+        // Then
+        #expect(rows.map(\.notes).reduce(0, +) == stats.total, "\(rows.map(\.prefix)) vs \(stats.total)")
+        #expect(rows.contains { row in row.prefix == "m" && row.notes == 1 },
+            "the note at the prefix needs a row of its own: \(rows.map(\.prefix))")
     }
 
     @Test("the frontmatter id decides where the file goes, not the other way round")

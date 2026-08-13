@@ -615,20 +615,25 @@ public struct OperationsEngine: Sendable {
         
         var affectedIds: [String] = []
         
+        // The id is the whole address, so the file name alone is only its last
+        // label — reading it that way made every nested template's reverse
+        // lookup miss, and miss silently, because a gate that finds nothing
+        // looks exactly like a gate that found nothing wrong.
         for path in affected where path.pathExtension == "md" {
             enqueue(path)
-            affectedIds.append(path.deletingPathExtension().lastPathComponent)
+            
+            if let noteId = Paths.id(ofFile: path) { affectedIds.append(noteId) }
         }
         
         var violations: [String] = []
         
         if !affectedIds.isEmpty {
             do {
-                let dependentPaths = try scope.run(FetchTemplateDependentPathsTransaction(templateIds: affectedIds))
+                let dependents = try scope.run(
+                    FetchTemplateDependentNoteIdsTransaction(templateIds: affectedIds)
+                )
                 
-                for relativePath in dependentPaths {
-                    enqueue(Paths.brainRoot.appendingPathComponent(relativePath))
-                }
+                for noteId in dependents { enqueue(Paths.file(forId: noteId)) }
             } catch {
                 violations.append("template reverse-dependency lookup failed: \(error)")
             }
@@ -644,7 +649,7 @@ public struct OperationsEngine: Sendable {
                 
                 (doc, body) = read
             } catch {
-                let noteId = path.deletingPathExtension().lastPathComponent
+                let noteId = Paths.id(ofFile: path) ?? path.lastPathComponent
                 violations.append("\(noteId): unreadable, template frame unverifiable: \(error)")
                 continue
             }
@@ -652,7 +657,7 @@ public struct OperationsEngine: Sendable {
             guard let templateId = doc.template, !templateId.isEmpty else { continue }
             
             let noteId = doc.id.isEmpty
-                ? path.deletingPathExtension().lastPathComponent
+                ? (Paths.id(ofFile: path) ?? path.lastPathComponent)
                 : doc.id
             
             guard let frame = (try? scope.run(LoadTemplateFrameTransaction(templateId: templateId))) ?? nil else {

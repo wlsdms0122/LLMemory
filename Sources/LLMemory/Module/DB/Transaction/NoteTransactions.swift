@@ -33,6 +33,19 @@ struct UpsertNoteTransaction: GRDBTransaction {
     func perform(_ db: Database) throws -> String {
         if fields.id.isEmpty { throw NotesError.idMissing }
 
+        // The one gate that makes "the path is a function of the id" true rather
+        // than merely intended. Every write — ops, index, reindex — funnels
+        // through here, so a note whose frontmatter names an address it does not
+        // occupy never reaches the catalog. Without this the row would point at
+        // a file that is not there and the real file would be unreachable, and
+        // verify would only tell us so afterwards.
+        guard fields.id == Paths.id(ofFile: file) else {
+            throw NotesError.addressMismatch(
+                id: fields.id,
+                path: Paths.relative(of: file) ?? file.path
+            )
+        }
+
         let priority = fields.priority.isEmpty ? "lazy" : fields.priority
 
         guard ["eager", "lazy"].contains(priority) else {
@@ -295,13 +308,11 @@ struct RewriteInboundCitationsTransaction: GRDBTransaction {
     // MARK: - Property
     let from: String
     let to: String
-    let now: Int
 
     // MARK: - Initializer
-    init(from: String, to: String, now: Int) {
+    init(from: String, to: String) {
         self.from = from
         self.to = to
-        self.now = now
     }
 
     // MARK: - Public
@@ -318,8 +329,11 @@ struct RewriteInboundCitationsTransaction: GRDBTransaction {
 
         for src in referrers.sorted() {
             let file = Paths.file(forId: src)
-
-            guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
+            // Not `try?`. With no alias table, a citation this loop fails to
+            // rewrite is a reference that breaks — reporting success while
+            // leaving one behind is the exact state the design forbids, so an
+            // unreadable citer fails the whole re-addressing instead.
+            let text = try String(contentsOf: file, encoding: .utf8)
 
             // Both citation forms, because the resolver treats them as one.
             let updated = text
@@ -420,10 +434,7 @@ struct FetchNotePathTransaction: GRDBReadTransaction {
     // Existence is the only thing the DB is asked — where the note lives is a
     // function of its id, so nil here means "no such note", never "no path".
     func perform(_ db: Database) throws -> URL? {
-        guard try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id = ?", arguments: [nid]) != nil
-        else {
-            return nil
-        }
+        guard try NoteExistsTransaction(nid: nid).perform(db) else { return nil }
 
         return Paths.file(forId: nid)
     }
@@ -520,11 +531,7 @@ struct StampNoteLifecycleTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws {
-        guard try Int.fetchOne(
-            db,
-            sql: "SELECT 1 FROM notes WHERE id = ?",
-            arguments: [nid]
-        ) != nil else {
+        guard try NoteExistsTransaction(nid: nid).perform(db) else {
             throw NotesError.stampedFileVanished(nid: nid, path: "(no notes row)")
         }
 
@@ -605,13 +612,7 @@ struct FetchNoteTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> (URL, FrontmatterDoc, String)? {
-        guard try Int.fetchOne(
-            db,
-            sql: "SELECT 1 FROM notes WHERE id = ?",
-            arguments: [nid]
-        ) != nil else {
-            return nil
-        }
+        guard try NoteExistsTransaction(nid: nid).perform(db) else { return nil }
 
         let path = Paths.file(forId: nid)
         let text = try String(contentsOf: path, encoding: .utf8)
