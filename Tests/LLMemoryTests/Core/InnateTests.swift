@@ -271,7 +271,6 @@ struct InnateTests {
         let stranger = brain.file("cortex/innate/hand-planted.md")
         let content = """
         ---
-        id: innate.hand-planted
         title: hand planted
         priority: lazy
         tags: [innate]
@@ -325,7 +324,6 @@ struct InnateTests {
         )
         try """
         ---
-        id: innate.docs.setup
         title: setup
         priority: lazy
         tags: [innate]
@@ -340,7 +338,6 @@ struct InnateTests {
         
         try """
         ---
-        id: innate.docs.keep
         title: keep
         priority: lazy
         tags: [innate]

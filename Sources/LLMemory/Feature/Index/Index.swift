@@ -135,8 +135,13 @@ public struct Index {
 
         if override {
             seeding = Seeding.plant(mode: .overwrite, force: true)
-            removed = Seeding.removeForeign()
-            seeding.foreign = []
+            
+            let sweep = Seeding.removeForeign()
+            removed = sweep.removed
+            // A file that would not go is drift that survived the override, so it
+            // stays reported rather than being cleared along with the rest.
+            seeding.foreign = sweep.errors
+            seeding.errors.append(contentsOf: sweep.errors)
         } else if seeding.drift {
             blocked = true
         }

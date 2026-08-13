@@ -138,6 +138,10 @@ enum Paths {
         id == prefix || id.hasPrefix(prefix + ".")
     }
 
+    // Strictly the inverse of file(forId:), verified rather than assumed. A dot
+    // inside a file name would otherwise make the pair many-to-one — cortex/a/b.c.md
+    // and cortex/a/b/c.md both spell a.b.c — and with the address as the only id,
+    // two files sharing one would mean one of them silently overwriting the other.
     static func id(ofFile file: URL) -> String? {
         guard let relative = relative(of: file) else { return nil }
 
@@ -152,7 +156,34 @@ enum Paths {
         var labels = Array(components.dropFirst())
         labels[labels.count - 1] = String(name.dropLast(3))
 
-        return labels.joined(separator: ".")
+        let id = labels.joined(separator: ".")
+
+        guard canonical(self.file(forId: id)) == canonical(file) else { return nil }
+
+        return id
+    }
+
+    // Why a file cannot be addressed, for the surfaces that must not skip it quietly.
+    static func addressRejection(of file: URL) -> String? {
+        guard id(ofFile: file) == nil else { return nil }
+
+        return "no address: a path label may not contain '.' "
+            + "(\(relative(of: file) ?? file.path))"
+    }
+
+    static func canonicalPath(_ url: URL) -> String { canonical(url) }
+
+    // The SQL spelling of "the first `depth` labels of this id". Aggregation
+    // belongs in SQLite — a hit log only grows — so the definition is shared as
+    // an expression rather than by pulling rows out to group them in Swift.
+    static func branchSQL(column: String, depth: Int = 1) -> String {
+        precondition(depth == 1, "only the first label has a SQL spelling today")
+
+        return """
+            CASE WHEN instr(\(column), '.') > 0
+                 THEN substr(\(column), 1, instr(\(column), '.') - 1)
+                 ELSE \(column) END
+            """
     }
 
     // MARK: - Private

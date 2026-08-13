@@ -267,25 +267,6 @@ struct FetchNotesWithTagTransaction: GRDBReadTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteIdsWithTagTransaction: GRDBReadTransaction {
-    // MARK: - Property
-    let tag: String
-
-    // MARK: - Initializer
-    init(tag: String) {
-        self.tag = tag
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> [String] {
-        try String.fetchAll(db, sql: """
-            SELECT DISTINCT n.id FROM notes n JOIN tags t ON t.note_id = n.id WHERE t.tag = ?
-            """, arguments: [tag])
-    }
-
-    // MARK: - Private
-}
-
 struct FetchTagCooccurrenceTransaction: GRDBReadTransaction {
     // MARK: - Property
     let tags: [String]

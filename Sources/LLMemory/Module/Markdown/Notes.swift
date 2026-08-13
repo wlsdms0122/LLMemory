@@ -72,7 +72,6 @@ struct NoteUnreadable: Error, CustomStringConvertible {
 }
 
 enum NotesError: Error, CustomStringConvertible {
-    case idMissing
     case invalidPriority(String)
     case notUnderBrainRoot(String)
     case notALiveNote(path: String, reason: String)
@@ -83,8 +82,6 @@ enum NotesError: Error, CustomStringConvertible {
     
     var description: String {
         switch self {
-        case .idMissing:
-            return "id missing"
 
         
         case .invalidPriority(let priority):

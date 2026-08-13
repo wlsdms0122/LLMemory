@@ -39,6 +39,47 @@ struct PathIdInvariantTests {
         }
     }
 
+    // The address is the only id, so two files sharing one would mean one of them
+    // overwriting the other with nothing said. A dot inside a file name is the way
+    // that happens: cortex/a/b.c.md and cortex/a/b/c.md both read as a.b.c.
+    @Test("a file name with a dot has no address, and the scan says so rather than dropping it")
+    func aDottedFileNameIsNotAnAddress() throws {
+        // Given
+        let dotted = home.url.appendingPathComponent("cortex/a/b.c.md")
+        let proper = home.url.appendingPathComponent("cortex/a/b/c.md")
+
+        for file in [dotted, proper] {
+            try FileManager.default.createDirectory(
+                at: file.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try """
+            ---
+            title: t
+            priority: lazy
+            tags: [flow]
+            summary: s
+            ---
+
+            ## A
+            body
+            """.write(to: file, atomically: true, encoding: .utf8)
+        }
+
+        // Then — only one of them has an address, and the other is named, not skipped.
+        #expect(Paths.id(ofFile: proper) == "a.b.c")
+        #expect(Paths.id(ofFile: dotted) == nil, "two files resolved to one address")
+
+        let result = try Indexer.buildLocked(home.database(), rebuild: false)
+        let ids = try home.read { database in
+            try String.fetchAll(database, sql: "SELECT id FROM notes ORDER BY id")
+        }
+
+        #expect(ids == ["a.b.c"], "\(ids)")
+        #expect(result.errors.contains { error in error.contains("b.c.md") },
+            "the unaddressable file vanished without a word: \(result.errors)")
+    }
+
     @Test("only a dot-joined kebab id is an address — everything else is refused")
     func idSyntaxIsLabelsJoinedByDots() {
         for accepted in ["a", "a-b", "a.b", "a.b-c.d", "2026", "a.2026.08.x"] {

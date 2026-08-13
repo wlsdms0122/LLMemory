@@ -87,7 +87,7 @@ public enum Seeding {
             }
         }
 
-        result.foreign = foreignNotes()
+        result.foreign = foreignEntries().map { entry in entry.label }
 
         return result
     }
@@ -100,25 +100,60 @@ public enum Seeding {
     // address space now, so `innate.docs.setup` puts a *directory* named docs at
     // its top level; removing that entry would take the whole subtree with it,
     // and a directory is not a thing the release ships or does not ship.
-    public static func removeForeign() -> [String] {
+    public static func removeForeign() -> (removed: [String], errors: [String]) {
         var removed: [String] = []
+        var errors: [String] = []
 
-        for id in foreignNotes() {
-            if (try? FileManager.default.removeItem(at: Paths.file(forId: id))) != nil {
-                removed.append(id)
+        // The URL the walk found, not one recomputed from a name — a round trip
+        // through the id is a chance to arrive somewhere else, and a delete that
+        // silently misses would leave --override reporting a space it did not make.
+        for entry in foreignEntries() {
+            do {
+                try FileManager.default.removeItem(at: entry.url)
+                removed.append(entry.label)
+            } catch {
+                errors.append("\(entry.label): \(error)")
             }
         }
 
-        return removed
+        return (removed, errors)
     }
 
-    private static func foreignNotes() -> [String] {
-        let shipped = Set(Innate.seeds.map { seed in seed.id })
+    // Every file under innate/, not only the ones that parse as notes: the space
+    // is declared system-managed, and a stray notes.txt nobody reports is exactly
+    // the drift the declaration is supposed to rule out. Files only — a directory
+    // is not something a release ships or does not ship, and removing one would
+    // take whatever a human addressed beneath it.
+    private static func foreignEntries() -> [(label: String, url: URL)] {
+        let shipped = Set(Innate.seeds.map { seed in Paths.canonicalPath(Paths.file(forId: seed.id)) })
+        let fileManager = FileManager.default
 
-        return Paths.scanNotes()
-            .compactMap { file in Paths.id(ofFile: file) }
-            .filter { id in id.hasPrefix(Paths.innateBranch + ".") && !shipped.contains(id) }
-            .sorted()
+        guard let iterator = fileManager.enumerator(
+            at: Paths.innate,
+            includingPropertiesForKeys: [.isRegularFileKey]
+        ) else {
+            return []
+        }
+
+        var entries: [(label: String, url: URL)] = []
+
+        for case let url as URL in iterator {
+            let resolved = url.standardized
+
+            guard (try? resolved.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
+            else {
+                continue
+            }
+
+            guard !shipped.contains(Paths.canonicalPath(resolved)) else { continue }
+
+            entries.append((
+                label: Paths.id(ofFile: resolved) ?? (Paths.relative(of: resolved) ?? resolved.path),
+                url: resolved
+            ))
+        }
+
+        return entries.sorted { lhs, rhs in lhs.label < rhs.label }
     }
 
 }

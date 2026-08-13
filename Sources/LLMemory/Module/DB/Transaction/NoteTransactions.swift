@@ -35,7 +35,12 @@ struct UpsertNoteTransaction: GRDBTransaction {
         // is not consulted here — there is one source, so there is nothing to
         // reconcile and no way for a row to point somewhere its file is not.
         guard let noteId = Paths.id(ofFile: file), !noteId.isEmpty else {
-            throw NotesError.idMissing
+            throw NotesError.notALiveNote(
+                path: Paths.relative(of: file) ?? file.path,
+                reason: Paths.liveNoteRejection(of: file)
+                    ?? Paths.addressRejection(of: file)
+                    ?? "not addressable"
+            )
         }
 
         let priority = fields.priority.isEmpty ? "lazy" : fields.priority

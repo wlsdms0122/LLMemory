@@ -126,6 +126,11 @@ public enum Indexer {
                 continue
             }
 
+            if let rejection = Paths.addressRejection(of: file) {
+                fileErrors.append("\(relativePath): \(rejection)")
+                continue
+            }
+
             scannedRels.insert(relativePath)
 
             do {
@@ -337,7 +342,11 @@ public enum Indexer {
         var filesById: [String: URL] = [:]
 
         for file in Paths.scanNotes() {
-            guard let id = Paths.id(ofFile: file) else { continue }
+            guard let id = Paths.id(ofFile: file) else {
+                messages.append("L1\tunaddressable\t\(Paths.relative(of: file) ?? file.path)")
+                ok = false
+                continue
+            }
 
             filesById[id] = file
         }
