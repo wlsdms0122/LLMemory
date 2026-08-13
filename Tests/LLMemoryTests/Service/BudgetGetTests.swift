@@ -34,7 +34,7 @@ struct BudgetGetTests {
     @Test("a budget cut lands on a section boundary and keeps a prefix, never a half sentence")
     func budgetCutsAtTopLevelBoundaryPrefixOnly() throws {
         // Then
-        #expect(home.createNote(id: "bd", axis: "tech", title: "bd", tags: ["tech"],
+        #expect(home.createNote(id: "bd", title: "bd", tags: ["tech"],
             content: body).status == "ok")
         
         let (_, _, cut) = try home.readScope { scope in try home.container.notes.getBudget(scope, id: "bd", budget: 15, sessionId: nil) }
@@ -51,7 +51,7 @@ struct BudgetGetTests {
     @Test("the budget is a hard cap — even the head and the first unit are subject to it")
     func budgetIsAHardCapEvenForHeadAndFirstUnit() throws {
         // Then
-        #expect(home.createNote(id: "bd2", axis: "tech", title: "bd2", tags: ["tech"],
+        #expect(home.createNote(id: "bd2", title: "bd2", tags: ["tech"],
             content: body).status == "ok")
         
         let (_, _, cut) = try home.readScope { scope in try home.container.notes.getBudget(scope, id: "bd2", budget: 1, sessionId: nil) }
@@ -71,7 +71,7 @@ struct BudgetGetTests {
             + "\n## B\ntail words\n"
         
         // Then
-        #expect(home.createNote(id: "bd6", axis: "tech", title: "bd6", tags: ["tech"],
+        #expect(home.createNote(id: "bd6", title: "bd6", tags: ["tech"],
             content: big).status == "ok")
         
         let (_, _, cut) = try home.readScope { scope in try home.container.notes.getBudget(scope, id: "bd6", budget: 10, sessionId: nil) }
@@ -86,7 +86,7 @@ struct BudgetGetTests {
     @Test("a budget wider than the note returns it whole, with nothing marked as omitted")
     func budgetLargeEnoughIsNotTruncated() throws {
         // Then
-        #expect(home.createNote(id: "bd3", axis: "tech", title: "bd3", tags: ["tech"],
+        #expect(home.createNote(id: "bd3", title: "bd3", tags: ["tech"],
             content: body).status == "ok")
         
         let (note, _, cut) = try home.readScope { scope in try home.container.notes.getBudget(scope, id: "bd3", budget: 10_000, sessionId: nil) }
@@ -113,7 +113,7 @@ struct BudgetGetTests {
             """
         
         // Then
-        #expect(home.createNote(id: "bd5", axis: "tech", title: "bd5", tags: ["tech"],
+        #expect(home.createNote(id: "bd5", title: "bd5", tags: ["tech"],
             content: wrapped).status == "ok")
         
         let (_, _, cut) = try home.readScope { scope in try home.container.notes.getBudget(scope, id: "bd5", budget: 16, sessionId: nil) }
@@ -141,7 +141,7 @@ struct BudgetGetTests {
         let wrapped = "# Report history\n" + ledger + "\n## 2026-07-01\ntail one\n## 2026-07-02\ntail two\n"
         
         // Then
-        #expect(home.createNote(id: "bd7", axis: "tech", title: "bd7", tags: ["tech"],
+        #expect(home.createNote(id: "bd7", title: "bd7", tags: ["tech"],
             content: wrapped).status == "ok")
         
         let (_, _, cut) = try home.readScope { scope in try home.container.notes.getBudget(scope, id: "bd7", budget: 30, sessionId: nil) }
@@ -157,7 +157,7 @@ struct BudgetGetTests {
     @Test("a body with no headings has no boundary to cut on, so it is cut by line")
     func headingFreeBodyIsLineCutUnderBudget() throws {
         // Then
-        #expect(home.createNote(id: "bd4", axis: "tech", title: "bd4", tags: ["tech"],
+        #expect(home.createNote(id: "bd4", title: "bd4", tags: ["tech"],
             content: "three words here\nand five more words now\n").status == "ok")
         
         let (_, _, cut) = try home.readScope { scope in try home.container.notes.getBudget(scope, id: "bd4", budget: 3, sessionId: nil) }

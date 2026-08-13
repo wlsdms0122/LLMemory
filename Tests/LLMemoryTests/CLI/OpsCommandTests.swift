@@ -23,7 +23,7 @@ struct OpsCommandTests {
     func dryRunValidatesWithoutPersisting() {
         // When
         let result = brain.run(["operations", "dry-run", "--json", "--input", """
-            {"ops":[{"op":"create_note","id":"dry-x","axis":"tech","title":"title","summary":"summary",\
+            {"ops":[{"op":"create_note","id":"dry-x","title":"title","summary":"summary",\
             "tags":["tech"],"content":"## A\\nbody\\n"}],"rationale":"test"}
             """])
         
@@ -38,13 +38,13 @@ struct OpsCommandTests {
     func deleteMovesNoteToTrash() {
         // When
         let deleted = brain.applyOps("""
-            {"ops":[{"op":"delete_note","id":"transfer-flow","reason":"test"}],"rationale":"test"}
+            {"ops":[{"op":"delete_note","id":"flow.transfer-flow","reason":"test"}],"rationale":"test"}
             """)
         
         // Then
         let trashed = FileManager.default.enumerator(atPath: brain.path + "/cortex/.trash")?
             .compactMap { element in element as? String } ?? []
-        let fetched = brain.run(["query", "get", "transfer-flow", "--json"])
+        let fetched = brain.run(["query", "get", "flow.transfer-flow", "--json"])
         
         #expect(deleted.succeeded, "\(deleted.standardError)")
         #expect(trashed.contains { path in path.hasSuffix("transfer-flow.md") }, "\(trashed)")
@@ -55,18 +55,18 @@ struct OpsCommandTests {
     func restoreBringsNoteBack() {
         // Given
         let deleted = brain.applyOps("""
-            {"ops":[{"op":"delete_note","id":"persona-tone","reason":"test"}],"rationale":"test"}
+            {"ops":[{"op":"delete_note","id":"persona.tone","reason":"test"}],"rationale":"test"}
             """)
         
         #expect(deleted.succeeded, "\(deleted.standardError)")
         
         // When
         let restored = brain.applyOps("""
-            {"ops":[{"op":"restore","id":"persona-tone"}],"rationale":"test"}
+            {"ops":[{"op":"restore","id":"persona.tone"}],"rationale":"test"}
             """)
         
         // Then
-        let fetched = brain.run(["query", "get", "persona-tone", "--json"])
+        let fetched = brain.run(["query", "get", "persona.tone", "--json"])
         
         #expect(restored.succeeded, "\(restored.standardError)")
         #expect(fetched.succeeded, "restored note should be gettable: \(fetched.standardError)")

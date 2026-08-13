@@ -39,10 +39,10 @@ public enum Seeding {
 
     // MARK: - Initializer
     // MARK: - Public
-    // The cortex/.innate/ directory is the contract: while it exists the space is
+    // The cortex/innate/ directory is the contract: while it exists the space is
     // system-managed and seeds inside it always carry the shipped copy. A human opts out
     // by deleting the directory itself — then plant skips until `--override` re-adopts.
-    // Nothing outside cortex/.innate/ is ever consulted or touched.
+    // Nothing outside cortex/innate/ is ever consulted or touched.
     public static func plant(mode: Mode, force: Bool = false, dryRun: Bool = false) -> Result {
         var result = Result()
         let fileManager = FileManager.default
@@ -54,7 +54,7 @@ public enum Seeding {
         }
 
         for seed in Innate.seeds {
-            let canonical = Paths.innate.appendingPathComponent("\(seed.id).md")
+            let canonical = Paths.file(forId: seed.id)
             let exists = fileManager.fileExists(atPath: canonical.path)
             let current = exists ? try? String(contentsOf: canonical, encoding: .utf8) : nil
 
@@ -93,7 +93,7 @@ public enum Seeding {
     }
 
     // MARK: - Private
-    // `update --override` makes cortex/.innate/ exactly the shipped set — files the
+    // `update --override` makes cortex/innate/ exactly the shipped set — files the
     // release does not ship are removed. Returns what was deleted.
     public static func removeForeign() -> [String] {
         var removed: [String] = []
@@ -110,7 +110,7 @@ public enum Seeding {
     }
 
     private static func foreignFiles() -> [String] {
-        let shipped = Set(Innate.seeds.map { seed in "\(seed.id).md" })
+        let shipped = Set(Innate.seeds.map { seed in Paths.file(forId: seed.id).lastPathComponent })
         let entries = (try? FileManager.default.contentsOfDirectory(
             at: Paths.innate,
             includingPropertiesForKeys: nil

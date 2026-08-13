@@ -515,12 +515,10 @@ public struct OperationsEngine: Sendable {
         let urls = try handler.touches(op, scope)
         
         for url in urls {
-            guard let relativePath = try? Notes.relativeToBrainRoot(url) else { continue }
+            guard let noteId = Paths.id(ofFile: url) else { continue }
             
-            let locked = try scope.run(NoteLockedAtPathTransaction(relativePath: relativePath))
-            
-            if locked {
-                return "note is locked (human-only) — edit the file directly, not via ops: \(relativePath)"
+            if try scope.run(NoteLockedTransaction(nid: noteId)) {
+                return "note is locked (human-only) — edit the file directly, not via ops: \(noteId)"
             }
         }
         

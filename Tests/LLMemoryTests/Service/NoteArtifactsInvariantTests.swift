@@ -170,7 +170,7 @@ struct NoteArtifactsInvariantTests {
         
         try "grounding".write(to: source, atomically: true, encoding: .utf8)
         
-        #expect(home.apply([["op": "create_note", "id": "rt-c", "axis": "flow", "title": "t",
+        #expect(home.apply([["op": "create_note", "id": "rt-c", "title": "t",
             "tags": ["flow"], "summary": "s", "content": "## Body\nc\n",
             "source": [source.path]]]).status == "ok")
         

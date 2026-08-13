@@ -163,7 +163,6 @@ struct FrontmatterSourceTests {
         ---
         id: fs-note
         title: t
-        axis: flow
         priority: lazy
         tags: [flow]
         summary: s

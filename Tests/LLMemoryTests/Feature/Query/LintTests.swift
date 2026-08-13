@@ -323,7 +323,7 @@ struct LintTests {
     func isolatedLintSeesThroughDeadEdges() throws {
         // Given
         for noteId in ["iso-x", "iso-y"] {
-            let result = home.createNote(id: noteId, axis: "tech", tags: ["tech"], content: "## A\nbody\n")
+            let result = home.createNote(id: noteId, tags: ["tech"], content: "## A\nbody\n")
             
             #expect(result.status == "ok", "failed to create \(noteId): \(result.error)")
         }
@@ -348,13 +348,13 @@ struct LintTests {
     
     // MARK: - Private
     @discardableResult
-    private func create(_ id: String, content: String, axis: String = "tech") -> OperationsResult {
-        home.createNote(id: id, axis: axis, tags: [axis, "test"], content: content)
+    private func create(_ id: String, content: String, tag: String = "tech") -> OperationsResult {
+        home.createNote(id: id, tags: [tag, "test"], content: content)
     }
     
     @discardableResult
     private func createTagged(_ id: String, tags: [String]) -> OperationsResult {
-        home.createNote(id: id, axis: "tech", tags: ["tech"] + tags, content: "## A\nx body\n")
+        home.createNote(id: id, tags: ["tech"] + tags, content: "## A\nx body\n")
     }
     
     private func issues(of noteId: String) throws -> [Lint.Issue] {

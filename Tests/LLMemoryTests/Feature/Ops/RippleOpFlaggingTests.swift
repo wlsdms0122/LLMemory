@@ -35,8 +35,8 @@ struct RippleOpFlaggingTests {
         
         // When
         let result = home.apply(["op": "split_note", "from_id": "rof-src", "into": [
-            ["id": "rof-a", "axis": "flow", "title": "A", "tags": ["flow"], "summary": "summary", "sections": ["## A"]],
-            ["id": "rof-b", "axis": "flow", "title": "B", "tags": ["flow"], "summary": "summary", "sections": ["## B"]]
+            ["id": "rof-a", "title": "A", "tags": ["flow"], "summary": "summary", "sections": ["## A"]],
+            ["id": "rof-b", "title": "B", "tags": ["flow"], "summary": "summary", "sections": ["## B"]]
         ]])
         
         // Then

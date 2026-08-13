@@ -27,10 +27,10 @@ struct PathNormalizationInvariantTests {
         
         // Then
         #expect(Paths.relative(of: root.appendingPathComponent("cortex")) == "cortex")
-        #expect(Paths.relative(of: root.appendingPathComponent("cortex/flow/absent.md"))
-            == "cortex/flow/absent.md")
-        #expect(Paths.relative(of: home.url.appendingPathComponent("cortex/flow/absent.md"))
-            == "cortex/flow/absent.md")
+        #expect(Paths.relative(of: root.appendingPathComponent("cortex/absent.md"))
+            == "cortex/absent.md")
+        #expect(Paths.relative(of: home.url.appendingPathComponent("cortex/absent.md"))
+            == "cortex/absent.md")
         #expect(Paths.relative(of: URL(fileURLWithPath: "/etc/passwd")) == nil,
             "a path outside the brain has no relative form")
     }

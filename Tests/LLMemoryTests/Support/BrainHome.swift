@@ -57,7 +57,6 @@ extension BrainHome {
     @discardableResult
     func createNote(
         id: String,
-        axis: String = "flow",
         title: String = "title",
         summary: String = "summary",
         tags: [String]? = nil,
@@ -67,12 +66,11 @@ extension BrainHome {
         var operation: [String: Any] = [
             "op": "create_note",
             "id": id,
-            "axis": axis,
             "title": title,
             "summary": summary,
-            // Defaulting the tag to the axis keeps most fixtures reading the way the corpus
-            // does — nothing requires it, so a test that cares passes its own tags.
-            "tags": tags ?? [axis],
+            // One tag by default so fixtures read the way the corpus does — nothing
+            // requires it, so a test that cares passes its own tags.
+            "tags": tags ?? ["flow"],
             "content": content
         ]
 
@@ -82,13 +80,13 @@ extension BrainHome {
     }
 
     func indexedPath(of id: String) throws -> URL {
-        let relativePath = try read { database in
-            try String.fetchOne(database, sql: "SELECT path FROM notes WHERE id = ?", arguments: [id])
+        let known = try read { database in
+            try Int.fetchOne(database, sql: "SELECT 1 FROM notes WHERE id = ?", arguments: [id])
         }
 
-        guard let relativePath else { throw TestFailure("no indexed path for \(id)") }
+        guard known != nil else { throw TestFailure("no indexed path for \(id)") }
 
-        return url.appendingPathComponent(relativePath)
+        return url.appendingPathComponent(Paths.relativeFile(forId: id))
     }
 
     func bodyText(of id: String) throws -> String {
@@ -110,24 +108,24 @@ extension BrainHome {
     @discardableResult
     func writeNoteFile(
         id: String,
-        axis: String = "flow",
         body: String,
         entities: [String] = []
     ) throws -> URL {
-        let directory = url.appendingPathComponent("cortex/\(axis)")
+        let file = url.appendingPathComponent(Paths.relativeFile(forId: id))
 
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
 
-        let file = directory.appendingPathComponent("\(id).md")
         let entityLine = entities.isEmpty ? "" : "entities: [\(entities.joined(separator: ", "))]\n"
 
         try """
         ---
         id: \(id)
         title: title
-        axis: \(axis)
         priority: lazy
-        tags: [\(axis)]
+        tags: [flow]
         summary: summary
         \(entityLine)---
 
@@ -139,18 +137,13 @@ extension BrainHome {
 
     // Inserts catalog rows with no file behind them, for tests whose subject is the graph or the
     // ranking over it — there a note only needs to exist as a row.
-    func seedBareNotes(ids: [String], axis: String = "flow") throws {
+    func seedBareNotes(ids: [String]) throws {
         try write { database in
-            try database.execute(
-                sql: "INSERT OR IGNORE INTO axes (axis, created_at) VALUES (?, ?)",
-                arguments: [axis, now]
-            )
-
             for noteId in ids {
                 try database.execute(sql: """
-                    INSERT INTO notes (id, axis, path, title, summary, priority)
-                    VALUES (?, ?, ?, ?, '', 'lazy')
-                    """, arguments: [noteId, axis, "tmp/\(noteId).md", noteId])
+                    INSERT INTO notes (id, title, summary, priority)
+                    VALUES (?, ?, '', 'lazy')
+                    """, arguments: [noteId, noteId])
             }
         }
     }

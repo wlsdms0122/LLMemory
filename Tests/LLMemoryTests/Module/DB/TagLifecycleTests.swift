@@ -28,8 +28,8 @@ struct TagLifecycleTests {
     @Test("renaming a tag updates the rows, the vocabulary and every note's frontmatter")
     func renameTagUpdatesDatabaseAndFiles() throws {
         // Given
-        lifecycle.create("tdb-rt1", axis: "tdbaxis", extraTags: ["tdbtag-old", "shared"])
-        lifecycle.create("tdb-rt2", axis: "tdbaxis", extraTags: ["tdbtag-old"])
+        lifecycle.create("tdb-rt1", extraTags: ["tdbtag-old", "shared"])
+        lifecycle.create("tdb-rt2", extraTags: ["tdbtag-old"])
         
         // When
         let result = home.apply(["op": "rename_tag", "from_tag": "tdbtag-old", "to_tag": "tdbtag-new"])
@@ -52,7 +52,7 @@ struct TagLifecycleTests {
     @Test("renaming again carries the earlier alias forward, and never leaves a self-alias behind")
     func reRenamePreservesInboundAliases() throws {
         // Given
-        lifecycle.create("tdb-ra1", axis: "tdbaxis", extraTags: ["tag-a"])
+        lifecycle.create("tdb-ra1", extraTags: ["tag-a"])
         
         #expect(home.apply([
             "op": "rename_tag", "from_tag": "tag-a", "to_tag": "tag-b", "add_alias": true
@@ -84,8 +84,8 @@ struct TagLifecycleTests {
     @Test("renaming onto a spelling that already aliases something else is refused")
     func renameOntoForeignAliasRejected() {
         // Given
-        lifecycle.create("tdb-fa1", axis: "tdbaxis", extraTags: ["tag-x"])
-        lifecycle.create("tdb-fa2", axis: "tdbaxis", extraTags: ["tag-f"])
+        lifecycle.create("tdb-fa1", extraTags: ["tag-x"])
+        lifecycle.create("tdb-fa2", extraTags: ["tag-f"])
         
         #expect(home.apply([
             "op": "rename_tag", "from_tag": "tag-x", "to_tag": "tag-x2", "add_alias": true
@@ -102,14 +102,14 @@ struct TagLifecycleTests {
     @Test("creating a note with an aliased tag converges the file on the canonical spelling")
     func createWithAliasTagConvergesFileToCanonical() throws {
         // Given
-        lifecycle.create("tdb-nt1", axis: "tdbaxis", extraTags: ["oldspell"])
+        lifecycle.create("tdb-nt1", extraTags: ["oldspell"])
         
         #expect(home.apply([
             "op": "rename_tag", "from_tag": "oldspell", "to_tag": "newspell", "add_alias": true
         ]).status == "ok")
         
         // When — a new note is written with the retired spelling.
-        lifecycle.create("tdb-nt2", axis: "tdbaxis", extraTags: ["oldspell"])
+        lifecycle.create("tdb-nt2", extraTags: ["oldspell"])
         
         // Then
         let fileTags = try lifecycle.frontmatterTags(of: "tdb-nt2")

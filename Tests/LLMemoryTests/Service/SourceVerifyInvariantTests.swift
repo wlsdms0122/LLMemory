@@ -24,7 +24,7 @@ struct SourceVerifyInvariantTests {
     
     // the baseline is an observation: only rebase (declaration change / ack) may move it
     private static func writeSourcedNote(_ id: String, source: URL, body: String = "# body") throws -> URL {
-        let directory = Paths.notes.appendingPathComponent("flow")
+        let directory = Paths.notes
         
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         
@@ -34,7 +34,6 @@ struct SourceVerifyInvariantTests {
         ---
         id: \(id)
         title: t
-        axis: flow
         priority: lazy
         tags: [flow]
         summary: s
@@ -66,7 +65,7 @@ struct SourceVerifyInvariantTests {
         try "alpha".write(to: first, atomically: true, encoding: .utf8)
         try "beta".write(to: second, atomically: true, encoding: .utf8)
         
-        let noteDirectory = Paths.notes.appendingPathComponent("flow")
+        let noteDirectory = Paths.notes
         
         try FileManager.default.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -75,7 +74,6 @@ struct SourceVerifyInvariantTests {
         ---
         id: src-1
         title: t
-        axis: flow
         priority: lazy
         tags: [flow]
         summary: s
@@ -124,7 +122,7 @@ struct SourceVerifyInvariantTests {
         try fileManager.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_000_000)], ofItemAtPath: older.path)
         try fileManager.setAttributes([.modificationDate: Date(timeIntervalSince1970: 2_000_000)], ofItemAtPath: newer.path)
         
-        let noteDirectory = Paths.notes.appendingPathComponent("flow")
+        let noteDirectory = Paths.notes
         
         try fileManager.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -134,7 +132,6 @@ struct SourceVerifyInvariantTests {
         ---
         id: src-nm
         title: t
-        axis: flow
         priority: lazy
         tags: [flow]
         summary: s
@@ -164,7 +161,7 @@ struct SourceVerifyInvariantTests {
     @Test("a reference that is not a file has nothing to drift from, so it is not tracked")
     func opaqueRefsAreNotDriftTracked() throws {
         // Given
-        let noteDirectory = Paths.notes.appendingPathComponent("flow")
+        let noteDirectory = Paths.notes
         
         try FileManager.default.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -174,7 +171,6 @@ struct SourceVerifyInvariantTests {
         ---
         id: src-url
         title: t
-        axis: flow
         priority: lazy
         tags: [flow]
         summary: s
@@ -212,7 +208,7 @@ struct SourceVerifyInvariantTests {
         
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
-        let noteDirectory = Paths.notes.appendingPathComponent("flow")
+        let noteDirectory = Paths.notes
         
         try FileManager.default.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -222,7 +218,6 @@ struct SourceVerifyInvariantTests {
         ---
         id: src-mix
         title: t
-        axis: flow
         priority: lazy
         tags: [flow]
         summary: s
@@ -362,13 +357,12 @@ struct SourceVerifyInvariantTests {
         #expect(after?.stale == 0, "rebase must clear source_stale")
         #expect(after?.hash != before?.hash, "rebase must move the baseline to the current file")
         
-        let plainPath = Paths.notes.appendingPathComponent("flow/src-plain.md")
+        let plainPath = Paths.notes.appendingPathComponent("src-plain.md")
         
         try """
         ---
         id: src-plain
         title: t
-        axis: flow
         priority: lazy
         tags: [flow]
         summary: s
@@ -441,8 +435,8 @@ struct SourceVerifyInvariantTests {
         #expect(parent?.stale == 1)
         
         let into: [[String: Any]] = [
-            ["id": "src-sp-a", "axis": "flow", "title": "A", "tags": ["flow"], "summary": "s", "sections": ["## A"]],
-            ["id": "src-sp-b", "axis": "flow", "title": "B", "tags": ["flow"], "summary": "s", "sections": ["## B"]]
+            ["id": "src-sp-a", "title": "A", "tags": ["flow"], "summary": "s", "sections": ["## A"]],
+            ["id": "src-sp-b", "title": "B", "tags": ["flow"], "summary": "s", "sections": ["## B"]]
         ]
         let result = OperationsEngine.apply(home.storage, ["ops": [["op": "split_note", "from_id": "src-sp", "into": into]], "rationale": "t"])
         
@@ -552,9 +546,9 @@ struct SourceVerifyInvariantTests {
         #expect(parent?.stale == 1)
         
         let into: [[String: Any]] = [
-            ["id": "src-rs-a", "axis": "flow", "title": "A", "tags": ["flow"], "summary": "s",
+            ["id": "src-rs-a", "title": "A", "tags": ["flow"], "summary": "s",
                 "sections": ["## A"], "source": [file.path]],
-            ["id": "src-rs-b", "axis": "flow", "title": "B", "tags": ["flow"], "summary": "s",
+            ["id": "src-rs-b", "title": "B", "tags": ["flow"], "summary": "s",
                 "sections": ["## B"]]
         ]
         let result = OperationsEngine.apply(home.storage, ["ops": [["op": "split_note", "from_id": "src-rs", "into": into]], "rationale": "t"])

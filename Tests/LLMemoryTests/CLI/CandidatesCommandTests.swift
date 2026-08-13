@@ -44,7 +44,7 @@ struct CandidatesCommandTests {
         })
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(ids.contains("log-masking"))
+        #expect(ids.contains("tech.log-masking"))
     }
     
     @Test("--kind is required — a missing kind is refused, not silently defaulted")

@@ -31,7 +31,7 @@ struct RestoreEffectInvariantTests {
         let result = home.apply([
             ["op": "restore", "id": "rb-note"],
             [
-                "op": "create_note", "id": "rb-note", "axis": "flow", "title": "title",
+                "op": "create_note", "id": "rb-note", "title": "title",
                 "summary": "summary", "tags": ["flow"], "content": "## A\nclobber\n"
             ]
         ])

@@ -238,7 +238,7 @@ struct TemplateTests {
     private func body(_ home: MemoryHome, _ id: String) throws -> String {
         let queue = try home.storage.connect()
         let relative = try queue.read { db in
-            try String.fetchOne(db, sql: "SELECT path FROM notes WHERE id = ?", arguments: [id])
+            try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id = ?", arguments: [id]).map { _ in Paths.relativeFile(forId: id) }
         }
         let text = try String(contentsOf: home.url.appendingPathComponent(relative!), encoding: .utf8)
         
@@ -381,19 +381,19 @@ struct TemplateTests {
     func deleteDriftedDocumentSucceeds() throws {
         // Then
         #expect(OperationsEngine.apply(home.storage, ["ops": [[
-            "op": "create_note", "id": "tpl-ab", "axis": "template", "title": "t",
+            "op": "create_note", "id": "tpl-ab", "title": "t",
             "summary": "s", "tags": ["template"],
             "content": "# A\nguidance A.\n# B\nguidance B.", "locked": true
         ]], "rationale": "t"]).status == "ok")
         #expect(OperationsEngine.apply(home.storage, ["ops": [[
-            "op": "create_note", "id": "doc-d", "axis": "flow", "title": "d",
+            "op": "create_note", "id": "doc-d", "title": "d",
             "summary": "s", "tags": ["flow"], "template": "tpl-ab",
             "content": "# A\nx\n# B\ny\n"
         ]], "rationale": "t"]).status == "ok")
         
         let queue = try home.storage.connect()
         let relative = try queue.read { db in
-            try String.fetchOne(db, sql: "SELECT path FROM notes WHERE id='tpl-ab'")
+            try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id='tpl-ab'").map { _ in Paths.relativeFile(forId: "tpl-ab") }
         }
         let templateFile = home.url.appendingPathComponent(relative!)
         let text = try String(contentsOf: templateFile, encoding: .utf8)
@@ -417,17 +417,17 @@ struct TemplateTests {
         
         for id in ["cl-n1", "cl-n2"] {
             #expect(OperationsEngine.apply(home.storage, ["ops": [[
-                "op": "create_note", "id": id, "axis": "flow", "title": "t", "summary": "s",
+                "op": "create_note", "id": id, "title": "t", "summary": "s",
                 "tags": ["flow"], "content": "## A\nx\n", "entities": ["ClusterEnt"]
             ]], "rationale": "t"]).status == "ok")
         }
         
         #expect(OperationsEngine.apply(home.storage, ["ops": [[
-            "op": "create_note", "id": "cl-doc", "axis": "flow", "title": "d", "summary": "s",
+            "op": "create_note", "id": "cl-doc", "title": "d", "summary": "s",
             "tags": ["flow"], "template": "tpl-spec", "entities": ["ClusterEnt"]
         ]], "rationale": "t"]).status == "ok")
         #expect(OperationsEngine.apply(home.storage, ["ops": [[
-            "op": "create_note", "id": "cl-lk", "axis": "flow", "title": "l", "summary": "s",
+            "op": "create_note", "id": "cl-lk", "title": "l", "summary": "s",
             "tags": ["flow"], "content": "## A\ny\n", "locked": true, "entities": ["ClusterEnt"]
         ]], "rationale": "t"]).status == "ok")
         

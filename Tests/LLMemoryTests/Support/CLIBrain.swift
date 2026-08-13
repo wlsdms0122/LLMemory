@@ -6,6 +6,7 @@
 //
 
 import Foundation
+@testable import LLMemory
 
 // A state root built the way a user builds one — `llmemory init` plus `operations apply`, through the real
 // binary. Every CLI test gets its own, so no test can depend on what an earlier one left behind.
@@ -54,8 +55,8 @@ final class CLIBrain {
         url.appendingPathComponent(relativePath)
     }
     
-    func noteURL(id: String, axis: String) -> URL {
-        file("cortex/\(axis)/\(id).md")
+    func noteURL(id: String) -> URL {
+        file(Paths.relativeFile(forId: id))
     }
     
     // MARK: - Private
@@ -74,33 +75,33 @@ final class CLIBrain {
     private func seed() throws {
         try apply("""
         {"ops":[
-          {"op":"create_note","id":"di-container","axis":"tech","title":"TossDI Container 설계",
+          {"op":"create_note","id":"tech.di-container","title":"TossDI Container 설계",
            "summary":"의존성 주입 컨테이너","tags":["tech","swift"],
            "entities":["TossDIContainer","PIIMaskingTransformer"],
            "content":"## 구조\\nTossDIContainer 가 PIIMaskingTransformer 를 주입 한다.\\n## 비고\\nresolve 시점 캐싱.\\n"},
-          {"op":"create_note","id":"log-masking","axis":"tech","title":"iOS 로그 마스킹 Transformer",
+          {"op":"create_note","id":"tech.log-masking","title":"iOS 로그 마스킹 Transformer",
            "summary":"민감정보 마스킹","tags":["tech","ios"],
            "entities":["PIIMaskingTransformer"],
            "content":"## 구조\\nPIIMaskingTransformer 가 로그를 마스킹 한다.\\n"},
-          {"op":"create_note","id":"transfer-flow","axis":"flow","title":"이체 플로우",
+          {"op":"create_note","id":"flow.transfer-flow","title":"이체 플로우",
            "summary":"송금 처리 흐름","tags":["flow","transfer"],
            "content":"## 흐름\\nTransferService 가 이체를 처리한다.\\n"},
-          {"op":"create_note","id":"persona-tone","axis":"persona","title":"말투",
+          {"op":"create_note","id":"persona.tone","title":"말투",
            "summary":"어조 규약","tags":["persona","tone"],
            "content":"## 톤\\n간결하고 직설적으로.\\n"},
-          {"op":"create_note","id":"old-journal","axis":"journal","title":"오래된 기록",
+          {"op":"create_note","id":"journal.old-journal","title":"오래된 기록",
            "summary":"보관 대상","tags":["journal"],
            "content":"## 기록\\n예전 작업 메모.\\n"}
         ],"rationale":"seed"}
         """)
         try apply("""
-        {"ops":[{"op":"set_frontmatter","id":"persona-tone","fields":{"priority":"eager"}}],"rationale":"eager"}
+        {"ops":[{"op":"set_frontmatter","id":"persona.tone","fields":{"priority":"eager"}}],"rationale":"eager"}
         """)
         try apply("""
         {"ops":[
-          {"op":"propose_link","src":"di-container","dst":"log-masking","kind":"assoc","confidence":0.8,"provenance":"test:seed"},
-          {"op":"add_retrieval_terms","id":"di-container","kind":"alias","terms":["DI 컨테이너","dependency injection container"],"provenance":"test:seed"},
-          {"op":"flag","id":"log-masking","kind":"reconsolidate","reason":"near-duplicate suspect"}
+          {"op":"propose_link","src":"tech.di-container","dst":"tech.log-masking","kind":"assoc","confidence":0.8,"provenance":"test:seed"},
+          {"op":"add_retrieval_terms","id":"tech.di-container","kind":"alias","terms":["DI 컨테이너","dependency injection container"],"provenance":"test:seed"},
+          {"op":"flag","id":"tech.log-masking","kind":"reconsolidate","reason":"near-duplicate suspect"}
         ],"rationale":"enrich"}
         """)
     }

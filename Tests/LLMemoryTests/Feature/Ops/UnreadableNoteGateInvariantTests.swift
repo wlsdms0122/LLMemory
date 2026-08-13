@@ -26,8 +26,8 @@ struct UnreadableNoteGateInvariantTests {
     @Test("the two read surfaces differ on absence and agree on corruption")
     func theTwoReadSurfacesDifferOnAbsenceAndAgreeOnCorruption() throws {
         // Given
-        let absent = home.url.appendingPathComponent("cortex/flow/nope.md")
-        let unreadable = home.url.appendingPathComponent("cortex/flow/here.md")
+        let absent = home.url.appendingPathComponent("cortex/nope.md")
+        let unreadable = home.url.appendingPathComponent("cortex/here.md")
         
         try FileManager.default.createDirectory(
             at: unreadable.deletingLastPathComponent(),
@@ -186,7 +186,7 @@ struct UnreadableNoteGateInvariantTests {
     @Test("the section gate still skips a file that is simply not there")
     func sectionGateStillSkipsAnAbsentFile() {
         // Given
-        let absent = home.url.appendingPathComponent("cortex/flow/deleted.md")
+        let absent = home.url.appendingPathComponent("cortex/deleted.md")
         
         // Then
         #expect(OperationsEngine.checkSectionInvariants(affected: [absent], backups: [(absent, nil)]) == nil)
@@ -292,12 +292,12 @@ struct UnreadableNoteGateInvariantTests {
     
     private func seedTemplate(id templateId: String, documentId: String) throws {
         #expect(home.apply([
-            "op": "create_note", "id": templateId, "axis": "template", "title": "template",
+            "op": "create_note", "id": templateId, "title": "template",
             "summary": "summary", "tags": ["template"],
             "content": "# A\nguidance A.\n# B\nguidance B."
         ]).status == "ok")
         #expect(home.apply([
-            "op": "create_note", "id": documentId, "axis": "flow", "title": "document",
+            "op": "create_note", "id": documentId, "title": "document",
             "summary": "summary", "tags": ["flow"], "template": templateId,
             "content": "# A\nx\n# B\ny\n"
         ]).status == "ok")

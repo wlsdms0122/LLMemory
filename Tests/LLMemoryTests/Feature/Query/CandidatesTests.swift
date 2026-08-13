@@ -102,8 +102,8 @@ struct CandidatesTests {
         
         try create(id: "dead-a", title: "deadedgetoken doc", content: shared)
         try create(id: "dead-b", content: "## A\nplain unrelated filler\n")
-        try create(id: "dead-c", axis: "tech", title: "deadedgetoken doc", content: shared)
-        try create(id: "dead-d", axis: "tech", content: "## A\nother filler entirely\n")
+        try create(id: "dead-c", tag: "tech", title: "deadedgetoken doc", content: shared)
+        try create(id: "dead-d", tag: "tech", content: "## A\nother filler entirely\n")
         
         let invalidated = home.apply(["op": "invalidate", "id": "dead-b", "reason": "test"])
         
@@ -116,14 +116,13 @@ struct CandidatesTests {
         
         // Then
         let pairs = Set(edges.map { edge in "\(edge.a.id)|\(edge.b.id)" })
-        
         #expect(pairs.contains("dead-a|dead-c"),
             "dead-a's only edge points at an invalidated note, so it should count as degree 0")
     }
     
     // MARK: - Private
-    private func create(id: String, axis: String = "flow", title: String = "title", content: String) throws {
-        let result = home.createNote(id: id, axis: axis, title: title, tags: [axis], content: content)
+    private func create(id: String, tag: String = "flow", title: String = "title", content: String) throws {
+        let result = home.createNote(id: id, title: title, tags: [tag], content: content)
         
         guard result.status == "ok" else { throw TestFailure("failed to create \(id): \(result.error)") }
     }

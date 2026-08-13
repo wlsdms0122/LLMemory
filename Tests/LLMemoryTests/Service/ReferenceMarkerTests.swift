@@ -96,11 +96,11 @@ struct ReferenceMarkerTests {
         // When
         let result = home.apply([
             [
-                "op": "create_note", "id": "rm-first", "axis": "flow", "title": "title",
+                "op": "create_note", "id": "rm-first", "title": "title",
                 "summary": "summary", "tags": ["flow"], "content": "cites `rm-second`\n"
             ],
             [
-                "op": "create_note", "id": "rm-second", "axis": "flow", "title": "title",
+                "op": "create_note", "id": "rm-second", "title": "title",
                 "summary": "summary", "tags": ["flow"], "content": "# second\n"
             ]
         ])

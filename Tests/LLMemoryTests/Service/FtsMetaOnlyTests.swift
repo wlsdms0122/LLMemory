@@ -28,7 +28,6 @@ struct FtsMetaOnlyTests {
         // Given
         #expect(home.createNote(
             id: "meta-note",
-            axis: "tech",
             tags: ["tech"],
             content: "## A\nbody\n"
         ).status == "ok")
@@ -57,7 +56,6 @@ struct FtsMetaOnlyTests {
         // Given
         #expect(home.createNote(
             id: "meta-note",
-            axis: "tech",
             title: "zephyrtitle",
             summary: "zephyrsummary",
             tags: ["tech"],

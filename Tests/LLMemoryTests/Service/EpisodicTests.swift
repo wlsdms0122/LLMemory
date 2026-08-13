@@ -123,7 +123,7 @@ struct EpisodicTests {
     // MARK: - Private
     @discardableResult
     private func create(_ noteId: String, content: String = "b") -> OperationsResult {
-        home.createNote(id: noteId, axis: "tech", title: "x", tags: ["tech", "test"], content: content)
+        home.createNote(id: noteId, title: "x", tags: ["tech", "test"], content: content)
     }
     
     private func lifecycleKinds(of noteId: String) throws -> [String] {

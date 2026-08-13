@@ -27,6 +27,9 @@ struct CLIResult {
     
     func jsonObject() -> [String: Any]? { json() as? [String: Any] }
     
+    // Compact rows — the counting surfaces encode each row as [label, count].
+    func jsonArrayOfArrays() -> [[Any]]? { json() as? [[Any]] }
+    
     func rows() -> [[String: Any]] {
         if let array = jsonArray() { return array }
         

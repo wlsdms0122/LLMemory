@@ -296,8 +296,8 @@ struct EnrichmentTests {
         ]]).status == "ok")
         
         let into: [[String: Any]] = [
-            ["id": "spl-a", "axis": "flow", "title": "A", "tags": ["flow"], "summary": "s", "sections": ["## A"]],
-            ["id": "spl-b", "axis": "flow", "title": "B", "tags": ["flow"], "summary": "s", "sections": ["## B"]]
+            ["id": "spl-a", "title": "A", "tags": ["flow"], "summary": "s", "sections": ["## A"]],
+            ["id": "spl-b", "title": "B", "tags": ["flow"], "summary": "s", "sections": ["## B"]]
         ]
         let conflict = home.apply([["op": "split_note", "from_id": "spl-src", "into": into]])
         
@@ -425,7 +425,7 @@ struct EnrichmentTests {
             "content": "## a\nb\n", "entities": ["BAR-9"]]]).status == "ok")
         
         let path = try home.read { db in
-            try String.fetchOne(db, sql: "SELECT path FROM notes WHERE id='rc-note'") ?? ""
+            Paths.relativeFile(forId: "rc-note")
         }
         
         try home.write { db in
@@ -524,8 +524,8 @@ struct EnrichmentTests {
             "kind": "assoc", "confidence": 0.9, "provenance": "t"]]).status == "ok")
         
         let into: [[String: Any]] = [
-            ["id": "spm-a", "axis": "flow", "title": "A", "tags": ["flow"], "summary": "s", "sections": ["## A"]],
-            ["id": "spm-b", "axis": "flow", "title": "B", "tags": ["flow"], "summary": "s", "sections": ["## B"]]
+            ["id": "spm-a", "title": "A", "tags": ["flow"], "summary": "s", "sections": ["## A"]],
+            ["id": "spm-b", "title": "B", "tags": ["flow"], "summary": "s", "sections": ["## B"]]
         ]
         
         #expect(home.apply([["op": "split_note", "from_id": "spm-src", "into": into]]).status != "ok")
@@ -830,9 +830,9 @@ struct EnrichmentTests {
     @Test("when both notes knew the same neighbour, their weights add rather than one replacing the other")
     func mergeAccumulatesSharedNeighborWeight() throws {
         // Given
-        home.createNote(id: "mwa-from", axis: "tech", tags: ["tech"], content: "## Body\nalpha body\n")
-        home.createNote(id: "mwa-into", axis: "persona", tags: ["persona"], content: "## Body\ninto body\n")
-        home.createNote(id: "mwa-nbr", axis: "env", tags: ["env"], content: "## Body\nneighbor body\n")
+        home.createNote(id: "mwa-from", tags: ["tech"], content: "## Body\nalpha body\n")
+        home.createNote(id: "mwa-into", tags: ["persona"], content: "## Body\ninto body\n")
+        home.createNote(id: "mwa-nbr", tags: ["env"], content: "## Body\nneighbor body\n")
         
         let queue = try home.storage.connect()
         

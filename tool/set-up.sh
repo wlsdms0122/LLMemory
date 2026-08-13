@@ -37,25 +37,23 @@ echo "generated Sources/LLMemory/Resource/Guide.swift"
   echo "/// The knowledge llmemory is born with — what an agent needs to run a memory well"
   echo "/// (how to fragment, how fragments stay reachable). Unlike \`Guide\`, which lands"
   echo "/// outside the cortex as \`<home>/README.md\`, these are planted under"
-  echo "/// \`cortex/.innate/\` as ordinary notes so the normal retrieval descent finds them."
+  echo "/// \`cortex/innate/\` as ordinary notes so the normal retrieval descent finds them."
   echo "/// They carry \`locked: true\` — the bot cannot mutate them via ops; a human edits"
   echo "/// or deletes the file, and \`update\` refreshes it from this embedded copy."
   echo "public enum Innate {"
   echo "    public struct Seed: Sendable {"
   echo "        public let id: String"
-  echo "        public let axis: String"
   echo "        public let markdown: String"
   echo "    }"
   echo ""
   echo "    public static let seeds: [Seed] = ["
   for f in document/innate/*.md; do
     id=$(sed -n 's/^id:[[:space:]]*//p' "$f" | head -1)
-    axis=$(sed -n 's/^axis:[[:space:]]*//p' "$f" | head -1)
-    if [ -z "$id" ] || [ -z "$axis" ]; then
-      echo "setup: $f is missing id: or axis: in frontmatter" >&2
+    if [ -z "$id" ]; then
+      echo "setup: $f is missing id: in frontmatter" >&2
       exit 1
     fi
-    echo "        Seed(id: \"$id\", axis: \"$axis\", markdown: #\"\"\""
+    echo "        Seed(id: \"$id\", markdown: #\"\"\""
     cat "$f"
     echo ""
     echo "\"\"\"#),"

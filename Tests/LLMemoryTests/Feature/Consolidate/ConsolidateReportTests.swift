@@ -20,26 +20,6 @@ struct ConsolidateReportTests {
     }
     
     // MARK: - Test
-    @Test("the axis report counts the notes filed on each axis and calls out the thin ones")
-    func axisReportCountsNotesPerAxis() throws {
-        // Given
-        home.createNote(id: "axis-flow-1", axis: "flow")
-        home.createNote(id: "axis-flow-2", axis: "flow")
-        home.createNote(id: "axis-tech-1", axis: "tech", tags: ["tech"])
-        
-        // When
-        let report = try home.read { database in try FetchAxisReportTransaction(low: 1, high: 2).perform(database) }
-        
-        // Then
-        let counts = Dictionary(uniqueKeysWithValues: report.all.map { entry in (entry.axis, entry.count) })
-        
-        #expect(counts["flow"] == 2)
-        #expect(counts["tech"] == 1)
-        #expect(report.small.map(\.axis).contains("tech"), "an axis at or under `low` is small")
-        #expect(report.large.map(\.axis).contains("flow"), "an axis at or over `high` is large")
-        #expect(!report.small.map(\.axis).contains("flow"))
-    }
-    
     @Test("the tag report surfaces the tags carried by a single note")
     func tagReportSurfacesRareTags() throws {
         // Given

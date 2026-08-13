@@ -22,7 +22,7 @@ struct SourceFreshnessAuthorityInvariantTests {
     
     // MARK: - Test
     private static func writeNote(_ id: String, sources: [URL]) throws -> URL {
-        let directory = Paths.notes.appendingPathComponent("flow")
+        let directory = Paths.notes
         
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         
@@ -33,7 +33,6 @@ struct SourceFreshnessAuthorityInvariantTests {
         ---
         id: \(id)
         title: t
-        axis: flow
         priority: lazy
         tags: [flow]
         summary: s

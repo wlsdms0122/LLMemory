@@ -113,7 +113,7 @@ struct FieldMergeGateInvariantTests {
         
         // Then
         #expect(home.apply([
-            "op": "set_frontmatter", "id": "mf-reserved", "fields": ["axis": "tech"]
+            "op": "set_frontmatter", "id": "mf-reserved", "fields": ["template": "some-template"]
         ]).status != "ok")
     }
     

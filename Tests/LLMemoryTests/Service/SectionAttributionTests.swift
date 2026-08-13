@@ -46,7 +46,7 @@ struct SectionAttributionTests {
     func headOnlyMatchHasNilSection() throws {
         // Given
         #expect(home.createNote(
-            id: "head-note", axis: "tech", title: "wibblezork special title",
+            id: "head-note", title: "wibblezork special title",
             tags: ["tech"], content: "## A\nplain body\n"
         ).status == "ok")
         
@@ -131,7 +131,7 @@ struct SectionAttributionTests {
     // MARK: - Private
     @discardableResult
     private func create(_ id: String, title: String, body: String) -> OperationsResult {
-        home.createNote(id: id, axis: "tech", title: title, tags: ["tech"], content: body)
+        home.createNote(id: id, title: title, tags: ["tech"], content: body)
     }
     
     private func search(_ query: String) throws -> [SearchRow] {

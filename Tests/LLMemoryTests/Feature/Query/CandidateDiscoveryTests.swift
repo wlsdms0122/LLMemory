@@ -58,8 +58,8 @@ struct CandidateDiscoveryTests {
         // Given
         let body = "## Structure\nthe transfer service applies the masking transformer to every log line\n"
         
-        home.createNote(id: "dup-a", axis: "tech", title: "A", tags: ["tech"], content: body)
-        home.createNote(id: "dup-b", axis: "tech", title: "B", tags: ["tech"], content: body)
+        home.createNote(id: "dup-a", title: "A", tags: ["tech"], content: body)
+        home.createNote(id: "dup-b", title: "B", tags: ["tech"], content: body)
         
         // When
         let duplicates = try home.readScope { scope in
@@ -77,9 +77,9 @@ struct CandidateDiscoveryTests {
         // Given
         let shared = "zalgonics qwertium flibberwock"
         
-        home.createNote(id: "me-a", axis: "tech", title: "A", tags: ["tech"], content: "## A\n\(shared) alpha\n")
-        home.createNote(id: "me-b", axis: "tech", title: "B", tags: ["tech"], content: "## B\n\(shared) beta\n")
-        home.createNote(id: "me-c", axis: "tech", title: "C", tags: ["tech"], content: "## C\nunrelated ziffle\n")
+        home.createNote(id: "me-a", title: "A", tags: ["tech"], content: "## A\n\(shared) alpha\n")
+        home.createNote(id: "me-b", title: "B", tags: ["tech"], content: "## B\n\(shared) beta\n")
+        home.createNote(id: "me-c", title: "C", tags: ["tech"], content: "## C\nunrelated ziffle\n")
         
         try home.database().write { database in try database.execute(sql: "DELETE FROM note_links") }
         

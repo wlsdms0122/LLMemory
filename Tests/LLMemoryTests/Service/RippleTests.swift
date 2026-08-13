@@ -87,16 +87,12 @@ struct RippleTests {
     // exist but their bodies do not matter.
     private func seedThreeNotes() throws {
         try home.database().write { database in
-            try database.execute(
-                sql: "INSERT OR IGNORE INTO axes (axis, created_at) VALUES ('flow', ?)",
-                arguments: [home.now]
-            )
             
             for noteId in ["tmp-ripple-a", "tmp-ripple-b", "tmp-ripple-c"] {
                 try database.execute(sql: """
-                    INSERT INTO notes (id, axis, path, title, summary, priority)
-                    VALUES (?, 'flow', ?, ?, '', 'lazy')
-                    """, arguments: [noteId, "tmp/\(noteId).md", noteId])
+                    INSERT INTO notes (id, title, summary, priority)
+                    VALUES (?, ?, '', 'lazy')
+                    """, arguments: [noteId, noteId])
             }
         }
     }

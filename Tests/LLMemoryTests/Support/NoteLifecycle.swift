@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 @testable import LLMemory
 
-// Reads the catalog rows that axis and tag lifecycle work moves around, and creates the notes those
+// Reads the catalog rows that tag lifecycle work moves around, and creates the notes those
 // tests need. Kept apart from the tests so the assertions read as claims rather than as SQL.
 struct NoteLifecycle {
     // MARK: - Property
@@ -24,31 +24,24 @@ struct NoteLifecycle {
     @discardableResult
     func create(
         _ noteId: String,
-        axis: String,
+        tag: String = "flow",
         extraTags: [String] = []
     ) -> OperationsResult {
         home.createNote(
             id: noteId,
-            axis: axis,
             title: "test \(noteId)",
             summary: "test note \(noteId)",
-            tags: [axis] + extraTags,
+            tags: [tag] + extraTags,
             content: "# \(noteId)\n\nbody for \(noteId)\n"
         )
     }
     
-    func axisExists(_ axis: String) throws -> Bool {
-        try home.read { database in
-            try Int.fetchOne(database, sql: "SELECT 1 FROM axes WHERE axis = ?", arguments: [axis]) != nil
-        }
-    }
-    
-    func noteCount(axis: String) throws -> Int {
+    func noteCount(prefix: String) throws -> Int {
         try home.read { database in
             try Int.fetchOne(
                 database,
-                sql: "SELECT COUNT(*) FROM notes WHERE axis = ?",
-                arguments: [axis]
+                sql: "SELECT COUNT(*) FROM notes WHERE id = ? OR id GLOB ?",
+                arguments: [prefix, prefix + ".*"]
             ) ?? 0
         }
     }

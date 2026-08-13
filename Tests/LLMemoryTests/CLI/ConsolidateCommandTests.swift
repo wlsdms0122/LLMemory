@@ -88,9 +88,9 @@ struct ConsolidateCommandTests {
         // Given
         brain.applyOps("""
             {"ops":[
-              {"op":"create_note","id":"ref-dst","axis":"tech","title":"D","summary":"summary",\
+              {"op":"create_note","id":"ref-dst","title":"D","summary":"summary",\
             "tags":["tech"],"content":"## A\\nbody\\n"},
-              {"op":"create_note","id":"ref-src","axis":"tech","title":"S","summary":"summary",\
+              {"op":"create_note","id":"ref-src","title":"S","summary":"summary",\
             "tags":["tech"],"content":"## A\\nsee `ref-dst` here\\n"}
             ],"rationale":"test"}
             """)

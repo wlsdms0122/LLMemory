@@ -31,11 +31,11 @@ struct SplitRoutingTests {
         // When — the first child claims a subtree the second already owns.
         let result = home.apply(["op": "split_note", "from_id": "src", "into": [
             [
-                "id": "rt-a", "axis": "flow", "title": "A", "tags": ["flow"], "summary": "summary",
+                "id": "rt-a", "title": "A", "tags": ["flow"], "summary": "summary",
                 "sections": ["## A", "## A > ### B"]
             ],
             [
-                "id": "rt-b", "axis": "flow", "title": "C", "tags": ["flow"], "summary": "summary",
+                "id": "rt-b", "title": "C", "tags": ["flow"], "summary": "summary",
                 "sections": ["## C"]
             ]
         ]])
@@ -153,11 +153,11 @@ struct SplitRoutingTests {
     private var children: [[String: Any]] {
         [
             [
-                "id": "rt-a", "axis": "flow", "title": "A", "tags": ["flow"],
+                "id": "rt-a", "title": "A", "tags": ["flow"],
                 "summary": "summary", "sections": ["## A"]
             ],
             [
-                "id": "rt-b", "axis": "flow", "title": "B", "tags": ["flow"],
+                "id": "rt-b", "title": "B", "tags": ["flow"],
                 "summary": "summary", "sections": ["## B"]
             ]
         ]

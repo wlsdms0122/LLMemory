@@ -135,7 +135,6 @@ struct FrontmatterBareListTests {
             ---
             id: fl-note
             title: t
-            axis: flow
             priority: lazy
             summary: |
               first line
@@ -162,7 +161,6 @@ struct FrontmatterBareListTests {
         
         document.id = "fl-note"
         document.title = "t"
-        document.axis = "flow"
         document.priority = "eager"
         document.summary = "s"
         document.tags = ["a", "b"]
@@ -189,7 +187,6 @@ struct FrontmatterBareListTests {
         ---
         id: fl-note
         title: t
-        axis: flow
         priority: lazy
         summary: s
         \(fields)

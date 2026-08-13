@@ -28,7 +28,7 @@ struct NoteDeletionTests {
     @Test("deleting a note takes its file and its rows with it")
     func deleteRemovesFileAndRows() throws {
         // Given
-        lifecycle.create("tdb-del1", axis: "tdbaxis")
+        lifecycle.create("tdb-del1")
         
         let file = try home.indexedPath(of: "tdb-del1")
         
@@ -50,8 +50,8 @@ struct NoteDeletionTests {
     @Test("a learned edge does not block a delete — nobody wrote it, so nobody is losing a citation")
     func deleteIsNotBlockedByLearnedInboundEdge() throws {
         // Given
-        lifecycle.create("tdl-1", axis: "tdbaxis")
-        lifecycle.create("tdl-2", axis: "tdbaxis")
+        lifecycle.create("tdl-1")
+        lifecycle.create("tdl-2")
         
         try home.database().write { database in
             for kind in ["cooccur", "assoc"] {
@@ -72,8 +72,8 @@ struct NoteDeletionTests {
     @Test("a written citation blocks the delete until the caller says force, and then no edge is left")
     func deleteInboundLinkBlocksUnlessForce() throws {
         // Given
-        lifecycle.create("tdb-d1", axis: "tdbaxis")
-        lifecycle.create("tdb-d2", axis: "tdbaxis")
+        lifecycle.create("tdb-d1")
+        lifecycle.create("tdb-d2")
         
         try home.database().write { database in
             try database.execute(sql: """
@@ -106,7 +106,7 @@ struct NoteDeletionTests {
         // Given
         let family = ["aaa-frag", "mmm-frag", "zzz-frag"]
         
-        for noteId in family { lifecycle.create(noteId, axis: "tdbaxis") }
+        for noteId in family { lifecycle.create(noteId) }
         
         try home.database().write { database in
             try LinkSiblingsTransaction(ids: family, now: home.now).perform(database)

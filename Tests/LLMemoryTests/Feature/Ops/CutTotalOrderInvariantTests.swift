@@ -186,27 +186,21 @@ struct CutTotalOrderInvariantTests {
     // that leans on insertion order fails here instead of passing by luck.
     private func seedNotes(ids: [String], wordCount: Int = 0, sectionCount: Int = 0) throws {
         try home.database().write { database in
-            try database.execute(
-                sql: "INSERT OR IGNORE INTO axes (axis, created_at) VALUES ('flow',?)",
-                arguments: [home.now]
-            )
             
             for noteId in ids.sorted(by: >) {
                 try database.execute(sql: """
-                    INSERT INTO notes (id, axis, path, title, summary, priority,
+                    INSERT INTO notes (id, title, summary, priority,
                                        word_count, section_count)
-                    VALUES (?, 'flow', ?, ?, '', 'lazy', ?, ?)
-                    """, arguments: [
-                        noteId, "tmp/\(noteId).md", noteId, wordCount, sectionCount
-                    ])
+                    VALUES (?, ?, '', 'lazy', ?, ?)
+                    """, arguments: [noteId, noteId, wordCount, sectionCount])
                 
-                let file = home.url.appendingPathComponent("tmp/\(noteId).md")
+                let file = home.url.appendingPathComponent(Paths.relativeFile(forId: noteId))
                 
                 try FileManager.default.createDirectory(
                     at: file.deletingLastPathComponent(),
                     withIntermediateDirectories: true
                 )
-                try (Frontmatter.dump(FrontmatterDoc(id: noteId, title: noteId, axis: "flow"))
+                try (Frontmatter.dump(FrontmatterDoc(id: noteId, title: noteId))
                     + "## A\nx\n## B\ny\n").write(to: file, atomically: true, encoding: .utf8)
             }
         }

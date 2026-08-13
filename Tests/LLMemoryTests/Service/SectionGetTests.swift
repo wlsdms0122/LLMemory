@@ -27,7 +27,7 @@ struct SectionGetTests {
     func getSectionsSlicesSubtree() throws {
         // Given
         #expect(home.createNote(
-            id: "doc", axis: "tech", title: "doc", tags: ["tech"],
+            id: "doc", title: "doc", tags: ["tech"],
             content: "## A\na-body\n### A1\na1-body\n## B\nb-body\n"
         ).status == "ok")
         
@@ -45,7 +45,7 @@ struct SectionGetTests {
     @Test("asking for a section that does not exist throws instead of returning nothing")
     func getSectionsUnknownPathFailsLoud() throws {
         // Given
-        #expect(home.createNote(id: "doc2", axis: "tech", tags: ["tech"], content: "## A\nbody\n")
+        #expect(home.createNote(id: "doc2", tags: ["tech"], content: "## A\nbody\n")
             .status == "ok")
         
         // Then
@@ -58,7 +58,7 @@ struct SectionGetTests {
     func tocListsPathsAndWords() throws {
         // Given
         #expect(home.createNote(
-            id: "doc3", axis: "tech", tags: ["tech"],
+            id: "doc3", tags: ["tech"],
             content: "## A\none two three\n### A1\nfour\n"
         ).status == "ok")
         

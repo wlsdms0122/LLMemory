@@ -27,8 +27,8 @@ struct TagPriorTests {
     @Test("a tag's prior is the share of recent hits carrying it, not its share of all tags")
     func priorIsTheShareOfHitsCarryingTheTag() throws {
         // Given
-        home.createNote(id: "tp-a", axis: "flow", tags: ["flow", "transfer"])
-        home.createNote(id: "tp-b", axis: "tech", tags: ["flow", "tech"])
+        home.createNote(id: "tp-a", tags: ["flow", "transfer"])
+        home.createNote(id: "tp-b", tags: ["flow", "tech"])
 
         try recordRetrieval(session: "s1", hits: ["tp-a", "tp-b"])
 
@@ -48,7 +48,7 @@ struct TagPriorTests {
     @Test("another session's retrievals do not warm this one")
     func priorIsScopedToItsSession() throws {
         // Given
-        home.createNote(id: "tp-c", axis: "flow", tags: ["flow"])
+        home.createNote(id: "tp-c", tags: ["flow"])
 
         try recordRetrieval(session: "other", hits: ["tp-c"])
 

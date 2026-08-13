@@ -27,7 +27,6 @@ struct SourceGateInvariantTests {
         ---
         id: \(id)
         title: t
-        axis: flow
         priority: lazy
         tags: [flow]
         summary: s
@@ -40,7 +39,7 @@ struct SourceGateInvariantTests {
     
     @discardableResult
     private static func writeNote(_ id: String, source: String) throws -> URL {
-        let directory = Paths.notes.appendingPathComponent("flow")
+        let directory = Paths.notes
         
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         
@@ -253,7 +252,7 @@ struct SourceGateInvariantTests {
         // Then
         #expect(result.status == "ok", "valid mixed shapes rejected: \(result.error)")
         
-        let path = Paths.notes.appendingPathComponent("flow/gate-5.md")
+        let path = Paths.notes.appendingPathComponent("gate-5.md")
         let (document, _) = try Frontmatter.parse(try String(contentsOf: path, encoding: .utf8))
         
         #expect(document.source == ["/abs/a.swift", "/abs/b.swift"])

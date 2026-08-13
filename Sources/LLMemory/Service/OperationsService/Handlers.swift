@@ -419,7 +419,22 @@ public enum Handlers {
         return (stem, 0)
     }
     
-    static func trashStemId(_ url: URL) -> String { trashName(url).nid }
+    // The trash mirrors the cortex layout, so a trashed file's id is its path
+    // under .trash/ read the same way — leaf label alone would only be the last
+    // label of a dotted address.
+    static func trashStemId(_ url: URL) -> String {
+        guard let relative = Paths.relative(of: url) else { return trashName(url).nid }
+        
+        var labels = relative.split(separator: "/").map(String.init)
+        
+        guard labels.count > 2, labels[0] == "cortex", labels[1] == ".trash" else {
+            return trashName(url).nid
+        }
+        
+        labels[labels.count - 1] = trashName(url).nid
+        
+        return labels.dropFirst(2).joined(separator: ".")
+    }
     
     static func findTrashedFile(
         _ nid: String

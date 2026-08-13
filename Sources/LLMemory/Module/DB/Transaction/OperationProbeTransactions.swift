@@ -394,21 +394,21 @@ struct FetchActiveTermRowsTransaction: GRDBReadTransaction {
     // MARK: - Private
 }
 
-struct NoteLockedAtPathTransaction: GRDBReadTransaction {
+struct NoteLockedTransaction: GRDBReadTransaction {
     // MARK: - Property
-    let relativePath: String
+    let nid: String
 
     // MARK: - Initializer
-    init(relativePath: String) {
-        self.relativePath = relativePath
+    init(nid: String) {
+        self.nid = nid
     }
 
     // MARK: - Public
     func perform(_ db: Database) throws -> Bool {
         try Int.fetchOne(
             db,
-            sql: "SELECT locked FROM notes WHERE path = ?",
-            arguments: [relativePath]
+            sql: "SELECT locked FROM notes WHERE id = ?",
+            arguments: [nid]
         ) == 1
     }
 

@@ -28,7 +28,7 @@ struct IndexCommandTests {
         let searched = brain.run(["query", "search", "PIIMaskingTransformer", "--json"])
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(searched.ids().contains("log-masking"))
+        #expect(searched.ids().contains("tech.log-masking"))
     }
     
     @Test("--rebuild re-derives the index and the vectors from cortex")
@@ -40,7 +40,7 @@ struct IndexCommandTests {
         let searched = brain.run(["query", "search", "PIIMaskingTransformer", "--json"])
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(searched.ids().contains("log-masking"))
+        #expect(searched.ids().contains("tech.log-masking"))
     }
     
     // The user-facing contract of "reindex reports failure": the real binary
@@ -50,8 +50,8 @@ struct IndexCommandTests {
     func reindexReportsFailureThroughTheRealBinary() {
         // Given — --path resolves relative arguments against the CWD, so the
         // subprocess needs absolute paths into the fixture home.
-        let existing = brain.noteURL(id: "di-container", axis: "tech").path
-        let missing = brain.file("cortex/tech/missing.md").path
+        let existing = brain.noteURL(id: "tech.di-container").path
+        let missing = brain.file("cortex/missing.md").path
 
         // When
         let clean = brain.run(["index", "build", "--path", existing, "--json"])
@@ -63,7 +63,7 @@ struct IndexCommandTests {
 
         #expect(mixed.exitCode == 1, "a failed path did not flip the exit code")
         #expect(mixed.standardError.contains("missing.md"), "\(mixed.standardError)")
-        #expect(mixed.standardOutput.contains("di-container"), "the successful path vanished from the output")
+        #expect(mixed.standardOutput.contains("tech.di-container"), "the successful path vanished from the output")
     }
 
     @Test("verify integrity at the deepest level reports a clean freshly-built brain")

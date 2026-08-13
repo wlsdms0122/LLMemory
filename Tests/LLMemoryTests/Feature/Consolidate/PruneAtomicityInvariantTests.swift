@@ -64,16 +64,12 @@ struct PruneAtomicityInvariantTests {
     // Written straight into the tables rather than through ops: the subject is the decay tick, and a
     // link with a known starting weight is what it needs.
     private func seedAssocLink(_ database: Database, weight: Double) throws {
-        try database.execute(
-            sql: "INSERT OR IGNORE INTO axes (axis, created_at) VALUES ('flow', ?)",
-            arguments: [home.now]
-        )
         
         for noteId in ["patom-a", "patom-b"] {
             try database.execute(sql: """
-                INSERT INTO notes (id, axis, path, title, summary, priority)
-                VALUES (?, 'flow', ?, ?, '', 'lazy')
-                """, arguments: [noteId, "tmp/\(noteId).md", noteId])
+                INSERT INTO notes (id, title, summary, priority)
+                VALUES (?, ?, '', 'lazy')
+                """, arguments: [noteId, noteId])
         }
         
         try database.execute(sql: """

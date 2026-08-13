@@ -47,48 +47,47 @@ struct InnateTests {
         }
     }
 
-    @Test("every seed lives in the innate axis and its frontmatter agrees with its id")
-    func seedFrontmatterAgreesWithIdAndAxis() throws {
+    @Test("every seed is addressed under innate and its frontmatter agrees with its id")
+    func seedFrontmatterAgreesWithId() throws {
         for seed in Innate.seeds {
             // When
             let (fields, _) = try Frontmatter.parse(seed.markdown)
 
             // Then
             #expect(fields.id == seed.id, "\(seed.id): frontmatter id mismatch (\(fields.id))")
-            #expect(fields.axis == seed.axis, "\(seed.id): frontmatter axis mismatch (\(fields.axis))")
-            #expect(seed.axis == Paths.innateAxis,
-                "\(seed.id): an innate seed belongs to the innate axis, not \(seed.axis)")
+            #expect(seed.id.hasPrefix("innate."),
+                "\(seed.id): an innate seed is addressed under innate")
         }
     }
 
-    @Test("init plants each seed under cortex/.innate/ as a note that can actually be retrieved")
+    @Test("init plants each seed under cortex/innate/ as a note that can actually be retrieved")
     func initPlantsSeedsAsRetrievableNotes() throws {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-init")
 
         for seed in Innate.seeds {
             // When
-            let planted = brain.file("cortex/.innate/\(seed.id).md")
+            let planted = brain.file(Paths.relativeFile(forId: seed.id))
             let result = brain.run(["query", "get", seed.id, "--json"])
 
             // Then
-            #expect(FileManager.default.fileExists(atPath: planted.path), "\(seed.id) not planted in cortex/.innate")
+            #expect(FileManager.default.fileExists(atPath: planted.path), "\(seed.id) not planted in cortex/innate")
             #expect(result.succeeded, "seeded note not retrievable: \(result.standardError)")
         }
     }
 
-    @Test("a fresh brain owns exactly the innate axis and nothing else")
-    func freshBrainOwnsOnlyTheInnateAxis() throws {
+    @Test("a fresh brain owns exactly the innate branch and nothing else")
+    func freshBrainOwnsOnlyTheInnateBranch() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-innate-axes", seeded: false)
+        let brain = try CLIBrain(prefix: "llmemory-innate-tree", seeded: false)
 
         // When
-        let result = brain.run(["query", "axes", "--json"])
-        let rows = result.jsonArray() ?? []
-        let axes = rows.compactMap { row in row["axis"] as? String }
+        let result = brain.run(["query", "tree", "--json"])
+        let rows = result.jsonArrayOfArrays() ?? []
+        let prefixes = rows.compactMap { row in row.first as? String }
 
         // Then
-        #expect(axes == [Paths.innateAxis], "fresh brain axes: \(axes)")
+        #expect(prefixes == ["innate"], "fresh brain tree: \(prefixes)")
     }
 
     @Test("re-running init keeps a local edit to a seed — init plants what is missing, nothing more")
@@ -96,7 +95,7 @@ struct InnateTests {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-reinit")
         let seed = try firstSeed()
-        let file = brain.file("cortex/.innate/\(seed.id).md")
+        let file = brain.file(Paths.relativeFile(forId: seed.id))
         let edited = seed.markdown + "\nlocal addition.\n"
 
         try edited.write(to: file, atomically: true, encoding: .utf8)
@@ -115,7 +114,7 @@ struct InnateTests {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-update")
         let seed = try firstSeed()
-        let file = brain.file("cortex/.innate/\(seed.id).md")
+        let file = brain.file(Paths.relativeFile(forId: seed.id))
         let edited = seed.markdown + "\nlocal addition.\n"
 
         try edited.write(to: file, atomically: true, encoding: .utf8)
@@ -143,7 +142,7 @@ struct InnateTests {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-repair")
         let seed = try firstSeed()
-        let file = brain.file("cortex/.innate/\(seed.id).md")
+        let file = brain.file(Paths.relativeFile(forId: seed.id))
 
         try FileManager.default.removeItem(at: file)
 
@@ -164,11 +163,11 @@ struct InnateTests {
         #expect(try String(contentsOf: file, encoding: .utf8) == seed.markdown)
     }
 
-    @Test("deleting the whole .innate/ directory opts the brain out — update skips, even after a reindex")
+    @Test("deleting the whole innate/ directory opts the brain out — update skips, even after a reindex")
     func updateSkipsWhenDirectoryIsGone() throws {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-optout")
-        let directory = brain.file("cortex/.innate")
+        let directory = brain.file("cortex/innate")
 
         try FileManager.default.removeItem(at: directory)
 
@@ -196,9 +195,9 @@ struct InnateTests {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-override")
         let seed = try firstSeed()
-        let file = brain.file("cortex/.innate/\(seed.id).md")
+        let file = brain.file(Paths.relativeFile(forId: seed.id))
 
-        try FileManager.default.removeItem(at: brain.file("cortex/.innate"))
+        try FileManager.default.removeItem(at: brain.file("cortex/innate"))
 
         #expect(brain.run(["update"]).succeeded, "the opted-out update must pass")
 
@@ -221,7 +220,7 @@ struct InnateTests {
     func bareInitSkipsInnateSpace() throws {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-bare", seeded: false, bare: true)
-        let directory = brain.file("cortex/.innate")
+        let directory = brain.file("cortex/innate")
 
         #expect(!FileManager.default.fileExists(atPath: directory.path), "--bare must not plant")
 
@@ -241,7 +240,7 @@ struct InnateTests {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-check")
         let seed = try firstSeed()
-        let file = brain.file("cortex/.innate/\(seed.id).md")
+        let file = brain.file(Paths.relativeFile(forId: seed.id))
 
         // A clean brain matches the shipped copy.
         let clean = brain.run(["update", "--check", "--json"])
@@ -268,12 +267,11 @@ struct InnateTests {
     func foreignFileIsReportedNotTouched() throws {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-foreign")
-        let stranger = brain.file("cortex/.innate/hand-planted.md")
+        let stranger = brain.file("cortex/innate/hand-planted.md")
         let content = """
         ---
         id: hand-planted
         title: hand planted
-        axis: innate
         priority: lazy
         tags: [innate]
         summary: a human put this here
@@ -315,7 +313,7 @@ struct InnateTests {
     func updateLeavesAuthoredNotesAlone() throws {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-innate-scope")
-        let authored = brain.noteURL(id: "di-container", axis: "tech")
+        let authored = brain.noteURL(id: "tech.di-container")
         let before = try String(contentsOf: authored, encoding: .utf8)
 
         // When
@@ -345,12 +343,12 @@ struct InnateTests {
 
     @Test("locked is a bot-mutation gate, not ownership — update restates the seed either way")
     func updateRestatesSeedRegardlessOfLocked() throws {
-        // Given — force: a bare fixture home has no .innate/ yet, and this test is about
+        // Given — force: a bare fixture home has no innate/ yet, and this test is about
         // content ownership, not the presence contract.
         _ = Seeding.plant(mode: .missingOnly, force: true)
 
         let seed = try firstSeed()
-        let file = Paths.innate.appendingPathComponent("\(seed.id).md")
+        let file = Paths.file(forId: seed.id)
         let forked = seed.markdown.replacingOccurrences(of: "locked: true", with: "locked: false")
             + "\n## Local fork\nauthored by a person\n"
 

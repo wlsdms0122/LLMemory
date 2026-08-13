@@ -35,7 +35,7 @@ struct SectionRowsRobustnessTests {
     @Test("a note whose head row is missing from the index is reported at level 2")
     func verifyL2DetectsHeadlessFts() throws {
         // Given
-        #expect(home.createNote(id: "hl-note", axis: "tech", tags: ["tech"], content: "## A\nbody\n")
+        #expect(home.createNote(id: "hl-note", tags: ["tech"], content: "## A\nbody\n")
             .status == "ok")
         
         try home.write { db in

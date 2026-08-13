@@ -47,14 +47,7 @@ final class MemoryHome: BrainHome, @unchecked Sendable {
             
             try session.storage.initialize()
 
-            // A fresh install owns zero axes, but most tests model a brain that has lived for a
-            // while. Pre-creating the vocabulary the fixtures rely on keeps the fixtures honest
-            // about which axes already exist.
-            try session.storage.connect().write { database in
-                for axis in ["flow", "tech", "persona", "repo", "env", "journal"] {
-                    try EnsureAxisTransaction(axis: axis, now: now).perform(database)
-                }
-            }
+            _ = try session.storage.connect()
             
             // The Session warmed against a database that did not exist yet.
             session.rewarm()

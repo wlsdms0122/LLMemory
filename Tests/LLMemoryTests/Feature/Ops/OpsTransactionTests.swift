@@ -177,7 +177,7 @@ struct TransactionTests {
     @Test("a database-only op is rolled back when a later op in the batch fails")
     func dbOnlyOpRolledBackWhenLaterOpFails() throws {
         // Given
-        home.createNote(id: "tx-atom1", axis: "flow", tags: ["flow"])
+        home.createNote(id: "tx-atom1", tags: ["flow"])
         
         #expect(try retrievalTermCount(of: "tx-atom1") == 0)
         
@@ -209,12 +209,12 @@ struct TransactionTests {
     }
     
     private func noteFile(_ id: String) -> URL {
-        Paths.notes.appendingPathComponent("flow/\(id).md")
+        Paths.notes.appendingPathComponent("\(id).md")
     }
     
     private func createOp(id: String) -> [String: Any] {
         [
-            "op": "create_note", "id": id, "axis": "flow", "title": "title",
+            "op": "create_note", "id": id, "title": "title",
             "summary": "summary", "tags": ["flow"], "content": "## A\nbody\n"
         ]
     }

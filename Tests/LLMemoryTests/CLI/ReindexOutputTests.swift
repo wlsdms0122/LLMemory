@@ -22,7 +22,7 @@ struct ReindexOutputTests {
         let outcomes = [
             Indexer.ReindexOutcome(
                 filePath: "brain/cortex/flow/a.md",
-                result: .reindexed(noteId: "a", relativePath: "cortex/flow/a.md")
+                result: .reindexed(noteId: "a", relativePath: "cortex/a.md")
             )
         ]
 
@@ -34,7 +34,7 @@ struct ReindexOutputTests {
         #expect(output.reindexed == 1)
         #expect(output.failures.isEmpty)
         #expect(output.files.first?.path == "brain/cortex/flow/a.md")
-        #expect(output.files.first?.relativePath == "cortex/flow/a.md")
+        #expect(output.files.first?.relativePath == "cortex/a.md")
         #expect(output.files.first?.noteId == "a")
         #expect(output.files.first?.error == nil)
     }
@@ -45,7 +45,7 @@ struct ReindexOutputTests {
         let outcomes = [
             Indexer.ReindexOutcome(
                 filePath: "brain/cortex/flow/a.md",
-                result: .reindexed(noteId: "a", relativePath: "cortex/flow/a.md")
+                result: .reindexed(noteId: "a", relativePath: "cortex/a.md")
             ),
             Indexer.ReindexOutcome(
                 filePath: "brain/.trash/flow/b.md",

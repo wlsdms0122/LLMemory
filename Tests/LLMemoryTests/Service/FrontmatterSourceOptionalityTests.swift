@@ -54,11 +54,11 @@ struct FrontmatterSourceOptionalityTests {
         // When
         let result = home.apply(["op": "split_note", "from_id": "sp-parent", "into": [
             [
-                "id": "sp-c1", "axis": "flow", "title": "c1", "tags": ["flow"],
+                "id": "sp-c1", "title": "c1", "tags": ["flow"],
                 "summary": "summary", "sections": ["## A"]
             ],
             [
-                "id": "sp-c2", "axis": "flow", "title": "c2", "tags": ["flow"],
+                "id": "sp-c2", "title": "c2", "tags": ["flow"],
                 "summary": "summary", "sections": ["## B"]
             ]
         ]])

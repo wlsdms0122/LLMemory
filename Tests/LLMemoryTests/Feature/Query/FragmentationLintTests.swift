@@ -41,7 +41,7 @@ struct FragmentationLintTests {
     @Test("a note that accumulates dated sections is a growing buffer, whatever its current size")
     func growthFiresOnDatedSectionBuffer() throws {
         // Given
-        #expect(create("frag-log", content: Self.datedSections(count: 10), axis: "journal").status == "ok")
+        #expect(create("frag-log", content: Self.datedSections(count: 10)).status == "ok")
         
         // Then
         #expect(try subjects(of: "growth-unbounded") == ["frag-log"])
@@ -50,7 +50,7 @@ struct FragmentationLintTests {
     @Test("growth is judged on structure, not on size — a small buffer trips growth but not size")
     func growthIsIndependentOfSize() throws {
         // Given
-        #expect(create("frag-tinylog", content: Self.datedSections(count: 9, body: "x"), axis: "journal")
+        #expect(create("frag-tinylog", content: Self.datedSections(count: 9, body: "x"))
             .status == "ok")
         
         // Then
@@ -62,7 +62,7 @@ struct FragmentationLintTests {
     func growthSkipsAlreadyRolledPeriodNotes() throws {
         // Given
         for noteId in ["frag-log-260701", "frag-log-260701-06", "frag-log-260701-06-am"] {
-            #expect(create(noteId, content: Self.datedSections(count: 12), axis: "journal").status == "ok")
+            #expect(create(noteId, content: Self.datedSections(count: 12)).status == "ok")
         }
         
         // Then
@@ -113,12 +113,12 @@ struct FragmentationLintTests {
             "a missing gist is a different failure from being isolated")
     }
     
-    @Test("a name prefix shared across axes is coincidence, not a family")
-    func fragmentIgnoresCrossAxisPrefixCoincidence() throws {
+    @Test("a name prefix shared across branches is coincidence, not a family")
+    func fragmentIgnoresCrossBranchPrefixCoincidence() throws {
         // Given
-        #expect(create("shared-name-one", content: "## A\nb\n", axis: "tech").status == "ok")
-        #expect(create("shared-name-two", content: "## A\nb\n", axis: "journal").status == "ok")
-        #expect(create("shared-name-three", content: "## A\nb\n", axis: "flow").status == "ok")
+        #expect(create("tech.shared-name-one", content: "## A\nb\n").status == "ok")
+        #expect(create("flow.shared-name-two", content: "## A\nb\n").status == "ok")
+        #expect(create("persona.shared-name-three", content: "## A\nb\n").status == "ok")
         
         // Then
         #expect(try subjects(of: "fragment-unlinked").isEmpty)
@@ -218,7 +218,7 @@ struct FragmentationLintTests {
     func linkLineageRecordsPromotionAsFact() throws {
         // Given
         #expect(create("frag-principle", content: "## A\nthe principle\n").status == "ok")
-        #expect(create("frag-episode", content: "## A\nthe run log\n", axis: "journal").status == "ok")
+        #expect(create("frag-episode", content: "## A\nthe run log\n").status == "ok")
         
         // When
         let result = home.apply([
@@ -382,7 +382,7 @@ struct FragmentationLintTests {
         
         // When
         let result = home.apply([
-            "op": "dismiss_candidate", "id": "frag-e", "kind": "lint:axis-mismatch", "reason": "nope"
+            "op": "dismiss_candidate", "id": "frag-e", "kind": "lint:invalid-id", "reason": "nope"
         ])
         
         // Then
@@ -416,8 +416,8 @@ struct FragmentationLintTests {
     }
     
     @discardableResult
-    private func create(_ id: String, content: String, axis: String = "tech") -> OperationsResult {
-        home.createNote(id: id, axis: axis, tags: [axis, "frag"], content: content)
+    private func create(_ id: String, content: String, tag: String = "tech") -> OperationsResult {
+        home.createNote(id: id, tags: [tag, "frag"], content: content)
     }
     
     @discardableResult
@@ -427,7 +427,7 @@ struct FragmentationLintTests {
             "from_id": source,
             "into": children.map { child in
                 [
-                    "id": child.id, "axis": "tech", "title": child.id, "tags": ["tech"],
+                    "id": child.id, "title": child.id, "tags": ["tech"],
                     "summary": "summary", "sections": [child.section]
                 ] as [String: Any]
             }

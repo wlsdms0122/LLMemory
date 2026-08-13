@@ -51,14 +51,14 @@ struct SectionInvariantExitInvariantTests {
         #expect(try home.read { database in try NoteExistsTransaction(nid: "cr-note").perform(database) })
     }
     
-    @Test("a note that already has a duplicate heading can still be migrated to another axis")
+    @Test("a note that already has a duplicate heading can still be re-addressed")
     func aNoteWithADuplicateHeadingCanBeMigrated() throws {
         // Given
         try seedCollidingNote(id: "cm-note")
         
         // When
         let result = home.apply([
-            "op": "migrate_note", "id": "cm-note", "to_axis": "tech", "reason": "test"
+            "op": "migrate_note", "id": "cm-note", "new_id": "tech.cm-note", "reason": "test"
         ])
         
         // Then

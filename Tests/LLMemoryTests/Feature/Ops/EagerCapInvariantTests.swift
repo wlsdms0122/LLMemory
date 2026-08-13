@@ -79,7 +79,7 @@ struct EagerCapInvariantTests {
     // MARK: - Private
     private func eagerNote(_ id: String, priority: String = "eager") -> [String: Any] {
         [
-            "op": "create_note", "id": id, "axis": "flow", "title": "title",
+            "op": "create_note", "id": id, "title": "title",
             "tags": ["flow"], "summary": "summary", "content": "## A\nbody\n", "priority": priority
         ]
     }

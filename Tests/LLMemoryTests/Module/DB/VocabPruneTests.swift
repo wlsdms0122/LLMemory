@@ -23,39 +23,37 @@ struct VocabPruneTests {
     }
     
     // MARK: - Test
-    @Test("an axis left empty by a delete is pruned")
-    func pruneEmptyAxesDropsEmptyAxis() throws {
+    @Test("a vocabulary tag no note carries any more is pruned")
+    func pruneDropsUnusedVocabularyTag() throws {
         // Given
-        lifecycle.create("tdb-h1", axis: "tdbaxis")
+        lifecycle.create("tdb-v1", extraTags: ["onlyhere"])
         
-        home.apply(["op": "delete_note", "id": "tdb-h1", "reason": "leave the axis empty"])
+        #expect(try lifecycle.vocabularyContains("onlyhere"))
         
-        #expect(try lifecycle.axisExists("tdbaxis"))
+        home.apply(["op": "delete_note", "id": "tdb-v1", "reason": "leave the tag unused"])
         
         // When
-        let result = try home.database().write { database in try PruneEmptyAxesTransaction().perform(database) }
+        let result = try home.write { database in
+            try PruneUnusedVocabTagsTransaction().perform(database)
+        }
         
         // Then
-        #expect(result.contains("tdbaxis"))
-        #expect(try !lifecycle.axisExists("tdbaxis"))
+        #expect(result.contains("onlyhere"))
+        #expect(try !lifecycle.vocabularyContains("onlyhere"))
     }
     
-    @Test("an explicitly protected axis survives pruning even when empty")
-    func pruneEmptyAxesHonorsProtectedSet() throws {
+    @Test("a tag still carried by a note survives pruning")
+    func pruneKeepsUsedVocabularyTag() throws {
         // Given
-        lifecycle.create("tdb-h2", axis: "keepaxis")
-
-        home.apply(["op": "delete_note", "id": "tdb-h2", "reason": "leave the axis empty"])
-
-        #expect(try lifecycle.axisExists("keepaxis"))
-
+        lifecycle.create("tdb-v2", extraTags: ["stillused"])
+        
         // When
-        let result = try home.database().write { database in
-            try PruneEmptyAxesTransaction(protected: ["keepaxis"]).perform(database)
+        let result = try home.write { database in
+            try PruneUnusedVocabTagsTransaction().perform(database)
         }
-
+        
         // Then
-        #expect(!result.contains("keepaxis"))
-        #expect(try lifecycle.axisExists("keepaxis"))
+        #expect(!result.contains("stillused"))
+        #expect(try lifecycle.vocabularyContains("stillused"))
     }
 }

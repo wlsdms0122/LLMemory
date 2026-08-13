@@ -90,14 +90,13 @@ struct CheckLevelsTests {
     // MARK: - Private
     // Written straight to disk so the note exists as a file without ever reaching the index.
     private func writeUnindexedNote(id: String) throws {
-        let directory = Paths.notes.appendingPathComponent("flow")
+        let directory = Paths.notes
         
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try """
         ---
         id: \(id)
         title: title
-        axis: flow
         priority: lazy
         tags: [flow]
         summary: summary

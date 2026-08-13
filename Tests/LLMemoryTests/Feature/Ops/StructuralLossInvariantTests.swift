@@ -75,7 +75,7 @@ struct StructuralLossInvariantTests {
         }
         
         // Then
-        #expect(predicted.path != (try Handlers.trashPathFor("cortex/flow/trsh-snap.md")).path,
+        #expect(predicted.path != (try Handlers.trashPathFor("cortex/trsh-snap.md")).path,
             "a collision must resolve to a suffixed path, not the occupied base")
         #expect(home.apply(["op": "delete_note", "id": "trsh-snap", "reason": "second"]).status == "ok")
         #expect(FileManager.default.fileExists(atPath: predicted.path),
@@ -147,28 +147,22 @@ struct StructuralLossInvariantTests {
         #expect(try edges(touching: "bbb-src") == 0, "an edge still points at the deleted source")
     }
     
-    @Test("migrate's predicted destination is where it writes, and it defaults the axis rather than losing it")
+    @Test("migrate's predicted destination is where it writes — the id alone decides it")
     func migrateTouchesMatchesWriteDestination() throws {
         // Given
         home.createNote(id: "mig-src", content: "## A\nbody\n")
         
-        let operation: [String: Any] = ["op": "migrate_note", "id": "mig-src", "new_id": "mig-dst"]
-        let expected = Handlers.pathFor(axis: "flow", nid: "mig-dst")
-        let axisless = Handlers.pathFor(axis: "", nid: "mig-dst")
+        let operation: [String: Any] = ["op": "migrate_note", "id": "mig-src", "new_id": "mig.dst"]
+        let expected = Paths.file(forId: "mig.dst")
         
         // When
-        let resolved = try home.readScope { scope in
-            try HandlersStructural.migrateDestination(operation, scope).path
-        }
         let touched = try home.readScope { scope in
             try HandlersStructural.migrateNote.touches(operation, scope)
         }
         
         // Then
-        #expect(resolved == expected, "the destination did not default new_axis to the current axis")
         #expect(touched.contains(expected),
             "touches omits the real write destination, so a snapshot would not back it up")
-        #expect(!touched.contains(axisless), "touches still reports the axis-less path")
     }
     
     @Test("a routed learned edge keeps its provenance, or it escapes provenance-scoped purges")
@@ -209,13 +203,13 @@ struct StructuralLossInvariantTests {
     func mergeFileRemovalFailureRollsBackAtomically() throws {
         // Given
         #expect(home.createNote(
-            id: "zomb-into", axis: "persona", tags: ["persona"], content: "## Body\ntarget body\n"
+            id: "zomb-into", tags: ["persona"], content: "## Body\ntarget body\n"
         ).status == "ok")
         #expect(home.createNote(
-            id: "zomb-from", axis: "tech", tags: ["tech"], content: "## Body\nsource body merged in\n"
+            id: "zomb-from", tags: ["tech"], content: "## Body\nsource body merged in\n"
         ).status == "ok")
         
-        let fromPath = Handlers.pathFor(axis: "tech", nid: "zomb-from")
+        let fromPath = Paths.file(forId: "zomb-from")
         
         // When — the directory is read-only, so removing the absorbed file must fail.
         try Self.withReadOnlyDirectory(fromPath.deletingLastPathComponent()) {
@@ -236,20 +230,20 @@ struct StructuralLossInvariantTests {
     func splitFileRemovalFailureRollsBackAtomically() throws {
         // Given
         #expect(home.createNote(
-            id: "zomb-ssrc", axis: "tech", tags: ["tech"], content: "## A\nalpha body\n## B\nbeta body\n"
+            id: "zomb-ssrc", tags: ["tech"], content: "## A\nalpha body\n## B\nbeta body\n"
         ).status == "ok")
         
-        let sourcePath = Handlers.pathFor(axis: "tech", nid: "zomb-ssrc")
+        let sourcePath = Paths.file(forId: "zomb-ssrc")
         
         // When
         try Self.withReadOnlyDirectory(sourcePath.deletingLastPathComponent()) {
             let result = home.apply(["op": "split_note", "from_id": "zomb-ssrc", "into": [
                 [
-                    "id": "zomb-c1", "axis": "persona", "title": "C1", "tags": ["persona"],
+                    "id": "zomb-c1", "title": "C1", "tags": ["persona"],
                     "summary": "summary", "sections": ["## A"]
                 ],
                 [
-                    "id": "zomb-c2", "axis": "persona", "title": "C2", "tags": ["persona"],
+                    "id": "zomb-c2", "title": "C2", "tags": ["persona"],
                     "summary": "summary", "sections": ["## B"]
                 ]
             ]])
@@ -290,11 +284,11 @@ struct StructuralLossInvariantTests {
         // When
         #expect(home.apply(["op": "split_note", "from_id": "trsh-ssrc", "into": [
             [
-                "id": "trsh-sc1", "axis": "flow", "title": "C1", "tags": ["flow"],
+                "id": "trsh-sc1", "title": "C1", "tags": ["flow"],
                 "summary": "summary", "sections": ["## A"]
             ],
             [
-                "id": "trsh-sc2", "axis": "flow", "title": "C2", "tags": ["flow"],
+                "id": "trsh-sc2", "title": "C2", "tags": ["flow"],
                 "summary": "summary", "sections": ["## B"]
             ]
         ]]).status == "ok")
@@ -310,11 +304,11 @@ struct StructuralLossInvariantTests {
     private func splitInto() -> [[String: Any]] {
         [
             [
-                "id": "zzz-child", "axis": "flow", "title": "Z", "tags": ["flow"],
+                "id": "zzz-child", "title": "Z", "tags": ["flow"],
                 "summary": "summary", "sections": ["## A"]
             ],
             [
-                "id": "ddd-child", "axis": "flow", "title": "D", "tags": ["flow"],
+                "id": "ddd-child", "title": "D", "tags": ["flow"],
                 "summary": "summary", "sections": ["## B"]
             ]
         ]

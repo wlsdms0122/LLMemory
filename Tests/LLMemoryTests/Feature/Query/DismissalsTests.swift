@@ -106,7 +106,7 @@ struct DismissalsTests {
     func dismissalIsStimulusSpecific() throws {
         // Given
         #expect(home.apply([
-            "op": "create_note", "id": "big-5", "axis": "tech",
+            "op": "create_note", "id": "big-5",
             "title": "uniqtoken big note", "summary": "summary", "tags": ["tech", "alpha", "beta"],
             "content": Self.largeBody(sections: 4, wordsPerSection: 120) + "## extra\nzephyrquark marker\n"
         ]).status == "ok")
@@ -147,7 +147,7 @@ struct DismissalsTests {
         #expect(dismiss("big-7", kind: "lint:summary-long").status != "ok")
         #expect(dismiss("big-7", kind: "clusters").status != "ok")
         #expect(dismiss("big-7", kind: "archive").status != "ok")
-        #expect(dismiss("big-7", kind: "lint:axis-mismatch").status != "ok")
+        #expect(dismiss("big-7", kind: "lint:path-mismatch").status != "ok")
     }
     
     @Test("a corpus finding carries a corpus target rather than an empty note id")
@@ -325,7 +325,6 @@ struct DismissalsTests {
     ) -> OperationsResult {
         home.createNote(
             id: id,
-            axis: "tech",
             title: "big note",
             tags: ["tech", "alpha", "beta"],
             content: Self.largeBody(sections: sections, wordsPerSection: wordsPerSection),
@@ -337,7 +336,6 @@ struct DismissalsTests {
     private func createTagged(_ id: String, tags: [String]) -> OperationsResult {
         home.createNote(
             id: id,
-            axis: "tech",
             tags: ["tech"] + tags,
             content: "## A\nbody text here\n",
             fields: [:]

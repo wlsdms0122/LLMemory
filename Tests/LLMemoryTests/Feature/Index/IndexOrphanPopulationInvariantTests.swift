@@ -113,8 +113,11 @@ struct IndexOrphanPopulationInvariantTests {
         #expect(rows == 1, "a live note was deleted while its file had merely failed to parse")
     }
     
-    @Test("a moved file repoints its row instead of orphaning it")
-    func movedFileIsARepointNotAnOrphan() throws {
+    // Moving a file is now re-addressing, so the note keeps the id its frontmatter
+    // spells and the disagreement with its new location is what verify reports.
+    // Deleting the row would be the one unrecoverable reading of a move.
+    @Test("a file moved without its id is a mismatch to report, never an orphan to delete")
+    func movedFileIsAMismatchNotAnOrphan() throws {
         // Given
         home.createNote(id: "mvx", content: "## A\nbody\n")
         
@@ -124,12 +127,16 @@ struct IndexOrphanPopulationInvariantTests {
         let result = try Indexer.buildLocked(home.database(), rebuild: false)
         
         // Then
-        let path = try home.read { database in
-            try String.fetchOne(database, sql: "SELECT path FROM notes WHERE id='mvx'")
+        let rows = try home.read { database in
+            try Int.fetchOne(database, sql: "SELECT COUNT(*) FROM notes WHERE id='mvx'") ?? -1
         }
+        let (ok, messages) = try Indexer.check(home.database(), level: .l2)
         
-        #expect(result.orphans == 0, "the old path of a moved file was judged a deletion")
-        #expect(path == "cortex/skill/mvx.md", "the row must repoint to the new path — got \(path ?? "nil")")
+        #expect(result.orphans == 0, "the old address of a moved file was judged a deletion")
+        #expect(rows == 1, "the note was deleted for sitting somewhere its id does not name")
+        #expect(!ok)
+        #expect(messages.contains { message in message.contains("path-mismatch") },
+            "the disagreement went unreported: \(messages)")
     }
     
     @Test("a genuinely removed file is still deleted as an orphan")

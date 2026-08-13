@@ -26,7 +26,7 @@ struct QueryCommandTests {
         
         // Then
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(result.ids().contains("log-masking"))
+        #expect(result.ids().contains("tech.log-masking"))
     }
     
     @Test("a multi-keyword query is an OR of its tokens, not one phrase")
@@ -38,8 +38,8 @@ struct QueryCommandTests {
         let ids = Set(result.ids())
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(ids.contains("log-masking"))
-        #expect(ids.contains("transfer-flow"))
+        #expect(ids.contains("tech.log-masking"))
+        #expect(ids.contains("flow.transfer-flow"))
     }
     
     @Test("--raw hands FTS5 operators through instead of quoting them away")
@@ -53,8 +53,8 @@ struct QueryCommandTests {
         let ids = Set(result.ids())
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(ids.contains("log-masking"))
-        #expect(!ids.contains("transfer-flow"))
+        #expect(ids.contains("tech.log-masking"))
+        #expect(!ids.contains("flow.transfer-flow"))
     }
     
     @Test("--tag narrows the result set to notes carrying that tag")
@@ -66,8 +66,8 @@ struct QueryCommandTests {
         let ids = Set(result.ids())
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(ids.contains("log-masking"))
-        #expect(!ids.contains("transfer-flow"))
+        #expect(ids.contains("tech.log-masking"))
+        #expect(!ids.contains("flow.transfer-flow"))
     }
     
     @Test("search hits carry a summary so the caller can pick the next hop")
@@ -85,14 +85,14 @@ struct QueryCommandTests {
     @Test("get returns the note body and the core-level stats")
     func getReturnsBodyAndCoreStats() {
         // When
-        let result = brain.run(["query", "get", "di-container", "--json"])
+        let result = brain.run(["query", "get", "tech.di-container", "--json"])
         
         // Then
         let row = (result.jsonArray() ?? []).first
         let stats = row?["stats"] as? [String: Any]
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(row?["id"] as? String == "di-container")
+        #expect(row?["id"] as? String == "tech.di-container")
         #expect((row?["body"] as? String ?? "").contains("TossDIContainer"))
         #expect(stats?["hit_count"] != nil)
         #expect(stats?["created_at"] == nil, "timestamps belong to the verbose level, not the core one")
@@ -101,7 +101,7 @@ struct QueryCommandTests {
     @Test("--verbose adds the metadata level to get without changing the format")
     func getVerboseAddsTimestamps() {
         // When
-        let result = brain.run(["query", "get", "di-container", "--verbose", "--json"])
+        let result = brain.run(["query", "get", "tech.di-container", "--verbose", "--json"])
         
         // Then
         let stats = (result.jsonArray() ?? []).first?["stats"] as? [String: Any]
@@ -114,7 +114,7 @@ struct QueryCommandTests {
     @Test("get reads several ids in one call")
     func getMultipleIds() {
         // When
-        let result = brain.run(["query", "get", "di-container", "transfer-flow", "--json"])
+        let result = brain.run(["query", "get", "tech.di-container", "flow.transfer-flow", "--json"])
         
         // Then
         #expect(result.succeeded, "\(result.standardError)")
@@ -140,8 +140,8 @@ struct QueryCommandTests {
         let ids = result.ids()
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(ids.contains("persona-tone"))
-        #expect(!ids.contains("di-container"))
+        #expect(ids.contains("persona.tone"))
+        #expect(!ids.contains("tech.di-container"))
     }
     
     @Test("list --tag selects on the tag")
@@ -153,12 +153,12 @@ struct QueryCommandTests {
         let ids = Set(result.ids())
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(ids.contains("di-container"))
-        #expect(ids.contains("log-masking"))
-        #expect(!ids.contains("transfer-flow"))
+        #expect(ids.contains("tech.di-container"))
+        #expect(ids.contains("tech.log-masking"))
+        #expect(!ids.contains("flow.transfer-flow"))
     }
     
-    @Test("list rows carry id and axis in JSON")
+    @Test("list rows carry the id in JSON")
     func listJsonShape() {
         // When
         let result = brain.run(["query", "list", "--tag", "tech", "--json"])
@@ -168,7 +168,6 @@ struct QueryCommandTests {
         
         #expect(result.succeeded, "\(result.standardError)")
         #expect(row?["id"] != nil)
-        #expect(row?["axis"] != nil)
     }
     
     @Test("level and format are orthogonal — core stays core in both JSON and plain")
@@ -203,7 +202,7 @@ struct QueryCommandTests {
         
         #expect(result.succeeded, "\(result.standardError)")
         #expect(lines.first?.contains("summary") == true)
-        #expect(lines.contains { line in line.contains("log-masking") })
+        #expect(lines.contains { line in line.contains("tech.log-masking") })
         #expect(result.standardOutput.contains("Transformer"))
     }
     
@@ -212,7 +211,7 @@ struct QueryCommandTests {
         // Given
         _ = brain.run([
             "operations", "apply", "--input",
-            #"{"ops":[{"op":"set_frontmatter","id":"old-journal","fields":{"affect":"high"}}],"rationale":"t"}"#
+            #"{"ops":[{"op":"set_frontmatter","id":"journal.old-journal","fields":{"affect":"high"}}],"rationale":"t"}"#
         ])
         
         // When
@@ -222,8 +221,8 @@ struct QueryCommandTests {
         
         // Then
         #expect(byKey.succeeded, "\(byKey.standardError)")
-        #expect(Set(byKey.ids()) == ["old-journal"])
-        #expect(Set(byValue.ids()) == ["old-journal"])
+        #expect(Set(byKey.ids()) == ["journal.old-journal"])
+        #expect(Set(byValue.ids()) == ["journal.old-journal"])
         #expect(byOtherValue.ids().isEmpty)
     }
     
@@ -250,40 +249,57 @@ struct QueryCommandTests {
         #expect(object?.keys.contains { key in key.contains("hit") } == true)
     }
     
-    @Test("stats --axis counts only that axis")
-    func statsAxisFilter() {
+    @Test("stats --prefix counts only that branch of the address space")
+    func statsPrefixFilter() {
         // When
-        let result = brain.run(["query", "stats", "--axis", "tech", "--json"])
+        let result = brain.run(["query", "stats", "--prefix", "tech", "--json"])
         
         // Then
         let object = result.jsonObject()
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect((object?["total"] as? Int ?? 0) == 2, "the seed puts exactly two notes on the tech axis")
+        #expect((object?["total"] as? Int ?? 0) == 2, "the seed puts exactly two notes under tech")
         #expect(object?["total_hits"] != nil)
     }
     
-    @Test("structure without an axis reports the whole axis roster with counts")
-    func structureReportsEveryAxis() {
+    @Test("structure without a prefix reports the top level of the tree with counts")
+    func structureReportsTopLevelTree() {
         // When
         let result = brain.run(["query", "structure", "--json"])
         
         // Then
-        let axes = result.jsonObject()?["axes"] as? [[String: Any]] ?? []
-        let tech = axes.first { axis in axis["axis"] as? String == "tech" }
+        let tree = result.jsonObject()?["tree"] as? [[Any]] ?? []
+        let tech = tree.first { row in row.first as? String == "tech" }
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(tech?["count"] as? Int == 2, "the seed puts exactly two notes on the tech axis")
+        #expect(tech?.last as? Int == 2, "the seed puts exactly two notes under tech")
     }
     
-    @Test("structure --axis descends into that one axis instead")
-    func structureScopedToOneAxis() {
+    @Test("structure --prefix descends into that one branch instead")
+    func structureScopedToOnePrefix() {
         // When
-        let result = brain.run(["query", "structure", "--axis", "tech", "--json"])
+        let result = brain.run(["query", "structure", "--prefix", "tech", "--json"])
         
         // Then
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(result.jsonObject()?["axis_stats"] != nil, "\(result.standardOutput)")
+        #expect(result.jsonObject()?["prefix_stats"] != nil, "\(result.standardOutput)")
+    }
+    
+    @Test("tree descends one level at a time, counting everything below each branch")
+    func treeDescendsOneLevel() {
+        // When
+        let top = brain.run(["query", "tree", "--json"])
+        let under = brain.run(["query", "tree", "--prefix", "tech", "--json"])
+        
+        // Then
+        let topRows = top.jsonArrayOfArrays() ?? []
+        let underRows = under.jsonArrayOfArrays() ?? []
+        
+        #expect(top.succeeded, "\(top.standardError)")
+        #expect(topRows.contains { row in row.first as? String == "tech" && row.last as? Int == 2 })
+        #expect(under.succeeded, "\(under.standardError)")
+        #expect(Set(underRows.compactMap { row in row.first as? String })
+            == ["tech.di-container", "tech.log-masking"])
     }
     
     @Test("entity resolves an entity name back to the notes that declare it")
@@ -296,7 +312,7 @@ struct QueryCommandTests {
         let ids = Set(rows.compactMap { row in row["note_id"] as? String })
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(ids == ["di-container", "log-masking"])
+        #expect(ids == ["tech.di-container", "tech.log-masking"])
         #expect(rows.allSatisfy { row in (row["summary"] as? String)?.isEmpty == false })
     }
     
@@ -313,13 +329,13 @@ struct QueryCommandTests {
     @Test("neighbors walks the link graph and carries a summary per hop")
     func neighborsCarrySummary() {
         // When
-        let result = brain.run(["query", "neighbors", "--id", "di-container", "--json"])
+        let result = brain.run(["query", "neighbors", "--id", "tech.di-container", "--json"])
         
         // Then
         let rows = result.jsonArray() ?? []
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(rows.contains { row in row["id"] as? String == "log-masking" },
+        #expect(rows.contains { row in row["id"] as? String == "tech.log-masking" },
             "the seed links di-container to log-masking")
         #expect(rows.allSatisfy { row in (row["summary"] as? String)?.isEmpty == false })
     }
@@ -339,13 +355,13 @@ struct QueryCommandTests {
             .compactMap { row in row["id"] as? String }
         
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(Set(surfaced).contains("log-masking"), "\(result.standardOutput)")
+        #expect(Set(surfaced).contains("tech.log-masking"), "\(result.standardOutput)")
     }
     
     @Test("history replays the lifecycle events recorded for a note")
     func historyShowsLifecycle() {
         // When
-        let result = brain.run(["query", "history", "--id", "di-container", "--json"])
+        let result = brain.run(["query", "history", "--id", "tech.di-container", "--json"])
         
         // Then
         #expect(result.succeeded, "\(result.standardError)")

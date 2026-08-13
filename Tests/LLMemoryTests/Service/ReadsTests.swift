@@ -39,7 +39,6 @@ struct ReadsTests {
             
             let note = map["cat-a"]!
             
-            #expect(note.axis == "flow")
             #expect(note.title == "Title A")
             #expect(note.createdAt > 0)
             #expect(note.hitCount == 0)
@@ -123,8 +122,8 @@ struct ReadsTests {
     @Test("list filters on axis")
     func listFiltersByAxis() throws {
         // Given
-        home.createNote(id: "ax-flow", axis: "flow", tags: ["flow"], content: "## S\nb\n")
-        home.createNote(id: "ax-tech", axis: "tech", tags: ["tech"], content: "## S\nb\n")
+        home.createNote(id: "ax-flow", tags: ["flow"], content: "## S\nb\n")
+        home.createNote(id: "ax-tech", tags: ["tech"], content: "## S\nb\n")
         
         let queue = try home.storage.connect()
         
@@ -189,7 +188,6 @@ struct ReadsTests {
         
         // Then
             #expect(ids.contains("ent-a") && ids.contains("ent-b"))
-            #expect(hits.allSatisfy { hit in hit.axis == "flow" })
         }
     }
     

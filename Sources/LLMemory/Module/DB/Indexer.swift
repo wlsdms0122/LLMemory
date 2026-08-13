@@ -409,8 +409,6 @@ public enum Indexer {
         let noteIds = Set(dbRows.values.map { row in row.id })
 
         for (addressId, file) in filesById {
-            guard let row = dbRows[addressId] else { continue }
-
             let fields: FrontmatterDoc
             let text: String
             do {
@@ -424,13 +422,17 @@ public enum Indexer {
 
             // The id is the address. Disagreement between what the note calls
             // itself and where it sits is an integrity violation, not a
-            // preference — one of the two is wrong and neither can be assumed.
+            // preference — one of the two is wrong and neither can be assumed,
+            // so nothing below is compared until they agree.
             if fields.id != addressId {
                 messages.append(
                     "L2\tpath-mismatch\t\(addressId)\tfrontmatter id='\(fields.id)'"
                 )
                 ok = false
+                continue
             }
+
+            guard let row = dbRows[addressId] else { continue }
 
             for (fieldName, dbValue) in [
                 ("title", row.title),
