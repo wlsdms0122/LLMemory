@@ -9,13 +9,10 @@ import Foundation
 import GRDB
 
 enum IndexError: Error, CustomStringConvertible {
-    case duplicateId(String)
     case rebuildAborted([String])
 
     var description: String {
         switch self {
-        case .duplicateId(let id):
-            return "duplicate id \(id)"
 
         case .rebuildAborted(let errors):
             return "rebuild aborted — state would not survive the commit: \(errors.joined(separator: "; "))"
@@ -252,17 +249,13 @@ public enum Indexer {
         }
 
         // `seen` is claimed before the upsert on purpose: a file that fails to
-        // project — a duplicate id, an id that does not name its location — has
-        // still been observed, and orphan detection must not read the absence of
-        // a successful projection as the absence of a file.
+        // project has still been observed, and orphan detection must not read
+        // the absence of a successful projection as the absence of a file.
+        //
+        // No duplicate check: two files are two locations, and two locations are
+        // two addresses. Nothing can claim an id that another file already has.
         func reconcileOne(_ note: PendingNote) throws {
-            if !note.fields.id.isEmpty {
-                if seen.contains(note.fields.id) {
-                    throw IndexError.duplicateId(note.fields.id)
-                }
-
-                seen.insert(note.fields.id)
-            }
+            if let noteId = Paths.id(ofFile: note.file) { seen.insert(noteId) }
 
             if let previous = existingByPath[note.rel],
                 previous.hash == note.contentHash && !rebuild {
@@ -420,18 +413,6 @@ public enum Indexer {
                 (fields, _) = try Frontmatter.parse(text)
             } catch {
                 messages.append("L2\tfrontmatter-parse\t\(addressId)\t\(error)")
-                ok = false
-                continue
-            }
-
-            // The id is the address. Disagreement between what the note calls
-            // itself and where it sits is an integrity violation, not a
-            // preference — one of the two is wrong and neither can be assumed,
-            // so nothing below is compared until they agree.
-            if fields.id != addressId {
-                messages.append(
-                    "L2\tpath-mismatch\t\(addressId)\tfrontmatter id='\(fields.id)'"
-                )
                 ok = false
                 continue
             }

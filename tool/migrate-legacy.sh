@@ -246,8 +246,10 @@ if collisions:
 def file_for(new_id):
     return os.path.join(root, "cortex", *new_id.split("."))+ ".md"
 
-# Move + restate. The frontmatter id is the note's own claim about its address,
-# so it moves with the file; axis has no meaning to write down any more.
+# Move, and stop writing the address down. Where the file sits is the id now, so
+# the frontmatter `id:` and `axis:` lines are both removed rather than rewritten
+# — a note that also spelled its own id would be carrying a second copy of a fact
+# the filesystem already holds.
 moved = 0
 
 for note_id, axis, path in rows:
@@ -277,9 +279,7 @@ for note_id, axis, path in rows:
             out.append(line)
             continue
 
-        if in_frontmatter and line.startswith("id:"):
-            out.append("id: " + mapping[note_id])
-        elif in_frontmatter and line.startswith("axis:"):
+        if in_frontmatter and (line.startswith("id:") or line.startswith("axis:")):
             continue
         else:
             out.append(line)

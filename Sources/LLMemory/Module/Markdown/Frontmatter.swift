@@ -31,6 +31,8 @@ struct FrontmatterDoc: Equatable, Encodable, Sendable {
     }
     
     // MARK: - Property
+    // Not a frontmatter field — the file's location is the id, and this carries
+    // it for whoever read the file. Parsing text alone cannot fill it.
     var id: String = ""
     var title: String = ""
     var priority: String = "lazy"
@@ -53,7 +55,6 @@ struct FrontmatterDoc: Equatable, Encodable, Sendable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: DynamicKey.self)
         
-        try container.encode(id, forKey: .init("id"))
         try container.encode(title, forKey: .init("title"))
         try container.encode(priority, forKey: .init("priority"))
         try container.encode(tags, forKey: .init("tags"))
@@ -103,7 +104,7 @@ enum Frontmatter {
     // The keys parse() recognises. Everything else is a custom field — this list
     // exists so a near-miss ('summry') can be told apart from an intended one.
     static let knownFields: [String] = [
-        "id", "title", "priority", "summary", "tags", "entities",
+        "title", "priority", "summary", "tags", "entities",
         "promoted_from", "source", "template", "locked", "stale",
         "invalidated_at", "invalidated_reason", "trashed_at", "trashed_reason"
     ]
@@ -151,8 +152,10 @@ enum Frontmatter {
                 .trimmingCharacters(in: .whitespaces)
             
             switch key {
+            // A leftover from when the address was written down twice. Ignored
+            // rather than kept as a custom field, and lint says it is there.
             case "id":
-                doc.id = value
+                continue
             
             case "title":
                 doc.title = value
@@ -228,7 +231,6 @@ enum Frontmatter {
         var lines: [String] = []
         
         lines.append("---")
-        lines.append("id: \(doc.id)")
         lines.append("title: \(doc.title)")
         lines.append("priority: \(doc.priority)")
         lines.append("tags: [" + doc.tags.joined(separator: ", ") + "]")

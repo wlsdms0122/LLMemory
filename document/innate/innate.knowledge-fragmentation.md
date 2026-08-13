@@ -1,5 +1,4 @@
 ---
-id: innate.knowledge-fragmentation
 title: 지식 분화 원리 — 희소 활성화를 위해 쪼개고 잇는다
 priority: lazy
 tags: [innate, brain, memory, retrieval, fragmentation]

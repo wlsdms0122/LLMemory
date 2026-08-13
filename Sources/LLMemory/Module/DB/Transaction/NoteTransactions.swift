@@ -31,19 +31,11 @@ struct UpsertNoteTransaction: GRDBTransaction {
     // MARK: - Public
     @discardableResult
     func perform(_ db: Database) throws -> String {
-        if fields.id.isEmpty { throw NotesError.idMissing }
-
-        // The one gate that makes "the path is a function of the id" true rather
-        // than merely intended. Every write — ops, index, reindex — funnels
-        // through here, so a note whose frontmatter names an address it does not
-        // occupy never reaches the catalog. Without this the row would point at
-        // a file that is not there and the real file would be unreachable, and
-        // verify would only tell us so afterwards.
-        guard fields.id == Paths.id(ofFile: file) else {
-            throw NotesError.addressMismatch(
-                id: fields.id,
-                path: Paths.relative(of: file) ?? file.path
-            )
+        // The file's location is the id. Whatever the caller carried in `fields`
+        // is not consulted here — there is one source, so there is nothing to
+        // reconcile and no way for a row to point somewhere its file is not.
+        guard let noteId = Paths.id(ofFile: file), !noteId.isEmpty else {
+            throw NotesError.idMissing
         }
 
         let priority = fields.priority.isEmpty ? "lazy" : fields.priority
@@ -79,7 +71,7 @@ struct UpsertNoteTransaction: GRDBTransaction {
               section_count=excluded.section_count,
               content_hash=excluded.content_hash
             """, arguments: [
-                fields.id,
+                noteId,
                 fields.title, fields.summary,
                 priority, staleFlag,
                 templateValue, lockedFlag,
@@ -87,10 +79,10 @@ struct UpsertNoteTransaction: GRDBTransaction {
             ])
         try db.execute(
             sql: "INSERT OR IGNORE INTO note_usage (note_id, created_at) VALUES (?, ?)",
-            arguments: [fields.id, mtime]
+            arguments: [noteId, mtime]
         )
-        try ProjectNoteRefsTransaction(noteId: fields.id, paths: fields.source, now: now).perform(db)
-        try db.execute(sql: "DELETE FROM tags WHERE note_id = ?", arguments: [fields.id])
+        try ProjectNoteRefsTransaction(noteId: noteId, paths: fields.source, now: now).perform(db)
+        try db.execute(sql: "DELETE FROM tags WHERE note_id = ?", arguments: [noteId])
 
         for tag in fields.tags {
             let canonical = try CanonicalizeTagTransaction(tag: tag).perform(db)
@@ -98,35 +90,35 @@ struct UpsertNoteTransaction: GRDBTransaction {
             try EnsureTagTransaction(tag: canonical, now: now).perform(db)
             try db.execute(
                 sql: "INSERT OR IGNORE INTO tags (note_id, tag) VALUES (?, ?)",
-                arguments: [fields.id, canonical]
+                arguments: [noteId, canonical]
             )
         }
 
-        try db.execute(sql: "DELETE FROM note_extra WHERE note_id = ?", arguments: [fields.id])
+        try db.execute(sql: "DELETE FROM note_extra WHERE note_id = ?", arguments: [noteId])
 
         for key in fields.extra.keys.sorted() {
             try db.execute(
                 sql: "INSERT INTO note_extra (note_id, key, value) VALUES (?, ?, ?)",
-                arguments: [fields.id, key, fields.extra[key]]
+                arguments: [noteId, key, fields.extra[key]]
             )
         }
 
         try ReconcileNoteEntitiesTransaction(
             entities: fields.entities ?? [],
-            noteId: fields.id,
+            noteId: noteId,
             now: now
         )
             .perform(db)
         try ReindexNoteFTSTransaction(
-            noteId: fields.id,
+            noteId: noteId,
             title: fields.title,
             summary: fields.summary,
             body: body
         )
             .perform(db)
-        try RefreshReferenceLinksTransaction(nid: fields.id, body: body, now: now).perform(db)
+        try RefreshReferenceLinksTransaction(nid: noteId, body: body, now: now).perform(db)
 
-        return fields.id
+        return noteId
     }
 
     // MARK: - Private

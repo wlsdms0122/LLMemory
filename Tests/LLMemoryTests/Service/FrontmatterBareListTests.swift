@@ -157,9 +157,10 @@ struct FrontmatterBareListTests {
     @Test("what dump writes always parses back to exactly what it was given")
     func canonicalDumpPassesClosureRule() throws {
         // Given
+        // No id: it is not a frontmatter field. The round trip is over what the
+        // file actually carries, and the address is carried by the file itself.
         var document = FrontmatterDoc()
         
-        document.id = "fl-note"
         document.title = "t"
         document.priority = "eager"
         document.summary = "s"

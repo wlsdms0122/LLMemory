@@ -38,11 +38,17 @@ enum Notes {
         return read
     }
     
+    // Reading is the only place an id can come from, because the id is where the
+    // file is. Nothing downstream has to ask whether the note agrees with its own
+    // location — there is no second copy to disagree with.
     static func readNoteIfPresent(at url: URL) throws -> (doc: FrontmatterDoc, body: String)? {
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         
         do {
-            return try Frontmatter.parse(try String(contentsOf: url, encoding: .utf8))
+            var (doc, body) = try Frontmatter.parse(try String(contentsOf: url, encoding: .utf8))
+            doc.id = Paths.id(ofFile: url) ?? ""
+            
+            return (doc, body)
         } catch {
             throw NoteUnreadable(path: url.path, reason: "\(error)")
         }
@@ -73,7 +79,6 @@ struct NoteUnreadable: Error, CustomStringConvertible {
 
 enum NotesError: Error, CustomStringConvertible {
     case idMissing
-    case addressMismatch(id: String, path: String)
     case invalidPriority(String)
     case notUnderBrainRoot(String)
     case notALiveNote(path: String, reason: String)
@@ -86,10 +91,7 @@ enum NotesError: Error, CustomStringConvertible {
         switch self {
         case .idMissing:
             return "id missing"
-        
-        case let .addressMismatch(id, path):
-            return "id '\(id)' does not name \(path) — the id is the address, "
-                + "so move the file or correct the id (whichever is wrong)"
+
         
         case .invalidPriority(let priority):
             return "invalid priority: \(priority)"

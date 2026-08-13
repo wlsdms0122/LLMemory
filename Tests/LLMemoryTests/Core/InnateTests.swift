@@ -47,14 +47,17 @@ struct InnateTests {
         }
     }
 
-    @Test("every seed is addressed under innate and its frontmatter agrees with its id")
-    func seedFrontmatterAgreesWithId() throws {
+    @Test("a seed is addressed by where it is planted, and declares no id of its own")
+    func seedDeclaresNoIdAndIsAddressedUnderInnate() throws {
         for seed in Innate.seeds {
             // When
             let (fields, _) = try Frontmatter.parse(seed.markdown)
 
             // Then
-            #expect(fields.id == seed.id, "\(seed.id): frontmatter id mismatch (\(fields.id))")
+            #expect(fields.id.isEmpty,
+                "\(seed.id): a seed must not write an address down twice")
+            #expect(!seed.markdown.contains("\nid:"),
+                "\(seed.id): the markdown still declares an id line")
             #expect(seed.id.hasPrefix("innate."),
                 "\(seed.id): an innate seed is addressed under innate")
         }

@@ -470,7 +470,7 @@ public enum Handlers {
                 continue
             }
             
-            guard doc.id == nid else { continue }
+            guard trashStemId(url) == nid else { continue }
             
             let key = (doc.trashedAt ?? 0, trashName(url).counter)
             

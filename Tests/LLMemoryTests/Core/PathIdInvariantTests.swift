@@ -74,23 +74,29 @@ struct PathIdInvariantTests {
         #expect(ok, "\(messages)")
     }
 
-    @Test("moving a node that has notes under it is refused, not silently halved")
-    func migrateRefusesToStrandDescendants() throws {
+    // A branch with no note at its own address is ordinary, not broken — every
+    // old axis was exactly that. So moving a note is moving a note: `a.b.c` is a
+    // separate note with its own address and nothing about it changes.
+    @Test("re-addressing a node leaves the notes under its old address alone")
+    func migrateDoesNotTouchNotesUnderTheOldAddress() throws {
         // Given
         #expect(home.createNote(id: "p.q", content: "## A\nparent\n").status == "ok")
         #expect(home.createNote(id: "p.q.r", content: "## A\nchild\n").status == "ok")
-        
+
         // When
         let result = home.apply(["op": "migrate_note", "id": "p.q", "new_id": "p.moved"])
-        
+
         // Then
-        #expect(result.status != "ok")
-        #expect(result.error.contains("p.q.r"), "the refusal must name what would be stranded: \(result.error)")
-        
-        // And a leaf in the same branch still moves freely.
-        #expect(home.apply(["op": "migrate_note", "id": "p.q.r", "new_id": "p.moved"]).status == "ok")
+        #expect(result.status == "ok", "\(result.error)")
+        #expect(FileManager.default.fileExists(
+            atPath: home.url.appendingPathComponent("cortex/p/q/r.md").path
+        ), "the note under the old address must be untouched")
+
+        let rows = try home.read { database in try FetchTreeTransaction(prefix: "p").perform(database) }
+
+        #expect(Set(rows.map(\.prefix)) == ["p.q", "p.moved"])
     }
-    
+
     @Test("the tree counts everything below a prefix, one level at a time")
     func treeCountsBelowEachBranch() throws {
         // Given
@@ -137,15 +143,27 @@ struct PathIdInvariantTests {
             "the note at the prefix needs a row of its own: \(rows.map(\.prefix))")
     }
 
-    @Test("the frontmatter id decides where the file goes, not the other way round")
-    func createPutsTheFileWhereTheIdSays() throws {
+    // The address is written once, as the file's location. A note that also
+    // spelled its id in frontmatter would be carrying a second copy of the same
+    // fact, and two copies of a fact are a disagreement waiting to happen.
+    @Test("a note declares no id — the file's location is the only place it lives")
+    func theFileLocationIsTheOnlyAddress() throws {
         // Given
         #expect(home.createNote(id: "x.y.z", content: "## A\nbody\n").status == "ok")
 
-        // Then
+        // When
         let file = home.url.appendingPathComponent("cortex/x/y/z.md")
-        let (document, _) = try Frontmatter.parse(try String(contentsOf: file, encoding: .utf8))
+        let text = try String(contentsOf: file, encoding: .utf8)
 
-        #expect(document.id == "x.y.z")
+        // Then
+        #expect(!text.contains("\nid:"), "the note wrote its address down a second time")
+        #expect(try Notes.requireNote(at: file).doc.id == "x.y.z",
+            "reading a note is where its id comes from")
+
+        let indexed = try home.read { database in
+            try String.fetchAll(database, sql: "SELECT id FROM notes WHERE id = 'x.y.z'")
+        }
+
+        #expect(indexed == ["x.y.z"])
     }
 }

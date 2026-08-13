@@ -23,8 +23,9 @@ split routing 의 `type:"meta"` 가 함께 사라졌다.
 
 ## id 가 주소가 됐다
 
-id 는 이제 라벨을 `.` 으로 이은 것이고, 파일 경로는 그 순수 함수다 — `a.b.c` 는
-`cortex/a/b/c.md`. 위치를 담던 것(축·`notes.path`)이 전부 여기로 접혔다.
+**id 는 파일이 놓인 자리 그 자체다** — `cortex/a/b/c.md` 를 만들면 그 노트는 id `a.b.c` 다.
+위치를 담던 것(축·`notes.path`)이 전부 여기로 접혔고, **frontmatter 의 `id:` 필드도 없어졌다**.
+주소를 적는 자리가 하나뿐이라 어긋날 두 값이 아예 없다.
 
 - **`axis` 소멸** — `notes.axis`·`axes` 테이블·frontmatter `axis:` 필드·op `rename_axis`
   ·`create_note`/`split_note` 의 `axis` 필드가 전부 없어졌다. `migrate_note` 의 `new_axis`
@@ -35,8 +36,10 @@ id 는 이제 라벨을 `.` 으로 이은 것이고, 파일 경로는 그 순수
 - **인용 재작성** — `migrate_note` 가 옛 id 를 인용하던 모든 노트의 본문을 새 id 로 다시 쓴다
   (`` `id` ``·`[[id]]` 둘 다). **alias 테이블은 두지 않는다** — 부채를 쌓는 대신 인용을
   정본화한다. brain *밖*(슬랙·PR)의 옛 id 는 끊긴다.
-- **`path-mismatch`** — verify L2 의 `axis-mismatch` 자리를 대신한다. frontmatter 의 `id` 와
-  파일 위치가 어긋나면 무결성 위반이다. lint `invalid-id` 도 점 표기를 허용하도록 넓어졌다.
+- **`id:` 필드 소멸** — 마이그레이션이 `axis:` 와 함께 지운다. 파일을 옮기는 것이 곧 재주소화이고,
+  `index build` 는 파일 위치에서 id 를 복원한다. 중복 id 검사도 사라졌다 — 두 파일은 두 위치이고
+  두 위치는 두 주소라, 남의 id 를 주장할 방법이 없다. lint `invalid-id` 는 점 표기를 허용하도록
+  넓어졌고, 이제 "이 경로가 id 가 될 수 있는 이름인가" 를 본다.
 - **`cortex/.innate/` → `cortex/innate/`** — 씨드 id 는 `innate.knowledge-fragmentation`.
   배포본이냐는 *어디 있냐*가 아니라 *어디서 왔냐*의 문제라 점 디렉터리 예외를 없앴다.
 - **예약 파일명 없음** — `README.md`·`INDEX.md`·`GUIDE.md`·`_` 접두를 스캔에서 건너뛰던
@@ -101,7 +104,8 @@ tool/migrate-legacy.sh <state-root> [path-to-llmemory]
    날짜 꼬리 있음:  <axis>.<YYYY>.<MM>.<stem>   journal + bkios-545-260508 → journal.2026.05.bkios-545
    ```
 
-   frontmatter 의 `id` 가 함께 고쳐지고 `axis:` 줄은 지워진다. 그리고 **코퍼스 전체의 인용이
+   frontmatter 의 `id:`·`axis:` 줄은 **지워진다**(주소는 이제 파일 위치가 전부다).
+   그리고 **코퍼스 전체의 인용이
    새 id 로 다시 쓰인다** — alias 가 없으므로 여기서 안 고친 참조는 그냥 끊긴다.
    꼬리를 떼면 같은 달의 두 노트가 같은 주소로 겹치는 경우가 있는데, 그런 노트만 꼬리를
    유지하고 그 사실을 찍는다(카운터를 붙여 갈라놓지 않는다 — 둘을 구별하던 건 꼬리다).

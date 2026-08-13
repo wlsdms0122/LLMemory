@@ -124,8 +124,9 @@ llmemory query list --tag journal --field affect=high --home <state-root>
 필터는 AND 조합: `--priority` / `--tag` / `--field` / `--stale` / `--source-stale` / `--limit`.
 `--tag` 와 `--field` 는 반복 가능하고 전부 만족해야 걸린다.
 
-**분류는 태그, 주소는 id.** id 는 라벨을 `.` 으로 이은 주소이고 파일 경로는 그 순수 함수다 —
-`a.b.c` 는 `cortex/a/b/c.md`. 위치를 저장하는 컬럼은 없고 경로는 언제나 id 에서 계산된다.
+**분류는 태그, 주소는 id.** **id 는 파일이 놓인 자리 그 자체다** — `cortex/a/b/c.md` 를 만들면
+그 노트의 id 가 `a.b.c` 다. frontmatter 에 `id:` 를 쓰지 않는다(써도 무시된다). 주소를 적는
+자리가 하나뿐이라 어긋날 두 값이 없고, `index build` 는 파일 위치만 보고 전부 맞춘다.
 지식의 분류는 전적으로 태그가 한다 — 하나의 지식이 여러 갈래에 걸치므로 단일 값인 주소로는
 분류가 안 된다. 검색·나열·세션 priming 전부 태그 위에서 돈다.
 
@@ -151,8 +152,9 @@ llmemory query tree --prefix journal --home <state-root>   # 그 아래 한 단�
 alias 는 두지 않는다**: 부채를 쌓는 대신 인용을 정본화한다. 그래서 brain *밖*에 적힌 옛 id
 (슬랙·PR 등)는 끊긴다 — 받아들이는 비용이다.
 
-**frontmatter 의 `id` 와 파일 위치가 어긋나면 무결성 위반**이고 `index verify` 의
-`path-mismatch` 가 잡는다. 파일만 옮기고 id 를 안 고치면 그게 그 상태다.
+**파일을 직접 옮기면 그게 곧 재주소화다** — 다음 `index build` 가 옛 주소의 행을 지우고 새
+주소로 넣는다. 다만 인용은 안 따라가므로, 참조를 살리려면 파일을 손으로 옮기지 말고
+`migrate_note` 를 쓴다.
 
 **분화·승격의 사실 엣지**: `split_note` 는 자식들 사이에 `sibling` 을 자동으로 심는다.
 승격(낱개 → 요지/면)은 `link_lineage` 로 남긴다 — `propose_link`(감쇠하는 연상 제안)와 달리

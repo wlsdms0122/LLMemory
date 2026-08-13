@@ -191,21 +191,6 @@ public enum HandlersStructural {
             
             if newId != noteId && state.ids.contains(newId) { return "new_id collision: \(newId)" }
             
-            // Moving one node out of a branch that has notes below it would leave
-            // them hanging under an address nothing occupies. The op moves a note,
-            // not a subtree, so it refuses rather than quietly halving a hierarchy
-            // — re-address the descendants first, or move them together.
-            if newId != noteId {
-                let orphaned = state.ids.filter { id in id.hasPrefix(noteId + ".") }.sorted()
-                
-                if !orphaned.isEmpty {
-                    return "\(noteId) has notes addressed under it "
-                        + "(\(orphaned.prefix(3).joined(separator: ", "))"
-                        + "\(orphaned.count > 3 ? ", +\(orphaned.count - 3) more" : ""))"
-                        + " — move them too, or this branch is left without its node"
-                }
-            }
-            
             return nil
         },
         write: { op, context, scope in
@@ -221,9 +206,7 @@ public enum HandlersStructural {
                 ])
             }
             
-            var (doc, body) = try Frontmatter.parse(try String(contentsOf: srcPath, encoding: .utf8))
-            
-            if newId != targetId { doc.id = newId }
+            let (doc, body) = try Frontmatter.parse(try String(contentsOf: srcPath, encoding: .utf8))
             
             try FileManager.default.createDirectory(
                 at: newPath.deletingLastPathComponent(),

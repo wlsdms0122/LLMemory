@@ -265,8 +265,13 @@ public enum Lint {
         let document: FrontmatterDoc
         let body: String
         do {
-            let text = try String(contentsOf: path, encoding: .utf8)
-            (document, body) = try Frontmatter.parse(text)
+            // Through the reader, not raw parse: the id comes from where the file
+            // is, and only the reader knows that.
+            guard let read = try Notes.readNoteIfPresent(at: path) else {
+                return [Issue("error", "file-missing", "file does not exist: \(relativePath)", .note(nid))]
+            }
+            
+            (document, body) = read
         } catch {
             return [Issue("error", "frontmatter-parse", "parse failed: \(error)", .note(nid))]
         }

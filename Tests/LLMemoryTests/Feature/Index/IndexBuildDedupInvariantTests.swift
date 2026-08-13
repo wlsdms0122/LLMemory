@@ -21,38 +21,33 @@ struct IndexBuildDedupInvariantTests {
     }
     
     // MARK: - Test
-    @Test("a duplicate id is refused even when the copy is scanned before the original")
-    func duplicateIdFailsLoudWhateverTheScanOrder() throws {
+    // Two files are two locations, and a location is an id — so a copy of a note
+    // is simply another note, not a contested id. The gate that used to refuse
+    // duplicates has nothing left to refuse.
+    @Test("a copied file is its own note, addressed by where the copy sits")
+    func aCopyIsAnotherNoteNotADuplicate() throws {
         // Given
-        home.createNote(id: "dupx", content: "## A\nbody one\n")
+        home.createNote(id: "dupx", content: "## A\nbody\n")
         
-        let originalURL = try home.indexedPath(of: "dupx")
-        let copyURL = originalURL.deletingLastPathComponent().appendingPathComponent("dupx-copy.md")
+        let original = try home.indexedPath(of: "dupx")
+        let copyURL = home.url.appendingPathComponent("cortex/elsewhere/dupx.md")
         
-        try FileManager.default.copyItem(at: originalURL, to: copyURL)
+        try FileManager.default.createDirectory(
+            at: copyURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.copyItem(at: original, to: copyURL)
         
-        let original = try pendingNote(at: originalURL)
-        let copy = try pendingNote(at: copyURL)
-        
-        // When — the copy first, so the original arrives on the unchanged-mtime fast path.
-        let result = try home.database().write { database in
-            try Indexer.reconcile(
-                database,
-                pending: [copy, original],
-                scannedRels: [original.rel, copy.rel],
-                rebuild: false,
-                now: home.now
-            )
-        }
+        // When
+        let result = try Indexer.buildLocked(home.database(), rebuild: false)
         
         // Then
-        let rows = try home.read { database in
-            try Int.fetchOne(database, sql: "SELECT COUNT(*) FROM notes WHERE id = 'dupx'") ?? -1
+        let ids = try home.read { database in
+            try String.fetchAll(database, sql: "SELECT id FROM notes ORDER BY id")
         }
         
-        #expect(result.errors.contains { error in error.contains("duplicate id dupx") },
-            "the duplicate was dropped silently — reconcile skipped the gate on the fast path")
-        #expect(rows == 1)
+        #expect(result.errors.isEmpty, "\(result.errors)")
+        #expect(ids.contains("dupx") && ids.contains("elsewhere.dupx"), "\(ids)")
     }
     
     @Test("a rebuild wires a reference even when the referring note is scanned before its target")

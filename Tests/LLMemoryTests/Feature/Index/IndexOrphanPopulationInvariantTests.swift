@@ -72,26 +72,6 @@ struct IndexOrphanPopulationInvariantTests {
         #expect(counts == (2, 2), "an aborted rebuild must leave the database untouched")
     }
     
-    @Test("a rebuild aborts on a well-formed file that cannot be upserted, such as one with no id")
-    func rebuildAbortsWhenAWellFormedFileFailsUpsert() throws {
-        // Given
-        home.createNote(id: "noid-ok", content: "## A\nbody\n")
-        home.createNote(id: "noid-bad", content: "## A\nbody\n")
-        
-        try "---\ntitle: title\nsummary: summary\naxis: flow\n---\n## A\nbody\n"
-            .write(to: try home.indexedPath(of: "noid-bad"), atomically: true, encoding: .utf8)
-        
-        // When
-        #expect(throws: Error.self) { try Indexer.buildLocked(home.database(), rebuild: true) }
-        
-        // Then
-        let notes = try home.read { database in
-            try Int.fetchOne(database, sql: "SELECT COUNT(*) FROM notes") ?? 0
-        }
-        
-        #expect(notes == 2, "an aborted rebuild must leave the database untouched")
-    }
-    
     @Test("a file that both moved and broke defers the orphan verdict — its old path is not a deletion")
     func movedAndBrokenFileDefersOrphanDeletion() throws {
         // Given
@@ -113,30 +93,28 @@ struct IndexOrphanPopulationInvariantTests {
         #expect(rows == 1, "a live note was deleted while its file had merely failed to parse")
     }
     
-    // Moving a file is now re-addressing, so the note keeps the id its frontmatter
-    // spells and the disagreement with its new location is what verify reports.
-    // Deleting the row would be the one unrecoverable reading of a move.
-    @Test("a file moved without its id is a mismatch to report, never an orphan to delete")
-    func movedFileIsAMismatchNotAnOrphan() throws {
+    // Moving a file *is* re-addressing it — the location is the id, so there is
+    // no second copy of the address to disagree with. The note at the old
+    // address is gone and the note at the new one is there.
+    @Test("moving a file re-addresses the note — old address out, new address in")
+    func movingAFileReAddressesTheNote() throws {
         // Given
         home.createNote(id: "mvx", content: "## A\nbody\n")
         
         _ = try move(id: "mvx", to: "skill/mvx.md")
         
         // When
-        let result = try Indexer.buildLocked(home.database(), rebuild: false)
+        _ = try Indexer.buildLocked(home.database(), rebuild: false)
         
         // Then
-        let rows = try home.read { database in
-            try Int.fetchOne(database, sql: "SELECT COUNT(*) FROM notes WHERE id='mvx'") ?? -1
+        let ids = try home.read { database in
+            try String.fetchAll(database, sql: "SELECT id FROM notes ORDER BY id")
         }
         let (ok, messages) = try Indexer.check(home.database(), level: .l2)
         
-        #expect(result.orphans == 0, "the old address of a moved file was judged a deletion")
-        #expect(rows == 1, "the note was deleted for sitting somewhere its id does not name")
-        #expect(!ok)
-        #expect(messages.contains { message in message.contains("path-mismatch") },
-            "the disagreement went unreported: \(messages)")
+        #expect(!ids.contains("mvx"), "the old address still has a row: \(ids)")
+        #expect(ids.contains("skill.mvx"), "the new address has no row: \(ids)")
+        #expect(ok, "\(messages)")
     }
     
     @Test("a genuinely removed file is still deleted as an orphan")

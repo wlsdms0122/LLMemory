@@ -48,11 +48,9 @@ echo "generated Sources/LLMemory/Resource/Guide.swift"
   echo ""
   echo "    public static let seeds: [Seed] = ["
   for f in document/innate/*.md; do
-    id=$(sed -n 's/^id:[[:space:]]*//p' "$f" | head -1)
-    if [ -z "$id" ]; then
-      echo "setup: $f is missing id: in frontmatter" >&2
-      exit 1
-    fi
+    # The file name is the address — same rule the cortex follows, so a seed
+    # cannot declare an id that disagrees with where it will be planted.
+    id=$(basename "$f" .md)
     echo "        Seed(id: \"$id\", markdown: #\"\"\""
     cat "$f"
     echo ""
