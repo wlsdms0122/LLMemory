@@ -17,7 +17,7 @@ struct LLMemoryCLI: AsyncParsableCommand {
         abstract: "brain memory CLI — note capture, retrieval, consolidation.",
         discussion: """
             Manages a brain home: data/memory.db (catalog, FTS5 index, events)
-            and cortex/<axis>/<id>.md note files. All file and DB mutations go
+            and cortex/ note files (an id `a.b.c` is the file a/b/c.md). All file and DB mutations go
             through `operations apply` — no API for direct edits.
 
             GLOBAL OPTIONS
@@ -30,7 +30,7 @@ struct LLMemoryCLI: AsyncParsableCommand {
 
             STATE LAYOUT
                 data/memory.db          catalog, FTS5 index, events
-                cortex/<axis>/<id>.md   note files (markdown SSoT)
+                cortex/**/*.md          note files (markdown SSoT; path = id)
                 cortex/.trash/          soft-deleted notes
 
             ENVIRONMENT

@@ -15,7 +15,6 @@ struct FetchSplitShapeRowsTransaction: GRDBReadTransaction {
     struct SplitShape {
         // MARK: - Property
         let id: String
-        let axis: String
         let title: String
         let wordCount: Int
         let sectionCount: Int
@@ -39,7 +38,7 @@ struct FetchSplitShapeRowsTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [SplitShape] {
         try Row.fetchAll(db, sql: """
-            SELECT n.id, n.axis, n.title, n.word_count, n.section_count,
+            SELECT n.id, n.title, n.word_count, n.section_count,
                    (SELECT COUNT(DISTINCT tag) FROM tags WHERE note_id = n.id) AS tag_count
             FROM notes n
             WHERE \(Policy.decayCandidate())
@@ -49,7 +48,6 @@ struct FetchSplitShapeRowsTransaction: GRDBReadTransaction {
             """, arguments: [minWords, minSections]).map { row in
             SplitShape(
                 id: row["id"],
-                axis: row["axis"],
                 title: row["title"],
                 wordCount: row["word_count"] as Int? ?? 0,
                 sectionCount: row["section_count"] as Int? ?? 0,
@@ -67,7 +65,6 @@ struct FetchFlaggedRowsTransaction: GRDBReadTransaction {
         let noteId: String
         let reason: String?
         let createdAt: Int
-        let axis: String
         let title: String
         let summary: String?
 
@@ -89,7 +86,7 @@ struct FetchFlaggedRowsTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [FlaggedNote] {
         try Row.fetchAll(db, sql: """
-            SELECT r.note_id, r.reason, r.created_at, n.axis, n.title, n.summary
+            SELECT r.note_id, r.reason, r.created_at, n.title, n.summary
             FROM ripple_flags r
             JOIN notes n ON n.id = r.note_id
             WHERE r.flag = ? AND r.resolved_at IS NULL
@@ -101,7 +98,6 @@ struct FetchFlaggedRowsTransaction: GRDBReadTransaction {
                 noteId: row["note_id"],
                 reason: row["reason"] as String?,
                 createdAt: row["created_at"],
-                axis: row["axis"],
                 title: row["title"],
                 summary: row["summary"] as String?
             )
@@ -122,16 +118,16 @@ struct FetchNoteAnchorTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> (axis: String, title: String, path: String)? {
-        guard let row = try Row.fetchOne(
+    func perform(_ db: Database) throws -> (title: String, path: URL)? {
+        guard let title = try String.fetchOne(
             db,
-            sql: "SELECT id, axis, title, path FROM notes WHERE id = ?",
+            sql: "SELECT title FROM notes WHERE id = ?",
             arguments: [nid]
         ) else {
             return nil
         }
 
-        return (row["axis"] as String, row["title"] as String, row["path"] as String)
+        return (title: title, path: Paths.file(forId: nid))
     }
 
     // MARK: - Private
@@ -140,7 +136,6 @@ struct FetchNoteAnchorTransaction: GRDBReadTransaction {
 struct NeighborRow {
     // MARK: - Property
     let id: String
-    let axis: String
     let title: String
     let summary: String?
     let value: Double
@@ -164,7 +159,7 @@ struct SearchFTSNeighborRowsTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [NeighborRow] {
         try Row.fetchAll(db, sql: """
-            SELECT n.id, n.axis, n.title, n.summary, MIN(rank) AS s
+            SELECT n.id, n.title, n.summary, MIN(rank) AS s
             FROM notes_fts f JOIN notes n ON n.id = f.id
             WHERE notes_fts MATCH ? AND n.id != ? AND \(Policy.surface())
             GROUP BY n.id
@@ -172,7 +167,6 @@ struct SearchFTSNeighborRowsTransaction: GRDBReadTransaction {
             """, arguments: [matchExpr, excludeId]).map { row in
             NeighborRow(
                 id: row["id"],
-                axis: row["axis"],
                 title: row["title"],
                 summary: row["summary"] as String?,
                 value: row["s"] as Double? ?? 0
@@ -208,7 +202,6 @@ struct FetchEntityOverlapRowsTransaction: GRDBReadTransaction {
     struct EntityOverlap {
         // MARK: - Property
         let id: String
-        let axis: String
         let title: String
         let summary: String?
         let intersection: Int
@@ -230,7 +223,7 @@ struct FetchEntityOverlapRowsTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [EntityOverlap] {
         try Row.fetchAll(db, sql: """
-            SELECT n.id, n.axis, n.title, n.summary,
+            SELECT n.id, n.title, n.summary,
                    (SELECT COUNT(*) FROM entity_index e1
                      JOIN entity_index e2 ON e1.entity = e2.entity
                      WHERE e1.note_id = ? AND e2.note_id = n.id) AS inter,
@@ -240,7 +233,6 @@ struct FetchEntityOverlapRowsTransaction: GRDBReadTransaction {
             """, arguments: [nid, nid]).map { row in
             EntityOverlap(
                 id: row["id"],
-                axis: row["axis"],
                 title: row["title"],
                 summary: row["summary"] as String?,
                 intersection: row["inter"] as Int? ?? 0,
@@ -264,7 +256,7 @@ struct FetchLinkNeighborRowsTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [NeighborRow] {
         try Row.fetchAll(db, sql: """
-            SELECT n.id, n.axis, n.title, n.summary, SUM(\(Links.rankWeightSQL("l"))) AS w
+            SELECT n.id, n.title, n.summary, SUM(\(Links.rankWeightSQL("l"))) AS w
             FROM (
               SELECT dst AS other, kind, weight FROM note_links WHERE src = ?
               UNION ALL
@@ -276,7 +268,6 @@ struct FetchLinkNeighborRowsTransaction: GRDBReadTransaction {
             """, arguments: [nid, nid]).map { row in
             NeighborRow(
                 id: row["id"],
-                axis: row["axis"],
                 title: row["title"],
                 summary: row["summary"] as String?,
                 value: row["w"] as Double? ?? 0
@@ -329,7 +320,6 @@ struct FetchClusterEdgesTransaction: GRDBReadTransaction {
 struct MetaRow {
     // MARK: - Property
     let id: String
-    let axis: String
     let title: String
     let summary: String?
 
@@ -353,12 +343,11 @@ struct FetchClusterMemberRowsTransaction: GRDBReadTransaction {
 
         return try Row.fetchAll(
             db,
-            sql: "SELECT id, axis, title, summary FROM notes WHERE id IN (\(placeholders)) ORDER BY id",
+            sql: "SELECT id, title, summary FROM notes WHERE id IN (\(placeholders)) ORDER BY id",
             arguments: StatementArguments(ids)
         ).map { row in
             MetaRow(
                 id: row["id"],
-                axis: row["axis"],
                 title: row["title"],
                 summary: row["summary"] as String?
             )
@@ -392,11 +381,10 @@ struct FetchSurfaceMetaRowsTransaction: GRDBReadTransaction {
     func perform(_ db: Database) throws -> [MetaRow] {
         try Row.fetchAll(
             db,
-            sql: "SELECT id, axis, title, summary FROM notes WHERE \(Policy.all(Policy.surface(""), Policy.notEager("")))"
+            sql: "SELECT id, title, summary FROM notes WHERE \(Policy.all(Policy.surface(""), Policy.notEager("")))"
         ).map { row in
             MetaRow(
                 id: row["id"],
-                axis: row["axis"],
                 title: row["title"],
                 summary: row["summary"] as String?
             )
@@ -439,7 +427,6 @@ struct FetchSurfaceNoteRowsTransaction: GRDBReadTransaction {
     struct SurfaceNote {
         // MARK: - Property
         let id: String
-        let axis: String
         let title: String
         let summary: String?
         let path: String
@@ -455,16 +442,15 @@ struct FetchSurfaceNoteRowsTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [SurfaceNote] {
         try Row.fetchAll(db, sql: """
-            SELECT id, axis, title, summary, path FROM notes
+            SELECT id, title, summary FROM notes
             WHERE \(Policy.all(Policy.surface(""), Policy.forgetExempt("")))
             ORDER BY id
             """).map { row in
             SurfaceNote(
                 id: row["id"],
-                axis: row["axis"],
                 title: row["title"],
                 summary: row["summary"] as String?,
-                path: row["path"]
+                path: Paths.relativeFile(forId: row["id"] as String)
             )
         }
     }

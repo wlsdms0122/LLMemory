@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 // Consolidation hygiene transactions — retention compaction, prune passes,
-// integrity probes, and the axis/tag reports.
+// integrity probes, and the tag report.
 struct CompactOldEventsTransaction: GRDBTransaction {
     // MARK: - Property
     let now: Int
@@ -106,16 +106,15 @@ struct PruneFtsOrphansTransaction: GRDBTransaction {
         for noteId in missing {
             let row = try Row.fetchOne(
                 db,
-                sql: "SELECT path, title, summary FROM notes WHERE id = ?",
+                sql: "SELECT title, summary FROM notes WHERE id = ?",
                 arguments: [noteId]
             )
             
             guard let row else { continue }
             
-            let relativePath: String = row["path"]
             let title: String = row["title"]
             let summary: String? = row["summary"]
-            let path = Paths.brainRoot.appendingPathComponent(relativePath)
+            let path = Paths.file(forId: noteId)
             let body: String
             do {
                 guard let read = try Notes.readNoteIfPresent(at: path) else { continue }
@@ -146,60 +145,23 @@ struct CheckCorpusIntegrityL1Transaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> (checked: Int, issues: [String]) {
-        let rows = try FetchAllNotePathsTransaction().perform(db)
-        let issues = try rows.compactMap { row -> String? in
-            let path = Paths.brainRoot.appendingPathComponent(row.path)
+        let ids = try String.fetchAll(db, sql: "SELECT id FROM notes ORDER BY id")
+        let issues = try ids.compactMap { id -> String? in
+            let path = Paths.file(forId: id)
+            let relative = Paths.relative(of: path) ?? path.path
             
             do {
                 guard try Notes.readNoteIfPresent(at: path) != nil else {
-                    return "missing: \(row.id) → \(row.path)"
+                    return "missing: \(id) → \(relative)"
                 }
                 
                 return nil
             } catch let error as NoteUnreadable {
-                return "unreadable: \(row.id) → \(row.path): \(error.reason)"
+                return "unreadable: \(id) → \(relative): \(error.reason)"
             }
         }
         
-        return (rows.count, issues)
-    }
-
-    // MARK: - Private
-}
-
-struct FetchAxisReportTransaction: GRDBReadTransaction {
-    // MARK: - Property
-    let low: Int
-    let high: Int
-
-    // MARK: - Initializer
-    init(low: Int = 2, high: Int = 20) {
-        self.low = low
-        self.high = high
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> ConsolidateAxisReport {
-        let rows = try Row.fetchAll(db, sql: """
-            SELECT a.axis, COALESCE(COUNT(n.id), 0) AS c
-            FROM axes a LEFT JOIN notes n ON n.axis = a.axis
-            GROUP BY a.axis ORDER BY c ASC, a.axis
-            """)
-        let all: [(String, Int)] = rows.map { row in
-            (row["axis"] as String, row["c"] as Int)
-        }
-        let small = all
-            .filter { entry in entry.1 <= low }
-            .map { entry in AxisCount(axis: entry.0, count: entry.1) }
-        let large = all
-            .filter { entry in entry.1 >= high }
-            .map { entry in AxisCount(axis: entry.0, count: entry.1) }
-        
-        return ConsolidateAxisReport(
-            all: all.map { entry in AxisRow(axis: entry.0, count: entry.1) },
-            small: small,
-            large: large
-        )
+        return (ids.count, issues)
     }
 
     // MARK: - Private

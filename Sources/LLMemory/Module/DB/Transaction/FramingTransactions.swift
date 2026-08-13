@@ -8,21 +8,9 @@
 import Foundation
 import GRDB
 
-public struct AxisInfo: Sendable {
-    // MARK: - Property
-    public let axis: String
-    public let count: Int
-    public let topTags: [String]
-
-    // MARK: - Initializer
-    // MARK: - Public
-    // MARK: - Private
-}
-
 public struct SimilarNote: Sendable {
     // MARK: - Property
     public let id: String
-    public let axis: String
     public let title: String
     public let summary: String?
     public let path: String
@@ -37,7 +25,6 @@ public struct SimilarNote: Sendable {
 public struct FramingSnapshot: Sendable {
     // MARK: - Property
     public var keywords: [String]
-    public var axes: [AxisInfo]
     public var similar: [SimilarNote]
     public var linked: [ExpandedNote]
     public var vectorLinked: [VectorHit]
@@ -115,48 +102,6 @@ public enum Framing {
     }
 }
 
-struct FetchAxesInfoTransaction: GRDBReadTransaction {
-    // MARK: - Property
-    let topTagsLimit: Int
-
-    // MARK: - Initializer
-    init(topTagsLimit: Int = 8) {
-        self.topTagsLimit = topTagsLimit
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> [AxisInfo] {
-        let rows = try Row.fetchAll(db, sql: """
-            SELECT a.axis, COALESCE(COUNT(n.id), 0) AS cnt
-            FROM axes a
-            LEFT JOIN notes n ON n.axis = a.axis
-            GROUP BY a.axis ORDER BY a.axis
-            """)
-        var axes: [AxisInfo] = []
-
-        for row in rows {
-            let axis: String = row["axis"]
-            let topTags = try String.fetchAll(db, sql: """
-                SELECT t.tag FROM notes n JOIN tags t ON t.note_id = n.id
-                WHERE n.axis = ?
-                GROUP BY t.tag ORDER BY COUNT(*) DESC, t.tag LIMIT ?
-                """, arguments: [axis, topTagsLimit])
-
-            axes.append(
-                AxisInfo(
-                    axis: axis,
-                    count: row["cnt"] as Int? ?? 0,
-                    topTags: topTags
-                )
-            )
-        }
-
-        return axes
-    }
-
-    // MARK: - Private
-}
-
 struct FetchSimilarNotesTransaction: GRDBReadTransaction {
     // MARK: - Property
     let keywords: [String]
@@ -179,7 +124,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
         if matchExpr.isEmpty { return [] }
 
         var sql = """
-                SELECT n.id, n.axis, n.title, n.summary, n.path,
+                SELECT n.id, n.title, n.summary,
                        (SELECT group_concat(tag, ',') FROM tags WHERE note_id = n.id) AS tags,
                        f.section AS section, MIN(rank) AS best_rank
                 FROM notes_fts f JOIN notes n ON n.id = f.id
@@ -221,10 +166,9 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
 
             return SimilarNote(
                 id: row["id"],
-                axis: row["axis"],
                 title: row["title"],
                 summary: row["summary"] as String?,
-                path: row["path"],
+                path: Paths.relativeFile(forId: row["id"] as String),
                 tags: tags,
                 section: section
             )

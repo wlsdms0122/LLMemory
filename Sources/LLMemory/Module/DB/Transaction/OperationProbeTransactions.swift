@@ -328,23 +328,6 @@ struct TouchNoteUsageTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
-struct FetchNoteAxisTransaction: GRDBReadTransaction {
-    // MARK: - Property
-    let nid: String
-
-    // MARK: - Initializer
-    init(nid: String) {
-        self.nid = nid
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> String? {
-        try String.fetchOne(db, sql: "SELECT axis FROM notes WHERE id = ?", arguments: [nid])
-    }
-
-    // MARK: - Private
-}
-
 struct FetchNoteEntityHitsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
@@ -449,9 +432,9 @@ struct FetchTemplateDependentPathsTransaction: GRDBReadTransaction {
 
         return try String.fetchAll(
             db,
-            sql: "SELECT path FROM notes WHERE template IN (\(placeholders))",
+            sql: "SELECT id FROM notes WHERE template IN (\(placeholders))",
             arguments: StatementArguments(templateIds)
-        )
+        ).map(Paths.relativeFile(forId:))
     }
 
     // MARK: - Private

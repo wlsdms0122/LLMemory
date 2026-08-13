@@ -26,10 +26,10 @@ public struct StatsService: Sendable {
         try await storage.read { scope in try scope.run(NoteStatsTransaction(id: id)) }
     }
 
-    public func axisStats(
-        axis: String
-    ) async throws -> AxisStats {
-        try await storage.read { scope in try scope.run(AxisStatsTransaction(axis: axis)) }
+    public func prefixStats(
+        prefix: String
+    ) async throws -> PrefixStats {
+        try await storage.read { scope in try scope.run(PrefixStatsTransaction(prefix: prefix)) }
     }
 
     public func overallStats() async throws -> OverallStats {

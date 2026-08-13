@@ -251,13 +251,12 @@ public enum Lint {
         nid: String,
         index: LintCorpusIndex
     ) throws -> [Issue] {
-        guard let header = try scope.run(FetchNoteLintHeaderTransaction(nid: nid)) else {
+        guard try scope.run(FetchNoteLintHeaderTransaction(nid: nid)) else {
             return [Issue("error", "missing", "note not in db: \(nid)", .note(nid))]
         }
         
-        let relativePath = header.path
-        let axis = header.axis
-        let path = Paths.brainRoot.appendingPathComponent(relativePath)
+        let relativePath = Paths.relativeFile(forId: nid)
+        let path = Paths.file(forId: nid)
         
         if !FileManager.default.fileExists(atPath: path.path) {
             return [Issue("error", "file-missing", "file does not exist: \(relativePath)", .note(nid))]
@@ -274,7 +273,6 @@ public enum Lint {
         
         let note = NoteLintInput(
             nid: nid,
-            axisDB: axis,
             doc: document,
             body: body,
             document: LintRules.document(nid: nid, body: body)

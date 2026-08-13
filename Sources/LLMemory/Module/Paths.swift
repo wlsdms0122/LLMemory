@@ -19,11 +19,14 @@ enum Paths {
     static var cortexRoot: URL { root().appendingPathComponent("cortex") }
     static var notes: URL { cortexRoot }
     static var trash: URL { cortexRoot.appendingPathComponent(".trash") }
-    // Where the shipped innate seeds live. A dot-directory so it reads as system-owned,
-    // yet its files are live notes — liveNoteRejection lets them through.
-    static var innate: URL { cortexRoot.appendingPathComponent(".innate") }
-    static let innateAxis = "innate"
-    
+    // Where the shipped innate seeds live. An ordinary branch of the address
+    // space — being shipped is a fact about where a note came from, not about
+    // where it sits, so nothing here is special-cased.
+    static var innate: URL { cortexRoot.appendingPathComponent("innate") }
+
+    // An id is labels joined by dots, and the dots are directory separators.
+    static let idRegex = try! NSRegularExpression(pattern: #"^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)*$"#)
+
     // MARK: - Initializer
     
     // MARK: - Public
@@ -47,12 +50,11 @@ enum Paths {
         guard components.first == "cortex" else { return "not under cortex/" }
         
         guard file.pathExtension == "md" else { return "not a .md note file" }
-        
-        let name = file.lastPathComponent
-        if name == "README.md" || name == "INDEX.md" || name == "GUIDE.md" || name.hasPrefix("_") {
-            return "reserved file name: \(name)"
-        }
-        
+
+        // No file name under cortex/ is reserved — everything there is knowledge.
+        // A name that cannot be an id is not skipped either: it is scanned and
+        // then fails the id syntax loudly, because a knowledge file that the walk
+        // silently steps over is a knowledge file the brain does not have.
         if components.count > 1, components[1] == ".trash" {
             return "under cortex/.trash — a trashed note comes back through the restore op, not by reindexing in place"
         }
@@ -93,17 +95,42 @@ enum Paths {
         return notes
     }
     
-    static func axisFromPath(_ path: URL) -> String {
-        let relative = path.path.replacingOccurrences(of: notes.path + "/", with: "")
-        let first = relative.split(separator: "/", omittingEmptySubsequences: true)
-            .first
-            .map(String.init) ?? ""
+    // The address is the location. `a.b.c` lives at `cortex/a/b/c.md`, and the
+    // two functions below are inverses — nothing about a note's whereabouts is
+    // stored, so nothing about it can drift out of agreement with itself.
+    static func file(forId id: String) -> URL {
+        let labels = id.split(separator: ".").map(String.init)
 
-        // The innate directory is not an axis name — a seed missing its frontmatter
-        // axis must still land in the innate axis, never in a ".innate" axis.
-        return first == ".innate" ? innateAxis : first
+        return labels.dropLast()
+            .reduce(notes) { url, label in url.appendingPathComponent(label) }
+            .appendingPathComponent("\((labels.last ?? id)).md")
     }
-    
+
+    // The brain-relative spelling of the same address — what output surfaces
+    // show and what callers used to read off the removed column.
+    static func relativeFile(forId id: String) -> String {
+        let file = file(forId: id)
+
+        return relative(of: file) ?? file.path
+    }
+
+    static func id(ofFile file: URL) -> String? {
+        guard let relative = relative(of: file) else { return nil }
+
+        let components = relative.split(separator: "/").map(String.init)
+
+        guard components.first == "cortex", components.count > 1,
+            let name = components.last, name.hasSuffix(".md")
+        else {
+            return nil
+        }
+
+        var labels = Array(components.dropFirst())
+        labels[labels.count - 1] = String(name.dropLast(3))
+
+        return labels.joined(separator: ".")
+    }
+
     // MARK: - Private
     private static func root() -> URL {
         BrainContext.resolved.home

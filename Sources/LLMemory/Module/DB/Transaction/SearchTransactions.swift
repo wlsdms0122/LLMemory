@@ -13,7 +13,6 @@ import GRDB
 public struct SearchRow: Sendable {
     // MARK: - Property
     public let path: String
-    public let axis: String
     public let id: String
     public let title: String
     public let summary: String?
@@ -43,7 +42,7 @@ public enum Search {
     static let noteAggregationSQL = " GROUP BY n.id ORDER BY best_rank, n.id LIMIT ?"
     
     static let rowSQL = """
-        SELECT n.path, n.axis, n.id, n.title, n.summary,
+        SELECT n.id, n.title, n.summary,
                (SELECT group_concat(tag, ',') FROM tags WHERE note_id = n.id) AS tags,
                (COALESCE(n.stale, 0) OR COALESCE((SELECT source_stale FROM note_source WHERE note_id = n.id), 0)) AS is_stale,
                f.section AS section, MIN(rank) AS best_rank
@@ -151,8 +150,7 @@ public enum Search {
         let section = (row["section"] as String?).flatMap { value in value.isEmpty ? nil : value }
         
         return SearchRow(
-            path: row["path"],
-            axis: row["axis"],
+            path: Paths.relativeFile(forId: row["id"] as String),
             id: row["id"],
             title: row["title"],
             summary: row["summary"] as String?,

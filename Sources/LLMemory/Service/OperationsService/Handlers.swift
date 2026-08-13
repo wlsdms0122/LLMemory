@@ -219,7 +219,7 @@ struct ReservedFieldError: Error, CustomStringConvertible {
         let owner: String
 
         switch field {
-        case "id", "axis":
+        case "id":
             owner = "migrate_note moves it"
 
         case "stale", "invalidated_at", "invalidated_reason":
@@ -242,8 +242,6 @@ struct ReservedFieldError: Error, CustomStringConvertible {
 
 public enum Handlers {
     // MARK: - Property
-    public static let idRegex = try! NSRegularExpression(pattern: #"^[a-z0-9][a-z0-9-]*$"#)
-    public static let axisRegex = idRegex
     public static let namespaceRegex = try! NSRegularExpression(pattern: #"^[a-z][a-z0-9_-]*$"#)
     public static let tagRegex = try! NSRegularExpression(pattern: #"^[a-z0-9][a-z0-9-]*$"#)
     public static let dateTailRegex = try! NSRegularExpression(pattern: #"(\d{6})(?:-\d+)?$"#)
@@ -258,7 +256,7 @@ public enum Handlers {
     // note_extra. Only the fields below stay closed — each is either identity/path
     // (moved by migrate_note), a lifecycle state owned by its own op, or human-only.
     public static let frontmatterReserved: Set<String> = [
-        "id", "axis", "template", "locked",
+        "id", "template", "locked",
         "stale", "invalidated_at", "invalidated_reason",
         "trashed_at", "trashed_reason"
     ]
@@ -266,26 +264,6 @@ public enum Handlers {
     
     // MARK: - Initializer
     // MARK: - Public
-    public static func pathFor(axis: String, nid: String) -> URL {
-        let nsNoteId = nid as NSString
-        
-        if let match = dateTailRegex.firstMatch(
-            in: nid,
-            range: NSRange(location: 0, length: nsNoteId.length)
-        ) {
-            let dateTail = nsNoteId.substring(with: match.range(at: 1))
-            let year = "20" + String(dateTail.prefix(2))
-            let month = String(dateTail.dropFirst(2).prefix(2))
-            
-            return Paths.notes.appendingPathComponent(axis)
-                .appendingPathComponent(year)
-                .appendingPathComponent(month)
-                .appendingPathComponent("\(nid).md")
-        }
-        
-        return Paths.notes.appendingPathComponent(axis).appendingPathComponent("\(nid).md")
-    }
-    
     // Whatever an op carries that its own schema does not name. For the ops that
     // author a note that is a custom frontmatter field — the caller means it for
     // the note, not for the op, and the note is where it belongs.
@@ -296,24 +274,6 @@ public enum Handlers {
         let declared = Set(schema.fields.map(\.name)).union(["op", "rationale"])
 
         return op.filter { entry in !declared.contains(entry.key) }
-    }
-
-    // The single judgment on an axis name. An axis is the directory a note's file
-    // lives in — nothing registers a directory in advance, so every op that names
-    // one creates it on demand and only the spelling is checked. Keeping this in
-    // one place is what stops create/migrate/split from answering "is this axis
-    // allowed?" three different ways, which is exactly what they used to do.
-    public static func axisRejection(_ axis: String) -> String? {
-        let nsAxis = axis as NSString
-
-        guard axisRegex.firstMatch(
-            in: axis,
-            range: NSRange(location: 0, length: nsAxis.length)
-        ) == nil else {
-            return nil
-        }
-
-        return "invalid axis format: \(axis)"
     }
 
     public static func existingState(_ scope: GRDBReadScope) throws -> ExistingState {

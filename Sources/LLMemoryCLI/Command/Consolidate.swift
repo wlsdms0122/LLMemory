@@ -30,7 +30,7 @@ struct ConsolidateCommand: ParsableCommand {
 
             The READ-ONLY surfaces plan and inspect that upkeep (no writes):
             candidates (restructure/cleanup candidates the agent acts on) and
-            report (axis + tag health).
+            report (tag health).
 
             SEMANTIC ENRICHMENT LIFECYCLE (integrate)
                 integrate drives the deterministic side of enrichment (LLM
@@ -174,16 +174,6 @@ struct ConsolidatePrune: AsyncParsableCommand {
 }
 
 struct ConsolidateReport: AsyncParsableCommand {
-    struct AxisRow: Encodable {
-        // MARK: - Property
-        let axis: String
-        let count: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
     struct TagRow: Encodable {
         // MARK: - Property
         let tag: String
@@ -196,17 +186,11 @@ struct ConsolidateReport: AsyncParsableCommand {
     
     struct ReportOutput: Encodable {
         enum CodingKeys: String, CodingKey {
-            case axes
-            case smallAxes = "small_axes"
-            case largeAxes = "large_axes"
             case rareTags = "rare_tags"
             case unusedTags = "unused_tags"
         }
         
         // MARK: - Property
-        let axes: [AxisRow]
-        let smallAxes: [AxisRow]
-        let largeAxes: [AxisRow]
         let rareTags: [TagRow]
         let unusedTags: [String]
         
@@ -218,11 +202,11 @@ struct ConsolidateReport: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "report",
-        abstract: "Axis + tag health report (plain text).",
+        abstract: "Tag health report (plain text).",
         discussion: """
-            Lists every axis with note count and description, marks SMALL
-            (<=2) and LARGE (>=20) axes, surfaces rare tags (<=1 use), and
-            shows unused vocab tags.
+            Surfaces rare tags (<=1 use) and unused vocab tags. What the id
+            hierarchy looks like is `query tree`'s question, not this one — a
+            branch holding one note is normal now, not a finding.
 
             EXAMPLES
                 llmemory consolidate report --home brain
@@ -237,17 +221,8 @@ struct ConsolidateReport: AsyncParsableCommand {
     func run() async throws {
         let brain = Brain(home: global.home)
         
-        let (axisReport, tagReport) = try await brain.consolidate.report()
+        let tagReport = try await brain.consolidate.report()
         let report = ReportOutput(
-            axes: axisReport.all.map { entry in
-                AxisRow(axis: entry.axis, count: entry.count)
-            },
-            smallAxes: axisReport.small.map { entry in
-                AxisRow(axis: entry.axis, count: entry.count)
-            },
-            largeAxes: axisReport.large.map { entry in
-                AxisRow(axis: entry.axis, count: entry.count)
-            },
             rareTags: tagReport.rare.map { entry in
                 TagRow(tag: entry.tag, count: entry.count)
             },
@@ -255,33 +230,7 @@ struct ConsolidateReport: AsyncParsableCommand {
         )
         
         render(report, json: format.json) { report in
-            var blocks: [PlainBlock] = [
-                .section("axes (count asc)"),
-                .table(
-                    report.axes.map { row in [row.axis, String(row.count)] },
-                    headers: ["axis", "count"]
-                )
-            ]
-            
-            if !report.smallAxes.isEmpty {
-                blocks.append(.section("small axes (<=2)"))
-                blocks.append(
-                    .table(
-                        report.smallAxes.map { row in [row.axis, String(row.count)] },
-                        headers: ["axis", "count"]
-                    )
-                )
-            }
-            
-            if !report.largeAxes.isEmpty {
-                blocks.append(.section("large axes (>=20)"))
-                blocks.append(
-                    .table(
-                        report.largeAxes.map { row in [row.axis, String(row.count)] },
-                        headers: ["axis", "count"]
-                    )
-                )
-            }
+            var blocks: [PlainBlock] = []
             
             blocks.append(.section("rare tags (<=1)"))
             blocks.append(
@@ -323,14 +272,14 @@ struct ConsolidateCandidates: AsyncParsableCommand {
     
     struct SplitItem: Encodable {
         enum CodingKeys: String, CodingKey {
-            case id, axis, title, sections, reason
+            case id, title, sections, reason
             case wordCount = "word_count"
             case sectionCount = "section_count"
             case tagCount = "tag_count"
         }
         
         // MARK: - Property
-        let id, axis, title: String
+        let id, title: String
         let reason: String
         let wordCount, sectionCount, tagCount: Int?
         let sections: [SectionSketch]?
@@ -342,14 +291,14 @@ struct ConsolidateCandidates: AsyncParsableCommand {
     
     struct FlaggedItem: Encodable {
         enum CodingKeys: String, CodingKey {
-            case id, reason, axis, title, summary
+            case id, reason, title, summary
             case createdAt = "created_at"
         }
         
         // MARK: - Property
         let id: String
         let reason: String?
-        let axis, title: String
+        let title: String
         let summary: String?
         let createdAt: Int?
         
@@ -361,7 +310,7 @@ struct ConsolidateCandidates: AsyncParsableCommand {
     struct ClusterItem: Encodable {
         struct Member: Encodable {
             // MARK: - Property
-            let id, axis, title: String
+            let id, title: String
             let summary: String?
             
             // MARK: - Initializer
@@ -381,7 +330,6 @@ struct ConsolidateCandidates: AsyncParsableCommand {
         
         // MARK: - Property
         let size: Int
-        let axes: [String]
         let members: [Member]
         let edges: [Edge]?
         
@@ -393,7 +341,7 @@ struct ConsolidateCandidates: AsyncParsableCommand {
     struct MissingEdgeItem: Encodable {
         struct Member: Encodable {
             // MARK: - Property
-            let id, axis, title: String
+            let id, title: String
             let summary: String?
             
             // MARK: - Initializer
@@ -415,7 +363,7 @@ struct ConsolidateCandidates: AsyncParsableCommand {
     struct NearDuplicateItem: Encodable {
         struct Member: Encodable {
             // MARK: - Property
-            let id, axis, title: String
+            let id, title: String
             let summary: String?
             
             // MARK: - Initializer
@@ -594,7 +542,6 @@ struct ConsolidateCandidates: AsyncParsableCommand {
                 return .table(
                     items.map { item in
                         [
-                            item.axis,
                             item.id,
                             String(item.wordCount ?? 0),
                             String(item.sectionCount ?? 0),
@@ -607,14 +554,14 @@ struct ConsolidateCandidates: AsyncParsableCommand {
                         ]
                     },
                     headers: [
-                        "axis", "id", "words", "sections", "tags", "reason", "title", "sketch"
+                        "id", "words", "sections", "tags", "reason", "title", "sketch"
                     ]
                 )
             }
             
             return .table(
-                items.map { item in [item.axis, item.id, item.reason, item.title] },
-                headers: ["axis", "id", "reason", "title"]
+                items.map { item in [item.id, item.reason, item.title] },
+                headers: ["id", "reason", "title"]
             )
         
         case .reconsolidate(let items), .ripple(let items):
@@ -622,7 +569,6 @@ struct ConsolidateCandidates: AsyncParsableCommand {
                 return .table(
                     items.map { item in
                         [
-                            item.axis,
                             item.id,
                             item.createdAt.map(dayString) ?? "-",
                             item.reason ?? "",
@@ -630,15 +576,15 @@ struct ConsolidateCandidates: AsyncParsableCommand {
                             item.summary ?? ""
                         ]
                     },
-                    headers: ["axis", "id", "flagged", "reason", "title", "summary"]
+                    headers: ["id", "flagged", "reason", "title", "summary"]
                 )
             }
             
             return .table(
                 items.map { item in
-                    [item.axis, item.id, item.reason ?? "", item.title, item.summary ?? ""]
+                    [item.id, item.reason ?? "", item.title, item.summary ?? ""]
                 },
-                headers: ["axis", "id", "reason", "title", "summary"]
+                headers: ["id", "reason", "title", "summary"]
             )
         
         case .clusters(let items):
@@ -647,14 +593,13 @@ struct ConsolidateCandidates: AsyncParsableCommand {
                     items.map { item in
                         [
                             String(item.size),
-                            item.axes.joined(separator: ","),
                             item.members.map(\.id).joined(separator: ", "),
                             (item.edges ?? [])
                                 .map { edge in "\(edge.a)↔\(edge.b)" }
                                 .joined(separator: ", ")
                         ]
                     },
-                    headers: ["size", "axes", "members", "edges"]
+                    headers: ["size", "members", "edges"]
                 )
             }
             
@@ -662,11 +607,10 @@ struct ConsolidateCandidates: AsyncParsableCommand {
                 items.map { item in
                     [
                         String(item.size),
-                        item.axes.joined(separator: ","),
                         item.members.map(\.id).joined(separator: ", ")
                     ]
                 },
-                headers: ["size", "axes", "members"]
+                headers: ["size", "members"]
             )
         
         case .missingEdge(let items):
@@ -716,7 +660,6 @@ struct ConsolidateCandidates: AsyncParsableCommand {
                 items.map { candidate in
                     SplitItem(
                         id: candidate.id,
-                        axis: candidate.axis,
                         title: candidate.title,
                         reason: candidate.reason,
                         wordCount: full ? candidate.wordCount : nil,
@@ -741,7 +684,6 @@ struct ConsolidateCandidates: AsyncParsableCommand {
                     FlaggedItem(
                         id: candidate.id,
                         reason: candidate.reason,
-                        axis: candidate.axis,
                         title: candidate.title,
                         summary: candidate.summary,
                         createdAt: full ? candidate.createdAt : nil
@@ -754,11 +696,9 @@ struct ConsolidateCandidates: AsyncParsableCommand {
                 items.map { cluster in
                     ClusterItem(
                         size: cluster.size,
-                        axes: cluster.axes,
                         members: cluster.members.map { member in
                             ClusterItem.Member(
                                 id: member.id,
-                                axis: member.axis,
                                 title: member.title,
                                 summary: member.summary
                             )
@@ -784,13 +724,11 @@ struct ConsolidateCandidates: AsyncParsableCommand {
                     MissingEdgeItem(
                         a: .init(
                             id: edge.a.id,
-                            axis: edge.a.axis,
                             title: edge.a.title,
                             summary: edge.a.summary
                         ),
                         b: .init(
                             id: edge.b.id,
-                            axis: edge.b.axis,
                             title: edge.b.title,
                             summary: edge.b.summary
                         ),
@@ -806,13 +744,11 @@ struct ConsolidateCandidates: AsyncParsableCommand {
                     NearDuplicateItem(
                         a: .init(
                             id: duplicate.a.id,
-                            axis: duplicate.a.axis,
                             title: duplicate.a.title,
                             summary: duplicate.a.summary
                         ),
                         b: .init(
                             id: duplicate.b.id,
-                            axis: duplicate.b.axis,
                             title: duplicate.b.title,
                             summary: duplicate.b.summary
                         ),

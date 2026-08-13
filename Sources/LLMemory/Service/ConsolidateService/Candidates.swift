@@ -30,7 +30,6 @@ public enum CandidatesError: Error, CustomStringConvertible {
 public struct SplitCandidate: Sendable {
     // MARK: - Property
     public let id: String
-    public let axis: String
     public let title: String
     public let wordCount: Int
     public let sectionCount: Int
@@ -59,7 +58,6 @@ public struct FlaggedCandidate: Sendable {
     public let id: String
     public let reason: String?
     public let createdAt: Int
-    public let axis: String
     public let title: String
     public let summary: String?
     
@@ -71,7 +69,6 @@ public struct FlaggedCandidate: Sendable {
 public struct NeighborScore: Sendable {
     // MARK: - Property
     public var id: String
-    public var axis: String
     public var title: String
     public var summary: String?
     public var fts: Double
@@ -89,7 +86,6 @@ public struct NeighborScore: Sendable {
 public struct CandidateMember: Sendable {
     // MARK: - Property
     public let id: String
-    public let axis: String
     public let title: String
     public let summary: String?
     
@@ -114,7 +110,6 @@ public struct CandidateCluster: Sendable {
     
     // MARK: - Property
     public let size: Int
-    public let axes: [String]
     public let members: [CandidateMember]
     public let edges: [Edge]
     
@@ -238,7 +233,6 @@ public enum Candidates {
             candidates.append(
                 SplitCandidate(
                     id: row.id,
-                    axis: row.axis,
                     title: row.title,
                     wordCount: row.wordCount,
                     sectionCount: row.sectionCount,
@@ -277,9 +271,7 @@ public enum Candidates {
             throw NotesError.unknownIds([noteId])
         }
         
-        let body = try Notes.requireNote(
-            at: Paths.brainRoot.appendingPathComponent(anchor.path)
-        ).body
+        let body = try Notes.requireNote(at: anchor.path).body
         
         return try neighbors(scope, noteId: noteId, tokens: tokenize("\(anchor.title) \(body)"), k: k)
     }
@@ -309,7 +301,6 @@ public enum Candidates {
                 let normalized = 1.0 - Double(rank) / Double(total)
                 var score = scores[row.id] ?? NeighborScore(
                     id: row.id,
-                    axis: row.axis,
                     title: row.title,
                     summary: row.summary,
                     fts: 0,
@@ -335,7 +326,6 @@ public enum Candidates {
                 let jaccard = Double(row.intersection) / Double(denominator)
                 var score = scores[row.id] ?? NeighborScore(
                     id: row.id,
-                    axis: row.axis,
                     title: row.title,
                     summary: row.summary,
                     fts: 0,
@@ -357,7 +347,6 @@ public enum Candidates {
             for row in linkRows {
                 var score = scores[row.id] ?? NeighborScore(
                     id: row.id,
-                    axis: row.axis,
                     title: row.title,
                     summary: row.summary,
                     fts: 0,
@@ -438,18 +427,15 @@ public enum Candidates {
             let memberStructs = rows.map { row in
                 CandidateMember(
                     id: row.id,
-                    axis: row.axis,
                     title: row.title,
                     summary: row.summary
                 )
             }
-            let axes = Array(Set(memberStructs.map { member in member.axis })).sorted()
             let clusterEdges = try clusterEdges(scope, memberIds: members)
             
             clusters.append(
                 CandidateCluster(
                     size: members.count,
-                    axes: axes,
                     members: memberStructs,
                     edges: clusterEdges
                 )
@@ -491,7 +477,6 @@ public enum Candidates {
         for row in try scope.run(FetchSurfaceMetaRowsTransaction()) {
             meta[row.id] = CandidateMember(
                 id: row.id,
-                axis: row.axis,
                 title: row.title,
                 summary: row.summary
             )
@@ -630,7 +615,6 @@ public enum Candidates {
         
         for row in rows {
             let id = row.id
-            let axis = row.axis
             let title = row.title
             let summary = row.summary
             
@@ -667,10 +651,9 @@ public enum Candidates {
                 
                 duplicates.append(
                     NearDuplicate(
-                        a: .init(id: id, axis: axis, title: title, summary: summary),
+                        a: .init(id: id, title: title, summary: summary),
                         b: .init(
                             id: neighbor.id,
-                            axis: neighbor.axis,
                             title: neighbor.title,
                             summary: summaryById[neighbor.id] ?? nil
                         ),
@@ -731,7 +714,6 @@ public enum Candidates {
                 id: row.noteId,
                 reason: row.reason,
                 createdAt: row.createdAt,
-                axis: row.axis,
                 title: row.title,
                 summary: row.summary
             )
@@ -821,8 +803,7 @@ public enum Candidates {
         }
         
         let title = anchor.title
-        let url = Paths.brainRoot.appendingPathComponent(anchor.path)
-        let body = try Notes.requireNote(at: url).body
+        let body = try Notes.requireNote(at: anchor.path).body
         let searchText = "\(title) \(body)"
         let nsSearchText = searchText as NSString
         var tokens = Set<String>()

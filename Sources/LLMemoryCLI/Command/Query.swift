@@ -25,7 +25,7 @@ struct QueryCommand: ParsableCommand {
         subcommands: [
             QueryRelated.self, QuerySearch.self, QueryGet.self,
             QueryEntity.self, QueryStructure.self, QueryNeighbors.self,
-            QueryStats.self, QueryList.self, QueryAxes.self,
+            QueryStats.self, QueryList.self, QueryTree.self,
             QueryHistory.self, QueryLint.self, QueryEnrichment.self,
             QueryTemplate.self
         ]
@@ -40,7 +40,6 @@ struct QueryTemplate: AsyncParsableCommand {
     struct Output: Encodable {
         // MARK: - Property
         let id: String
-        let axis: String
         let path: String
         let frame: [TemplateFrameNode]
         
@@ -83,11 +82,11 @@ struct QueryTemplate: AsyncParsableCommand {
         let brain = Brain(home: global.home)
         
         let (note, frame) = try await brain.query.template(id: id, cliSessionId: global.sessionId)
-        let output = Output(id: note.id, axis: note.axis, path: note.path, frame: frame)
+        let output = Output(id: note.id, path: note.path, frame: frame)
         
         render(output, json: format.json) { output in
             var blocks: [PlainBlock] = [
-                .keyValue([("id", output.id), ("axis", output.axis), ("path", output.path)]),
+                .keyValue([("id", output.id), ("path", output.path)]),
                 .blank
             ]
             
@@ -126,49 +125,44 @@ struct QueryTemplate: AsyncParsableCommand {
     // MARK: - Private
 }
 
-struct QueryAxes: AsyncParsableCommand {
-    struct AxisRow: Encodable {
-        // MARK: - Property
-        let axis: String
-        let count: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
+struct QueryTree: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
-        commandName: "axes",
-        abstract: "List every axis with note count (read of derived state).",
+        commandName: "tree",
+        abstract: "One level of the id hierarchy with note counts.",
         discussion: """
-            Axes are dynamic — capture can create new ones and rename_axis
-            can rename any of them. Use to see what's actually in use vs.
-            defined.
+            An id is an address — `a.b.c` is the note at cortex/a/b/c.md — so the
+            hierarchy is read off the ids themselves, not stored anywhere. This
+            shows one level at a time: what branches exist and how much lives
+            under each. Descend by passing the branch back as --prefix.
+
+            It answers "where is there anything, and how much", nothing else.
+            What a branch is *about* is the tags' answer, and whether a split
+            family kept its parent is the lint's.
 
             EXAMPLES
-                llmemory query axes --home brain
+                llmemory query tree --home brain
+                llmemory query tree --prefix journal --home brain
             """
     )
     
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
     
+    @Option(name: .long, help: "Descend under this id prefix.")
+    var prefix: String?
+    
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
         let brain = Brain(home: global.home)
-        
-        let axes = try await brain.query.listAxes()
-        let rows = axes.map { entry in
-            AxisRow(axis: entry.axis, count: entry.count)
-        }
+        let rows = try await brain.query.tree(prefix: prefix)
         
         render(rows, json: format.json) { rows in
             [
                 .table(
-                    rows.map { row in [row.axis, String(row.count)] },
-                    headers: ["axis", "count"]
+                    rows.map { row in [row.prefix, String(row.notes)] },
+                    headers: ["prefix", "notes"]
                 )
             ]
         }
@@ -365,7 +359,7 @@ struct QueryEnrichment: AsyncParsableCommand {
 struct QueryRelated: AsyncParsableCommand {
     struct VectorLinkedRow: Encodable {
         // MARK: - Property
-        let id, axis, title: String
+        let id, title: String
         let summary: String?
         let cosine: Double
         let path: String?
@@ -410,33 +404,9 @@ struct QueryRelated: AsyncParsableCommand {
         // MARK: - Private
     }
     
-    struct AxisRow: Encodable {
-        enum CodingKeys: String, CodingKey {
-            case axis, count
-            case topTags = "top_tags"
-        }
-        
-        // MARK: - Property
-        let axis: String
-        let count: Int
-        let topTags: [String]
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            
-            try container.encode(axis, forKey: .axis)
-            try container.encode(count, forKey: .count)
-            try container.encode(topTags, forKey: .topTags)
-        }
-        
-        // MARK: - Private
-    }
-    
     struct SimilarRow: Encodable {
         // MARK: - Property
-        let id, axis, title: String
+        let id, title: String
         let summary: String?
         let section: String?
         let tags: [String]?
@@ -450,12 +420,12 @@ struct QueryRelated: AsyncParsableCommand {
     
     struct LinkedRow: Encodable {
         enum CodingKeys: String, CodingKey {
-            case id, axis, title, summary, weight, path
+            case id, title, summary, weight, path
             case rankWeight = "rank_weight"
         }
         
         // MARK: - Property
-        let id, axis, title: String
+        let id, title: String
         let summary: String?
         let weight: Double
         let path: String?
@@ -468,7 +438,7 @@ struct QueryRelated: AsyncParsableCommand {
     
     struct EntityHit: Encodable {
         enum CodingKeys: String, CodingKey {
-            case entity, axis, title, summary
+            case entity, title, summary
             case noteId = "note_id"
             case lastSeenAt = "last_seen_at"
             case hitCount = "hit_count"
@@ -476,7 +446,6 @@ struct QueryRelated: AsyncParsableCommand {
         
         // MARK: - Property
         let entity, noteId: String
-        let axis: String?
         let hitCount: Int
         let summary: String?
         let lastSeenAt: Int?
@@ -489,7 +458,7 @@ struct QueryRelated: AsyncParsableCommand {
     
     struct Output: Encodable {
         enum CodingKeys: String, CodingKey {
-            case keywords, axes, similar, linked, cooccur, vocab, degraded
+            case keywords, similar, linked, cooccur, vocab, degraded
             case vectorLinked = "vector_linked"
             case topTags = "top_tags"
             case entityHints = "entity_hints"
@@ -504,7 +473,6 @@ struct QueryRelated: AsyncParsableCommand {
         let topTags: [TagCount]
         let entityHits: [EntityHit]
         let degraded: [String]?
-        let axes: [AxisRow]?
         let cooccur: [CooccurRow]?
         let vocab: [String]?
         let entityHints: [String]?
@@ -517,7 +485,7 @@ struct QueryRelated: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "related",
-        abstract: "Snapshot from free-form text — keywords, axes, similar, links, entity hits, archive cues.",
+        abstract: "Snapshot from free-form text — keywords, similar, links, entity hits, archive cues.",
         discussion: """
             Primary entry point for capture and retrieval agents. Reads JSON
             from --json or stdin.
@@ -543,7 +511,7 @@ struct QueryRelated: AsyncParsableCommand {
     @Option(name: .long, help: "Input JSON. Reads stdin if omitted.")
     var input: String?
     
-    @Flag(name: .long, help: "Raise the data level: adds tags/path/last_seen, the axes/cooccur/vocab/entity_hints sections, and lifts row caps — same fields in plain and --json.")
+    @Flag(name: .long, help: "Raise the data level: adds tags/path/last_seen, the cooccur/vocab/entity_hints sections, and lifts row caps — same fields in plain and --json.")
     var verbose: Bool = false
     
     // MARK: - Initializer
@@ -578,7 +546,6 @@ struct QueryRelated: AsyncParsableCommand {
             similar: snapshot.similar.map { note in
                 SimilarRow(
                     id: note.id,
-                    axis: note.axis,
                     title: note.title,
                     summary: note.summary,
                     section: note.section,
@@ -590,7 +557,6 @@ struct QueryRelated: AsyncParsableCommand {
             linked: snapshot.linked.map { note in
                 LinkedRow(
                     id: note.id,
-                    axis: note.axis,
                     title: note.title,
                     summary: note.summary,
                     weight: note.weight,
@@ -601,7 +567,6 @@ struct QueryRelated: AsyncParsableCommand {
             vectorLinked: snapshot.vectorLinked.map { note in
                 VectorLinkedRow(
                     id: note.id,
-                    axis: note.axis,
                     title: note.title,
                     summary: note.summary,
                     cosine: note.score,
@@ -613,7 +578,6 @@ struct QueryRelated: AsyncParsableCommand {
                 EntityHit(
                     entity: hit.entity,
                     noteId: hit.noteId,
-                    axis: hit.axis,
                     hitCount: hit.hitCount,
                     summary: hit.summary,
                     lastSeenAt: full ? hit.lastSeenAt : nil,
@@ -621,11 +585,6 @@ struct QueryRelated: AsyncParsableCommand {
                 )
             },
             degraded: snapshot.degraded.isEmpty ? nil : snapshot.degraded,
-            axes: full
-                ? snapshot.axes.map { axis in
-                    AxisRow(axis: axis.axis, count: axis.count, topTags: axis.topTags)
-                }
-                : nil,
             cooccur: full
                 ? snapshot.cooccur.map { pair in
                     CooccurRow(a: pair.0, b: pair.1, count: pair.2)
@@ -659,18 +618,6 @@ struct QueryRelated: AsyncParsableCommand {
                 )
             }
             
-            if let axes = output.axes, !axes.isEmpty {
-                blocks.append(.section("axes (\(axes.count))"))
-                blocks.append(
-                    .table(
-                        axes.map { axis in
-                            [axis.axis, String(axis.count), axis.topTags.joined(separator: ",")]
-                        },
-                        headers: ["axis", "count", "top_tags"]
-                    )
-                )
-            }
-            
             if !output.similar.isEmpty {
                 blocks.append(.section("similar (\(output.similar.count))"))
                 blocks.append(
@@ -678,7 +625,6 @@ struct QueryRelated: AsyncParsableCommand {
                         ? .table(
                             output.similar.map { row in
                                 [
-                                    row.axis,
                                     row.id,
                                     row.title,
                                     (row.tags ?? []).joined(separator: ","),
@@ -688,20 +634,19 @@ struct QueryRelated: AsyncParsableCommand {
                                 ]
                             },
                             headers: [
-                                "axis", "id", "title", "tags", "section", "path", "summary"
+                                "id", "title", "tags", "section", "path", "summary"
                             ]
                         )
                         : .table(
                             output.similar.map { row in
                                 [
-                                    row.axis,
                                     row.id,
                                     row.title,
                                     row.section ?? "",
                                     row.summary ?? ""
                                 ]
                             },
-                            headers: ["axis", "id", "title", "section", "summary"]
+                            headers: ["id", "title", "section", "summary"]
                         )
                 )
                 
@@ -718,7 +663,6 @@ struct QueryRelated: AsyncParsableCommand {
                         ? .table(
                             output.linked.map { row in
                                 [
-                                    row.axis,
                                     row.id,
                                     String(format: "%.2f", row.weight),
                                     row.rankWeight.map { weight in
@@ -730,20 +674,19 @@ struct QueryRelated: AsyncParsableCommand {
                                 ]
                             },
                             headers: [
-                                "axis", "id", "weight", "rank_w", "title", "path", "summary"
+                                "id", "weight", "rank_w", "title", "path", "summary"
                             ]
                         )
                         : .table(
                             output.linked.map { row in
                                 [
-                                    row.axis,
                                     row.id,
                                     String(format: "%.2f", row.weight),
                                     row.title,
                                     row.summary ?? ""
                                 ]
                             },
-                            headers: ["axis", "id", "weight", "title", "summary"]
+                            headers: ["id", "weight", "title", "summary"]
                         )
                 )
             }
@@ -755,7 +698,6 @@ struct QueryRelated: AsyncParsableCommand {
                         ? .table(
                             output.vectorLinked.map { row in
                                 [
-                                    row.axis,
                                     row.id,
                                     String(format: "%.2f", row.cosine),
                                     row.title,
@@ -763,19 +705,18 @@ struct QueryRelated: AsyncParsableCommand {
                                     row.summary ?? ""
                                 ]
                             },
-                            headers: ["axis", "id", "cosine", "title", "path", "summary"]
+                            headers: ["id", "cosine", "title", "path", "summary"]
                         )
                         : .table(
                             output.vectorLinked.map { row in
                                 [
-                                    row.axis,
                                     row.id,
                                     String(format: "%.2f", row.cosine),
                                     row.title,
                                     row.summary ?? ""
                                 ]
                             },
-                            headers: ["axis", "id", "cosine", "title", "summary"]
+                            headers: ["id", "cosine", "title", "summary"]
                         )
                 )
             }
@@ -788,7 +729,6 @@ struct QueryRelated: AsyncParsableCommand {
                             output.entityHits.map { hit in
                                 [
                                     hit.entity,
-                                    hit.axis ?? "-",
                                     hit.noteId,
                                     String(hit.hitCount),
                                     hit.lastSeenAt.map(dayString) ?? "-",
@@ -796,20 +736,19 @@ struct QueryRelated: AsyncParsableCommand {
                                 ]
                             },
                             headers: [
-                                "entity", "axis", "note_id", "hits", "last_seen", "summary"
+                                "entity", "note_id", "hits", "last_seen", "summary"
                             ]
                         )
                         : .table(
                             output.entityHits.map { hit in
                                 [
                                     hit.entity,
-                                    hit.axis ?? "-",
                                     hit.noteId,
                                     String(hit.hitCount),
                                     hit.summary ?? ""
                                 ]
                             },
-                            headers: ["entity", "axis", "note_id", "hits", "summary"]
+                            headers: ["entity", "note_id", "hits", "summary"]
                         )
                 )
             }
@@ -844,7 +783,7 @@ struct QueryRelated: AsyncParsableCommand {
 struct QuerySearch: AsyncParsableCommand {
     struct Row: Encodable {
         // MARK: - Property
-        let axis, id, title: String
+        let id, title: String
         let summary: String?
         let section: String?
         let path: String?
@@ -858,7 +797,7 @@ struct QuerySearch: AsyncParsableCommand {
     
     struct Expanded: Encodable {
         // MARK: - Property
-        let id, axis, title: String
+        let id, title: String
         let summary: String?
         let weight: Double
         let path: String?
@@ -949,7 +888,6 @@ struct QuerySearch: AsyncParsableCommand {
         let output = Output(
             rows: rows.map { row in
                 Row(
-                    axis: row.axis,
                     id: row.id,
                     title: row.title,
                     summary: row.summary,
@@ -966,7 +904,6 @@ struct QuerySearch: AsyncParsableCommand {
             expanded: extra.map { note in
                 Expanded(
                     id: note.id,
-                    axis: note.axis,
                     title: note.title,
                     summary: note.summary,
                     weight: note.weight,
@@ -981,7 +918,6 @@ struct QuerySearch: AsyncParsableCommand {
                     ? .table(
                         output.rows.map { row in
                             [
-                                row.axis,
                                 row.id,
                                 row.title + (row.stale == true ? "  [stale]" : ""),
                                 (row.tags ?? []).joined(separator: ","),
@@ -990,13 +926,13 @@ struct QuerySearch: AsyncParsableCommand {
                                 row.summary ?? ""
                             ]
                         },
-                        headers: ["axis", "id", "title", "tags", "section", "path", "summary"]
+                        headers: ["id", "title", "tags", "section", "path", "summary"]
                     )
                     : .table(
                         output.rows.map { row in
-                            [row.axis, row.id, row.title, row.section ?? "", row.summary ?? ""]
+                            [row.id, row.title, row.section ?? "", row.summary ?? ""]
                         },
-                        headers: ["axis", "id", "title", "section", "summary"]
+                        headers: ["id", "title", "section", "summary"]
                     )
             ]
             
@@ -1007,7 +943,6 @@ struct QuerySearch: AsyncParsableCommand {
                         ? .table(
                             output.expanded.map { note in
                                 [
-                                    note.axis,
                                     note.id,
                                     String(format: "%.2f", note.weight),
                                     note.title,
@@ -1015,19 +950,18 @@ struct QuerySearch: AsyncParsableCommand {
                                     note.summary ?? ""
                                 ]
                             },
-                            headers: ["axis", "id", "weight", "title", "path", "summary"]
+                            headers: ["id", "weight", "title", "path", "summary"]
                         )
                         : .table(
                             output.expanded.map { note in
                                 [
-                                    note.axis,
                                     note.id,
                                     String(format: "%.2f", note.weight),
                                     note.title,
                                     note.summary ?? ""
                                 ]
                             },
-                            headers: ["axis", "id", "weight", "title", "summary"]
+                            headers: ["id", "weight", "title", "summary"]
                         )
                 )
             }
@@ -1062,7 +996,6 @@ struct QueryGet: AsyncParsableCommand {
     struct Output: Encodable {
         // MARK: - Property
         let id: String
-        let axis: String
         let path: String
         let frontmatter: NoteFrontmatter
         let body: String
@@ -1087,7 +1020,6 @@ struct QueryGet: AsyncParsableCommand {
     struct TocOutput: Encodable {
         // MARK: - Property
         let id: String
-        let axis: String
         let path: String
         let toc: [TocRow]
         
@@ -1098,7 +1030,7 @@ struct QueryGet: AsyncParsableCommand {
     
     struct BudgetOutput: Encodable {
         enum CodingKeys: String, CodingKey {
-            case id, axis, path, frontmatter, body, truncated, stats
+            case id, path, frontmatter, body, truncated, stats
             case shownWords = "shown_words"
             case totalWords = "total_words"
             case shownSections = "shown_sections"
@@ -1108,7 +1040,6 @@ struct QueryGet: AsyncParsableCommand {
         
         // MARK: - Property
         let id: String
-        let axis: String
         let path: String
         let frontmatter: NoteFrontmatter
         let body: String
@@ -1225,7 +1156,6 @@ struct QueryGet: AsyncParsableCommand {
         let outputs: [Output] = found.map { note in
             Output(
                 id: note.id,
-                axis: note.axis,
                 path: note.path,
                 frontmatter: note.frontmatter,
                 body: note.body,
@@ -1270,7 +1200,6 @@ struct QueryGet: AsyncParsableCommand {
         )
         let output = Output(
             id: note.id,
-            axis: note.axis,
             path: note.path,
             frontmatter: note.frontmatter,
             body: slices.map { slice in slice.text }.joined(separator: "\n\n"),
@@ -1300,7 +1229,6 @@ struct QueryGet: AsyncParsableCommand {
         )
         let output = BudgetOutput(
             id: note.id,
-            axis: note.axis,
             path: note.path,
             frontmatter: note.frontmatter,
             body: cut.shown,
@@ -1328,7 +1256,6 @@ struct QueryGet: AsyncParsableCommand {
                     headerPairs(
                         Output(
                             id: output.id,
-                            axis: output.axis,
                             path: output.path,
                             frontmatter: output.frontmatter,
                             body: "",
@@ -1396,14 +1323,13 @@ struct QueryGet: AsyncParsableCommand {
         let (note, entries) = try await brain.query.toc(id: ids[0], cliSessionId: global.sessionId)
         let output = TocOutput(
             id: note.id,
-            axis: note.axis,
             path: note.path,
             toc: entries.map { entry in TocRow(section: entry.path, words: entry.words) }
         )
         
         render(output, json: format.json) { output in
             var blocks: [PlainBlock] = [
-                .keyValue([("id", output.id), ("axis", output.axis), ("path", output.path)]),
+                .keyValue([("id", output.id), ("path", output.path)]),
                 .blank
             ]
             
@@ -1425,7 +1351,6 @@ struct QueryGet: AsyncParsableCommand {
     private func headerPairs(_ output: Output) -> [(String, String)] {
         var pairs: [(String, String)] = [
             ("id", output.id),
-            ("axis", output.axis),
             ("path", output.path),
             ("priority", output.stats.priority),
             ("hits", String(output.stats.hitCount))
@@ -1452,7 +1377,7 @@ struct QueryEntity: AsyncParsableCommand {
     // title for retrieval, but this surface never printed it.
     struct Row: Encodable {
         enum CodingKeys: String, CodingKey {
-            case entity, axis, summary
+            case entity, summary
             case noteId = "note_id"
             case lastSeenAt = "last_seen_at"
             case hitCount = "hit_count"
@@ -1461,7 +1386,6 @@ struct QueryEntity: AsyncParsableCommand {
         // MARK: - Property
         let entity: String
         let noteId: String
-        let axis: String?
         let summary: String?
         let lastSeenAt: Int
         let hitCount: Int
@@ -1504,7 +1428,6 @@ struct QueryEntity: AsyncParsableCommand {
             Row(
                 entity: hit.entity,
                 noteId: hit.noteId,
-                axis: hit.axis,
                 summary: hit.summary,
                 lastSeenAt: hit.lastSeenAt,
                 hitCount: hit.hitCount
@@ -1517,13 +1440,12 @@ struct QueryEntity: AsyncParsableCommand {
                     rows.map { row in
                         [
                             row.entity,
-                            row.axis ?? "-",
                             row.noteId,
                             String(row.hitCount),
                             row.summary ?? ""
                         ]
                     },
-                    headers: ["entity", "axis", "note_id", "hits", "summary"]
+                    headers: ["entity", "note_id", "hits", "summary"]
                 )
             ]
         }
@@ -1533,27 +1455,6 @@ struct QueryEntity: AsyncParsableCommand {
 }
 
 struct QueryStructure: AsyncParsableCommand {
-    struct AxisRow: Encodable {
-        enum CodingKeys: String, CodingKey {
-            case axis, count
-        }
-        
-        // MARK: - Property
-        let axis: String
-        let count: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            
-            try container.encode(axis, forKey: .axis)
-            try container.encode(count, forKey: .count)
-        }
-        
-        // MARK: - Private
-    }
-    
     struct KindRow: Encodable {
         // MARK: - Property
         let kind: String
@@ -1567,7 +1468,7 @@ struct QueryStructure: AsyncParsableCommand {
     
     struct DegreeRow: Encodable {
         // MARK: - Property
-        let id, axis, title: String
+        let id, title: String
         let degree: Int
         
         // MARK: - Initializer
@@ -1594,24 +1495,24 @@ struct QueryStructure: AsyncParsableCommand {
     
     struct Output: Encodable {
         enum CodingKeys: String, CodingKey {
-            case axes, links
-            case axisStats = "axis_stats"
+            case tree, links
+            case prefixStats = "prefix_stats"
         }
         
         // MARK: - Property
-        let axes: [AxisRow]
+        let tree: [TreeRow]
         let links: LinksReport
-        let axisStats: QueryStats.AxisOutput?
+        let prefixStats: QueryStats.PrefixOutput?
         
         // MARK: - Initializer
         // MARK: - Public
         func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
             
-            try container.encode(axes, forKey: .axes)
+            try container.encode(tree, forKey: .tree)
             try container.encode(links, forKey: .links)
             
-            if let axisStats { try container.encode(axisStats, forKey: .axisStats) }
+            if let prefixStats { try container.encode(prefixStats, forKey: .prefixStats) }
         }
         
         // MARK: - Private
@@ -1620,32 +1521,32 @@ struct QueryStructure: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "structure",
-        abstract: "Memory topology — axes, link distribution, top-degree notes.",
+        abstract: "Memory topology — id hierarchy, link distribution, top-degree notes.",
         discussion: """
-            Useful before running consolidation. Pass --axis for per-axis stats.
+            Useful before running consolidation. Pass --prefix for the stats of
+            one branch of the address space.
 
             EXAMPLES
                 llmemory query structure --home brain
-                llmemory query structure --axis flow --home brain
+                llmemory query structure --prefix flow --home brain
             """
     )
     
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
     
-    @Option(name: .long, help: "Add stats for a specific axis.")
-    var axis: String?
+    @Option(name: .long, help: "Add stats for everything at or under this id prefix.")
+    var prefix: String?
     
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
         let brain = Brain(home: global.home)
         
-        let structure = try await brain.query.structure(axis: axis)
+        let structure = try await brain.query.structure(prefix: prefix)
         let distribution = structure.distribution
-        let stats: QueryStats.AxisOutput? = structure.axisStats.map { stats in
-            QueryStats.AxisOutput(
-                axis: stats.axis,
+        let stats: QueryStats.PrefixOutput? = structure.prefixStats.map { stats in
+            QueryStats.PrefixOutput(
                 total: stats.total,
                 stale: stats.stale,
                 eager: stats.eager,
@@ -1656,9 +1557,7 @@ struct QueryStructure: AsyncParsableCommand {
             )
         }
         let output = Output(
-            axes: structure.axes.map { entry in
-                AxisRow(axis: entry.axis, count: entry.count)
-            },
+            tree: structure.tree,
             links: LinksReport(
                 byKind: distribution.byKind.map { entry in
                     KindRow(
@@ -1673,21 +1572,20 @@ struct QueryStructure: AsyncParsableCommand {
                 topDegree: distribution.topDegree.map { entry in
                     DegreeRow(
                         id: entry.id,
-                        axis: entry.axis,
                         title: entry.title,
                         degree: entry.degree
                     )
                 }
             ),
-            axisStats: stats
+            prefixStats: stats
         )
         
         render(output, json: format.json) { output in
             var blocks: [PlainBlock] = [
-                .section("axes (\(output.axes.count))"),
+                .section("tree (\(output.tree.count))"),
                 .table(
-                    output.axes.map { row in [row.axis, String(row.count)] },
-                    headers: ["axis", "count"]
+                    output.tree.map { row in [row.prefix, String(row.notes)] },
+                    headers: ["prefix", "notes"]
                 ),
                 .section("links by kind"),
                 .table(
@@ -1709,15 +1607,15 @@ struct QueryStructure: AsyncParsableCommand {
                 blocks.append(
                     .table(
                         output.links.topDegree.map { row in
-                            [row.axis, row.id, String(row.degree), row.title]
+                            [row.id, String(row.degree), row.title]
                         },
-                        headers: ["axis", "id", "degree", "title"]
+                        headers: ["id", "degree", "title"]
                     )
                 )
             }
             
-            if let stats = output.axisStats {
-                blocks.append(.section("axis '\(stats.axis)' stats"))
+            if let stats = output.prefixStats {
+                blocks.append(.section("prefix stats"))
                 blocks.append(
                     .keyValue([
                         ("total", String(stats.total)),
@@ -1742,7 +1640,6 @@ struct QueryNeighbors: AsyncParsableCommand {
     struct Item: Encodable {
         // MARK: - Property
         let id: String
-        let axis: String
         let title: String
         let summary: String?
         let score: Double
@@ -1793,7 +1690,6 @@ struct QueryNeighbors: AsyncParsableCommand {
         let items = scores.map { score in
             Item(
                 id: score.id,
-                axis: score.axis,
                 title: score.title,
                 summary: score.summary,
                 score: score.score,
@@ -1809,14 +1705,13 @@ struct QueryNeighbors: AsyncParsableCommand {
                     .table(
                         items.map { item in
                             [
-                                item.axis,
                                 item.id,
                                 String(format: "%.2f", item.score),
                                 item.title,
                                 item.summary ?? ""
                             ]
                         },
-                        headers: ["axis", "id", "score", "title", "summary"]
+                        headers: ["id", "score", "title", "summary"]
                     )
                 ]
             }
@@ -1825,7 +1720,6 @@ struct QueryNeighbors: AsyncParsableCommand {
                 .table(
                     items.map { item in
                         [
-                            item.axis,
                             item.id,
                             String(format: "%.2f", item.score),
                             String(format: "%.2f", item.fts ?? 0),
@@ -1836,7 +1730,7 @@ struct QueryNeighbors: AsyncParsableCommand {
                         ]
                     },
                     headers: [
-                        "axis", "id", "score", "fts", "entity", "link", "title", "summary"
+                        "id", "score", "fts", "entity", "link", "title", "summary"
                     ]
                 )
             ]
@@ -1849,7 +1743,7 @@ struct QueryNeighbors: AsyncParsableCommand {
 struct QueryStats: AsyncParsableCommand {
     struct NoteOutput: Encodable {
         enum CodingKeys: String, CodingKey {
-            case id, axis, title, summary, priority, stale
+            case id, title, summary, priority, stale
             case createdAt = "created_at"
             case editedAt = "edited_at"
             case ageDays = "age_days"
@@ -1863,7 +1757,7 @@ struct QueryStats: AsyncParsableCommand {
         }
         
         // MARK: - Property
-        let id, axis, title: String
+        let id, title: String
         let summary: String?
         let priority: String
         let createdAt, editedAt: Int
@@ -1877,9 +1771,9 @@ struct QueryStats: AsyncParsableCommand {
         // MARK: - Private
     }
     
-    struct AxisOutput: Encodable {
+    struct PrefixOutput: Encodable {
         enum CodingKeys: String, CodingKey {
-            case axis, total, stale, eager
+            case total, stale, eager
             case avgWords = "avg_words"
             case maxWords = "max_words"
             case avgSections = "avg_sections"
@@ -1887,7 +1781,6 @@ struct QueryStats: AsyncParsableCommand {
         }
         
         // MARK: - Property
-        let axis: String
         let total, stale, eager: Int
         let avgWords: Double
         let maxWords: Int
@@ -1899,26 +1792,9 @@ struct QueryStats: AsyncParsableCommand {
         // MARK: - Private
     }
     
-    struct AxisCount: Encodable {
-        // MARK: - Property
-        let axis: String
-        let count: Int
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        func encode(to encoder: Encoder) throws {
-            var container = encoder.unkeyedContainer()
-            
-            try container.encode(axis)
-            try container.encode(count)
-        }
-        
-        // MARK: - Private
-    }
-    
     struct OverallOutput: Encodable {
         enum CodingKeys: String, CodingKey {
-            case total, stale, axes
+            case total, stale, tree
             case hitNonZero = "hit_non_zero"
             case hitZero = "hit_zero"
             case hitAvg = "hit_avg"
@@ -1931,7 +1807,7 @@ struct QueryStats: AsyncParsableCommand {
         
         // MARK: - Property
         let total, stale: Int
-        let axes: [AxisCount]
+        let tree: [TreeRow]
         let hitNonZero, hitZero: Int
         let hitAvg: Double
         let hitMax: Int
@@ -1948,14 +1824,14 @@ struct QueryStats: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "stats",
-        abstract: "Note / axis / overall counters and rates.",
+        abstract: "Note / prefix / overall counters and rates.",
         discussion: """
             Three modes determined by which option is set.
 
             MODES
-                --id <note>   Per-note stats (age, hits, sections, tags, links).
-                --axis <a>    Per-axis aggregates.
-                (neither)     Overall stats.
+                --id <note>     Per-note stats (age, hits, sections, tags, links).
+                --prefix <p>    Aggregates over everything at or under that id.
+                (neither)       Overall stats.
 
             EXAMPLES
                 llmemory query stats --home brain
@@ -1969,8 +1845,8 @@ struct QueryStats: AsyncParsableCommand {
     @Option(name: .long, help: "Per-note stats.")
     var id: String?
     
-    @Option(name: .long, help: "Per-axis stats.")
-    var axis: String?
+    @Option(name: .long, help: "Aggregates over everything at or under this id prefix.")
+    var prefix: String?
     
     // MARK: - Initializer
     // MARK: - Public
@@ -1986,7 +1862,6 @@ struct QueryStats: AsyncParsableCommand {
             
             let output = NoteOutput(
                 id: stats.id,
-                axis: stats.axis,
                 title: stats.title,
                 summary: stats.summary,
                 priority: stats.priority,
@@ -2006,7 +1881,6 @@ struct QueryStats: AsyncParsableCommand {
             render(output, json: format.json) { output -> [PlainBlock] in
                 let pairs: [(String, String)] = [
                     ("id", output.id),
-                    ("axis", output.axis),
                     ("title", output.title),
                     ("priority", output.priority),
                     ("hits", String(output.hitCount)),
@@ -2022,10 +1896,9 @@ struct QueryStats: AsyncParsableCommand {
                 
                 return [.keyValue(pairs)]
             }
-        } else if let axis {
-            let stats = try await brain.query.axisStats(axis: axis)
-            let output = AxisOutput(
-                axis: stats.axis,
+        } else if let prefix {
+            let stats = try await brain.query.prefixStats(prefix: prefix)
+            let output = PrefixOutput(
                 total: stats.total,
                 stale: stats.stale,
                 eager: stats.eager,
@@ -2037,7 +1910,6 @@ struct QueryStats: AsyncParsableCommand {
             
             render(output, json: format.json) { output -> [PlainBlock] in
                 let pairs: [(String, String)] = [
-                    ("axis", output.axis),
                     ("total", String(output.total)),
                     ("stale", String(output.stale)),
                     ("eager", String(output.eager)),
@@ -2054,9 +1926,7 @@ struct QueryStats: AsyncParsableCommand {
             let output = OverallOutput(
                 total: stats.total,
                 stale: stats.stale,
-                axes: stats.axes.map { entry in
-                    AxisCount(axis: entry.axis, count: entry.count)
-                },
+                tree: stats.tree,
                 hitNonZero: stats.hitNonZero,
                 hitZero: stats.hitZero,
                 hitAvg: stats.hitAvg,
@@ -2089,18 +1959,18 @@ struct QueryStats: AsyncParsableCommand {
                 
                 return [
                     .keyValue(pairs),
-                    .section("by axis"),
+                    .section("by prefix"),
                     .table(
-                        output.axes.map { entry in [entry.axis, String(entry.count)] },
-                        headers: ["axis", "count"]
+                        output.tree.map { row in [row.prefix, String(row.notes)] },
+                        headers: ["prefix", "notes"]
                     ),
                     .section("activation"),
                     .keyValue(activationPairs),
                     .table(
-                        activation.byAxis.map { entry in
-                            [entry.axis, String(entry.surfaced), String(entry.used)]
+                        activation.byPrefix.map { entry in
+                            [entry.prefix, String(entry.surfaced), String(entry.used)]
                         },
-                        headers: ["axis", "surfaced", "used"]
+                        headers: ["prefix", "surfaced", "used"]
                     )
                 ]
             }
@@ -2113,14 +1983,14 @@ struct QueryStats: AsyncParsableCommand {
 struct QueryList: AsyncParsableCommand {
     struct Row: Encodable {
         enum CodingKeys: String, CodingKey {
-            case axis, id, title, summary, priority, stale
+            case id, title, summary, priority, stale
             case sourceStale = "source_stale"
             case createdAt = "created_at"
             case editedAt = "edited_at"
         }
         
         // MARK: - Property
-        let axis, id, title: String
+        let id, title: String
         let summary: String?
         let priority: String?
         let stale, sourceStale: Bool?
@@ -2140,7 +2010,7 @@ struct QueryList: AsyncParsableCommand {
             predicate; absent flags don't constrain. For ranked retrieval
             use `search` or `related`.
 
-            Plain output is a table (axis, id, title, summary). For scripted
+            Plain output is a table (id, title, summary). For scripted
             id extraction use --json (adds lifecycle fields) and parse.
 
 
@@ -2191,7 +2061,6 @@ struct QueryList: AsyncParsableCommand {
         )
         let output = rows.map { row in
             Row(
-                axis: row.axis,
                 id: row.id,
                 title: row.title,
                 summary: row.summary,
@@ -2207,8 +2076,8 @@ struct QueryList: AsyncParsableCommand {
             guard verbose else {
                 return [
                     .table(
-                        rows.map { row in [row.axis, row.id, row.title, row.summary ?? ""] },
-                        headers: ["axis", "id", "title", "summary"]
+                        rows.map { row in [row.id, row.title, row.summary ?? ""] },
+                        headers: ["id", "title", "summary"]
                     )
                 ]
             }
@@ -2222,7 +2091,6 @@ struct QueryList: AsyncParsableCommand {
                         ].compactMap { flag in flag }
                         
                         return [
-                            row.axis,
                             row.id,
                             row.priority ?? "",
                             flags.joined(separator: ","),
@@ -2233,7 +2101,7 @@ struct QueryList: AsyncParsableCommand {
                         ]
                     },
                     headers: [
-                        "axis", "id", "priority", "flags", "created", "edited", "title", "summary"
+                        "id", "priority", "flags", "created", "edited", "title", "summary"
                     ]
                 )
             ]
@@ -2307,7 +2175,7 @@ struct QueryLint: AsyncParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "lint",
-        abstract: "Rule-based consistency check (frontmatter, axis/tag policy, links).",
+        abstract: "Rule-based consistency check (frontmatter, tag policy, links).",
         discussion: """
             Deterministic checks only — reports facts, never decides. Two severities:
             `error` = invariant violations (integrity gate), `warn` = quality facts

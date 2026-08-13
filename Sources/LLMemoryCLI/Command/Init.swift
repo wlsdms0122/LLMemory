@@ -40,7 +40,7 @@ struct InitCommand: ParsableCommand {
         abstract: "Initialize a brain home (data/, cortex/, memory.db).",
         discussion: """
             Idempotent — existing state is preserved and only missing pieces are
-            created. A fresh brain starts with no axes and no tag vocabulary —
+            created. A fresh brain starts with no notes and no tag vocabulary —
             everything grows through ops.
 
             Also writes <home>/README.md from the embedded agent guide

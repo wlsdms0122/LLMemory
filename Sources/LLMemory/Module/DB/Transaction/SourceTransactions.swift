@@ -37,17 +37,15 @@ struct FetchNoteSourcePathsTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [String] {
-        guard let relativePath = try String.fetchOne(
+        guard try Int.fetchOne(
             db,
-            sql: "SELECT path FROM notes WHERE id = ?",
+            sql: "SELECT 1 FROM notes WHERE id = ?",
             arguments: [noteId]
-        ) else {
+        ) != nil else {
             return []
         }
 
-        let notePath = Paths.brainRoot.appendingPathComponent(relativePath)
-
-        return try Notes.requireNote(at: notePath).doc.source
+        return try Notes.requireNote(at: Paths.file(forId: noteId)).doc.source
     }
 
     // MARK: - Private

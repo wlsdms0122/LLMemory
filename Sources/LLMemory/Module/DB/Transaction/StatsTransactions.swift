@@ -8,11 +8,10 @@
 import Foundation
 import GRDB
 
-// Observation transactions — per-note, per-axis, and corpus-wide stats.
+// Observation transactions — per-note, per-prefix, and corpus-wide stats.
 public struct NoteStats: Sendable {
     // MARK: - Property
     public let id: String
-    public let axis: String
     public let title: String
     public let summary: String?
     public let priority: String
@@ -33,9 +32,8 @@ public struct NoteStats: Sendable {
     // MARK: - Private
 }
 
-public struct AxisStats: Sendable {
+public struct PrefixStats: Sendable {
     // MARK: - Property
-    public let axis: String
     public let total: Int
     public let stale: Int
     public let eager: Int
@@ -53,7 +51,7 @@ public struct OverallStats: Sendable {
     // MARK: - Property
     public let total: Int
     public let stale: Int
-    public let axes: [(axis: String, count: Int)]
+    public let tree: [TreeRow]
     public let hitNonZero: Int
     public let hitZero: Int
     public let hitAvg: Double
@@ -80,7 +78,7 @@ struct NoteStatsTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> NoteStats? {
         let row = try Row.fetchOne(db, sql: """
-            SELECT notes.id, axis, title, summary, priority,
+            SELECT notes.id, title, summary, priority,
                    u.created_at, edited_at, u.hit_count, u.last_retrieved_at,
                    word_count, section_count,
                    COALESCE(stale, 0) AS s,
@@ -98,7 +96,6 @@ struct NoteStatsTransaction: GRDBReadTransaction {
 
         return NoteStats(
             id: row["id"],
-            axis: row["axis"],
             title: row["title"],
             summary: row["summary"] as String?,
             priority: row["priority"],
@@ -119,17 +116,20 @@ struct NoteStatsTransaction: GRDBReadTransaction {
     // MARK: - Private
 }
 
-struct AxisStatsTransaction: GRDBReadTransaction {
+// Everything at or under one address. The prefix itself counts — `a.b` is a
+// note as well as the parent of `a.b.c`, and asking about a branch means asking
+// about all of it.
+struct PrefixStatsTransaction: GRDBReadTransaction {
     // MARK: - Property
-    let axis: String
+    let prefix: String
 
     // MARK: - Initializer
-    init(axis: String) {
-        self.axis = axis
+    init(prefix: String) {
+        self.prefix = prefix
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> AxisStats {
+    func perform(_ db: Database) throws -> PrefixStats {
         let row = try Row.fetchOne(db, sql: """
             SELECT COUNT(*) AS total,
                    SUM(CASE WHEN \(Policy.stale()) THEN 1 ELSE 0 END) AS stale_count,
@@ -138,11 +138,11 @@ struct AxisStatsTransaction: GRDBReadTransaction {
                    COALESCE(MAX(n.word_count), 0) AS max_words,
                    COALESCE(AVG(n.section_count), 0) AS avg_sections,
                    COALESCE(SUM(COALESCE(u.hit_count, 0)), 0) AS total_hits
-            FROM notes n LEFT JOIN note_usage u ON u.note_id = n.id WHERE n.axis = ?
-            """, arguments: [axis])!
+            FROM notes n LEFT JOIN note_usage u ON u.note_id = n.id
+            WHERE n.id = ? OR n.id GLOB ?
+            """, arguments: [prefix, prefix + ".*"])!
 
-        return AxisStats(
-            axis: axis,
+        return PrefixStats(
             total: row["total"] as Int? ?? 0,
             stale: row["stale_count"] as Int? ?? 0,
             eager: row["eager_count"] as Int? ?? 0,
@@ -167,11 +167,7 @@ struct OverallStatsTransaction: GRDBReadTransaction {
             db,
             sql: "SELECT COUNT(*) FROM notes WHERE \(Policy.stale(""))"
         ) ?? 0
-        let axisRows = try Row.fetchAll(
-            db,
-            sql: "SELECT axis, COUNT(*) c FROM notes GROUP BY axis ORDER BY c DESC, axis"
-        )
-        let axes = axisRows.map { row in (axis: row["axis"] as String, count: row["c"] as Int) }
+        let tree = try FetchTreeTransaction().perform(db)
         let hitRow = try Row.fetchOne(db, sql: """
             SELECT COALESCE(SUM(CASE WHEN COALESCE(u.hit_count, 0) > 0 THEN 1 ELSE 0 END), 0) AS nz,
                    COALESCE(SUM(CASE WHEN COALESCE(u.hit_count, 0) = 0 THEN 1 ELSE 0 END), 0) AS z,
@@ -189,7 +185,7 @@ struct OverallStatsTransaction: GRDBReadTransaction {
         return OverallStats(
             total: total,
             stale: stale,
-            axes: axes,
+            tree: tree,
             hitNonZero: hitRow["nz"] as Int? ?? 0,
             hitZero: hitRow["z"] as Int? ?? 0,
             hitAvg: round((hitRow["avg"] as Double? ?? 0) * 100) / 100,

@@ -93,8 +93,6 @@ public enum Indexer {
     }
 
     // MARK: - Property
-    private static let idRegex = try! NSRegularExpression(pattern: #"^[a-z0-9][a-z0-9-]*$"#)
-
     // MARK: - Initializer
     // MARK: - Public
     // Caller holds the write lock (run's write marker or an explicit writeLock).
@@ -244,11 +242,13 @@ public enum Indexer {
         var seen = Set<String>()
         var errors = fileErrors
         var changed = 0
-        let existingRows = try Row.fetchAll(db, sql: "SELECT path, id, content_hash FROM notes")
+        let existingRows = try Row.fetchAll(db, sql: "SELECT id, content_hash FROM notes")
         var existingByPath: [String: (id: String, hash: String)] = [:]
 
         for row in existingRows {
-            existingByPath[row["path"]] = (row["id"], row["content_hash"])
+            let id: String = row["id"]
+
+            existingByPath[Paths.relativeFile(forId: id)] = (id, row["content_hash"])
         }
 
         func reconcileOne(_ note: PendingNote) throws {
@@ -334,17 +334,20 @@ public enum Indexer {
 
         if level < 1 { return (ok, messages) }
 
-        var filesByRel: [String: URL] = [:]
+        // Keyed by the id the file's own location spells. A file whose
+        // frontmatter disagrees still lands here under its address, so the
+        // disagreement surfaces as a mismatch rather than as two ghosts.
+        var filesById: [String: URL] = [:]
 
         for file in Paths.scanNotes() {
-            let relativePath = Paths.relative(of: file) ?? file.path
-            filesByRel[relativePath] = file
+            guard let id = Paths.id(ofFile: file) else { continue }
+
+            filesById[id] = file
         }
 
         struct DBRow {
             // MARK: - Property
             public let id: String
-            let axis: String
             let title: String
             public let summary: String?
             let priority: String
@@ -358,32 +361,31 @@ public enum Indexer {
         var dbRows: [String: DBRow] = [:]
         var activeDBRows: [String: DBRow] = [:]
         let rows = try Row.fetchAll(db, sql: """
-            SELECT path, id, axis, title, summary, priority, content_hash
+            SELECT id, title, summary, priority, content_hash
             FROM notes
             """)
 
         for row in rows {
-            let path: String = row["path"]
+            let id: String = row["id"]
             let record = DBRow(
                 id: row["id"],
-                axis: row["axis"],
                 title: row["title"],
                 summary: row["summary"] as String?,
                 priority: row["priority"],
                 contentHash: row["content_hash"]
             )
 
-            activeDBRows[path] = record
-            dbRows[path] = record
+            activeDBRows[id] = record
+            dbRows[id] = record
         }
 
-        for path in Set(filesByRel.keys).subtracting(activeDBRows.keys).sorted() {
-            messages.append("L1\tmissing-in-db\t\(path)")
+        for id in Set(filesById.keys).subtracting(activeDBRows.keys).sorted() {
+            messages.append("L1\tmissing-in-db\t\(id)")
             ok = false
         }
 
-        for path in Set(activeDBRows.keys).subtracting(filesByRel.keys).sorted() {
-            messages.append("L1\torphan-in-db\t\(path)\t\(activeDBRows[path]!.id)")
+        for id in Set(activeDBRows.keys).subtracting(filesById.keys).sorted() {
+            messages.append("L1\torphan-in-db\t\(id)")
             ok = false
         }
 
@@ -406,8 +408,8 @@ public enum Indexer {
         let ftsIds = Set(try String.fetchAll(db, sql: "SELECT DISTINCT id FROM notes_fts"))
         let noteIds = Set(dbRows.values.map { row in row.id })
 
-        for (relativePath, file) in filesByRel {
-            guard let row = dbRows[relativePath] else { continue }
+        for (addressId, file) in filesById {
+            guard let row = dbRows[addressId] else { continue }
 
             let fields: FrontmatterDoc
             let text: String
@@ -415,15 +417,24 @@ public enum Indexer {
                 text = try String(contentsOf: file, encoding: .utf8)
                 (fields, _) = try Frontmatter.parse(text)
             } catch {
-                messages.append("L2\tfrontmatter-parse\t\(relativePath)\t\(error)")
+                messages.append("L2\tfrontmatter-parse\t\(addressId)\t\(error)")
                 ok = false
                 continue
+            }
+
+            // The id is the address. Disagreement between what the note calls
+            // itself and where it sits is an integrity violation, not a
+            // preference — one of the two is wrong and neither can be assumed.
+            if fields.id != addressId {
+                messages.append(
+                    "L2\tpath-mismatch\t\(addressId)\tfrontmatter id='\(fields.id)'"
+                )
+                ok = false
             }
 
             for (fieldName, dbValue) in [
                 ("title", row.title),
                 ("summary", row.summary ?? ""),
-                ("axis", row.axis),
                 ("priority", row.priority)
             ] {
                 let fileValue: String
@@ -433,9 +444,6 @@ public enum Indexer {
 
                 case "summary":
                     fileValue = fields.summary
-
-                case "axis":
-                    fileValue = fields.axis
 
                 case "priority":
                     fileValue = fields.priority
@@ -539,11 +547,11 @@ public enum Indexer {
             let noteId = row.id
             let nsNoteId = noteId as NSString
 
-            if idRegex.firstMatch(
+            if Paths.idRegex.firstMatch(
                 in: noteId,
                 range: NSRange(location: 0, length: nsNoteId.length)
             ) == nil {
-                messages.append("L3\tinvalid-id\t\(noteId)\t(kebab-case required)")
+                messages.append("L3\tinvalid-id\t\(noteId)\t(dot-joined kebab-case labels required)")
                 ok = false
             }
 

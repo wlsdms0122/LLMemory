@@ -27,7 +27,6 @@ public struct VectorBuildResult: Sendable {
 public struct VectorHit: Sendable {
     // MARK: - Property
     public let id: String
-    public let axis: String
     public let title: String
     public let summary: String?
     public let path: String
@@ -245,7 +244,7 @@ struct ExpandByVectorsTransaction: GRDBReadTransaction {
         let ids = top.map { hit in hit.id }
         let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
         let rows = try Row.fetchAll(db, sql: """
-            SELECT id, axis, title, summary, path FROM notes
+            SELECT id, title, summary FROM notes
             WHERE id IN (\(placeholders)) AND \(Policy.surface(""))
             """, arguments: StatementArguments(ids))
         var metaById: [String: Row] = [:]
@@ -257,10 +256,9 @@ struct ExpandByVectorsTransaction: GRDBReadTransaction {
 
             return VectorHit(
                 id: hit.id,
-                axis: row["axis"],
                 title: row["title"],
                 summary: row["summary"] as String?,
-                path: row["path"],
+                path: Paths.relativeFile(forId: row["id"] as String),
                 score: hit.score
             )
         }

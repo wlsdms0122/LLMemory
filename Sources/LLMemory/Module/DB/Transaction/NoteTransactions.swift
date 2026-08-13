@@ -33,21 +33,14 @@ struct UpsertNoteTransaction: GRDBTransaction {
     func perform(_ db: Database) throws -> String {
         if fields.id.isEmpty { throw NotesError.idMissing }
 
-        var axis = fields.axis
-
-        if axis.isEmpty { axis = Paths.axisFromPath(file) }
-
         let priority = fields.priority.isEmpty ? "lazy" : fields.priority
 
         guard ["eager", "lazy"].contains(priority) else {
             throw NotesError.invalidPriority(priority)
         }
 
-        let relativePath = try Notes.relativeToBrainRoot(file)
         let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
         let mtime = Int((attributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)
-
-        try EnsureAxisTransaction(axis: axis, now: now).perform(db)
 
         let staleFlag = fields.stale ? 1 : 0
         let templateValue = fields.template.flatMap { value in value.isEmpty ? nil : value }
@@ -59,12 +52,11 @@ struct UpsertNoteTransaction: GRDBTransaction {
         )
 
         try db.execute(sql: """
-            INSERT INTO notes (id, axis, path, title, summary, priority,
+            INSERT INTO notes (id, title, summary, priority,
                                stale, template, locked,
                                edited_at, word_count, section_count, content_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
-              axis=excluded.axis, path=excluded.path,
               title=excluded.title, summary=excluded.summary,
               priority=excluded.priority,
               stale=excluded.stale,
@@ -74,7 +66,7 @@ struct UpsertNoteTransaction: GRDBTransaction {
               section_count=excluded.section_count,
               content_hash=excluded.content_hash
             """, arguments: [
-                fields.id, axis, relativePath,
+                fields.id,
                 fields.title, fields.summary,
                 priority, staleFlag,
                 templateValue, lockedFlag,
@@ -269,6 +261,84 @@ struct RefreshReferenceLinksTransaction: GRDBTransaction {
     // MARK: - Private
 }
 
+// Who cites this id — whether or not the citation currently resolves.
+struct FetchCitingNoteIdsTransaction: GRDBReadTransaction {
+    // MARK: - Property
+    let marker: String
+
+    // MARK: - Initializer
+    init(marker: String) {
+        self.marker = marker
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> [String] {
+        try String.fetchAll(
+            db,
+            sql: "SELECT DISTINCT src FROM note_ref_markers WHERE marker = ? ORDER BY src",
+            arguments: [marker]
+        )
+    }
+
+    // MARK: - Private
+}
+
+// Re-addressing is renaming, and a rename that leaves the corpus pointing at
+// the old name is a rename that manufactures dangling references. There is no
+// alias table to soften this: the citations themselves move, so the resolver
+// stays a single exact match and no old name outlives the note.
+//
+// note_ref_markers is what makes it tractable — it records who cites whom
+// whether or not the citation resolved, so the set of files to touch is known
+// rather than searched for.
+struct RewriteInboundCitationsTransaction: GRDBTransaction {
+    // MARK: - Property
+    let from: String
+    let to: String
+    let now: Int
+
+    // MARK: - Initializer
+    init(from: String, to: String, now: Int) {
+        self.from = from
+        self.to = to
+        self.now = now
+    }
+
+    // MARK: - Public
+    @discardableResult
+    func perform(_ db: Database) throws -> [String] {
+        guard from != to else { return [] }
+
+        let referrers = try String.fetchAll(
+            db,
+            sql: "SELECT DISTINCT src FROM note_ref_markers WHERE marker = ? AND src != ?",
+            arguments: [from, to]
+        )
+        var rewritten: [String] = []
+
+        for src in referrers.sorted() {
+            let file = Paths.file(forId: src)
+
+            guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
+
+            // Both citation forms, because the resolver treats them as one.
+            let updated = text
+                .replacingOccurrences(of: "`\(from)`", with: "`\(to)`")
+                .replacingOccurrences(of: "[[\(from)]]", with: "[[\(to)]]")
+
+            guard updated != text else { continue }
+
+            try updated.write(to: file, atomically: true, encoding: .utf8)
+            try ReindexNoteFileTransaction(path: file).perform(db)
+            rewritten.append(src)
+        }
+
+        return rewritten
+    }
+
+    // MARK: - Private
+}
+
 struct ActivateNotesTransaction: GRDBTransaction {
     // MARK: - Property
     let ids: [String]
@@ -347,39 +417,15 @@ struct FetchNotePathTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
+    // Existence is the only thing the DB is asked — where the note lives is a
+    // function of its id, so nil here means "no such note", never "no path".
     func perform(_ db: Database) throws -> URL? {
-        guard let relativePath = try String.fetchOne(
-            db,
-            sql: "SELECT path FROM notes WHERE id = ?",
-            arguments: [nid]
-        ) else {
+        guard try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id = ?", arguments: [nid]) != nil
+        else {
             return nil
         }
 
-        return Paths.brainRoot.appendingPathComponent(relativePath)
-    }
-
-    // MARK: - Private
-}
-
-struct ListNotesByAxisTransaction: GRDBReadTransaction {
-    // MARK: - Property
-    let axis: String
-
-    // MARK: - Initializer
-    init(axis: String) {
-        self.axis = axis
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> [(id: String, path: String)] {
-        let rows = try Row.fetchAll(
-            db,
-            sql: "SELECT id, path FROM notes WHERE axis = ?",
-            arguments: [axis]
-        )
-
-        return rows.map { row in (id: row["id"], path: row["path"]) }
+        return Paths.file(forId: nid)
     }
 
     // MARK: - Private
@@ -404,67 +450,6 @@ struct CountEagerNotesTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> Int {
         try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM notes WHERE \(Policy.eager(""))") ?? 0
-    }
-
-    // MARK: - Private
-}
-
-struct FetchAllNotePathsTransaction: GRDBReadTransaction {
-    // MARK: - Initializer
-    init() { }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> [(id: String, path: String)] {
-        let rows = try Row.fetchAll(db, sql: "SELECT id, path FROM notes")
-
-        return rows.map { row in (id: row["id"], path: row["path"]) }
-    }
-
-    // MARK: - Private
-}
-
-struct SetNotesAxisTransaction: GRDBTransaction {
-    // MARK: - Property
-    let fromAxis: String
-    let toAxis: String
-
-    // MARK: - Initializer
-    init(fromAxis: String, toAxis: String) {
-        self.fromAxis = fromAxis
-        self.toAxis = toAxis
-    }
-
-    // MARK: - Public
-    @discardableResult
-    func perform(_ db: Database) throws -> Int {
-        try db.execute(
-            sql: "UPDATE notes SET axis = ? WHERE axis = ?",
-            arguments: [toAxis, fromAxis]
-        )
-
-        return db.changesCount
-    }
-
-    // MARK: - Private
-}
-
-struct SetNotePathTransaction: GRDBTransaction {
-    // MARK: - Property
-    let nid: String
-    let newRel: String
-
-    // MARK: - Initializer
-    init(nid: String, newRel: String) {
-        self.nid = nid
-        self.newRel = newRel
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws {
-        try db.execute(
-            sql: "UPDATE notes SET path = ? WHERE id = ?",
-            arguments: [newRel, nid]
-        )
     }
 
     // MARK: - Private
@@ -535,15 +520,15 @@ struct StampNoteLifecycleTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws {
-        guard let row = try Row.fetchOne(
+        guard try Int.fetchOne(
             db,
-            sql: "SELECT path FROM notes WHERE id = ?",
+            sql: "SELECT 1 FROM notes WHERE id = ?",
             arguments: [nid]
-        ) else {
+        ) != nil else {
             throw NotesError.stampedFileVanished(nid: nid, path: "(no notes row)")
         }
 
-        let relativePath: String = row["path"]
+        let relativePath = Paths.relativeFile(forId: nid)
         let previousCreated = (try Int.fetchOne(
             db,
             sql: "SELECT created_at FROM note_usage WHERE note_id = ?",
@@ -620,15 +605,15 @@ struct FetchNoteTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> (URL, FrontmatterDoc, String)? {
-        guard let relativePath = try String.fetchOne(
+        guard try Int.fetchOne(
             db,
-            sql: "SELECT path FROM notes WHERE id = ?",
+            sql: "SELECT 1 FROM notes WHERE id = ?",
             arguments: [nid]
-        ) else {
+        ) != nil else {
             return nil
         }
 
-        let path = Paths.brainRoot.appendingPathComponent(relativePath)
+        let path = Paths.file(forId: nid)
         let text = try String(contentsOf: path, encoding: .utf8)
         let (fields, body) = try Frontmatter.parse(text)
 

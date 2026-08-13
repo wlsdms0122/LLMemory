@@ -122,14 +122,14 @@ public struct Query {
         try await retrieval.entity(name: name, limit: limit)
     }
 
-    public func listAxes() async throws -> [AxisRow] {
-        try await notes.listAxes()
+    public func tree(prefix: String?) async throws -> [TreeRow] {
+        try await notes.tree(prefix: prefix)
     }
 
     public func structure(
-        axis: String?
+        prefix: String?
     ) async throws -> StructureResult {
-        try await notes.structure(axis: axis)
+        try await notes.structure(prefix: prefix)
     }
 
     public func neighbors(
@@ -146,10 +146,10 @@ public struct Query {
         try await stats.noteStats(id: id)
     }
 
-    public func axisStats(
-        axis: String
-    ) async throws -> AxisStats {
-        try await stats.axisStats(axis: axis)
+    public func prefixStats(
+        prefix: String
+    ) async throws -> PrefixStats {
+        try await stats.prefixStats(prefix: prefix)
     }
 
     public func overallStats() async throws -> OverallStats {

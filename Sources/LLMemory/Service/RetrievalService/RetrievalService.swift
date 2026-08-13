@@ -178,7 +178,6 @@ public struct RetrievalService: Sendable {
         let keywords = Framing.extractKeywords(text)
         let entityHints = NoteText.extractEntityHints(text)
         var similarNotes: [SimilarNote] = []
-        var axes: [AxisInfo] = []
         var topTagCounts: [(String, Int)] = []
         var cooccurrences: [(String, String, Int)] = []
         var vocabEntries: [String] = []
@@ -193,7 +192,6 @@ public struct RetrievalService: Sendable {
         )
 
         let similarTagSet = Set(similarNotes.flatMap { note in note.tags })
-        axes = try scope.run(FetchAxesInfoTransaction())
         topTagCounts = try scope.run(FetchTopTagsTransaction())
         cooccurrences = try scope.run(FetchTagCooccurrenceTransaction(tags: similarTagSet.sorted()))
         vocabEntries = try scope.run(FetchTagVocabTransaction())
@@ -237,7 +235,6 @@ public struct RetrievalService: Sendable {
         
         return FramingSnapshot(
             keywords: keywords,
-            axes: axes,
             similar: similarNotes,
             linked: linked,
             vectorLinked: vectorLinked,

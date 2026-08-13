@@ -12,9 +12,9 @@ import GRDB
 // persistent traces (activity_windows / retrieval_hits) and their
 // observation.
 public struct ActivationStats: Encodable, Sendable {
-    public struct AxisRow: Encodable, Sendable {
+    public struct PrefixRow: Encodable, Sendable {
         // MARK: - Property
-        public let axis: String
+        public let prefix: String
         public let surfaced: Int
         public let used: Int
 
@@ -28,7 +28,7 @@ public struct ActivationStats: Encodable, Sendable {
     public let labeledWindows: Int
     public let surfaced: Int
     public let used: Int
-    public let byAxis: [AxisRow]
+    public let byPrefix: [PrefixRow]
 
     // MARK: - Initializer
     // MARK: - Public
@@ -344,16 +344,21 @@ struct FetchActivationStatsTransaction: GRDBReadTransaction {
             db,
             sql: "SELECT COUNT(*) FROM retrieval_hits WHERE used_signal IS NOT NULL"
         ) ?? 0
-        let axisRows = try Row.fetchAll(db, sql: """
-            SELECT COALESCE(n.axis, '(gone)') AS axis,
+        // Grouped by the id's first label. The hit rows carry the id, so no
+        // join is needed and a note deleted since the hit still counts under
+        // the branch it was retrieved from.
+        let prefixRows = try Row.fetchAll(db, sql: """
+            SELECT CASE WHEN instr(note_id, '.') > 0
+                        THEN substr(note_id, 1, instr(note_id, '.') - 1)
+                        ELSE note_id END AS prefix,
                    COUNT(*) AS surfaced,
-                   SUM(CASE WHEN h.used_signal IS NOT NULL THEN 1 ELSE 0 END) AS used
-            FROM retrieval_hits h LEFT JOIN notes n ON n.id = h.note_id
-            GROUP BY COALESCE(n.axis, '(gone)') ORDER BY surfaced DESC
+                   SUM(CASE WHEN used_signal IS NOT NULL THEN 1 ELSE 0 END) AS used
+            FROM retrieval_hits
+            GROUP BY prefix ORDER BY surfaced DESC, prefix
             """)
-        let byAxis = axisRows.map { row in
-            ActivationStats.AxisRow(
-                axis: row["axis"],
+        let byPrefix = prefixRows.map { row in
+            ActivationStats.PrefixRow(
+                prefix: row["prefix"],
                 surfaced: row["surfaced"],
                 used: row["used"] ?? 0
             )
@@ -364,7 +369,7 @@ struct FetchActivationStatsTransaction: GRDBReadTransaction {
             labeledWindows: labeled,
             surfaced: surfaced,
             used: used,
-            byAxis: byAxis
+            byPrefix: byPrefix
         )
     }
 

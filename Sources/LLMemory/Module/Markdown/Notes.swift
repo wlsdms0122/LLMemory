@@ -12,11 +12,14 @@ import CryptoKit
 // projections are note transactions.
 enum Notes {
     // MARK: - Property
+    // Markers carry dots now that an id does. Widening only adds marker rows —
+    // an edge still needs an exact match against a real id, so a config key
+    // like `priming.alpha` reaching the table costs nothing and links nothing.
     static let wikilinkRegex = try! NSRegularExpression(
-        pattern: #"\[\[([a-z0-9][a-z0-9-]*)\]\]"#
+        pattern: #"\[\[([a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)*)\]\]"#
     )
     static let backtickIdRegex = try! NSRegularExpression(
-        pattern: #"`([a-z][a-z0-9-]{2,})`"#
+        pattern: #"`([a-z][a-z0-9-]{2,}(?:\.[a-z0-9][a-z0-9-]*)*)`"#
     )
     
     // MARK: - Initializer

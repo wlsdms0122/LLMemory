@@ -135,13 +135,8 @@ public struct ConsolidateService: Sendable {
         try await storage.run { scope in try prune(scope) }
     }
 
-    public func report() async throws -> (axis: ConsolidateAxisReport, tag: ConsolidateTagReport) {
-        try await storage.read { scope in
-            (
-                axis: try scope.run(FetchAxisReportTransaction()),
-                tag: try scope.run(FetchTagReportTransaction())
-            )
-        }
+    public func report() async throws -> ConsolidateTagReport {
+        try await storage.read { scope in try scope.run(FetchTagReportTransaction()) }
     }
 
     // MARK: - Internal
@@ -178,11 +173,9 @@ public struct ConsolidateService: Sendable {
         let eventsCompacted = try scope.run(
             CompactOldEventsTransaction(now: now, retentionSec: retentionSec)
         ).compacted
-        let axisSummary = try scope.run(FetchAxisReportTransaction())
         let tagSummary = try scope.run(FetchTagReportTransaction())
         let sourceVerify = try scope.run(VerifySourcesTransaction(now: now))
 
-        let prunedAxes = try scope.run(PruneEmptyAxesTransaction())
         let prunedTags = try scope.run(PruneUnusedVocabTagsTransaction())
         let prunedRippleFlags = try scope.run(
             PruneResolvedRippleFlagsTransaction(now: now)
@@ -237,11 +230,8 @@ public struct ConsolidateService: Sendable {
         }
         let summary = IntegrateResult.Summary(
             eventsCompacted: eventsCompacted,
-            smallAxes: axisSummary.small.count,
-            largeAxes: axisSummary.large.count,
             rareTags: tagSummary.rare.count,
             unusedVocabTags: tagSummary.unused.count,
-            emptyAxesPruned: prunedAxes.count,
             unusedVocabPruned: prunedTags.count,
             resolvedRipplePruned: prunedRippleFlags,
             ftsOrphansPruned: ftsPrune.orphansPruned,
@@ -277,10 +267,8 @@ public struct ConsolidateService: Sendable {
 
         return IntegrateResult(
             summary: summary,
-            axisReport: axisSummary,
             tagReport: tagSummary,
             prune: IntegrateResult.PruneReport(
-                axes: .init(pruned: prunedAxes, count: prunedAxes.count),
                 tagVocab: .init(pruned: prunedTags, count: prunedTags.count)
             ),
             integrityL1: IntegrateResult.IntegrityReport(checked: 0, issues: [])

@@ -33,7 +33,6 @@ struct FrontmatterDoc: Equatable, Encodable, Sendable {
     // MARK: - Property
     var id: String = ""
     var title: String = ""
-    var axis: String = ""
     var priority: String = "lazy"
     var summary: String = ""
     var tags: [String] = []
@@ -56,7 +55,6 @@ struct FrontmatterDoc: Equatable, Encodable, Sendable {
         
         try container.encode(id, forKey: .init("id"))
         try container.encode(title, forKey: .init("title"))
-        try container.encode(axis, forKey: .init("axis"))
         try container.encode(priority, forKey: .init("priority"))
         try container.encode(tags, forKey: .init("tags"))
         try container.encode(summary, forKey: .init("summary"))
@@ -105,7 +103,7 @@ enum Frontmatter {
     // The keys parse() recognises. Everything else is a custom field — this list
     // exists so a near-miss ('summry') can be told apart from an intended one.
     static let knownFields: [String] = [
-        "id", "title", "axis", "priority", "summary", "tags", "entities",
+        "id", "title", "priority", "summary", "tags", "entities",
         "promoted_from", "source", "template", "locked", "stale",
         "invalidated_at", "invalidated_reason", "trashed_at", "trashed_reason"
     ]
@@ -158,9 +156,6 @@ enum Frontmatter {
             
             case "title":
                 doc.title = value
-            
-            case "axis":
-                doc.axis = value
             
             case "priority":
                 doc.priority = value
@@ -235,7 +230,6 @@ enum Frontmatter {
         lines.append("---")
         lines.append("id: \(doc.id)")
         lines.append("title: \(doc.title)")
-        lines.append("axis: \(doc.axis)")
         lines.append("priority: \(doc.priority)")
         lines.append("tags: [" + doc.tags.joined(separator: ", ") + "]")
         lines.append("summary: \(doc.summary)")

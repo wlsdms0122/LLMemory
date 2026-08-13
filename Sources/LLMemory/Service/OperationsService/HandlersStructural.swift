@@ -11,7 +11,7 @@ public enum HandlersStructural {
     // MARK: - Property
     public static let restore = OperationHandler(
         schema: OperationSchema(
-            summary: "restore a trashed note (cortex/.trash/) back to its axis with a fresh DB row",
+            summary: "restore a trashed note (cortex/.trash/) back to its address with a fresh DB row",
             fields: [
                 .required("id", role: .noteId, "target note id; must exist in cortex/.trash/"),
                 .optional("reason", "lifecycle event reason recorded on restore")
@@ -47,18 +47,11 @@ public enum HandlersStructural {
             let trashFile = found.url
             var doc = found.doc
             let body = found.body
-            let axis = doc.axis
-            
-            if axis.isEmpty {
-                throw NSError(domain: "Handlers", code: 2, userInfo: [
-                    NSLocalizedDescriptionKey: "trash file missing axis: \(trashFile.path)"
-                ])
-            }
             
             doc.trashedAt = nil
             doc.trashedReason = nil
             
-            let destination = Handlers.pathFor(axis: axis, nid: noteId)
+            let destination = Paths.file(forId: noteId)
             
             try FileManager.default.createDirectory(
                 at: destination.deletingLastPathComponent(),
@@ -90,9 +83,8 @@ public enum HandlersStructural {
             let noteId = op["id"] as? String ?? ""
             
             guard let found = try Handlers.findTrashedFile(noteId) else { return [] }
-            guard !found.doc.axis.isEmpty else { return [found.url] }
             
-            return [found.url, Handlers.pathFor(axis: found.doc.axis, nid: noteId)]
+            return [found.url, Paths.file(forId: noteId)]
         }
     )
     
@@ -172,13 +164,12 @@ public enum HandlersStructural {
     
     public static let migrateNote = OperationHandler(
         schema: OperationSchema(
-            summary: "move a note to a different axis and/or rename its id (file relocates, frontmatter rewrites)",
+            summary: "re-address a note — the file relocates to match the new id and every citation of the old id is rewritten",
             fields: [
                 .required("id", role: .noteId, "current note id"),
-                .optional("new_axis", "destination axis — the cortex/ directory to move the file into; created if new. defaults to current axis"),
-                .optional("new_id", role: .noteId, "new id (lowercase + [a-z0-9-]); defaults to current id")
+                .required("new_id", role: .noteId, "new id — dot-joined labels; the file moves to match")
             ],
-            example: ##"{"op":"migrate_note","id":"my-note","new_axis":"flow","new_id":"my-note-v2"}"##
+            example: ##"{"op":"migrate_note","id":"flow.my-note","new_id":"flow.review.my-note"}"##
         ),
         validate: { op, context, scope in
             let noteId = op["id"] as? String ?? ""
@@ -188,22 +179,10 @@ public enum HandlersStructural {
             }
             
             let state = try Handlers.existingState(scope)
-            var newAxis = op["new_axis"] as? String ?? ""
-            
-            if newAxis.isEmpty {
-                guard let currentAxis = try scope.run(FetchNoteAxisTransaction(nid: noteId)) else {
-                    return "unknown id: \(noteId)"
-                }
-                
-                newAxis = currentAxis
-            }
-            
-            if let rejection = Handlers.axisRejection(newAxis) { return rejection }
-            
             let newId = (op["new_id"] as? String) ?? noteId
             let nsNewId = newId as NSString
             
-            if Handlers.idRegex.firstMatch(
+            if Paths.idRegex.firstMatch(
                 in: newId,
                 range: NSRange(location: 0, length: nsNewId.length)
             ) == nil {
@@ -216,7 +195,8 @@ public enum HandlersStructural {
         },
         write: { op, context, scope in
             let targetId = op["id"] as! String
-            let (newAxis, newId, newPath) = try migrateDestination(op, scope.readOnly)
+            let newId = (op["new_id"] as? String) ?? targetId
+            let newPath = Paths.file(forId: newId)
             
             guard let srcPath = try scope.run(FetchNotePathTransaction(nid: targetId)),
                 FileManager.default.fileExists(atPath: srcPath.path)
@@ -227,16 +207,8 @@ public enum HandlersStructural {
             }
             
             var (doc, body) = try Frontmatter.parse(try String(contentsOf: srcPath, encoding: .utf8))
-            let currentAxis = doc.axis
-            doc.axis = newAxis
             
             if newId != targetId { doc.id = newId }
-            
-            var tags = doc.tags
-            tags.removeAll(where: { tag in tag == currentAxis })
-            tags.removeAll(where: { tag in tag == newAxis })
-            tags.insert(newAxis, at: 0)
-            doc.tags = tags
             
             try FileManager.default.createDirectory(
                 at: newPath.deletingLastPathComponent(),
@@ -257,12 +229,9 @@ public enum HandlersStructural {
             
             try scope.run(ReindexNoteFileTransaction(path: newPath))
             
+            var rewritten: [String] = []
+            
             if newId != targetId {
-                _ = try scope.run(FlagInboundReferrersTransaction(
-                    targetId: targetId,
-                    reason: "migrated \(targetId) -> \(newId)",
-                    now: now
-                ))
                 try scope.run(ReparentNoteArtifactsTransaction(from: targetId, to: newId))
                 try scope.run(DeleteNoteRowTransaction(nid: targetId))
                 try scope.run(ClearNoteTagsTransaction(noteId: targetId))
@@ -273,15 +242,27 @@ public enum HandlersStructural {
                 
                 try scope.run(SyncNoteEnrichTransaction(noteId: newId))
                 try scope.run(NormalizeUndirectedLinksTransaction(nodeId: newId))
+                
+                // After the new id exists, so the rewritten citations resolve
+                // to it on reindex rather than dangling for an instant.
+                rewritten = try scope.run(RewriteInboundCitationsTransaction(
+                    from: targetId,
+                    to: newId,
+                    now: now
+                ))
             }
             
             try scope.run(StampNoteLifecycleTransaction(nid: newId, now: now, isNew: false))
             
+            let citations = rewritten.isEmpty
+                ? ""
+                : " (\(rewritten.count) citing note\(rewritten.count == 1 ? "" : "s") rewritten)"
+            
             return [
                 "status": "ok",
                 "path": newPath.path,
-                "ids": [newId],
-                "note": "migrated \(targetId) -> [\(newAxis)/\(newId)]"
+                "ids": [newId] + rewritten,
+                "note": "migrated \(targetId) -> \(newId)\(citations)"
             ]
         },
         effect: { op in
@@ -301,119 +282,12 @@ public enum HandlersStructural {
                 paths.append(src)
             }
             
-            paths.append(try migrateDestination(op, scope).path)
+            let newId = (op["new_id"] as? String) ?? (op["id"] as? String ?? "")
             
-            return paths
-        }
-    )
-    
-    public static let renameAxis = OperationHandler(
-        schema: OperationSchema(
-            summary: "rename an axis — files relocate, frontmatter axis follows (tags are untouched)",
-            fields: [
-                .required("from_axis", "current axis name; must exist"),
-                .required("to_axis", "new axis name (lowercase + [a-z0-9-]); must NOT exist")
-            ],
-            example: ##"{"op":"rename_axis","from_axis":"oldname","to_axis":"newname"}"##
-        ),
-        validate: { op, _, scope in
-            let fromAxis = op["from_axis"] as! String
-            let toAxis = op["to_axis"] as! String
+            paths.append(Paths.file(forId: newId))
             
-            if fromAxis == toAxis { return "from_axis equals to_axis" }
-            
-            let nsToAxis = toAxis as NSString
-            
-            if Handlers.axisRegex.firstMatch(
-                in: toAxis,
-                range: NSRange(location: 0, length: nsToAxis.length)
-            ) == nil {
-                return "invalid to_axis format: \(toAxis)"
-            }
-            
-            if !(try scope.run(AxisExistsTransaction(axis: fromAxis))) {
-                return "unknown from_axis: \(fromAxis)"
-            }
-            
-            if try scope.run(AxisExistsTransaction(axis: toAxis)) {
-                return "to_axis already exists: \(toAxis) (use migrate_note × N to merge into existing axis)"
-            }
-            
-            return nil
-        },
-        write: { op, context, scope in
-            let fromAxis = op["from_axis"] as! String
-            let toAxis = op["to_axis"] as! String
-            let now = context.now
-            let rows = try scope.run(ListNotesByAxisTransaction(axis: fromAxis))
-            let createdAt = try scope.run(FetchAxisCreatedAtTransaction(axis: fromAxis)) ?? now
-            
-            for (noteId, relativePath) in rows {
-                let oldPath = Paths.brainRoot.appendingPathComponent(relativePath)
-                
-                if !FileManager.default.fileExists(atPath: oldPath.path) {
-                    throw NSError(domain: "Handlers", code: 1, userInfo: [
-                        NSLocalizedDescriptionKey: "note file missing during rename_axis: \(relativePath)"
-                    ])
-                }
-                
-                var (doc, body) = try Frontmatter.parse(
-                    try String(contentsOf: oldPath, encoding: .utf8)
-                )
-                doc.axis = toAxis
-                
-                let newPath = Handlers.pathFor(axis: toAxis, nid: noteId)
-                
-                try FileManager.default.createDirectory(
-                    at: newPath.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
-                )
-                try (Frontmatter.dump(doc) + body).write(
-                    to: newPath,
-                    atomically: true,
-                    encoding: .utf8
-                )
-                try FileManager.default.removeItem(at: oldPath)
-            }
-            
-            try scope.run(CreateAxisTransaction(axis: toAxis, createdAt: createdAt))
-            
-            _ = try scope.run(SetNotesAxisTransaction(fromAxis: fromAxis, toAxis: toAxis))
-            
-            try scope.run(DeleteAxisTransaction(axis: fromAxis))
-            
-            for (noteId, _) in rows {
-                let newPath = Handlers.pathFor(axis: toAxis, nid: noteId)
-                let newRelativePath = try Notes.relativeToBrainRoot(newPath)
-                try scope.run(SetNotePathTransaction(nid: noteId, newRel: newRelativePath))
-            }
-            
-            let oldDirectory = Paths.notes.appendingPathComponent(fromAxis)
-            
-            if FileManager.default.fileExists(atPath: oldDirectory.path),
-                let contents = try? FileManager.default.contentsOfDirectory(
-                    atPath: oldDirectory.path
-                ),
-                contents.isEmpty {
-                try? FileManager.default.removeItem(at: oldDirectory)
-            }
-            
-            return [
-                "status": "ok",
-                "ids": rows.map { row in row.id },
-                "axis": toAxis,
-                "note": "renamed axis \(fromAxis) -> \(toAxis) (\(rows.count) notes)"
-            ]
-        },
-        effect: { _ in [:] },
-        touches: { op, scope in
-            let fromAxis = op["from_axis"] as! String
-            let toAxis = op["to_axis"] as! String
-            var paths: [URL] = []
-            
-            for (noteId, relativePath) in try scope.run(ListNotesByAxisTransaction(axis: fromAxis)) {
-                paths.append(Paths.brainRoot.appendingPathComponent(relativePath))
-                paths.append(Handlers.pathFor(axis: toAxis, nid: noteId))
+            for src in try scope.run(FetchCitingNoteIdsTransaction(marker: op["id"] as? String ?? "")) {
+                paths.append(Paths.file(forId: src))
             }
             
             return paths
@@ -688,11 +562,11 @@ public enum HandlersStructural {
             summary: "split a note into ≥2 children by section paths; routes the source's links/aliases/meta across new ids",
             fields: [
                 .required("from_id", role: .noteId, "source note id"),
-                .required("into", role: .childSpecs, "list (≥2) of child specs: each requires {id, axis, title, tags, summary, sections}; optional {priority, source, content_prefix}"),
+                .required("into", role: .childSpecs, "list (≥2) of child specs: each requires {id, title, tags, summary, sections}; optional {priority, source, content_prefix}"),
                 .optional("remainder", ##"{"keep": bool} — if true and remainder is non-empty, keep src note with leftover sections; default false (delete src)"##),
                 .optional("routing", ##"list resolving a split conflict — each {type:"link"|"term", <identity>, to:[child ids]}. identity: link→{kind,neighbor}, term→{term}. to=["a"] assign, ["a","b"] copy, []=drop; omitted artifacts drop. cooccur/reference are auto-handled. A source-deleting split with unrouted assoc/lineage links or active aliases returns a `conflict` listing them."##)
             ],
-            example: ###"{"op":"split_note","from_id":"big-note","into":[{"id":"child-a","axis":"persona","title":"A","tags":["persona"],"summary":"...","sections":["## A"]},{"id":"child-b","axis":"persona","title":"B","tags":["persona"],"summary":"...","sections":["## B"]}]}"###
+            example: ###"{"op":"split_note","from_id":"persona.big-note","into":[{"id":"persona.big-note.a","title":"A","tags":["persona"],"summary":"...","sections":["## A"]},{"id":"persona.big-note.b","title":"B","tags":["persona"],"summary":"...","sections":["## B"]}]}"###
         ),
         validate: { op, context, scope in
             let fromId = op["from_id"] as? String ?? ""
@@ -713,7 +587,7 @@ public enum HandlersStructural {
             for index in 0..<into.count {
                 let child = into[index]
                 
-                for field in ["id", "axis", "title", "tags", "summary", "sections"] {
+                for field in ["id", "title", "tags", "summary", "sections"] {
                     if child[field] == nil {
                         return "into[\(index)] missing/empty field: \(field)"
                     }
@@ -726,7 +600,7 @@ public enum HandlersStructural {
                 let childId = child["id"] as! String
                 let nsChildId = childId as NSString
                 
-                if Handlers.idRegex.firstMatch(
+                if Paths.idRegex.firstMatch(
                     in: childId,
                     range: NSRange(location: 0, length: nsChildId.length)
                 ) == nil {
@@ -742,10 +616,11 @@ public enum HandlersStructural {
                 
                 newIds.insert(childId)
                 
-                let axis = child["axis"] as! String
-                
-                if let rejection = Handlers.axisRejection(axis) {
-                    return "into[\(index)] \(rejection)"
+                if Paths.idRegex.firstMatch(
+                    in: childId,
+                    range: NSRange(location: 0, length: (childId as NSString).length)
+                ) == nil {
+                    return "into[\(index)] invalid id format: \(childId)"
                 }
                 
                 guard let tags = child["tags"] as? [Any], !tags.isEmpty else {
@@ -852,9 +727,8 @@ public enum HandlersStructural {
                 let (extracted, rest) = try SectionEdit.extract(remaining, paths: sectionPaths)
                 remaining = rest
                 
-                let childAxis = child["axis"] as! String
                 let childId = child["id"] as! String
-                let childPath = Handlers.pathFor(axis: childAxis, nid: childId)
+                let childPath = Paths.file(forId: childId)
                 
                 try FileManager.default.createDirectory(
                     at: childPath.deletingLastPathComponent(),
@@ -864,7 +738,6 @@ public enum HandlersStructural {
                 var childDoc = FrontmatterDoc(
                     id: childId,
                     title: child["title"] as? String ?? "",
-                    axis: childAxis,
                     priority: child["priority"] as? String ?? "lazy",
                     summary: child["summary"] as? String ?? "",
                     tags: (child["tags"] as? [Any])?.compactMap { tag in tag as? String } ?? []
@@ -1078,8 +951,8 @@ public enum HandlersStructural {
             }
             
             for child in (op["into"] as? [[String: Any]]) ?? [] {
-                if let axis = child["axis"] as? String, let childId = child["id"] as? String {
-                    paths.append(Handlers.pathFor(axis: axis, nid: childId))
+                if let childId = child["id"] as? String {
+                    paths.append(Paths.file(forId: childId))
                 }
             }
             
@@ -1236,22 +1109,6 @@ public enum HandlersStructural {
     
     // MARK: - Initializer
     // MARK: - Public
-    static func migrateDestination(
-        _ op: [String: Any],
-        _ scope: GRDBReadScope
-    ) throws -> (axis: String, id: String, path: URL) {
-        let targetId = op["id"] as? String ?? ""
-        var newAxis = op["new_axis"] as? String ?? ""
-        
-        if newAxis.isEmpty {
-            newAxis = try scope.run(FetchNoteAxisTransaction(nid: targetId)) ?? ""
-        }
-        
-        let newId = (op["new_id"] as? String) ?? targetId
-        
-        return (newAxis, newId, Handlers.pathFor(axis: newAxis, nid: newId))
-    }
-    
     static func routingKey(
         type: String,
         kind: String?,
@@ -1330,7 +1187,6 @@ public enum HandlersRegistry {
             "restore": HandlersStructural.restore,
             "delete_note": HandlersStructural.deleteNote,
             "migrate_note": HandlersStructural.migrateNote,
-            "rename_axis": HandlersStructural.renameAxis,
             "rename_tag": HandlersStructural.renameTag,
             "relocate_section": HandlersStructural.relocateSection,
             "split_note": HandlersStructural.splitNote,

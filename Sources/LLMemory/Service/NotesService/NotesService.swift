@@ -120,14 +120,14 @@ public struct NotesService: Sendable {
         }
     }
 
-    public func listAxes() async throws -> [AxisRow] {
-        try await storage.read { scope in try scope.run(FetchAxesWithCountsTransaction()) }
+    public func tree(prefix: String?) async throws -> [TreeRow] {
+        try await storage.read { scope in try scope.run(FetchTreeTransaction(prefix: prefix)) }
     }
 
     public func structure(
-        axis: String?
+        prefix: String?
     ) async throws -> StructureResult {
-        try await storage.read { scope in try structure(scope, axis: axis) }
+        try await storage.read { scope in try structure(scope, prefix: prefix) }
     }
 
     // MARK: - Internal
@@ -148,15 +148,14 @@ public struct NotesService: Sendable {
                 continue
             }
 
-            let path = Paths.brainRoot.appendingPathComponent(record.path)
+            let path = Paths.file(forId: id)
             let text = try String(contentsOf: path, encoding: .utf8)
             let (doc, body) = try Frontmatter.parse(text)
 
             found.append(
                 NoteView(
                     id: id,
-                    axis: record.axis,
-                    path: record.path,
+                    path: Paths.relative(of: path) ?? path.path,
                     frontmatter: NoteFrontmatter(doc),
                     body: body,
                     hitCount: record.hitCount,
@@ -249,16 +248,16 @@ public struct NotesService: Sendable {
         return (note, Template.parseFrame(note.body), record)
     }
 
-    func structure(_ scope: GRDBReadScope, axis: String?) throws -> StructureResult {
-        let axes = try scope.run(FetchAxesWithCountsTransaction())
+    func structure(_ scope: GRDBReadScope, prefix: String?) throws -> StructureResult {
+        let tree = try scope.run(FetchTreeTransaction(prefix: prefix))
         let distribution = try scope.run(FetchLinkDistributionTransaction())
-        var stats: AxisStats? = nil
+        var stats: PrefixStats? = nil
 
-        if let axis {
-            stats = try scope.run(AxisStatsTransaction(axis: axis))
+        if let prefix {
+            stats = try scope.run(PrefixStatsTransaction(prefix: prefix))
         }
 
-        return StructureResult(axes: axes, distribution: distribution, axisStats: stats)
+        return StructureResult(tree: tree, distribution: distribution, prefixStats: stats)
     }
 
     // MARK: - Private

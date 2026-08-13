@@ -11,8 +11,6 @@ import GRDB
 struct NoteRecord: Codable {
     enum CodingKeys: String, CodingKey {
         case id
-        case axis
-        case path
         case title
         case summary
         case priority
@@ -27,8 +25,6 @@ struct NoteRecord: Codable {
 
     // MARK: - Property
     let id: String
-    let axis: String
-    let path: String
     let title: String
     let summary: String?
     let priority: String

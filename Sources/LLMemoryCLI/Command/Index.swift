@@ -471,7 +471,7 @@ struct IndexVerifyIntegrity: AsyncParsableCommand {
                 0   schema shape (tables/columns/indexes match code)
                 1   row presence (frontmatter ↔ DB row parity)
                 2   FTS5 in sync with notes
-                3   semantic checks (axis registration, tag vocab, id format)
+                3   semantic checks (tag vocab, id format)
                 4   (no L4 checks — derived caches removed)
 
             EXIT STATUS

@@ -25,7 +25,6 @@ protocol CorpusDBLintRule: LintRuleMeta {
 struct NoteLintInput {
     // MARK: - Property
     let nid: String
-    let axisDB: String
     let doc: FrontmatterDoc
     let body: String
     let document: LintEngine.Document
@@ -59,7 +58,6 @@ enum LintRules {
     static let noteRules: [any NoteLintRule] = [
         InvalidIDRule(),
         InvalidPriorityRule(),
-        AxisMismatchRule(),
         NoTagsRule(),
         EmptySummaryRule(),
         SummaryLongRule(),
@@ -158,7 +156,7 @@ enum FamilyView {
     static func families(_ scope: GRDBReadScope) throws -> [Family] {
         let minFamily = Config.getInt("lint.fragment_min_family", default: 3)
         let graph = try scope.run(FetchFamilyGraphTransaction())
-        let allIds = Set(graph.notes.map { note in note.id })
+        let allIds = Set(graph.notes)
         var adjacency: [String: [String]] = [:]
         
         for link in graph.siblingLinks {
@@ -195,17 +193,18 @@ enum FamilyView {
         
         var grouped: [String: [String]] = [:]
         
-        for note in graph.notes {
-            let id = note.id
-            let axis = note.axis
+        // The naming-convention oracle, now scoped by the parent address:
+        // two notes only look like siblings if they sit in the same branch.
+        for id in graph.notes {
+            let labels = id.split(separator: ".").map(String.init)
             
-            guard let cut = id.lastIndex(of: "-") else { continue }
+            guard let leaf = labels.last, let cut = leaf.lastIndex(of: "-") else { continue }
             
-            let stem = String(id[id.startIndex..<cut])
+            let stem = String(leaf[leaf.startIndex..<cut])
             
             guard stem.count >= 4, stem.contains("-") else { continue }
             
-            grouped["\(axis)\u{0}\(stem)", default: []].append(id)
+            grouped["\(labels.dropLast().joined(separator: "."))\u{0}\(stem)", default: []].append(id)
         }
         
         var absorbed: [Int: Set<String>] = [:]
@@ -513,22 +512,6 @@ struct InvalidPriorityRule: NoteLintRule {
         guard !Self.valid.contains(note.doc.priority) else { return [] }
         
         return [.init("priority must be eager|lazy: '\(note.doc.priority)'")]
-    }
-    
-    // MARK: - Private
-}
-
-struct AxisMismatchRule: NoteLintRule {
-    // MARK: - Property
-    let code = "axis-mismatch"
-    let severity = LintEngine.Severity.error
-    
-    // MARK: - Initializer
-    // MARK: - Public
-    func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintEngine.Finding] {
-        guard note.doc.axis != note.axisDB else { return [] }
-        
-        return [.init("axis mismatch (file='\(note.doc.axis)', db='\(note.axisDB)')")]
     }
     
     // MARK: - Private

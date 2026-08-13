@@ -18,7 +18,6 @@ struct CatalogNote: Sendable {
     // MARK: - Property
     let id: String
     let path: String
-    let axis: String
     let title: String
     let summary: String?
     let priority: String
@@ -33,7 +32,7 @@ struct CatalogNote: Sendable {
 
 public struct NoteListRow: Encodable, Sendable {
     enum CodingKeys: String, CodingKey {
-        case id, axis, title, summary, priority, stale
+        case id, title, summary, priority, stale
         case sourceStale = "source_stale"
         case createdAt = "created_at"
         case editedAt = "edited_at"
@@ -41,7 +40,6 @@ public struct NoteListRow: Encodable, Sendable {
 
     // MARK: - Property
     public let id: String
-    public let axis: String
     public let title: String
     public let summary: String?
     public let priority: String
@@ -132,7 +130,7 @@ public struct NoteFrontmatter: Encodable, Sendable {
 
 public struct NoteView: Sendable {
     // MARK: - Property
-    public let id, axis, path: String
+    public let id, path: String
     public let frontmatter: NoteFrontmatter
     public let body: String
     public let hitCount, createdAt, editedAt: Int
@@ -181,9 +179,9 @@ public struct BudgetCut: Sendable {
 
 public struct StructureResult: Sendable {
     // MARK: - Property
-    public let axes: [AxisRow]
+    public let tree: [TreeRow]
     public let distribution: LinkDistribution
-    public let axisStats: AxisStats?
+    public let prefixStats: PrefixStats?
 
     // MARK: - Initializer
     // MARK: - Public
@@ -205,7 +203,7 @@ struct FetchNoteCatalogTransaction: GRDBReadTransaction {
 
         let placeholders = ids.map { _ in "?" }.joined(separator: ",")
         let rows = try Row.fetchAll(db, sql: """
-            SELECT n.id, n.path, n.axis, n.title, n.summary, n.priority,
+            SELECT n.id, n.title, n.summary, n.priority,
                    COALESCE(u.hit_count, 0) AS hit_count,
                    COALESCE(u.created_at, 0) AS created_at, n.edited_at
             FROM notes n LEFT JOIN note_usage u ON u.note_id = n.id
@@ -216,8 +214,7 @@ struct FetchNoteCatalogTransaction: GRDBReadTransaction {
         for row in rows {
             catalog[row["id"] as String] = CatalogNote(
                 id: row["id"],
-                path: row["path"],
-                axis: row["axis"],
+                path: Paths.relativeFile(forId: row["id"] as String),
                 title: row["title"],
                 summary: row["summary"] as String?,
                 priority: row["priority"],
@@ -277,13 +274,13 @@ struct ListNoteRowsTransaction: GRDBReadTransaction {
         if filter.sourceStale { clauses.append("s.source_stale = 1") }
 
         var sql = """
-            SELECT n.id, n.axis, n.title, n.summary, n.priority, n.stale,
+            SELECT n.id, n.title, n.summary, n.priority, n.stale,
                    COALESCE(s.source_stale, 0) AS source_stale,
                    COALESCE(u.created_at, 0) AS created_at, n.edited_at
             FROM notes n LEFT JOIN note_source s ON s.note_id = n.id
                          LEFT JOIN note_usage u ON u.note_id = n.id
             \(clauses.isEmpty ? "" : "WHERE \(clauses.joined(separator: " AND "))")
-            ORDER BY n.axis, n.id
+            ORDER BY n.id
             """
 
         if let limit = filter.limit { sql += " LIMIT \(limit)" }
@@ -292,7 +289,6 @@ struct ListNoteRowsTransaction: GRDBReadTransaction {
             .map { row in
                 NoteListRow(
                     id: row["id"],
-                    axis: row["axis"],
                     title: row["title"],
                     summary: row["summary"] as String?,
                     priority: row["priority"],
@@ -325,14 +321,14 @@ struct LookupEntitiesTransaction: GRDBReadTransaction {
 
         if let name {
             sql = """
-                SELECT ei.entity, ei.note_id, n.axis, n.title, n.summary, ei.last_seen_at, ei.hit_count
+                SELECT ei.entity, ei.note_id, n.title, n.summary, ei.last_seen_at, ei.hit_count
                 FROM entity_index ei LEFT JOIN notes n ON n.id = ei.note_id
                 WHERE ei.entity = ? ORDER BY ei.last_seen_at DESC, ei.note_id ASC LIMIT ?
                 """
             arguments = [name, limit]
         } else {
             sql = """
-                SELECT ei.entity, ei.note_id, n.axis, n.title, n.summary, ei.last_seen_at, ei.hit_count
+                SELECT ei.entity, ei.note_id, n.title, n.summary, ei.last_seen_at, ei.hit_count
                 FROM entity_index ei LEFT JOIN notes n ON n.id = ei.note_id
                 ORDER BY ei.last_seen_at DESC, ei.entity ASC, ei.note_id ASC LIMIT ?
                 """
@@ -344,7 +340,6 @@ struct LookupEntitiesTransaction: GRDBReadTransaction {
                 EntityHit(
                     entity: row["entity"],
                     noteId: row["note_id"],
-                    axis: row["axis"] as String?,
                     lastSeenAt: row["last_seen_at"] as Int? ?? 0,
                     hitCount: row["hit_count"] as Int? ?? 0,
                     title: row["title"] as String?,

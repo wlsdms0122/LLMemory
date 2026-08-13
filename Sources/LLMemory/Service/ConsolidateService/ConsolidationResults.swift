@@ -9,42 +9,6 @@ import Foundation
 
 // Consolidation result shapes — reports and summaries the consolidate
 // service returns, flat top-level models like the other service results.
-// The canonical axis report rows — encoded as compact arrays
-// ([axis, count]), shared by every reporting surface.
-public struct AxisRow: Encodable, Sendable {
-    // MARK: - Property
-    public let axis: String
-    public let count: Int
-
-    // MARK: - Initializer
-    // MARK: - Public
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-
-        try container.encode(axis)
-        try container.encode(count)
-    }
-
-    // MARK: - Private
-}
-
-public struct AxisCount: Encodable, Sendable {
-    // MARK: - Property
-    public let axis: String
-    public let count: Int
-
-    // MARK: - Initializer
-    // MARK: - Public
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-
-        try container.encode(axis)
-        try container.encode(count)
-    }
-
-    // MARK: - Private
-}
-
 public struct TagCount: Encodable, Sendable {
     // MARK: - Property
     public let tag: String
@@ -62,17 +26,6 @@ public struct TagCount: Encodable, Sendable {
     // MARK: - Private
 }
 
-public struct ConsolidateAxisReport: Encodable, Sendable {
-    // MARK: - Property
-    public let all: [AxisRow]
-    public let small: [AxisCount]
-    public let large: [AxisCount]
-
-    // MARK: - Initializer
-    // MARK: - Public
-    // MARK: - Private
-}
-
 public struct ConsolidateTagReport: Encodable, Sendable {
     // MARK: - Property
     public let rare: [TagCount]
@@ -86,7 +39,6 @@ public struct ConsolidateTagReport: Encodable, Sendable {
 public struct IntegrateResult: Encodable, Sendable {
     public enum CodingKeys: String, CodingKey {
         case summary
-        case axisReport = "axis_report"
         case tagReport = "tag_report"
         case prune
         case integrityL1 = "integrity_l1"
@@ -95,11 +47,8 @@ public struct IntegrateResult: Encodable, Sendable {
     public struct Summary: Encodable, Sendable {
         public enum CodingKeys: String, CodingKey {
             case eventsCompacted = "events_compacted"
-            case smallAxes = "small_axes"
-            case largeAxes = "large_axes"
             case rareTags = "rare_tags"
             case unusedVocabTags = "unused_vocab_tags"
-            case emptyAxesPruned = "empty_axes_pruned"
             case unusedVocabPruned = "unused_vocab_pruned"
             case resolvedRipplePruned = "resolved_ripple_pruned"
             case ftsOrphansPruned = "fts_orphans_pruned"
@@ -122,11 +71,8 @@ public struct IntegrateResult: Encodable, Sendable {
 
         // MARK: - Property
         public let eventsCompacted: Int
-        public let smallAxes: Int
-        public let largeAxes: Int
         public let rareTags: Int
         public let unusedVocabTags: Int
-        public let emptyAxesPruned: Int
         public let unusedVocabPruned: Int
         public let resolvedRipplePruned: Int
         public let ftsOrphansPruned: Int
@@ -155,7 +101,6 @@ public struct IntegrateResult: Encodable, Sendable {
 
     public struct PruneReport: Encodable, Sendable {
         public enum CodingKeys: String, CodingKey {
-            case axes
             case tagVocab = "tag_vocab"
         }
 
@@ -170,7 +115,6 @@ public struct IntegrateResult: Encodable, Sendable {
         }
 
         // MARK: - Property
-        public let axes: GroupReport
         public let tagVocab: GroupReport
 
         // MARK: - Initializer
@@ -190,7 +134,6 @@ public struct IntegrateResult: Encodable, Sendable {
 
     // MARK: - Property
     public var summary: Summary
-    public let axisReport: ConsolidateAxisReport
     public let tagReport: ConsolidateTagReport
     public let prune: PruneReport
     public var integrityL1: IntegrityReport

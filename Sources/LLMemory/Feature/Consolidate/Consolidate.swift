@@ -28,7 +28,7 @@ public struct Consolidate {
         try await service.prune()
     }
 
-    public func report() async throws -> (axis: ConsolidateAxisReport, tag: ConsolidateTagReport) {
+    public func report() async throws -> ConsolidateTagReport {
         try await service.report()
     }
 

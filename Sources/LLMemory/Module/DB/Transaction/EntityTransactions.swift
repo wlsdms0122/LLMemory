@@ -14,7 +14,6 @@ public struct EntityHit: Sendable {
     // MARK: - Property
     public let entity: String
     public let noteId: String
-    public let axis: String?
     public let lastSeenAt: Int
     public let hitCount: Int
     public let title: String?
@@ -104,7 +103,7 @@ struct FetchEntityHitsTransaction: GRDBReadTransaction {
 
         for entity in entities where !entity.isEmpty {
             var sql = """
-                SELECT ei.note_id, n.axis, ei.last_seen_at, ei.hit_count, n.title, n.summary
+                SELECT ei.note_id, ei.last_seen_at, ei.hit_count, n.title, n.summary
                 FROM entity_index ei
                 JOIN notes n ON n.id = ei.note_id
                 WHERE ei.entity = ?
@@ -119,7 +118,6 @@ struct FetchEntityHitsTransaction: GRDBReadTransaction {
                     EntityHit(
                         entity: entity,
                         noteId: row["note_id"],
-                        axis: row["axis"] as String?,
                         lastSeenAt: row["last_seen_at"] as Int? ?? 0,
                         hitCount: row["hit_count"] as Int? ?? 0,
                         title: row["title"] as String?,

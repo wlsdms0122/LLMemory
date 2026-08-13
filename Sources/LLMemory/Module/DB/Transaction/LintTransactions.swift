@@ -41,16 +41,8 @@ struct FetchNoteLintHeaderTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> (path: String, axis: String)? {
-        guard let row = try Row.fetchOne(
-            db,
-            sql: "SELECT path, axis FROM notes WHERE id = ?",
-            arguments: [nid]
-        ) else {
-            return nil
-        }
-
-        return (row["path"] as String, row["axis"] as String)
+    func perform(_ db: Database) throws -> Bool {
+        try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id = ?", arguments: [nid]) != nil
     }
 
     // MARK: - Private
@@ -161,9 +153,8 @@ struct FetchFamilyGraphTransaction: GRDBReadTransaction {
     init() { }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> (notes: [(id: String, axis: String)], siblingLinks: [(src: String, dst: String)]) {
-        let notes = try Row.fetchAll(db, sql: "SELECT id, axis FROM notes")
-            .map { row in (id: row["id"] as String, axis: row["axis"] as String) }
+    func perform(_ db: Database) throws -> (notes: [String], siblingLinks: [(src: String, dst: String)]) {
+        let notes = try String.fetchAll(db, sql: "SELECT id FROM notes")
         let links = try Row.fetchAll(
             db,
             sql: "SELECT src, dst FROM note_links WHERE kind = ?",

@@ -8,31 +8,7 @@
 import Foundation
 import GRDB
 
-// Vocabulary transactions — axes, tag vocab, and tag aliases.
-struct EnsureAxisTransaction: GRDBTransaction {
-    // MARK: - Property
-    let axis: String
-    let now: Int?
-
-    // MARK: - Initializer
-    init(axis: String, now: Int? = nil) {
-        self.axis = axis
-        self.now = now
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws {
-        let timestamp = now ?? Int(Date().timeIntervalSince1970)
-
-        try db.execute(
-            sql: "INSERT OR IGNORE INTO axes (axis, created_at) VALUES (?, ?)",
-            arguments: [axis, timestamp]
-        )
-    }
-
-    // MARK: - Private
-}
-
+// Vocabulary transactions — tag vocab and tag aliases.
 struct EnsureTagTransaction: GRDBTransaction {
     // MARK: - Property
     let tag: String
@@ -75,112 +51,6 @@ struct CanonicalizeTagTransaction: GRDBReadTransaction {
         )
 
         return canonical ?? tag
-    }
-
-    // MARK: - Private
-}
-
-struct AxisExistsTransaction: GRDBReadTransaction {
-    // MARK: - Property
-    let axis: String
-
-    // MARK: - Initializer
-    init(axis: String) {
-        self.axis = axis
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> Bool {
-        try Int.fetchOne(db, sql: "SELECT 1 FROM axes WHERE axis = ?", arguments: [axis]) != nil
-    }
-
-    // MARK: - Private
-}
-
-struct FetchAxisCreatedAtTransaction: GRDBReadTransaction {
-    // MARK: - Property
-    let axis: String
-
-    // MARK: - Initializer
-    init(axis: String) {
-        self.axis = axis
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> Int? {
-        try Int.fetchOne(
-            db,
-            sql: "SELECT created_at FROM axes WHERE axis = ?",
-            arguments: [axis]
-        )
-    }
-
-    // MARK: - Private
-}
-
-struct CreateAxisTransaction: GRDBTransaction {
-    // MARK: - Property
-    let axis: String
-    let createdAt: Int
-
-    // MARK: - Initializer
-    init(axis: String, createdAt: Int) {
-        self.axis = axis
-        self.createdAt = createdAt
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws {
-        try db.execute(
-            sql: "INSERT INTO axes (axis, created_at) VALUES (?, ?)",
-            arguments: [axis, createdAt]
-        )
-    }
-
-    // MARK: - Private
-}
-
-struct DeleteAxisTransaction: GRDBTransaction {
-    // MARK: - Property
-    let axis: String
-
-    // MARK: - Initializer
-    init(axis: String) {
-        self.axis = axis
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws {
-        try db.execute(sql: "DELETE FROM axes WHERE axis = ?", arguments: [axis])
-    }
-
-    // MARK: - Private
-}
-
-struct PruneEmptyAxesTransaction: GRDBTransaction {
-    // MARK: - Property
-    let protected: Set<String>
-
-    // MARK: - Initializer
-    init(protected: Set<String> = []) {
-        self.protected = protected
-    }
-
-    // MARK: - Public
-    func perform(_ db: Database) throws -> [String] {
-        let rows = try String.fetchAll(db, sql: """
-            SELECT a.axis FROM axes a
-            LEFT JOIN notes n ON n.axis = a.axis
-            GROUP BY a.axis
-            HAVING COUNT(n.id) = 0
-            """)
-        let pruned = rows.filter { axis in !protected.contains(axis) }
-
-        for axis in pruned {
-            try db.execute(sql: "DELETE FROM axes WHERE axis = ?", arguments: [axis])
-        }
-
-        return pruned
     }
 
     // MARK: - Private
@@ -409,7 +279,7 @@ struct FetchPathsWithTagTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [String] {
         try String.fetchAll(db, sql: """
-            SELECT DISTINCT n.path FROM notes n JOIN tags t ON t.note_id = n.id WHERE t.tag = ?
+            SELECT DISTINCT n.id FROM notes n JOIN tags t ON t.note_id = n.id WHERE t.tag = ?
             """, arguments: [tag])
     }
 

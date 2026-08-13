@@ -12,8 +12,7 @@ public enum HandlersBasic {
     static let createNoteSchema = OperationSchema(
         summary: "create a new note (file + DB row)",
         fields: [
-            .required("axis", "axis name — the cortex/ directory the file lands in"),
-            .required("id", role: .noteId, "lowercase + [a-z0-9-], unique across active notes"),
+            .required("id", role: .noteId, "the note's address — dot-joined lowercase labels ([a-z0-9-]); `a.b.c` puts the file at cortex/a/b/c.md. unique across active notes"),
             .required("title", "human-readable note title"),
             .required("tags", "non-empty string list — how the note is classified"),
             .required("summary", "one-line summary used by retrieval"),
@@ -25,7 +24,7 @@ public enum HandlersBasic {
             .optional("locked", "bool. true → human-only: subsequent operations mutation is refused, file is edited directly"),
             .optional("rationale", "lifecycle event reason recorded on creation")
         ],
-        example: ##"{"op":"create_note","axis":"persona","id":"my-note","title":"...","tags":["persona"],"summary":"...","content":"# body"}"##
+        example: ##"{"op":"create_note","id":"persona.my-note","title":"...","tags":["persona"],"summary":"...","content":"# body"}"##
     )
     
     public static let createNote = OperationHandler(
@@ -47,7 +46,7 @@ public enum HandlersBasic {
             let noteId = op["id"] as? String ?? ""
             let nsNoteId = noteId as NSString
             
-            if Handlers.idRegex.firstMatch(
+            if Paths.idRegex.firstMatch(
                 in: noteId,
                 range: NSRange(location: 0, length: nsNoteId.length)
             ) == nil {
@@ -58,9 +57,7 @@ public enum HandlersBasic {
                 return "tags must be non-empty list"
             }
             
-            guard let axis = op["axis"] as? String else { return "axis required" }
-            
-            let priority = op["priority"] as? String ?? "lazy"
+                        let priority = op["priority"] as? String ?? "lazy"
             
             if !Handlers.validPriority.contains(priority) { return "invalid priority: \(priority)" }
             
@@ -82,9 +79,7 @@ public enum HandlersBasic {
                 return "id collision: \(noteId) (use patch_section to update)"
             }
             
-            if let rejection = Handlers.axisRejection(axis) { return rejection }
-            
-            let path = Handlers.pathFor(axis: axis, nid: noteId)
+            let path = Paths.file(forId: noteId)
             
             if FileManager.default.fileExists(atPath: path.path) {
                 let relativePath = Paths.relative(of: path) ?? path.path
@@ -96,9 +91,8 @@ public enum HandlersBasic {
         },
         write: { op, context, scope in
             let now = context.now
-            let axis = op["axis"] as! String
             let noteId = op["id"] as! String
-            let path = Handlers.pathFor(axis: axis, nid: noteId)
+            let path = Paths.file(forId: noteId)
             
             try FileManager.default.createDirectory(
                 at: path.deletingLastPathComponent(),
@@ -109,7 +103,6 @@ public enum HandlersBasic {
             var doc = FrontmatterDoc(
                 id: noteId,
                 title: op["title"] as? String ?? "",
-                axis: axis,
                 priority: op["priority"] as? String ?? "lazy",
                 summary: op["summary"] as? String ?? "",
                 tags: (op["tags"] as? [Any])?.compactMap { tag in tag as? String } ?? []
@@ -146,14 +139,14 @@ public enum HandlersBasic {
                 "status": "ok",
                 "path": path.path,
                 "ids": [noteId],
-                "note": "created in axis \(axis)"
+                "note": "created at \(Paths.relativeFile(forId: noteId))"
             ]
         },
         effect: { op in
             ["creates": [op["id"] as? String ?? ""]]
         },
         touches: { op, _ in
-            [Handlers.pathFor(axis: op["axis"] as? String ?? "", nid: op["id"] as? String ?? "")]
+            [Paths.file(forId: op["id"] as? String ?? "")]
         }
     )
     
@@ -289,7 +282,7 @@ public enum HandlersBasic {
             summary: "merge frontmatter fields (any field the note owns)",
             fields: [
                 .required("id", role: .noteId, "target note id"),
-                .required("fields", "non-empty dict. Known: title|summary|tags|priority|source|promoted_from|entities. Any other key is a custom field (scalar value, projected to note_extra); null removes it. Rejected: id/axis/template/locked/stale/invalidated_*/trashed_* — each has its own op")
+                .required("fields", "non-empty dict. Known: title|summary|tags|priority|source|promoted_from|entities. Any other key is a custom field (scalar value, projected to note_extra); null removes it. Rejected: id/template/locked/stale/invalidated_*/trashed_* — each has its own op")
             ],
             example: ##"{"op":"set_frontmatter","id":"my-note","fields":{"summary":"updated summary","affect":"high"}}"##
         ),

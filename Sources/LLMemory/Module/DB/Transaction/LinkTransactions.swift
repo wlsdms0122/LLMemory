@@ -14,7 +14,7 @@ public struct LinkDistribution: Sendable {
     // MARK: - Property
     public let byKind: [(kind: String, count: Int, min: Double, avg: Double, max: Double)]
     public let weightBuckets: [String: Int]
-    public let topDegree: [(id: String, axis: String, title: String, degree: Int)]
+    public let topDegree: [(id: String, title: String, degree: Int)]
 
     // MARK: - Initializer
     // MARK: - Public
@@ -24,7 +24,6 @@ public struct LinkDistribution: Sendable {
 public struct ExpandedNote: Sendable {
     // MARK: - Property
     public let id: String
-    public let axis: String
     public let title: String
     public let summary: String?
     public let path: String
@@ -53,7 +52,6 @@ struct LinkEdge {
 struct LinkNeighbor {
     // MARK: - Property
     let id: String
-    let axis: String
     let title: String
     let summary: String?
     let path: String
@@ -232,7 +230,7 @@ struct FetchLinkDistributionTransaction: GRDBReadTransaction {
             "[0.9- ]": bucketRow?["w_ge_09"] as Int? ?? 0
         ]
         let topRows = try Row.fetchAll(db, sql: """
-            SELECT n.id, n.axis, n.title, COUNT(*) AS deg
+            SELECT n.id, n.title, COUNT(*) AS deg
             FROM note_links l
             JOIN notes n ON n.id IN (l.src, l.dst)
             GROUP BY n.id ORDER BY deg DESC, n.id LIMIT 5
@@ -240,7 +238,6 @@ struct FetchLinkDistributionTransaction: GRDBReadTransaction {
         let topDegree = topRows.map { row in
             (
                 id: row["id"] as String,
-                axis: row["axis"] as String,
                 title: row["title"] as String,
                 degree: row["deg"] as Int
             )
@@ -566,7 +563,7 @@ struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
     func perform(_ db: Database) throws -> [LinkNeighbor] {
         let floor = minWeight ?? Genes.double("links.neighbor_floor")
         var sql = """
-            SELECT n.id, n.axis, n.title, n.summary, n.path, l.kind, l.weight,
+            SELECT n.id, n.title, n.summary, l.kind, l.weight,
                    \(Links.rankWeightSQL("l")) AS rank_w
             FROM note_links l
             JOIN notes n ON n.id = CASE WHEN l.src = ? THEN l.dst ELSE l.src END
@@ -588,10 +585,9 @@ struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
         return rows.map { row in
             LinkNeighbor(
                 id: row["id"],
-                axis: row["axis"],
                 title: row["title"],
                 summary: row["summary"] as String?,
-                path: row["path"],
+                path: Paths.relativeFile(forId: row["id"] as String),
                 kind: row["kind"],
                 weight: row["weight"]
             )
@@ -640,7 +636,7 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
             let placeholders = Array(repeating: "?", count: frontierIds.count)
                 .joined(separator: ",")
             var sql = """
-                SELECT n.id, n.axis, n.title, n.summary, n.path, l.weight,
+                SELECT n.id, n.title, n.summary, l.weight,
                        \(Links.rankWeightSQL("l")) AS rank_w
                 FROM note_links l
                 JOIN notes n ON n.id = CASE WHEN l.src IN (\(placeholders)) THEN l.dst ELSE l.src END
@@ -674,10 +670,9 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
                     seen[noteId] = (
                         ExpandedNote(
                             id: noteId,
-                            axis: row["axis"],
                             title: row["title"],
                             summary: row["summary"] as String?,
-                            path: row["path"],
+                            path: Paths.relativeFile(forId: row["id"] as String),
                             weight: row["weight"],
                             rankWeight: rankWeight
                         ),

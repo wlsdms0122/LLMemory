@@ -33,19 +33,12 @@ CREATE TABLE IF NOT EXISTS tag_aliases (
 CREATE INDEX IF NOT EXISTS idx_tag_aliases_canonical ON tag_aliases(canonical);
 
 -- ─────────────────────────────────────────────────────────
--- 분류 체계 (axes) — 라벨일 뿐. memory core 는 axis 이름으로 분기하지 않는다.
--- 새 axis 는 capture 가 자유 추가.
--- ─────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS axes (
-  axis TEXT PRIMARY KEY,
-  created_at INTEGER NOT NULL
-);
-
--- ─────────────────────────────────────────────────────────
 -- notes — *모든* 노트의 공통 정체성·위치·lifecycle 헤드.
 -- 도메인 별 확장 메타는 frontmatter 가 SSoT.
--- axis 는 axes(axis) 에 FK — auto-create 는 코드 (vocab.ensure_axis) 가
--- INSERT 전에 호출.
+--
+-- 위치 컬럼은 없다. id 가 곧 주소이고(`a.b.c` ↔ `cortex/a/b/c.md`) 경로는 그
+-- 순수 함수라, 저장하면 자기 자신과 어긋날 수 있는 값이 하나 생길 뿐이다.
+-- 계층을 세는 표면(query tree)도 id 접두사를 세지 별도 테이블을 읽지 않는다.
 --
 -- 활성/비활성 라벨은 없다. 차가운 지식을 숨기는 층(archived)도 없다 — 차갑다는 것은
 -- 인출 비용을 만들지 않으므로 감출 이유가 없고, 비대한 지식은 감추는 게 아니라 분화한다
@@ -56,8 +49,6 @@ CREATE TABLE IF NOT EXISTS axes (
 -- brain-state(사용/활성/소스drift)는 아래 별도 테이블로 — NoteArtifacts 가 균일 보존.
 CREATE TABLE IF NOT EXISTS notes (
   id TEXT PRIMARY KEY,
-  axis TEXT NOT NULL REFERENCES axes(axis) ON DELETE RESTRICT,
-  path TEXT NOT NULL UNIQUE,
   title TEXT NOT NULL,
   summary TEXT,
   priority TEXT NOT NULL DEFAULT 'lazy' CHECK (priority IN ('eager','lazy')),
@@ -93,7 +84,6 @@ CREATE TABLE IF NOT EXISTS note_source (
   source_stale INTEGER NOT NULL DEFAULT 0 CHECK (source_stale IN (0,1)),
   decl_hash TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_notes_axis ON notes(axis);
 CREATE INDEX IF NOT EXISTS idx_notes_priority ON notes(priority);
 CREATE INDEX IF NOT EXISTS idx_notes_stale ON notes(stale);
 CREATE INDEX IF NOT EXISTS idx_notes_template ON notes(template);
@@ -281,7 +271,6 @@ CREATE INDEX IF NOT EXISTS idx_ripple_flags_unresolved ON ripple_flags(flag, res
 
 -- ─────────────────────────────────────────────────────────
 -- entity_index — entity → note 역인덱스 (cue-driven recall).
--- axis 는 notes.axis 가 SSoT — 여기 별도 보관 안 함 (LEFT JOIN 으로 가져옴).
 -- ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS entity_index (
   entity TEXT NOT NULL,
