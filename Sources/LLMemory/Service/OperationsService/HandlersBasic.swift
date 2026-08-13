@@ -146,7 +146,7 @@ public enum HandlersBasic {
             ["creates": [op["id"] as? String ?? ""]]
         },
         touches: { op, _ in
-            [Paths.file(forId: op["id"] as? String ?? "")]
+            (op["id"] as? String).map { id in [Paths.file(forId: id)] } ?? []
         }
     )
     

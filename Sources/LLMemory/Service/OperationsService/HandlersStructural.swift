@@ -282,11 +282,13 @@ public enum HandlersStructural {
                 paths.append(src)
             }
             
-            let newId = (op["new_id"] as? String) ?? (op["id"] as? String ?? "")
+            guard let targetId = op["id"] as? String else { return paths }
             
-            paths.append(Paths.file(forId: newId))
+            paths.append(Paths.file(forId: (op["new_id"] as? String) ?? targetId))
             
-            for src in try scope.run(FetchCitingNoteIdsTransaction(marker: op["id"] as? String ?? "")) {
+            // The notes that cite this id are rewritten by the write, so they
+            // belong in the snapshot — a rollback has to put them back.
+            for src in try scope.run(FetchCitingNoteIdsTransaction(marker: targetId)) {
                 paths.append(Paths.file(forId: src))
             }
             

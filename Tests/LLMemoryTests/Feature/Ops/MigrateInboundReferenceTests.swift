@@ -61,6 +61,32 @@ struct MigrateInboundReferenceTests {
         #expect(!body.contains("target-note"), "no spelling of the old id may survive")
     }
     
+    @Test("a rolled-back transaction puts the rewritten citations back too")
+    func rolledBackMigrateRestoresCitingFiles() throws {
+        // Given
+        try home.reindexFile(at: try home.writeNoteFile(id: "roll-target", body: "# body"))
+        try home.reindexFile(at: try home.writeNoteFile(
+            id: "roll-citer",
+            body: "see [[roll-target]] for context"
+        ))
+        
+        let citer = home.url.appendingPathComponent(Paths.relativeFile(forId: "roll-citer"))
+        let before = try String(contentsOf: citer, encoding: .utf8)
+        
+        // When — the migrate succeeds, then a second op fails the transaction.
+        // The citing file is not the op's own target, so only `touches` naming it
+        // keeps it in the snapshot.
+        let result = home.apply([
+            ["op": "migrate_note", "id": "roll-target", "new_id": "flow.roll-target"],
+            ["op": "migrate_note", "id": "no-such-note", "new_id": "flow.nope"]
+        ])
+        
+        // Then
+        #expect(result.status != "ok")
+        #expect(try String(contentsOf: citer, encoding: .utf8) == before,
+            "the citation stayed rewritten although the transaction rolled back")
+    }
+    
     @Test("a note nobody cites is re-addressed without touching any other file")
     func migrateWithoutCitationsTouchesNothingElse() throws {
         // Given
