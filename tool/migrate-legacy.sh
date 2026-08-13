@@ -1,9 +1,10 @@
 #!/bin/bash
 # Migrate a legacy v1 brain DB to the current v1 schema.
 #
-# The current v1 dropped ruleset/rule/note_meta, notes.file_mtime/indexed_at,
-# note_source.source_checked_at and five write-only meta stamps. `llmemory update`
-# refuses a diverged legacy DB (schema-shape gate), so the move is done here:
+# The current v1 dropped ruleset/rule/note_meta, axes.description,
+# notes.file_mtime/indexed_at, note_source.source_checked_at and five
+# write-only meta stamps. `llmemory update` refuses a diverged legacy DB
+# (schema-shape gate), so the move is done here:
 # a fresh canonical DB is created by `llmemory init` (markdown reprojection),
 # then every non-projection table — the semantic layer and history that exist
 # only in the DB — is carried over from the old file.
@@ -22,6 +23,82 @@ LEGACY="$ROOT/data/memory.legacy-$STAMP.db"
 
 [ -f "$DB" ] || { echo "no DB at $DB" >&2; exit 1; }
 command -v sqlite3 >/dev/null || { echo "sqlite3 required" >&2; exit 1; }
+
+# 0. Precheck, on the live DB, before anything is moved or created. Step 4 runs
+#    `sqlite3 -bail` inside one transaction: a table or column this script reads
+#    but the legacy DB lacks aborts it *late*, mid-carry-over, with the DB already
+#    set aside. Names are cheap to compare up front — so compare them all and
+#    report every miss at once, rather than discovering them one abort at a time.
+python3 - "$DB" <<'PY'
+import os, sqlite3, sys
+
+REQUIRED = {
+    "tag_vocab": "tag created_at",
+    "tag_aliases": "alias canonical created_at",
+    "axes": "axis created_at",
+    "note_usage": "note_id hit_count last_retrieved_at created_at",
+    "note_source": "note_id source_hash source_stale decl_hash",
+    "note_lifecycle_events": "id note_id kind reason created_at",
+    "note_links": "src dst kind weight created_at last_activated_at provenance",
+    "note_retrieval_terms": "note_id kind term status provenance reject_reason created_at validated_at",
+    "entity_index": "entity note_id last_seen_at hit_count",
+    "ripple_flags": "note_id flag reason created_at last_flagged_at flag_count resolved_at",
+    "candidate_dismissals": "note_id kind dismiss_count word_count section_count generation reason last_dismissed_at",
+    "corpus_dismissals": "target_key kind dismiss_count generation reason last_dismissed_at",
+    "events": "id ts kind session_id payload",
+    "activity_windows": "id started_at ended_at label query_count",
+    "retrieval_hits": "id window_id note_id surfaced_at cmd surface_kind used_signal used_at",
+    "genome": "gene_id value updated_at",
+    "genome_events": "id gene_id old_value new_value cause detail ts",
+    "meta": "key value",
+}
+
+db = sqlite3.connect(sys.argv[1])
+present = {row[0] for row in db.execute(
+    "SELECT name FROM sqlite_master WHERE type = 'table'")}
+missing = []
+
+for table, columns in REQUIRED.items():
+    if table not in present:
+        missing.append(f"  table {table} — missing entirely")
+        continue
+
+    have = {row[1] for row in db.execute(f"PRAGMA table_info({table})")}
+    absent = [column for column in columns.split() if column not in have]
+
+    if absent:
+        missing.append(f"  table {table} — missing column(s): {', '.join(absent)}")
+
+if missing:
+    print("this DB cannot be carried over as-is:", file=sys.stderr)
+    print("\n".join(missing), file=sys.stderr)
+    print("\nnothing was touched. The carry-over reads these columns by name;\n"
+          "reconcile the shape (or trim the script) before rerunning.", file=sys.stderr)
+    sys.exit(1)
+
+# note_meta retired with no successor table — its rows would vanish silently.
+# Domain metadata now lives in frontmatter, which the reprojection reads, so the
+# values have to move to the files *before* this runs.
+if "note_meta" in present:
+    rows = list(db.execute(
+        "SELECT note_id, namespace, key, value FROM note_meta ORDER BY note_id, namespace, key"))
+
+    if rows and not os.environ.get("ALLOW_NOTE_META_LOSS"):
+        print(f"note_meta still holds {len(rows)} row(s), and this migration drops the table.",
+              file=sys.stderr)
+        print("Move them into frontmatter first — one op per row:\n", file=sys.stderr)
+
+        for note_id, namespace, key, value in rows:
+            print(f'  {{"op":"set_frontmatter","id":"{note_id}",'
+                  f'"fields":{{"{key}":"{value}"}}}}   # namespace={namespace}',
+                  file=sys.stderr)
+
+        print("\nnothing was touched. Rerun once note_meta is empty, or set\n"
+              "ALLOW_NOTE_META_LOSS=1 to discard these values on purpose.", file=sys.stderr)
+        sys.exit(1)
+
+db.close()
+PY
 
 # 1+2. Under llmemory's own write lock (data/.write.lock, flock — taken via
 #    python/fcntl since macOS ships no flock(1)): checkpoint the WAL into the
@@ -74,11 +151,12 @@ UPDATE tag_vocab SET created_at = (
 INSERT OR REPLACE INTO tag_aliases (alias, canonical, created_at)
   SELECT alias, canonical, created_at FROM old.tag_aliases;
 
--- axes: reprojection creates bare rows — restore descriptions and empty axes
-INSERT OR IGNORE INTO axes (axis, description, created_at)
-  SELECT axis, description, created_at FROM old.axes;
-UPDATE axes SET description = (
-  SELECT description FROM old.axes WHERE old.axes.axis = axes.axis
+-- axes: reprojection creates rows only for axes that still hold notes —
+-- carry the empty ones and every original created_at over
+INSERT OR IGNORE INTO axes (axis, created_at)
+  SELECT axis, created_at FROM old.axes;
+UPDATE axes SET created_at = (
+  SELECT created_at FROM old.axes WHERE old.axes.axis = axes.axis
 ) WHERE axis IN (SELECT axis FROM old.axes);
 
 -- engram dynamics
