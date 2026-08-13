@@ -148,13 +148,9 @@ struct FetchTagUsageTransaction: GRDBReadTransaction {
     init() { }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> (counts: [(tag: String, c: Int)], axes: Set<String>) {
-        let rows = try Row.fetchAll(db, sql: "SELECT tag, COUNT(*) c FROM tags GROUP BY tag")
-        let counts: [(tag: String, c: Int)] = rows.map { row in
-            (row["tag"], row["c"] as Int? ?? 0)
-        }
-
-        return (counts, Set(try String.fetchAll(db, sql: "SELECT axis FROM axes")))
+    func perform(_ db: Database) throws -> [(tag: String, c: Int)] {
+        try Row.fetchAll(db, sql: "SELECT tag, COUNT(*) c FROM tags GROUP BY tag")
+            .map { row in (row["tag"], row["c"] as Int? ?? 0) }
     }
 
     // MARK: - Private

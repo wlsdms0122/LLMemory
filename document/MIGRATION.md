@@ -24,6 +24,10 @@ split routing 의 `type:"meta"` 가 함께 사라졌다.
 바뀌었다 — 분류는 태그가 하고 axis 는 파일 주소만 남는다. `query stats --axis` 와
 `query structure --axis` 는 디렉터리 관측 표면이라 그대로다. L3 lint 의
 `axis-tag-missing`/`axis-unregistered` 도 없어졌다 (강제할 규약 자체가 사라짐).
+`tag-only-axis` 는 `tag-underclassified` 로 바뀌었다 — 판정(태그 1개)은 같고 이유가
+"축 태그뿐"에서 "들어오는 길이 하나뿐"으로 정정됐다. **코드가 바뀌었으니 이 코드로 걸어둔
+기존 dismissal 은 끊기고 경고가 한 번 되살아난다.** `tag-near-duplicate` 는 축 이름인 태그를
+건너뛰던 예외가 사라졌다 — 이제 그냥 태그다.
 
 ## 왜 스크립트인가
 

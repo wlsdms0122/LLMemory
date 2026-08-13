@@ -61,7 +61,6 @@ enum LintRules {
         InvalidPriorityRule(),
         AxisMismatchRule(),
         NoTagsRule(),
-        AxisTagMissingRule(),
         EmptySummaryRule(),
         SummaryLongRule(),
         EmptyTitleRule(),
@@ -85,7 +84,7 @@ enum LintRules {
         IsolatedNoteRule(),
         FragmentUnlinkedRule(),
         GistMissingRule(),
-        TagOnlyAxisRule(),
+        SingleTagRule(),
         TagNearDuplicateRule()
     ]
     
@@ -544,22 +543,6 @@ struct NoTagsRule: NoteLintRule {
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintEngine.Finding] {
         note.doc.tags.isEmpty ? [.init("tags is empty")] : []
-    }
-    
-    // MARK: - Private
-}
-
-struct AxisTagMissingRule: NoteLintRule {
-    // MARK: - Property
-    let code = "axis-tag-missing"
-    let severity = LintEngine.Severity.error
-    
-    // MARK: - Initializer
-    // MARK: - Public
-    func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintEngine.Finding] {
-        guard !note.doc.tags.isEmpty, !note.doc.tags.contains(note.doc.axis) else { return [] }
-        
-        return [.init("tags must include axis '\(note.doc.axis)'")]
     }
     
     // MARK: - Private
@@ -1047,9 +1030,12 @@ struct GistMissingRule: CorpusDBLintRule {
     // MARK: - Private
 }
 
-struct TagOnlyAxisRule: CorpusDBLintRule {
+// Tags are the only classification a note has, so one tag means one way in.
+// A note that is otherwise connected but carries a single label is reachable
+// from one context only — that is under-classification, not minimalism.
+struct SingleTagRule: CorpusDBLintRule {
     // MARK: - Property
-    let code = "tag-only-axis"
+    let code = "tag-underclassified"
     let severity = LintEngine.Severity.warn
     
     // MARK: - Initializer
@@ -1060,7 +1046,7 @@ struct TagOnlyAxisRule: CorpusDBLintRule {
                 !(row.linkN == 0 && row.entN == 0 && row.tagN <= 1) && row.tagN <= 1
             }
             .map { row in
-                .init("only axis-tag — needs domain tags", target: .note(row.nid))
+                .init("a single tag — one label is one way in", target: .note(row.nid))
             }
     }
     
@@ -1075,18 +1061,14 @@ struct TagNearDuplicateRule: CorpusDBLintRule {
     // MARK: - Initializer
     // MARK: - Public
     func check(_ scope: GRDBReadScope) throws -> [LintEngine.Finding] {
-        let (counts, axes) = try scope.run(FetchTagUsageTransaction())
+        let counts = try scope.run(FetchTagUsageTransaction())
         var findings: [LintEngine.Finding] = []
         
         for leftIndex in 0..<counts.count {
             let left = counts[leftIndex]
             
-            if axes.contains(left.tag) { continue }
-            
             for rightIndex in (leftIndex + 1)..<counts.count {
                 let right = counts[rightIndex]
-                
-                if axes.contains(right.tag) { continue }
                 
                 guard max(left.tag.count, right.tag.count) >= 4 else { continue }
                 guard withinEdit1(left.tag, right.tag) else { continue }
