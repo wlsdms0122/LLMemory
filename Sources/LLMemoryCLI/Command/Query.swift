@@ -1095,7 +1095,7 @@ struct QueryGet: AsyncParsableCommand {
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
     
-    @Argument(help: "Note ids (kebab-case, match filenames).")
+    @Argument(help: "Note ids — an id is its address, so `a.b.c` is cortex/a/b/c.md.")
     var ids: [String]
     
     @Option(name: .long, help: "Section path to read (repeatable; single id only).")

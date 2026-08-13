@@ -16,7 +16,7 @@ llmemory init --home <state-root>
 
 함께 두 가지가 심긴다:
 - `<state-root>/README.md` — 이 문서의 파생 카피(뇌 *바깥*의 매뉴얼). 매 init 갱신.
-- **운용 정책 노트** — `cortex/<axis>/<id>.md` 에 `locked: true` 노트로(뇌 *안*의 지식).
+- **운용 정책 노트** — `cortex/` 아래에 `locked: true` 노트로(뇌 *안*의 지식).
   일반 노트라서 연상 하강으로 인출된다. 이미 있는 씨드 파일은 init 이 건드리지 않는다.
 
 바이너리를 올린 뒤 기존 brain 에 이 둘을 다시 심으려면:
@@ -58,7 +58,7 @@ llmemory operations describe <op> --home <state-root>   # op 별 field schema + 
 |------|------|
 | `init` | 최초 setup (idempotent) — 스키마 + README + 운용 정책 씨드 |
 | `update` | 기존 brain 에 씨드·README 재적용 (저작 노트 불침범) |
-| `query` | 읽기 — search / get / related / neighbors / entity / structure / stats / list / axes / history / lint / enrichment / template |
+| `query` | 읽기 — search / get / related / neighbors / entity / structure / stats / list / tree / history / lint / enrichment / template |
 | `operations` | 쓰기 — apply / dry-run (atomic transaction) / vocab / describe |
 | `index` | DB 유지보수 — build / verify (integrity/sources/terms) / vector |
 | `consolidate` | 주기 정리 (관심사 분리) — integrate(A 비파괴) / prune(B 시냅스 가지치기) / homeostasis(H 메타가소성 틱) / candidates / report |
@@ -114,7 +114,7 @@ BM25 가 섹션 길이로 정규화돼 긴 멀티토픽 노트가 길이 패널�
 wrapper 의 자식 단위로 내려가 자르고, 헤딩이 아예 없는 본문은 자를 경계가 없으므로 통짜로 나온다
 — 그건 노트 모양의 문제라 lint(`note-oversized`)가 잡는다.
 
-**조건으로 노트 나열** (eager/stale 등 — plain 은 axis/id/title/summary 테이블,
+**조건으로 노트 나열** (eager/stale 등 — plain 은 id/title/summary 테이블,
 스크립트에서 id 추출은 `--json` 파싱으로):
 ```
 llmemory query list --priority eager --home <state-root>
@@ -124,9 +124,21 @@ llmemory query list --tag journal --field affect=high --home <state-root>
 필터는 AND 조합: `--priority` / `--tag` / `--field` / `--stale` / `--source-stale` / `--limit`.
 `--tag` 와 `--field` 는 반복 가능하고 전부 만족해야 걸린다.
 
-**분류는 태그, 주소는 axis.** `axis` 는 파일이 놓이는 `cortex/<axis>/` 디렉터리일 뿐이고
-지식의 분류는 전적으로 태그가 한다 — 하나의 지식이 여러 축에 걸칠 수 있으니 단일 값인
-axis 로는 분류가 안 된다. 검색·나열·세션 priming 전부 태그 위에서 돈다.
+**분류는 태그, 주소는 id.** id 는 라벨을 `.` 으로 이은 주소이고 파일 경로는 그 순수 함수다 —
+`a.b.c` 는 `cortex/a/b/c.md`. 위치를 저장하는 컬럼은 없고 경로는 언제나 id 에서 계산된다.
+지식의 분류는 전적으로 태그가 한다 — 하나의 지식이 여러 갈래에 걸치므로 단일 값인 주소로는
+분류가 안 된다. 검색·나열·세션 priming 전부 태그 위에서 돈다.
+
+**계층은 위치일 뿐이다.** `a.b` 와 `a.b.c` 가 요지/낱개일 수도 아닐 수도 있다 — 주소는
+파일을 두는 자리이지 그 지식이 무엇에 관한 것인지의 답이 아니고, 요지/낱개 관계는
+`sibling`·`promoted_to` 엣지가 나른다. 지금 어떤 갈래가 있고 각각 몇 개인지는 `query tree`:
+
+```
+llmemory query tree --home <state-root>                    # 최상위 접두사와 노트 수
+llmemory query tree --prefix journal --home <state-root>   # 그 아래 한 단계
+```
+
+접두사는 저장하지 않는다 — `notes.id` 에서 센다.
 
 **커스텀 frontmatter 필드.** frontmatter 는 일급 필드(title/summary/tags/…) 외에
 아무 키나 실을 수 있고, 그 값은 `note_extra` 로 투영돼 `--field` 로 질의된다.
@@ -134,9 +146,13 @@ axis 로는 분류가 안 된다. 검색·나열·세션 priming 전부 태그 �
 (스칼라 1줄, `set_frontmatter` 에서 값이 `null` 이면 삭제). 파일이 언제나 SSoT 다 —
 지식만 옮긴 뇌에서도 이 값은 파일과 함께 따라온다.
 
-**axis 는 만들면 생긴다.** axis 는 파일이 놓일 디렉터리 이름이라 미리 등록하는 절차가 없다 —
-`create_note`·`migrate_note`·`split_note` 전부 철자만 맞으면 그 자리에서 만든다. 오타로 생긴
-축은 `consolidate report` 의 small axes 에 노트 1~2개짜리로 드러난다.
+**재주소화는 인용을 데리고 간다.** `migrate_note` 로 id 를 바꾸면 그 id 를 인용하던 모든
+노트의 본문이 새 id 로 다시 쓰인다 — 두 표기(`` `id` ``·`[[id]]`) 모두. **옛 id 를 이어주는
+alias 는 두지 않는다**: 부채를 쌓는 대신 인용을 정본화한다. 그래서 brain *밖*에 적힌 옛 id
+(슬랙·PR 등)는 끊긴다 — 받아들이는 비용이다.
+
+**frontmatter 의 `id` 와 파일 위치가 어긋나면 무결성 위반**이고 `index verify` 의
+`path-mismatch` 가 잡는다. 파일만 옮기고 id 를 안 고치면 그게 그 상태다.
 
 **분화·승격의 사실 엣지**: `split_note` 는 자식들 사이에 `sibling` 을 자동으로 심는다.
 승격(낱개 → 요지/면)은 `link_lineage` 로 남긴다 — `propose_link`(감쇠하는 연상 제안)와 달리
@@ -168,7 +184,7 @@ llmemory consolidate prune --home <state-root>       # B: 시냅스 가지치기
 ## 구조화 문서 (document / template / locked)
 
 대부분 노트는 포맷 없는 지식이지만, *문서*(테크스펙 등)는 정해진 뼈대를 따른다. 동작은
-**frontmatter 2필드**가 운반한다 (axis 무관):
+**frontmatter 2필드**가 운반한다:
 
 - `template: <id>` — 이 노트는 그 템플릿 노트의 heading **frame** 을 따른다. operations mutation 이
   frame 을 깨면(필수 섹션 삭제·개명·외래 섹션·순서) 거부된다. 내용·빈 섹션·더 깊은 하위 heading 은 자유.
@@ -179,7 +195,7 @@ llmemory consolidate prune --home <state-root>       # B: 시냅스 가지치기
 ```
 llmemory query template <template-id> --home <state-root>      # 뼈대 + 섹션별 가이드
 # 문서 생성 (content 비우면 frame 이 빈 섹션으로 scaffold):
-llmemory operations apply --input '{"ops":[{"op":"create_note","axis":"spec","id":"...","title":"...","summary":"...","tags":["spec"],"template":"<template-id>"}],"rationale":"..."}' --json --home <state-root>
+llmemory operations apply --input '{"ops":[{"op":"create_note","id":"spec....","title":"...","summary":"...","tags":["spec"],"template":"<template-id>"}],"rationale":"..."}' --json --home <state-root>
 ```
 
 템플릿 frame: 선언된 모든 heading 이 필수다(마커 없음). 선언 레벨은 닫힘(외래 섹션 거부)·순서
@@ -192,13 +208,13 @@ llmemory operations apply --input '{"ops":[{"op":"create_note","axis":"spec","id
 출력은 두 직교 축의 곱이다. **레벨**(데이터 양)과 **포맷**(표현식)은 독립이며,
 같은 레벨이면 plain 이든 `--json` 이든 **같은 데이터**를 담는다.
 
-- 레벨: 기본 = 의미 코어(axis/id/title/summary + 랭킹 점수). `--verbose` = +메타데이터
+- 레벨: 기본 = 의미 코어(id/title/summary + 랭킹 점수). `--verbose` = +메타데이터
   (타임스탬프·path·tags·라이프사이클 플래그·점수 성분·candidates 상세·related 의
-  axes/cooccur/vocab 섹션). 레벨은 모델 구성 단계에서 결정 — 기본 레벨의 JSON 엔
+  cooccur/vocab 섹션). 레벨은 모델 구성 단계에서 결정 — 기본 레벨의 JSON 엔
   detail 키 자체가 없다. `--verbose` 는 레벨 차가 실존하는 커맨드에만 있다
   (list / search / get / neighbors / related / candidates).
 - 포맷: 기본 = 사람이 읽는 plain 테이블, `--json` = JSON 한 줄 (mutating 명령은
-  결과 요약, query 는 데이터). 예외: `query axes`, `consolidate report` 은 plain 전용.
+  결과 요약, query 는 데이터). 예외: `consolidate report` 은 plain 전용.
 - 디테일이 필요한 소비자는 `--verbose --json` (capture/consolidate 워크플로우가 이 형태).
 - stderr: 에러·진단.
 - exit code: `0` 정상, `1` 검증 실패 또는 결과 status≠ok, `2` 옵션 누락.
@@ -340,9 +356,9 @@ DB 안의 migration 원장에 남는다. brain 이 binary 보다 뒤처져 있�
     memory.db         — catalog, FTS5 index, events(30일) + 영속 활성화 흔적
                         (activity_windows/retrieval_hits) + genome(epigenome)
   cortex/
-    <axis>/<id>.md    — flat 노트 (axis-agnostic)
-    <axis>/YYYY/MM/<id>.md  — 시간순 thread (id 끝이 YYMMDD)
-    .innate/          — 선천 지식 (axis: innate, locked). 배포본과 다르면(내용 변경·
+    a/b/c.md          — id `a.b.c` 의 노트. 경로는 id 의 함수이고, 그 아래에
+                        `a/b/c/d.md`(id `a.b.c.d`)가 나란히 앉을 수 있다
+    innate/           — 선천 지식 (id `innate.*`, locked). 배포본과 다르면(내용 변경·
                         파일 없음·외부 파일) update 가 경고만 하고 안 건드림 — `--override` 만이
                         배포본 그대로 되돌린다. 디렉터리째 지우면 손뗀 것(스킵). `--check` 로 확인.
     .trash/           — soft-deleted (사람 검토 대기)

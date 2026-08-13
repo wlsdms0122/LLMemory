@@ -1,7 +1,7 @@
 #!/bin/bash
 # Migrate a legacy v1 brain DB to the current v1 schema.
 #
-# The current v1 dropped ruleset/rule/note_meta, axes.description,
+# The current v1 dropped ruleset/rule/note_meta, the axes table,
 # notes.file_mtime/indexed_at, note_source.source_checked_at and five
 # write-only meta stamps. `llmemory update` refuses a diverged legacy DB
 # (schema-shape gate), so the move is done here:
@@ -33,9 +33,12 @@ python3 - "$DB" "$ROOT" <<'PY'
 import os, re, sqlite3, sys
 
 REQUIRED = {
+    # notes.axis/path are the legacy shape itself — listing them here is what
+    # makes a second run refuse instead of setting the DB aside and then failing
+    # halfway through re-addressing a corpus that is already addressed.
+    "notes": "id axis path title summary priority",
     "tag_vocab": "tag created_at",
     "tag_aliases": "alias canonical created_at",
-    "axes": "axis created_at",
     "note_usage": "note_id hit_count last_retrieved_at created_at",
     "note_source": "note_id source_hash source_stale decl_hash",
     "note_lifecycle_events": "id note_id kind reason created_at",
@@ -77,7 +80,9 @@ if missing:
     print("this DB cannot be carried over as-is:", file=sys.stderr)
     print("\n".join(missing), file=sys.stderr)
     print("\nnothing was touched. The carry-over reads these columns by name;\n"
-          "reconcile the shape (or trim the script) before rerunning.", file=sys.stderr)
+          "reconcile the shape (or trim the script) before rerunning.\n"
+          "If notes.axis/path are the only misses, this brain is already migrated.",
+          file=sys.stderr)
     sys.exit(1)
 
 # note_meta retired with no successor table — its rows would vanish silently.
@@ -171,6 +176,147 @@ for suffix in ("-wal", "-shm"):
     except FileNotFoundError: pass
 PY
 
+# 2.5. Re-address the corpus. The id is the address now — `a.b.c` is the file
+#    a/b/c.md — so every note's id absorbs the axis it used to sit in, and the
+#    date tail that used to *derive* a YYYY/MM path becomes part of the address
+#    instead. The files are the truth, so this rewrites them (and every citation
+#    of an old id) before init reprojects; the mapping is left in the legacy DB
+#    as id_map, which step 4 joins against so the carried-over history follows
+#    its notes.
+python3 - "$LEGACY" "$ROOT" <<'PY'
+import os, re, sqlite3, sys
+
+legacy_path, root = sys.argv[1], sys.argv[2]
+db = sqlite3.connect(legacy_path)
+rows = list(db.execute("SELECT id, axis, path FROM notes ORDER BY id"))
+DATE_TAIL = re.compile(r"^(.*?)-(\d{2})(\d{2})\d{2}(?:-\d+)?$")
+LABEL = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
+# Candidate addresses first, so a collision can be seen before anything moves.
+# Two notes in one month whose stems match once the tail is dropped would land
+# on the same address; those keep their tail rather than being renamed apart by
+# a counter, because the tail is the thing that told them apart.
+proposed = {}
+
+for note_id, axis, path in rows:
+    branch = "innate" if axis in ("innate", ".innate") else axis
+    tail = DATE_TAIL.match(note_id)
+
+    if tail:
+        stem, year, month = tail.group(1), "20" + tail.group(2), tail.group(3)
+        proposed[note_id] = ([branch, year, month, stem], [branch, year, month, note_id])
+    else:
+        proposed[note_id] = ([branch, note_id], None)
+
+taken = {}
+
+for note_id, (short, full) in proposed.items():
+    taken.setdefault(".".join(short), []).append(note_id)
+
+mapping, kept_tail, invalid = {}, [], []
+
+for note_id, (short, full) in proposed.items():
+    labels = short if (len(taken[".".join(short)]) == 1 or full is None) else full
+
+    if labels is not short:
+        kept_tail.append(note_id)
+
+    bad = [label for label in labels if not LABEL.match(label)]
+
+    if bad:
+        invalid.append(f"  {note_id} — label(s) {', '.join(bad)} are not [a-z0-9][a-z0-9-]*")
+
+    mapping[note_id] = ".".join(labels)
+
+if invalid:
+    print("these notes cannot be given an address as they stand:", file=sys.stderr)
+    print("\n".join(invalid), file=sys.stderr)
+    print("\nnothing was moved. Rename them (or their axis) and rerun —\n"
+          "the DB is already set aside at " + legacy_path, file=sys.stderr)
+    sys.exit(1)
+
+collisions = [new for new, olds in
+              {v: [k for k in mapping if mapping[k] == v] for v in set(mapping.values())}.items()
+              if len(olds) > 1]
+
+if collisions:
+    print("two notes want the same address: " + ", ".join(sorted(collisions)), file=sys.stderr)
+    sys.exit(1)
+
+def file_for(new_id):
+    return os.path.join(root, "cortex", *new_id.split("."))+ ".md"
+
+# Move + restate. The frontmatter id is the note's own claim about its address,
+# so it moves with the file; axis has no meaning to write down any more.
+moved = 0
+
+for note_id, axis, path in rows:
+    source = os.path.join(root, path)
+    destination = file_for(mapping[note_id])
+
+    if not os.path.exists(source):
+        print(f"  skipped {note_id}: no file at {path}", file=sys.stderr)
+        continue
+
+    text = open(source, encoding="utf-8").read()
+    lines = text.split("\n")
+    out = []
+
+    for line in lines:
+        if line.startswith("id:"):
+            out.append("id: " + mapping[note_id])
+        elif line.startswith("axis:"):
+            continue
+        else:
+            out.append(line)
+
+    os.makedirs(os.path.dirname(destination), exist_ok=True)
+    open(destination, "w", encoding="utf-8").write("\n".join(out))
+
+    if os.path.abspath(destination) != os.path.abspath(source):
+        os.remove(source)
+
+    moved += 1
+
+# Citations, corpus-wide. There is no alias table, so an id that is not rewritten
+# here is a reference that simply breaks. Longest-first so `a-b` cannot be
+# rewritten inside `a-b-c`; the delimiters make each match exact anyway.
+rewritten = 0
+
+for directory, _, names in os.walk(os.path.join(root, "cortex")):
+    for name in names:
+        if not name.endswith(".md"):
+            continue
+
+        file = os.path.join(directory, name)
+        text = open(file, encoding="utf-8").read()
+        before = text
+
+        for old in sorted(mapping, key=len, reverse=True):
+            new = mapping[old]
+
+            if old == new:
+                continue
+
+            text = text.replace(f"`{old}`", f"`{new}`").replace(f"[[{old}]]", f"[[{new}]]")
+
+        if text != before:
+            open(file, "w", encoding="utf-8").write(text)
+            rewritten += 1
+
+db.execute("CREATE TABLE IF NOT EXISTS id_map (old_id TEXT PRIMARY KEY, new_id TEXT NOT NULL)")
+db.execute("DELETE FROM id_map")
+db.executemany("INSERT INTO id_map (old_id, new_id) VALUES (?, ?)", sorted(mapping.items()))
+db.commit()
+db.close()
+
+print(f"re-addressed {moved} note(s); rewrote citations in {rewritten} file(s)")
+
+if kept_tail:
+    print("kept the date tail (address would have collided without it): "
+          + ", ".join(sorted(kept_tail)))
+PY
+
 # 3. Fresh canonical DB + markdown reprojection (notes/tags/entities/fts/ref markers).
 "$LLMEMORY" init --home "$ROOT"
 
@@ -194,57 +340,58 @@ UPDATE tag_vocab SET created_at = (
 INSERT OR REPLACE INTO tag_aliases (alias, canonical, created_at)
   SELECT alias, canonical, created_at FROM old.tag_aliases;
 
--- axes: reprojection creates rows only for axes that still hold notes —
--- carry the empty ones and every original created_at over
-INSERT OR IGNORE INTO axes (axis, created_at)
-  SELECT axis, created_at FROM old.axes;
-UPDATE axes SET created_at = (
-  SELECT created_at FROM old.axes WHERE old.axes.axis = axes.axis
-) WHERE axis IN (SELECT axis FROM old.axes);
-
 -- engram dynamics
 INSERT OR REPLACE INTO note_usage (note_id, hit_count, last_retrieved_at, created_at)
-  SELECT note_id, hit_count, last_retrieved_at, created_at FROM old.note_usage
-  WHERE note_id IN (SELECT id FROM notes);
+  SELECT m.new_id, u.hit_count, u.last_retrieved_at, u.created_at
+  FROM old.note_usage u JOIN old.id_map m ON m.old_id = u.note_id
+  WHERE m.new_id IN (SELECT id FROM notes);
 
 -- source drift observations (source_checked_at is gone on purpose)
 INSERT OR REPLACE INTO note_source (note_id, source_hash, source_stale, decl_hash)
-  SELECT note_id, source_hash, source_stale, decl_hash FROM old.note_source
-  WHERE note_id IN (SELECT id FROM notes);
+  SELECT m.new_id, s.source_hash, s.source_stale, s.decl_hash
+  FROM old.note_source s JOIN old.id_map m ON m.old_id = s.note_id
+  WHERE m.new_id IN (SELECT id FROM notes);
 
 -- lifecycle history
 INSERT INTO note_lifecycle_events (note_id, kind, reason, created_at)
-  SELECT note_id, kind, reason, created_at FROM old.note_lifecycle_events
-  WHERE note_id IN (SELECT id FROM notes)
-  ORDER BY id;
+  SELECT m.new_id, e.kind, e.reason, e.created_at
+  FROM old.note_lifecycle_events e JOIN old.id_map m ON m.old_id = e.note_id
+  WHERE m.new_id IN (SELECT id FROM notes)
+  ORDER BY e.id;
 
 -- learned graph (reference/cooccur edges are reprojected too, but weights and
 -- activation history live only here — replace wholesale where both ends exist)
 INSERT OR REPLACE INTO note_links (src, dst, kind, weight, created_at, last_activated_at, provenance)
-  SELECT src, dst, kind, weight, created_at, last_activated_at, provenance FROM old.note_links
-  WHERE src IN (SELECT id FROM notes) AND dst IN (SELECT id FROM notes);
+  SELECT ms.new_id, md.new_id, l.kind, l.weight, l.created_at, l.last_activated_at, l.provenance
+  FROM old.note_links l
+  JOIN old.id_map ms ON ms.old_id = l.src
+  JOIN old.id_map md ON md.old_id = l.dst
+  WHERE ms.new_id IN (SELECT id FROM notes) AND md.new_id IN (SELECT id FROM notes);
 
 -- retrieval terms (alias/cue)
 INSERT OR REPLACE INTO note_retrieval_terms
   (note_id, kind, term, status, provenance, reject_reason, created_at, validated_at)
-  SELECT note_id, kind, term, status, provenance, reject_reason, created_at, validated_at
-  FROM old.note_retrieval_terms
-  WHERE note_id IN (SELECT id FROM notes);
+  SELECT m.new_id, t.kind, t.term, t.status, t.provenance, t.reject_reason, t.created_at, t.validated_at
+  FROM old.note_retrieval_terms t JOIN old.id_map m ON m.old_id = t.note_id
+  WHERE m.new_id IN (SELECT id FROM notes);
 
 -- entity recall counts (rows for reprojected entities get their history back)
 INSERT OR REPLACE INTO entity_index (entity, note_id, last_seen_at, hit_count)
-  SELECT entity, note_id, last_seen_at, hit_count FROM old.entity_index
-  WHERE note_id IN (SELECT id FROM notes);
+  SELECT e.entity, m.new_id, e.last_seen_at, e.hit_count
+  FROM old.entity_index e JOIN old.id_map m ON m.old_id = e.note_id
+  WHERE m.new_id IN (SELECT id FROM notes);
 
 -- drift queue + habituation
 INSERT OR REPLACE INTO ripple_flags
   (note_id, flag, reason, created_at, last_flagged_at, flag_count, resolved_at)
-  SELECT note_id, flag, reason, created_at, last_flagged_at, flag_count, resolved_at
-  FROM old.ripple_flags WHERE note_id IN (SELECT id FROM notes);
+  SELECT m.new_id, r.flag, r.reason, r.created_at, r.last_flagged_at, r.flag_count, r.resolved_at
+  FROM old.ripple_flags r JOIN old.id_map m ON m.old_id = r.note_id
+  WHERE m.new_id IN (SELECT id FROM notes);
 INSERT OR REPLACE INTO candidate_dismissals
   (note_id, kind, dismiss_count, word_count, section_count, generation, reason, last_dismissed_at)
-  SELECT note_id, kind, dismiss_count, word_count, section_count, generation, reason, last_dismissed_at
-  FROM old.candidate_dismissals WHERE note_id IN (SELECT id FROM notes);
+  SELECT m.new_id, d.kind, d.dismiss_count, d.word_count, d.section_count, d.generation, d.reason, d.last_dismissed_at
+  FROM old.candidate_dismissals d JOIN old.id_map m ON m.old_id = d.note_id
+  WHERE m.new_id IN (SELECT id FROM notes);
 INSERT OR REPLACE INTO corpus_dismissals
   (target_key, kind, dismiss_count, generation, reason, last_dismissed_at)
   SELECT target_key, kind, dismiss_count, generation, reason, last_dismissed_at
@@ -255,9 +402,13 @@ INSERT INTO events (id, ts, kind, session_id, payload)
   SELECT id, ts, kind, session_id, payload FROM old.events ORDER BY id;
 INSERT INTO activity_windows (id, started_at, ended_at, label, query_count)
   SELECT id, started_at, ended_at, label, query_count FROM old.activity_windows ORDER BY id;
+-- hits keep every row: a hit on a note that has since gone is still a hit, and
+-- the id it names is rewritten only when the note is one we re-addressed.
 INSERT INTO retrieval_hits (id, window_id, note_id, surfaced_at, cmd, surface_kind, used_signal, used_at)
-  SELECT id, window_id, note_id, surfaced_at, cmd, surface_kind, used_signal, used_at
-  FROM old.retrieval_hits ORDER BY id;
+  SELECT h.id, h.window_id, COALESCE(m.new_id, h.note_id), h.surfaced_at, h.cmd,
+         h.surface_kind, h.used_signal, h.used_at
+  FROM old.retrieval_hits h LEFT JOIN old.id_map m ON m.old_id = h.note_id
+  ORDER BY h.id;
 
 -- epigenome
 INSERT OR REPLACE INTO genome (gene_id, value, updated_at)
@@ -277,8 +428,12 @@ DETACH DATABASE old;
 SQL
 
 # 5. Vectors are accepted-loss (derived) — rebuild, then reseed + verify.
+#    `update` exits 1 when the innate space differs from the shipped copy, and
+#    after this migration it always does: re-addressing rewrote the seed files
+#    too. That is a warning to act on, not a reason to abandon the run before
+#    step 6 proves the carry-over — so it is reported and the run continues.
 "$LLMEMORY" index vector --home "$ROOT"
-"$LLMEMORY" update --home "$ROOT"
+"$LLMEMORY" update --home "$ROOT" || INNATE_DIVERGED=1
 
 # 6. Prove the carry-over — old/new row counts side by side. A shortfall is
 #    legitimate only for note_id-guarded tables whose notes no longer project.
@@ -291,5 +446,14 @@ for t in note_usage note_source note_lifecycle_events note_links note_retrieval_
   flag=""; [ "$o" != "$n" ] && flag="  <- CHECK"
   printf '  %-24s %6s -> %-6s%s\n' "$t" "$o" "$n" "$flag"
 done
+
+if [ "${INNATE_DIVERGED:-}" = "1" ]; then
+  echo
+  echo "innate: the shipped seeds no longer match the files — expected, since"
+  echo "  re-addressing rewrote them. Restate them with:"
+  echo "    $LLMEMORY update --override --home $ROOT"
+  echo "  (--override makes cortex/innate/ exactly the shipped set: check for"
+  echo "   authored notes under it first, as they would be removed.)"
+fi
 
 echo "migrated. old DB kept at $LEGACY"

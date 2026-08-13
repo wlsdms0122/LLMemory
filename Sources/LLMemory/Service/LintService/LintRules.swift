@@ -7,7 +7,6 @@
 
 import Foundation
 
-private let kebabIdRegex = try! NSRegularExpression(pattern: #"^[a-z0-9][a-z0-9-]*$"#)
 private let hangulRegex = try! NSRegularExpression(pattern: #"[가-힣]"#)
 
 protocol NoteLintRule: LintRuleMeta {
@@ -486,14 +485,14 @@ struct InvalidIDRule: NoteLintRule {
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintEngine.Finding] {
         let nsId = note.doc.id as NSString
         
-        guard kebabIdRegex.firstMatch(
+        guard Paths.idRegex.firstMatch(
             in: note.doc.id,
             range: NSRange(location: 0, length: nsId.length)
         ) == nil else {
             return []
         }
         
-        return [.init("id must be kebab-case: '\(note.doc.id)'")]
+        return [.init("id must be dot-joined kebab-case labels: '\(note.doc.id)'")]
     }
     
     // MARK: - Private
