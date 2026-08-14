@@ -13,7 +13,7 @@ struct InitCommand: ParsableCommand {
     struct InitOutput: Encodable {
         enum CodingKeys: String, CodingKey {
             case homePath = "home", indexed, changed, errors, base
-            case planted, refreshed, unchanged
+            case planted, refreshed, unchanged, conflicts
             case alreadyInitialized = "already_initialized"
             case dataExisted = "data_existed"
             case cortexExisted = "cortex_existed"
@@ -30,7 +30,7 @@ struct InitCommand: ParsableCommand {
         // Whether the base knowledge was attempted at all — three empty lists
         // read the same whether nothing needed doing or nothing was tried.
         let base: Bool
-        let planted, refreshed, unchanged: [String]
+        let planted, refreshed, unchanged, conflicts: [String]
         
         // MARK: - Initializer
         // MARK: - Public
@@ -50,8 +50,11 @@ struct InitCommand: ParsableCommand {
             (document/GUIDE.md) — a derived copy, refreshed on every init — and
             plants the base knowledge (document/cortex/**/*.md) as `locked: true`
             notes at the addresses that tree gives them. A base id always carries
-            the shipped copy, so an existing one is restated. `--no-base` skips
-            them — a brain born with nothing at all.
+            the shipped copy, so an existing one — a note carrying `base: true` —
+            is restated. An address held by a note that does not claim to be base
+            knowledge is a conflict: nothing is planted, the ids are listed, and
+            init exits 1 unless `--force` is given. `--no-base` skips them
+            entirely — a brain born with nothing at all.
 
             EXAMPLES
                 llmemory init --home brain
@@ -65,10 +68,13 @@ struct InitCommand: ParsableCommand {
     @Flag(name: .long, inversion: .prefixedNo, help: "Plant the shipped base knowledge.")
     var base = true
 
+    @Flag(name: .long, help: "Replace notes holding a base address even when they do not claim to be base knowledge.")
+    var force = false
+
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        let result = try Brain(home: global.home).index.initialize(base: base)
+        let result = try Brain(home: global.home).index.initialize(base: base, force: force)
         let output = InitOutput(
             alreadyInitialized: result.alreadyInitialized,
             homePath: result.homePath,
@@ -81,7 +87,8 @@ struct InitCommand: ParsableCommand {
             base: result.seeding != nil,
             planted: result.seeding?.planted ?? [],
             refreshed: result.seeding?.refreshed ?? [],
-            unchanged: result.seeding?.unchanged ?? []
+            unchanged: result.seeding?.unchanged ?? [],
+            conflicts: result.seeding?.conflicts ?? []
         )
         
         render(output, json: format.json) { output in
@@ -93,10 +100,14 @@ struct InitCommand: ParsableCommand {
                 .text("indexed \(output.indexed) notes (changed=\(output.changed), errors=\(output.errors.count))"),
                 .text(!output.base
                     ? "base knowledge: skipped (--no-base)"
-                    : output.planted.isEmpty && output.refreshed.isEmpty
-                        ? "base knowledge: already current"
-                        : "base knowledge — planted: \(output.planted.isEmpty ? "-" : output.planted.joined(separator: ", "))"
-                            + ", refreshed: \(output.refreshed.isEmpty ? "-" : output.refreshed.joined(separator: ", "))")
+                    : !output.conflicts.isEmpty
+                        ? "CONFLICT: these addresses hold notes that do not carry `base: true`, so nothing "
+                            + "was planted — move them aside, or rerun with --force:\n  "
+                            + output.conflicts.joined(separator: "\n  ")
+                        : output.planted.isEmpty && output.refreshed.isEmpty
+                            ? "base knowledge: already current"
+                            : "base knowledge — planted: \(output.planted.isEmpty ? "-" : output.planted.joined(separator: ", "))"
+                                + ", refreshed: \(output.refreshed.isEmpty ? "-" : output.refreshed.joined(separator: ", "))")
             ]
         }
         
@@ -104,7 +115,7 @@ struct InitCommand: ParsableCommand {
             FileHandle.standardError.write("  ERROR \(error)\n".data(using: .utf8)!)
         }
         
-        if !result.errors.isEmpty { throw ExitCode(1) }
+        if !result.errors.isEmpty || !(result.seeding?.conflicts.isEmpty ?? true) { throw ExitCode(1) }
     }
     
     // MARK: - Private

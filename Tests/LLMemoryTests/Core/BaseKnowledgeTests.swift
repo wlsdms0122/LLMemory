@@ -172,6 +172,102 @@ struct BaseKnowledgeTests {
         #expect(try String(contentsOf: file, encoding: .utf8) == seed.markdown)
     }
 
+    @Test("every shipped document declares base: true, or nothing could tell it from an authored note")
+    func everySeedDeclaresBase() throws {
+        for seed in Base.seeds {
+            // When
+            let (fields, _) = try Frontmatter.parse(seed.markdown)
+
+            // Then
+            #expect(fields.base, "\(seed.id) must declare base: true")
+        }
+    }
+
+    // The address is shared with authored notes now, so a release that adds an
+    // id someone already uses must not be able to take it. Without the mark this
+    // note is indistinguishable from a base copy that was edited.
+    @Test("a note at a base address that does not claim to be base knowledge stops the planting")
+    func anUnmarkedNoteAtABaseAddressIsAConflict() throws {
+        // Given
+        let brain = try CLIBrain(prefix: "llmemory-base-conflict", seeded: false, base: false)
+        let seed = try firstSeed()
+        let file = brain.file(Paths.relativeFile(forId: seed.id))
+        let mine = """
+        ---
+        title: mine
+        priority: lazy
+        tags: [flow]
+        summary: I got here first
+        ---
+
+        ## Note
+        authored, not shipped.
+        """
+
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try mine.write(to: file, atomically: true, encoding: .utf8)
+
+        // When
+        let result = brain.run(["update", "--json"])
+
+        // Then — named, refused, and the note is still theirs.
+        let conflicts = result.jsonObject()?["conflicts"] as? [String] ?? []
+
+        #expect(!result.succeeded, "a conflict must exit 1")
+        #expect(conflicts == [seed.id], "\(result.standardOutput)")
+        #expect(try String(contentsOf: file, encoding: .utf8) == mine, "the note was overwritten")
+
+        // When — --force is the only way through, and it says so by being asked for.
+        let forced = brain.run(["update", "--force", "--json"])
+
+        #expect(forced.succeeded, "\(forced.standardError)")
+        #expect(try String(contentsOf: file, encoding: .utf8) == seed.markdown)
+    }
+
+    // All or nothing: the ids reported are the ids to deal with, not whatever
+    // survived a partial run.
+    @Test("a conflict plants nothing at all, not even the seeds that would have been fine")
+    func aConflictLeavesEverySeedUnplanted() throws {
+        // Given
+        let brain = try CLIBrain(prefix: "llmemory-base-allornothing", seeded: false, base: false)
+        let seed = try firstSeed()
+        let file = brain.file(Paths.relativeFile(forId: seed.id))
+
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try """
+        ---
+        title: mine
+        priority: lazy
+        tags: [flow]
+        summary: I got here first
+        ---
+
+        ## Note
+        authored.
+        """.write(to: file, atomically: true, encoding: .utf8)
+
+        // When
+        let result = brain.run(["update", "--json"])
+
+        // Then
+        let planted = result.jsonObject()?["planted"] as? [String] ?? []
+        let refreshed = result.jsonObject()?["refreshed"] as? [String] ?? []
+
+        #expect(planted.isEmpty && refreshed.isEmpty, "\(result.standardOutput)")
+
+        for other in Base.seeds where other.id != seed.id {
+            #expect(!FileManager.default.fileExists(
+                atPath: brain.file(Paths.relativeFile(forId: other.id)).path
+            ), "\(other.id) was planted while another seed was in conflict")
+        }
+    }
+
     @Test("--no-base leaves the base knowledge out — on init and on update alike")
     func noBaseSkipsPlanting() throws {
         // Given

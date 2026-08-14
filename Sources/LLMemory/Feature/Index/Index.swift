@@ -79,11 +79,11 @@ public struct Index {
     // Lifecycle work touches the filesystem outside any scope — the session's
     // context is bound explicitly so a second live brain cannot steal these
     // writes through the ambient fallback.
-    public func initialize(base: Bool = true) throws -> InitResult {
-        try session.context.bind { try initializeBound(base: base) }
+    public func initialize(base: Bool = true, force: Bool = false) throws -> InitResult {
+        try session.context.bind { try initializeBound(base: base, force: force) }
     }
 
-    private func initializeBound(base: Bool) throws -> InitResult {
+    private func initializeBound(base: Bool, force: Bool) throws -> InitResult {
         let fileManager = FileManager.default
         let dataExisted = fileManager.fileExists(atPath: Paths.dataDirectory.path)
         let cortexExisted = fileManager.fileExists(atPath: Paths.cortexRoot.path)
@@ -94,7 +94,7 @@ public struct Index {
         
         // Planted inside the bootstrap: after the migration, before the build.
         var seeding: Seeding.Result?
-        let result = try session.bootstrap { if base { seeding = Seeding.plant() } }
+        let result = try session.bootstrap { if base { seeding = Seeding.plant(force: force) } }
 
         try Guide.markdown.write(
             to: Paths.brainRoot.appendingPathComponent("README.md"),
@@ -114,17 +114,17 @@ public struct Index {
         )
     }
     
-    public func update(base: Bool = true) throws -> UpdateResult {
-        try session.context.bind { try updateBound(base: base) }
+    public func update(base: Bool = true, force: Bool = false) throws -> UpdateResult {
+        try session.context.bind { try updateBound(base: base, force: force) }
     }
 
-    private func updateBound(base: Bool) throws -> UpdateResult {
+    private func updateBound(base: Bool, force: Bool) throws -> UpdateResult {
         // update is the migration surface: a brain left behind by a binary upgrade
         // is carried forward by the bootstrap, before anything else touches the
         // connection — and before the base knowledge is restated, so a brain whose
         // schema did not move forward does not get files that did.
         var seeding: Seeding.Result?
-        let result = try session.bootstrap { if base { seeding = Seeding.plant() } }
+        let result = try session.bootstrap { if base { seeding = Seeding.plant(force: force) } }
 
         try Guide.markdown.write(
             to: Paths.brainRoot.appendingPathComponent("README.md"),

@@ -11,19 +11,33 @@ import Foundation
 // document/cortex/ gives it — anywhere in the space, in any shape — so there is
 // no system-managed directory and nothing here knows a privileged branch name.
 //
-// The contract is one sentence: a base id always carries the shipped copy.
-// `init` and `update` restate it, and a brain that does not want it says so per
-// invocation. Nothing infers intent from the state of the filesystem — a missing
-// file used to mean "opted out" and an edited one "leave me alone", and reading
-// those two out of the same directory is what made the seeding surface complex
-// enough to need a --check flag to explain itself. A local fork of a base note
-// lives at its own id.
+// A base id carries the shipped copy, and `base: true` in the frontmatter is how
+// a note says it holds one. That mark is the whole reason a reserved directory
+// is not needed: without it, "a file is already here" cannot distinguish the
+// copy an earlier release planted from a note a person wrote at the same
+// address, and a release that later adds an id someone is already using would
+// overwrite their work with a one-line report.
+//
+// So the two are separated, and only the first is ours to rewrite:
+//
+//   marked   → restate it, silently if identical, named under `refreshed` if not
+//   unmarked → a conflict. Nothing is planted at all until it is resolved, by
+//              moving the note aside or by saying `--force`.
+//
+// Intent is never read out of the filesystem otherwise — a missing file used to
+// mean "opted out" and an edited one "leave me alone", and reading both out of
+// one directory is what made this surface need a --check flag to explain itself.
+// A brain that does not want the base knowledge says so per invocation, and a
+// local fork of a base note lives at its own id.
 public enum Seeding {
     public struct Result: Sendable {
         // MARK: - Property
         public var planted: [String] = []
         public var refreshed: [String] = []
         public var unchanged: [String] = []
+        // Base ids whose address is held by a note that does not claim to be one.
+        // Non-empty means nothing was written.
+        public var conflicts: [String] = []
         public var errors: [String] = []
 
         // MARK: - Initializer
@@ -33,32 +47,47 @@ public enum Seeding {
 
     // MARK: - Initializer
     // MARK: - Public
-    public static func plant() -> Result {
+    public static func plant(force: Bool = false) -> Result {
         var result = Result()
-        let fileManager = FileManager.default
+
+        // Surveyed before anything is written, so a conflict on the last seed
+        // does not leave the ones before it already replaced. All or nothing is
+        // also what makes the report actionable: the ids listed are exactly the
+        // ids to deal with, not whatever was left after a partial run.
+        if !force {
+            result.conflicts = Base.seeds
+                .filter { seed in
+                    if case .foreign = claimant(of: seed) { return true }
+
+                    return false
+                }
+                .map { seed in seed.id }
+
+            if !result.conflicts.isEmpty { return result }
+        }
 
         for seed in Base.seeds {
             let canonical = Paths.file(forId: seed.id)
-            let exists = fileManager.fileExists(atPath: canonical.path)
+            let exists = FileManager.default.fileExists(atPath: canonical.path)
 
-            if exists {
+            switch claimant(of: seed) {
+            case .identical:
+                result.unchanged.append(seed.id)
+                continue
+
+            case .unreadable(let reason):
                 // A file that is there but cannot be read is not a file that
-                // differs. `try?` made those two the same value and sent the
-                // unreadable one down the overwrite path, which is where whatever
-                // it held stopped existing.
-                do {
-                    if try String(contentsOf: canonical, encoding: .utf8) == seed.markdown {
-                        result.unchanged.append(seed.id)
-                        continue
-                    }
-                } catch {
-                    result.errors.append("\(seed.id): present but unreadable, left alone (\(error))")
-                    continue
-                }
+                // differs — sending it down the overwrite path is where whatever
+                // it held would stop existing.
+                result.errors.append("\(seed.id): present but unreadable, left alone (\(reason))")
+                continue
+
+            case .absent, .ours, .foreign:
+                break
             }
 
             do {
-                try fileManager.createDirectory(
+                try FileManager.default.createDirectory(
                     at: canonical.deletingLastPathComponent(),
                     withIntermediateDirectories: true
                 )
@@ -81,4 +110,34 @@ public enum Seeding {
     }
 
     // MARK: - Private
+    private enum Claimant {
+        case absent
+        case identical
+        // Marked `base: true` — a copy of some release's, ours to restate.
+        case ours
+        // Someone else's note sitting at an address this release wants.
+        case foreign
+        case unreadable(String)
+    }
+
+    private static func claimant(of seed: Base.Seed) -> Claimant {
+        let canonical = Paths.file(forId: seed.id)
+
+        guard FileManager.default.fileExists(atPath: canonical.path) else { return .absent }
+
+        let text: String
+        do {
+            text = try String(contentsOf: canonical, encoding: .utf8)
+        } catch {
+            return .unreadable("\(error)")
+        }
+
+        if text == seed.markdown { return .identical }
+
+        // An unparseable file cannot show the mark, and a file that cannot show
+        // the mark is not one this release may overwrite.
+        guard let (fields, _) = try? Frontmatter.parse(text) else { return .foreign }
+
+        return fields.base ? .ours : .foreign
+    }
 }

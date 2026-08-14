@@ -16,7 +16,7 @@ struct UpdateCommand: ParsableCommand {
         // Whether the base knowledge was attempted at all — three empty lists
         // read the same whether nothing needed doing or nothing was tried.
         let base: Bool
-        let planted, refreshed, unchanged: [String]
+        let planted, refreshed, unchanged, conflicts: [String]
         let indexed, changed: Int
         let errors: [String]
 
@@ -39,11 +39,17 @@ struct UpdateCommand: ParsableCommand {
             untouched; it is a per-invocation choice, not a setting the brain
             remembers.
 
+            A base note is one that carries `base: true`. If a release adds an id
+            an authored note already holds, that is a conflict: NOTHING is
+            planted, the ids are listed, and update exits 1. Move the note to
+            another id, or rerun with `--force` to replace it.
+
             Authored notes are never in scope. Nothing is ever deleted.
 
             EXAMPLES
                 llmemory update --home brain
                 llmemory update --no-base --json --home brain
+                llmemory update --force --home brain
             """
     )
 
@@ -53,39 +59,56 @@ struct UpdateCommand: ParsableCommand {
     @Flag(name: .long, inversion: .prefixedNo, help: "Restate the shipped base knowledge.")
     var base = true
 
+    @Flag(name: .long, help: "Replace notes holding a base address even when they do not claim to be base knowledge.")
+    var force = false
+
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        let result = try Brain(home: global.home).index.update(base: base)
+        let result = try Brain(home: global.home).index.update(base: base, force: force)
         let output = UpdateOutput(
             home: result.homePath,
             base: result.seeding != nil,
             planted: result.seeding?.planted ?? [],
             refreshed: result.seeding?.refreshed ?? [],
             unchanged: result.seeding?.unchanged ?? [],
+            conflicts: result.seeding?.conflicts ?? [],
             indexed: result.indexed,
             changed: result.changed,
             errors: result.errors
         )
 
         render(output, json: format.json) { output in
-            [
+            var blocks: [PlainBlock] = [
                 .keyValue([
                     ("home", output.home),
                     ("base", output.base ? "restated" : "skipped (--no-base)"),
                     ("planted", output.planted.isEmpty ? "-" : output.planted.joined(separator: ", ")),
                     ("refreshed", output.refreshed.isEmpty ? "-" : output.refreshed.joined(separator: ", ")),
                     ("unchanged", output.unchanged.isEmpty ? "-" : output.unchanged.joined(separator: ", "))
-                ]),
-                .text("indexed \(output.indexed) notes (changed=\(output.changed), errors=\(output.errors.count))")
+                ])
             ]
+
+            if !output.conflicts.isEmpty {
+                blocks.append(.text(
+                    "CONFLICT: these addresses hold notes that do not carry `base: true`, so the "
+                        + "base knowledge was left unplanted — move them aside, or rerun with "
+                        + "--force to replace them:\n  " + output.conflicts.joined(separator: "\n  ")
+                ))
+            }
+
+            blocks.append(
+                .text("indexed \(output.indexed) notes (changed=\(output.changed), errors=\(output.errors.count))")
+            )
+
+            return blocks
         }
 
         for error in result.errors {
             FileHandle.standardError.write("  ERROR \(error)\n".data(using: .utf8)!)
         }
 
-        if !result.errors.isEmpty { throw ExitCode(1) }
+        if !result.errors.isEmpty || !(result.seeding?.conflicts.isEmpty ?? true) { throw ExitCode(1) }
     }
 
     // MARK: - Private

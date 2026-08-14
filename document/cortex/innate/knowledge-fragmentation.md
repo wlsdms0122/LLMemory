@@ -2,12 +2,13 @@
 title: 지식 분화 원리 — 희소 활성화를 위해 쪼개고 잇는다
 priority: lazy
 tags: [innate, brain, memory, retrieval, fragmentation]
+base: true
 locked: true
 summary: 인출 비용은 총량이 아니라 활성 영역이 정한다 — 분화 판정(낭비율·성장구조·cue응집도)과 3층(요지/면/낱개), 분화는 연결과 짝으로만 유효
 ---
 
-희소 활성화를 목표로 지식을 쪼개고 잇는 원리. *한 노트를 어떤 고도로 쓰나*는 `knowledge-authoring`,
-*지도는 투영이고 root 는 크기 불변*은 `memory-map-projection-direction` 이 갖는다 — 이 노트는 **이미 자란
+희소 활성화를 목표로 지식을 쪼개고 잇는 원리. *한 노트를 어떤 고도로 쓰나*는 `persona.knowledge-authoring`,
+*지도는 투영이고 root 는 크기 불변*은 `technology.memory-map-projection-direction` 이 갖는다 — 이 노트는 **이미 자란
 덩이를 어떻게 나누고, 나뉜 파편이 어떻게 서로를 부르게 하나**만 다룬다.
 
 # 왜 분화인가 — 인출 비용은 총량이 아니라 활성 영역이 정한다
@@ -64,7 +65,7 @@ cue 에도 어중간하게 반응해서, 정확히 그 주제만 담은 작은 �
 trace(해마·pattern separation), 면은 schema(신피질·추상).
 
 세 층에 공통으로 걸리는 규칙 하나: **자라는 것은 개수이고, 노트 하나의 크기는 자라지 않는다.**
-노트가 커지는 방식으로 자라도록 설계된 구조는 그 자체가 결함이다. `memory-map-projection-direction`
+노트가 커지는 방식으로 자라도록 설계된 구조는 그 자체가 결함이다. `technology.memory-map-projection-direction`
 의 "root 에 쌓지 않고 층이 는다"를 root 가 아닌 모든 노트에도 적용한 것.
 
 요지는 **기억의 궁전에서 방 배치도**에 해당한다. loci 기법이 작동하는 이유는 *안정되고 순서 있는
@@ -166,6 +167,6 @@ multiset 이 같은지 기계로 대조하고, 분류가 안 되는 줄이 하�
 
 # 관련
 
-`knowledge-authoring`(고도·노트의 경계) · `memory-map-projection-direction`(지도는 투영·root 불변·
-연상 하강) · `consolidate-decision-flow`(승격·병합 판정) · `llmemory-reconsolidation-lens`(회상은
-재기록) · `memory-priority-policy`(eager 기준)
+`persona.knowledge-authoring`(고도·노트의 경계) · `technology.memory-map-projection-direction`(지도는 투영·root 불변·
+연상 하강) · `flow.consolidate-decision-flow`(승격·병합 판정) · `technology.llmemory-reconsolidation-lens`(회상은
+재기록) · `persona.memory-priority-policy`(eager 기준)
