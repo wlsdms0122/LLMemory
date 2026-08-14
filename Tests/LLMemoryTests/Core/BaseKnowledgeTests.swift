@@ -332,6 +332,31 @@ struct BaseKnowledgeTests {
             "a note under a base note's address is not the release's to touch")
     }
 
+    // The mark decides who may overwrite whom, so a note that could set it on
+    // itself could arrange to be replaced by the next release.
+    @Test("ops cannot author the base mark")
+    func opsCannotSetTheBaseMark() throws {
+        // Given
+        let brain = try CLIBrain(prefix: "llmemory-base-reserved")
+
+        #expect(brain.applyOps("""
+            {"ops":[{"op":"create_note","id":"tech.mine","title":"t","tags":["flow"],\
+            "summary":"s","content":"## A\\nbody"}],"rationale":"test"}
+            """).succeeded)
+
+        // When
+        let result = brain.applyOps("""
+            {"ops":[{"op":"set_frontmatter","id":"tech.mine","fields":{"base":true}}],\
+            "rationale":"test"}
+            """)
+
+        // Then
+        #expect(!result.succeeded || result.jsonObject()?["status"] as? String == "rejected",
+            "a note granted itself the base mark: \(result.standardOutput)")
+        #expect(!(try String(contentsOf: brain.noteURL(id: "tech.mine"), encoding: .utf8))
+            .contains("base:"), "the mark reached the file")
+    }
+
     @Test("a locked base note refuses an ops mutation")
     func baseNoteRefusesOpsMutation() throws {
         // Given
