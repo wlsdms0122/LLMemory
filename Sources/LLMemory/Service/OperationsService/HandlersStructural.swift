@@ -125,13 +125,15 @@ public enum HandlersStructural {
                 ])
             }
             
-            let trashPath = try scope.run(RemoveNoteTransaction(
+            try scope.run(RemoveNoteRowsTransaction(
                 nid: noteId,
-                file: src,
                 flagReason: "deleted \(noteId)",
-                trashReason: op["reason"] as? String ?? "",
                 now: now
             ))
+
+            // Safe to move here: `touches` names both this file and its trash
+            // destination, so a rollback of the surrounding batch restores them.
+            let trashPath = try Trash.file(src, reason: op["reason"] as? String ?? "", now: now)
             
             let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(80)
             

@@ -126,7 +126,6 @@ public enum Seeding {
                         reason: "replaced by the shipped seed at this id",
                         now: now
                     )
-                    result.replaced.append(seed.id)
                 }
 
                 try FileManager.default.createDirectory(
@@ -138,10 +137,13 @@ public enum Seeding {
                 // Reported separately because overwriting is the one outcome a
                 // human could be surprised by — a run that rewrites an edit says
                 // which id it rewrote.
+                // Classified only once the write landed — every bucket means
+                // "this is what the address holds now", and saying `replaced`
+                // before the shipped copy is there would name an empty address.
                 if case .absent = claimant {
                     result.planted.append(seed.id)
                 } else if case .foreign = claimant {
-                    // Already named under `replaced`, which says more.
+                    result.replaced.append(seed.id)
                 } else {
                     result.refreshed.append(seed.id)
                 }

@@ -26,7 +26,7 @@ final class MemoryHome: BrainHome, @unchecked Sendable {
     // The window init/update plant inside, so a test can exercise seeding the way
     // the commands do rather than a shape only tests can produce.
     func bootstrapScope() throws -> BootstrapScope {
-        BootstrapScope(queue: try session.storage.connect())
+        BootstrapScope(queue: try session.storage.connect(), context: session.context)
     }
 
     // MARK: - Initializer

@@ -25,6 +25,17 @@ public struct Migration2: GRDBMigration {
 
     // MARK: - Initializer
     // MARK: - Public
+    // The guard is for a brain that already reached this shape the way this
+    // migration would have produced it — an ALTER run by hand, a restored copy —
+    // where the column sits last and the DDL already matches what a full catalog
+    // run makes. Skipping is then correct and the shape gate agrees.
+    //
+    // It does *not* rescue a brain that got the column somewhere other than the
+    // end, which is what editing the baseline used to produce. That table's DDL
+    // text cannot be reconciled by adding a column, and the shape gate says so
+    // by name. Only brains built from this branch before the column moved here
+    // can be in that state; they take the schema-mismatch runbook, and no
+    // released binary ever wrote that shape.
     public func migrate(_ db: Database) throws {
         let columns = try Row.fetchAll(db, sql: "PRAGMA table_info(notes)")
             .map { row in row["name"] as String }

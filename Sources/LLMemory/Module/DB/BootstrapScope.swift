@@ -15,17 +15,31 @@ import GRDB
 public struct BootstrapScope {
     // MARK: - Property
     private let queue: any DatabaseWriter
+    // GRDB runs read/write bodies on its own serial queue, and a task-local does
+    // not cross that thread. Everything below rebinds for the same reason every
+    // GRDBStorage entry point does — without it a body resolves paths through the
+    // process fallback, which is the most recently created live brain and not
+    // necessarily this one.
+    private let context: BrainContext
 
     // MARK: - Initializer
-    init(queue: any DatabaseWriter) {
+    init(queue: any DatabaseWriter, context: BrainContext) {
         self.queue = queue
+        self.context = context
     }
 
     // MARK: - Public
     public func seededNoteIds() throws -> [String] {
-        try queue.read { database in try FetchSeededNoteIdsTransaction().perform(database) }
+        try queue.read { database in
+            try self.context.bind { try FetchSeededNoteIdsTransaction().perform(database) }
+        }
     }
 
+    // The rows go under the commit; the file moves after it. Reversed, a failing
+    // commit would leave the catalog holding a note whose file is in the trash,
+    // and no rollback can bring a moved file back. This way the worst case is a
+    // file at an address the catalog forgot — which the index build at the end of
+    // this same bootstrap puts back.
     @discardableResult
     public func removeNote(
         id: String,
@@ -35,14 +49,13 @@ public struct BootstrapScope {
         now: Int
     ) throws -> URL? {
         try queue.write { database in
-            try RemoveNoteTransaction(
-                nid: id,
-                file: file,
-                flagReason: flagReason,
-                trashReason: trashReason,
-                now: now
-            ).perform(database)
+            try self.context.bind {
+                try RemoveNoteRowsTransaction(nid: id, flagReason: flagReason, now: now)
+                    .perform(database)
+            }
         }
+
+        return try Trash.file(file, reason: trashReason, now: now)
     }
 
     // MARK: - Private

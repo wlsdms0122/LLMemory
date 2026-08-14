@@ -83,7 +83,7 @@ public final class Session {
 
             let queue = try storage.connect()
 
-            try beforeIndexing(BootstrapScope(queue: queue))
+            try beforeIndexing(BootstrapScope(queue: queue, context: context))
 
             let built = try Indexer.buildLocked(queue, rebuild: false)
 
