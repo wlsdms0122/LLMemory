@@ -13,9 +13,9 @@ struct UpdateCommand: ParsableCommand {
     struct UpdateOutput: Encodable {
         // MARK: - Property
         let home: String
-        // Whether the base knowledge was attempted at all — three empty lists
-        // read the same whether nothing needed doing or nothing was tried.
-        let base: Bool
+        // Whether the seeds were attempted at all — three empty lists read the
+        // same whether nothing needed doing or nothing was tried.
+        let seed: Bool
         let planted, refreshed, unchanged, conflicts: [String]
         let indexed, changed: Int
         let errors: [String]
@@ -28,18 +28,17 @@ struct UpdateCommand: ParsableCommand {
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "update",
-        abstract: "Carry an existing brain forward to this binary — schema, manual, base knowledge.",
+        abstract: "Carry an existing brain forward to this binary — schema, manual, seed notes.",
         discussion: """
             Applies any pending schema migrations, rewrites <home>/README.md from
-            the embedded guide, restates the base knowledge, and reindexes.
+            the embedded guide, restates the seed notes, and reindexes.
 
-            A base id always carries the shipped copy — an edited one is rewritten
+            A seed id always carries the shipped copy — an edited one is rewritten
             and reported under `refreshed`, so a local fork belongs at its own id
-            rather than on top of a base note. `--no-base` leaves the base notes
-            untouched; it is a per-invocation choice, not a setting the brain
-            remembers.
+            rather than on top of a seeded note. `--no-seed` leaves them untouched;
+            it is a per-invocation choice, not a setting the brain remembers.
 
-            A base note is one that carries `base: true`. If a release adds an id
+            A seeded note is one that carries `seed: true`. If a release adds an id
             an authored note already holds, that is a conflict: NOTHING is
             planted, the ids are listed, and update exits 1. Move the note to
             another id, or rerun with `--force` to replace it.
@@ -48,7 +47,7 @@ struct UpdateCommand: ParsableCommand {
 
             EXAMPLES
                 llmemory update --home brain
-                llmemory update --no-base --json --home brain
+                llmemory update --no-seed --json --home brain
                 llmemory update --force --home brain
             """
     )
@@ -56,19 +55,19 @@ struct UpdateCommand: ParsableCommand {
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
 
-    @Flag(name: .long, inversion: .prefixedNo, help: "Restate the shipped base knowledge.")
-    var base = true
+    @Flag(name: .long, inversion: .prefixedNo, help: "Restate the shipped seed notes.")
+    var seed = true
 
-    @Flag(name: .long, help: "Replace notes holding a base address even when they do not claim to be base knowledge.")
+    @Flag(name: .long, help: "Replace notes holding a seed address even when they do not claim to hold a seeded copy.")
     var force = false
 
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        let result = try Brain(home: global.home).index.update(base: base, force: force)
+        let result = try Brain(home: global.home).index.update(seed: seed, force: force)
         let output = UpdateOutput(
             home: result.homePath,
-            base: result.seeding != nil,
+            seed: result.seeding != nil,
             planted: result.seeding?.planted ?? [],
             refreshed: result.seeding?.refreshed ?? [],
             unchanged: result.seeding?.unchanged ?? [],
@@ -82,7 +81,7 @@ struct UpdateCommand: ParsableCommand {
             var blocks: [PlainBlock] = [
                 .keyValue([
                     ("home", output.home),
-                    ("base", output.base ? "restated" : "skipped (--no-base)"),
+                    ("seed", output.seed ? "restated" : "skipped (--no-seed)"),
                     ("planted", output.planted.isEmpty ? "-" : output.planted.joined(separator: ", ")),
                     ("refreshed", output.refreshed.isEmpty ? "-" : output.refreshed.joined(separator: ", ")),
                     ("unchanged", output.unchanged.isEmpty ? "-" : output.unchanged.joined(separator: ", "))
@@ -91,8 +90,8 @@ struct UpdateCommand: ParsableCommand {
 
             if !output.conflicts.isEmpty {
                 blocks.append(.text(
-                    "CONFLICT: these addresses hold notes that do not carry `base: true`, so the "
-                        + "base knowledge was left unplanted — move them aside, or rerun with "
+                    "CONFLICT: these addresses hold notes that do not carry `seed: true`, so the "
+                        + "seed notes were left unplanted — move them aside, or rerun with "
                         + "--force to replace them:\n  " + output.conflicts.joined(separator: "\n  ")
                 ))
             }

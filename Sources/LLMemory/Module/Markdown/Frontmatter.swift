@@ -42,11 +42,11 @@ struct FrontmatterDoc: Equatable, Encodable, Sendable {
     var promotedFrom: [String]? = nil
     var source: [String] = []
     var template: String? = nil
-    // Provenance, not classification: this note came from a release rather than
-    // from a person. It is the only thing that tells a base note we planted
-    // apart from a note someone else wrote at the same address, now that there
-    // is no reserved directory to tell them apart by location.
-    var base: Bool = false
+    // Provenance, not classification: this note was planted from a seed the
+    // release ships, rather than written by a person. It is the only thing that
+    // tells a copy we planted apart from a note someone else wrote at the same
+    // address, now that no reserved directory separates them by location.
+    var seed: Bool = false
     var locked: Bool = false
     var stale: Bool = false
     var invalidatedAt: Int? = nil
@@ -77,7 +77,7 @@ struct FrontmatterDoc: Equatable, Encodable, Sendable {
             try container.encode(template, forKey: .init("template"))
         }
         
-        if base { try container.encode(true, forKey: .init("base")) }
+        if seed { try container.encode(true, forKey: .init("seed")) }
         if locked { try container.encode(true, forKey: .init("locked")) }
         if stale { try container.encode(true, forKey: .init("stale")) }
         
@@ -111,7 +111,7 @@ enum Frontmatter {
     // exists so a near-miss ('summry') can be told apart from an intended one.
     static let knownFields: [String] = [
         "title", "priority", "summary", "tags", "entities",
-        "promoted_from", "source", "template", "base", "locked", "stale",
+        "promoted_from", "source", "template", "seed", "locked", "stale",
         "invalidated_at", "invalidated_reason", "trashed_at", "trashed_reason"
     ]
 
@@ -207,8 +207,8 @@ enum Frontmatter {
             case "template":
                 doc.template = value.isEmpty ? nil : value
             
-            case "base":
-                doc.base = coerceBool(value)
+            case "seed":
+                doc.seed = coerceBool(value)
 
             case "locked":
                 doc.locked = coerceBool(value)
@@ -264,8 +264,8 @@ enum Frontmatter {
             lines.append("template: \(template)")
         }
         
-        if doc.base {
-            lines.append("base: true")
+        if doc.seed {
+            lines.append("seed: true")
         }
 
         if doc.locked {

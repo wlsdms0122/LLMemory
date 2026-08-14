@@ -7,11 +7,11 @@
 
 import Foundation
 
-// The base knowledge a release ships. It is planted at the addresses
-// document/cortex/ gives it — anywhere in the space, in any shape — so there is
-// no system-managed directory and nothing here knows a privileged branch name.
+// The knowledge a release ships as seeds. They are planted at the addresses
+// document/cortex/ gives them — anywhere in the space, in any shape — so there
+// is no system-managed directory and nothing here knows a privileged branch name.
 //
-// A base id carries the shipped copy, and `base: true` in the frontmatter is how
+// A seed id carries the shipped copy, and `seed: true` in the frontmatter is how
 // a note says it holds one. That mark is the whole reason a reserved directory
 // is not needed: without it, "a file is already here" cannot distinguish the
 // copy an earlier release planted from a note a person wrote at the same
@@ -27,16 +27,16 @@ import Foundation
 // Intent is never read out of the filesystem otherwise — a missing file used to
 // mean "opted out" and an edited one "leave me alone", and reading both out of
 // one directory is what made this surface need a --check flag to explain itself.
-// A brain that does not want the base knowledge says so per invocation, and a
-// local fork of a base note lives at its own id.
+// A brain that does not want the seeds says so per invocation, and a local fork
+// of a seeded note lives at its own id.
 public enum Seeding {
     public struct Result: Sendable {
         // MARK: - Property
         public var planted: [String] = []
         public var refreshed: [String] = []
         public var unchanged: [String] = []
-        // Base ids whose address is held by a note that does not claim to be one.
-        // Non-empty means nothing was written.
+        // Seed ids whose address is held by a note that does not claim to hold a
+        // seeded copy. Non-empty means nothing was written.
         public var conflicts: [String] = []
         public var errors: [String] = []
 
@@ -55,7 +55,7 @@ public enum Seeding {
         // also what makes the report actionable: the ids listed are exactly the
         // ids to deal with, not whatever was left after a partial run.
         if !force {
-            result.conflicts = Base.seeds
+            result.conflicts = Seed.notes
                 .filter { seed in
                     if case .foreign = claimant(of: seed) { return true }
 
@@ -66,7 +66,7 @@ public enum Seeding {
             if !result.conflicts.isEmpty { return result }
         }
 
-        for seed in Base.seeds {
+        for seed in Seed.notes {
             let canonical = Paths.file(forId: seed.id)
             let exists = FileManager.default.fileExists(atPath: canonical.path)
 
@@ -113,14 +113,14 @@ public enum Seeding {
     private enum Claimant {
         case absent
         case identical
-        // Marked `base: true` — a copy of some release's, ours to restate.
+        // Marked `seed: true` — a copy of some release's, ours to restate.
         case ours
         // Someone else's note sitting at an address this release wants.
         case foreign
         case unreadable(String)
     }
 
-    private static func claimant(of seed: Base.Seed) -> Claimant {
+    private static func claimant(of seed: Seed.Note) -> Claimant {
         let canonical = Paths.file(forId: seed.id)
 
         guard FileManager.default.fileExists(atPath: canonical.path) else { return .absent }
@@ -138,6 +138,6 @@ public enum Seeding {
         // the mark is not one this release may overwrite.
         guard let (fields, _) = try? Frontmatter.parse(text) else { return .foreign }
 
-        return fields.base ? .ours : .foreign
+        return fields.seed ? .ours : .foreign
     }
 }

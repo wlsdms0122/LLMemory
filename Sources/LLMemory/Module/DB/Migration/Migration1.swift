@@ -60,9 +60,9 @@ CREATE TABLE IF NOT EXISTS notes (
   template TEXT,
   -- 사람 전용 편집 — operations mutation 차단, 파일 직접 수정만 (frontmatter 파생).
   locked INTEGER NOT NULL DEFAULT 0 CHECK (locked IN (0,1)),
-  -- 배포본이 심은 지식이라는 출처 표시 (frontmatter 파생). 전용 디렉터리가 없으므로
-  -- init/update 가 "이 주소가 배포본 것인가"를 이걸로 가른다. ops 는 못 쓴다.
-  base INTEGER NOT NULL DEFAULT 0 CHECK (base IN (0,1)),
+  -- 배포본의 씨드에서 심긴 노트라는 출처 표시 (frontmatter 파생). 전용 디렉터리가
+  -- 없으므로 init/update 가 "이 주소가 배포본 것인가"를 이걸로 가른다. ops 는 못 쓴다.
+  seed INTEGER NOT NULL DEFAULT 0 CHECK (seed IN (0,1)),
   word_count INTEGER NOT NULL DEFAULT 0,
   section_count INTEGER NOT NULL DEFAULT 0,
   -- 투영 identity: 파일 원문 전체의 해시. 증분 skip 과 verify L2 가 이 하나로 판정한다

@@ -12,7 +12,7 @@ import LLMemory
 struct InitCommand: ParsableCommand {
     struct InitOutput: Encodable {
         enum CodingKeys: String, CodingKey {
-            case homePath = "home", indexed, changed, errors, base
+            case homePath = "home", indexed, changed, errors, seed
             case planted, refreshed, unchanged, conflicts
             case alreadyInitialized = "already_initialized"
             case dataExisted = "data_existed"
@@ -27,9 +27,9 @@ struct InitCommand: ParsableCommand {
         let indexed: Int
         let changed: Int
         let errors: [String]
-        // Whether the base knowledge was attempted at all — three empty lists
-        // read the same whether nothing needed doing or nothing was tried.
-        let base: Bool
+        // Whether the seeds were attempted at all — three empty lists read the
+        // same whether nothing needed doing or nothing was tried.
+        let seed: Bool
         let planted, refreshed, unchanged, conflicts: [String]
         
         // MARK: - Initializer
@@ -48,33 +48,33 @@ struct InitCommand: ParsableCommand {
 
             Also writes <home>/README.md from the embedded agent guide
             (document/GUIDE.md) — a derived copy, refreshed on every init — and
-            plants the base knowledge (document/cortex/**/*.md) as `locked: true`
-            notes at the addresses that tree gives them. A base id always carries
-            the shipped copy, so an existing one — a note carrying `base: true` —
-            is restated. An address held by a note that does not claim to be base
-            knowledge is a conflict: nothing is planted, the ids are listed, and
-            init exits 1 unless `--force` is given. `--no-base` skips them
+            plants the seed notes (document/cortex/**/*.md) as `locked: true`
+            notes at the addresses that tree gives them. A seed id always carries
+            the shipped copy, so an existing one — a note carrying `seed: true` —
+            is restated. An address held by a note that does not claim to hold a
+            seeded copy is a conflict: nothing is planted, the ids are listed, and
+            init exits 1 unless `--force` is given. `--no-seed` skips them
             entirely — a brain born with nothing at all.
 
             EXAMPLES
                 llmemory init --home brain
-                llmemory init --no-base --home brain
+                llmemory init --no-seed --home brain
             """
     )
 
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
 
-    @Flag(name: .long, inversion: .prefixedNo, help: "Plant the shipped base knowledge.")
-    var base = true
+    @Flag(name: .long, inversion: .prefixedNo, help: "Plant the shipped seed notes.")
+    var seed = true
 
-    @Flag(name: .long, help: "Replace notes holding a base address even when they do not claim to be base knowledge.")
+    @Flag(name: .long, help: "Replace notes holding a seed address even when they do not claim to hold a seeded copy.")
     var force = false
 
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        let result = try Brain(home: global.home).index.initialize(base: base, force: force)
+        let result = try Brain(home: global.home).index.initialize(seed: seed, force: force)
         let output = InitOutput(
             alreadyInitialized: result.alreadyInitialized,
             homePath: result.homePath,
@@ -84,7 +84,7 @@ struct InitCommand: ParsableCommand {
             indexed: result.indexed,
             changed: result.changed,
             errors: result.errors,
-            base: result.seeding != nil,
+            seed: result.seeding != nil,
             planted: result.seeding?.planted ?? [],
             refreshed: result.seeding?.refreshed ?? [],
             unchanged: result.seeding?.unchanged ?? [],
@@ -98,15 +98,15 @@ struct InitCommand: ParsableCommand {
                         + "(data=\(output.dataExisted), cortex=\(output.cortexExisted), db=\(output.dbExisted))"
                     : "initialized at \(output.homePath)"),
                 .text("indexed \(output.indexed) notes (changed=\(output.changed), errors=\(output.errors.count))"),
-                .text(!output.base
-                    ? "base knowledge: skipped (--no-base)"
+                .text(!output.seed
+                    ? "seed notes: skipped (--no-seed)"
                     : !output.conflicts.isEmpty
-                        ? "CONFLICT: these addresses hold notes that do not carry `base: true`, so nothing "
+                        ? "CONFLICT: these addresses hold notes that do not carry `seed: true`, so nothing "
                             + "was planted — move them aside, or rerun with --force:\n  "
                             + output.conflicts.joined(separator: "\n  ")
                         : output.planted.isEmpty && output.refreshed.isEmpty
-                            ? "base knowledge: already current"
-                            : "base knowledge — planted: \(output.planted.isEmpty ? "-" : output.planted.joined(separator: ", "))"
+                            ? "seed notes: already current"
+                            : "seed notes — planted: \(output.planted.isEmpty ? "-" : output.planted.joined(separator: ", "))"
                                 + ", refreshed: \(output.refreshed.isEmpty ? "-" : output.refreshed.joined(separator: ", "))")
             ]
         }

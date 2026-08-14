@@ -19,21 +19,21 @@ final class CLIBrain {
     var path: String { url.path }
     
     // MARK: - Initializer
-    init(prefix: String = "llmemory-cli-test", seeded: Bool = true, base: Bool = true) throws {
+    init(prefix: String = "llmemory-cli-test", seeded: Bool = true, seed: Bool = true) throws {
         url = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(prefix)-\(UUID().uuidString)")
 
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
 
-        let initialized = runner.run(base
+        let initialized = runner.run(seed
             ? ["init", "--home", url.path]
-            : ["init", "--no-base", "--home", url.path])
+            : ["init", "--no-seed", "--home", url.path])
 
         guard initialized.succeeded else {
             throw TestFailure("init failed (\(initialized.exitCode)): \(initialized.standardError)")
         }
 
-        if seeded { try seed() }
+        if seeded { try applyFixtures() }
     }
     
     deinit {
@@ -72,7 +72,7 @@ final class CLIBrain {
         }
     }
     
-    private func seed() throws {
+    private func applyFixtures() throws {
         try apply("""
         {"ops":[
           {"op":"create_note","id":"tech.di-container","title":"TossDI Container 설계",

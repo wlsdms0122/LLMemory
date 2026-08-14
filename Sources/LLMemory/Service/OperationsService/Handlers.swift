@@ -255,12 +255,12 @@ public enum Handlers {
     // default: any key it does not recognise lands in `extra` and is projected to
     // note_extra. Only the fields below stay closed — each is either identity/path
     // (moved by migrate_note), a lifecycle state owned by its own op, or human-only.
-    // Fields ops may not author. `base` is here because it is the note's claim
-    // to be a shipped copy — a note that could grant itself that claim could
+    // Fields ops may not author. `seed` is here because it is the note's claim
+    // to be a planted copy — a note that could grant itself that claim could
     // arrange to be overwritten by the next release, which is the one thing the
     // claim exists to decide.
     public static let frontmatterReserved: Set<String> = [
-        "id", "template", "base", "locked",
+        "id", "template", "seed", "locked",
         "stale", "invalidated_at", "invalidated_reason",
         "trashed_at", "trashed_reason"
     ]

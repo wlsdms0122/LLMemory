@@ -126,10 +126,10 @@ tool/migrate-legacy.sh <state-root> [path-to-llmemory]
    `retrieval_hits` 만 예외로 전 행을 남긴다 — 사라진 노트에 대한 hit 도 hit 이다.
 5. **재파생** — `llmemory index vector` 로 벡터 재빌드(accepted-loss), `llmemory update --force` 로
    기본 지식 재적용 + shape 게이트 통과 확인. `--force` 는 **여기서만** 맞다: 넘어온 기본 지식
-   파일은 `base: true` 표식이 생기기 전 것이라 `update` 눈에는 "그 자리를 차지한 저작 노트"로
+   파일은 `seed: true` 표식이 생기기 전 것이라 `update` 눈에는 "그 자리를 차지한 저작 노트"로
    보인다. 실제로는 아니고 — 옛 세계는 그것들을 `.innate/` 예약 구역에 뒀으므로 출처가 자리로
    보장돼 있었다. 그 사실이 살아있는 마지막 순간이 여기다.
-   (3단계의 `init` 은 `--no-base` 로 돈다 — 재투영이 할 일은 심는 게 아니고, 심는 건 이 단계다.)
+   (3단계의 `init` 은 `--no-seed` 로 돈다 — 재투영이 할 일은 심는 게 아니고, 심는 건 이 단계다.)
 
 ## 확인
 

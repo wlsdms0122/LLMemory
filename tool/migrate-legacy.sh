@@ -336,10 +336,10 @@ if kept_tail:
 PY
 
 # 3. Fresh canonical DB + markdown reprojection (notes/tags/entities/fts/ref markers).
-#    `--no-base` because the corpus already holds the previous release's copies
+#    `--no-seed` because the corpus already holds the previous release's copies
 #    and step 5 restates them. Planting here would mean deciding their provenance
 #    twice, in the step whose job is reprojection rather than seeding.
-"$LLMEMORY" init --no-base --home "$ROOT"
+"$LLMEMORY" init --no-seed --home "$ROOT"
 
 # 4. Carry the non-projection state over. Ordering respects FKs
 #    (vocab before aliases, notes exist before every note_id FK,
@@ -449,9 +449,9 @@ DETACH DATABASE old;
 SQL
 
 # 5. Vectors are accepted-loss (derived) — rebuild, then restate + verify.
-#    `--force` is correct here and only here. The base notes carried over from
-#    the legacy corpus predate the `base: true` mark, so `update` would see them
-#    as authored notes holding a base address and refuse. They are not: the old
+#    `--force` is correct here and only here. The seeded notes carried over from
+#    the legacy corpus predate the `seed: true` mark, so `update` would see them
+#    as authored notes holding a seed address and refuse. They are not: the old
 #    world kept them in a reserved `.innate/` directory nothing else could write
 #    to, so their provenance is known from where they came from. This is the one
 #    moment that fact is still available.

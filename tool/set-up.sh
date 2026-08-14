@@ -2,7 +2,7 @@
 # One-time setup after clone (rerun after editing document/) — like tuist generate.
 #
 #   document/GUIDE.md  → Sources/LLMemory/Resource/Guide.swift   (agent usage guide)
-#   document/cortex/**/*.md  → Sources/LLMemory/Resource/Base.swift  (shipped brain notes)
+#   document/cortex/**/*.md  → Sources/LLMemory/Resource/Seed.swift  (seed brain notes)
 #
 # Resource/ is gitignored — a persistent local artifact like .build. The package does
 # not compile without it, so a fresh clone runs this first:
@@ -72,7 +72,7 @@ fi
 
 {
   echo "// Generated from document/cortex/**/*.md by tool/set-up.sh — do not edit by hand."
-  echo "// Drift against the markdown is caught by the Base byte-equality test."
+  echo "// Drift against the markdown is caught by the Seed byte-equality test."
   echo ""
   echo "/// The knowledge llmemory ships with — what an agent needs to run a memory"
   echo "/// well (how to fragment, how fragments stay reachable). Unlike \`Guide\`, which"
@@ -80,19 +80,19 @@ fi
   echo "/// cortex as ordinary notes so the normal retrieval descent finds them, at"
   echo "/// whatever addresses document/cortex/ gives them. They carry \`locked: true\`,"
   echo "/// so ops cannot rewrite them; \`init\` and \`update\` restate them from here."
-  echo "public enum Base {"
-  echo "    public struct Seed: Sendable {"
+  echo "public enum Seed {"
+  echo "    public struct Note: Sendable {"
   echo "        public let id: String"
   echo "        public let markdown: String"
   echo "    }"
   echo ""
-  echo "    public static let seeds: [Seed] = ["
+  echo "    public static let notes: [Note] = ["
   for relative in "${seeds[@]}"; do
     # The location is the address — the same rule the cortex follows, so a seed
     # cannot declare an id that disagrees with where it will be planted.
     id=${relative%.md}
     id=${id//\//.}
-    echo "        Seed(id: \"$id\", markdown: #\"\"\""
+    echo "        Note(id: \"$id\", markdown: #\"\"\""
     cat "document/cortex/$relative"
     echo ""
     echo "\"\"\"#),"
@@ -100,5 +100,5 @@ fi
   echo "    ]"
   echo "}"
 } > "$scratch"
-mv "$scratch" Sources/LLMemory/Resource/Base.swift
-echo "generated Sources/LLMemory/Resource/Base.swift"
+mv "$scratch" Sources/LLMemory/Resource/Seed.swift
+echo "generated Sources/LLMemory/Resource/Seed.swift"

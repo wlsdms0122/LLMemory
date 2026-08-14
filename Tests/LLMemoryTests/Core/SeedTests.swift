@@ -1,5 +1,5 @@
 //
-//  BaseKnowledgeTests.swift
+//  SeedTests.swift
 //  LLMemoryTests
 //
 //  Created by JSilver on 8/8/26.
@@ -9,12 +9,12 @@ import Testing
 import Foundation
 @testable import LLMemory
 
-// The base knowledge a release ships. One sentence carries the whole contract —
-// a base id always holds the shipped copy — so these tests are mostly about what
+// The notes a release ships as seeds. One sentence carries the whole contract —
+// a seed id always holds the shipped copy — so these tests are mostly about what
 // is *not* here any more: no privileged directory, no state read as intent, no
 // second command to explain the first.
-@Suite("Base Knowledge Tests")
-struct BaseKnowledgeTests {
+@Suite("Seed Tests")
+struct SeedTests {
     // MARK: - Property
     private let source = PackageSource()
     private let home: MemoryHome
@@ -28,19 +28,19 @@ struct BaseKnowledgeTests {
     @Test("the embedded seeds are byte-identical to the documents they were generated from")
     func embeddedSeedsMatchDocumentFiles() throws {
         // Given
-        #expect(!Base.seeds.isEmpty, "no base documents embedded")
+        #expect(!Seed.notes.isEmpty, "no seed notes embedded")
 
-        for seed in Base.seeds {
+        for seed in Seed.notes {
             // When
             let onDisk = try String(contentsOf: seedFile(seed.id), encoding: .utf8)
 
             // Then
             #expect(onDisk == seed.markdown,
-                "\(seedFile(seed.id).path) and Base.swift diverged — run tool/set-up.sh")
+                "\(seedFile(seed.id).path) and Seed.swift diverged — run tool/set-up.sh")
         }
     }
 
-    // Every other test here iterates Base.seeds, so a document added without
+    // Every other test here iterates Seed.notes, so a document added without
     // rerunning tool/set-up.sh is a document nothing looks at. This walks the
     // other way — from the tree.
     //
@@ -63,7 +63,7 @@ struct BaseKnowledgeTests {
         }
 
         // When — where the brain would put each embedded seed, by its own mapping.
-        let embedded = Set(Base.seeds.map { seed in seedFile(seed.id).standardized.path })
+        let embedded = Set(Seed.notes.map { seed in seedFile(seed.id).standardized.path })
 
         // Then
         #expect(!onDisk.isEmpty, "no documents found under \(root.path)")
@@ -75,7 +75,7 @@ struct BaseKnowledgeTests {
 
     @Test("every seed declares locked: true, so ops cannot rewrite the shipped copy")
     func everySeedIsLocked() throws {
-        for seed in Base.seeds {
+        for seed in Seed.notes {
             // When
             let onDisk = try String(contentsOf: seedFile(seed.id), encoding: .utf8)
 
@@ -86,7 +86,7 @@ struct BaseKnowledgeTests {
 
     @Test("a seed is addressed by where it is planted, and declares no id of its own")
     func seedDeclaresNoId() throws {
-        for seed in Base.seeds {
+        for seed in Seed.notes {
             // When
             _ = try Frontmatter.parse(seed.markdown)
 
@@ -96,12 +96,12 @@ struct BaseKnowledgeTests {
         }
     }
 
-    @Test("init plants the base knowledge as notes that can actually be retrieved")
+    @Test("init plants the seed notes as notes that can actually be retrieved")
     func initPlantsSeedsAsRetrievableNotes() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-base-init")
+        let brain = try CLIBrain(prefix: "llmemory-seed-init")
 
-        for seed in Base.seeds {
+        for seed in Seed.notes {
             // When
             let planted = brain.file(Paths.relativeFile(forId: seed.id))
             let result = brain.run(["query", "get", seed.id, "--json"])
@@ -113,9 +113,9 @@ struct BaseKnowledgeTests {
     }
 
     @Test("a fresh brain holds exactly the shipped set and nothing else")
-    func freshBrainHoldsOnlyTheBaseKnowledge() throws {
+    func freshBrainHoldsOnlyTheSeedNotes() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-base-tree", seeded: false)
+        let brain = try CLIBrain(prefix: "llmemory-seed-tree", seeded: false)
 
         // When
         let result = brain.run(["query", "tree", "--json"])
@@ -123,16 +123,16 @@ struct BaseKnowledgeTests {
         let prefixes = Set(rows.compactMap { row in row.first as? String })
 
         // Then
-        #expect(prefixes == Set(Base.seeds.compactMap { seed in Paths.branch(of: seed.id, depth: 1) }),
+        #expect(prefixes == Set(Seed.notes.compactMap { seed in Paths.branch(of: seed.id, depth: 1) }),
             "fresh brain tree: \(prefixes.sorted())")
     }
 
-    // The shipped copy wins at a base id, always — that is the entire contract,
+    // The shipped copy wins at a seed id, always — that is the entire contract,
     // and it is why nothing needs to ask whether an edit was deliberate.
-    @Test("an edited base note is restated, and the run says which id it rewrote")
-    func updateRestatesAnEditedBaseNote() throws {
+    @Test("an edited seed note is restated, and the run says which id it rewrote")
+    func updateRestatesAnEditedSeedNote() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-base-edit")
+        let brain = try CLIBrain(prefix: "llmemory-seed-edit")
         let seed = try firstSeed()
         let file = brain.file(Paths.relativeFile(forId: seed.id))
 
@@ -150,12 +150,12 @@ struct BaseKnowledgeTests {
     }
 
     // Deleting the file used to mean "I opted out". It means nothing now — the
-    // filesystem carries no intent, so a brain that does not want the base
+    // filesystem carries no intent, so a brain that does not want the seed
     // knowledge says so on the command line instead.
-    @Test("a deleted base note comes back on the next update")
-    func updateReplantsADeletedBaseNote() throws {
+    @Test("a deleted seed note comes back on the next update")
+    func updateReplantsADeletedSeedNote() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-base-delete")
+        let brain = try CLIBrain(prefix: "llmemory-seed-delete")
         let seed = try firstSeed()
         let file = brain.file(Paths.relativeFile(forId: seed.id))
 
@@ -175,48 +175,48 @@ struct BaseKnowledgeTests {
     // The markdown is the source and the DB is its reflection, so a frontmatter
     // field llmemory itself branches on belongs in the schema — otherwise the
     // fact exists in the file and nowhere a query can reach it.
-    @Test("the base mark is projected onto the note row")
-    func theBaseMarkIsProjected() throws {
+    @Test("the seed mark is projected onto the note row")
+    func theSeedMarkIsProjected() throws {
         // Given
         _ = Seeding.plant()
 
         #expect(home.createNote(id: "tech.mine", content: "## A\nmine\n").status == "ok")
 
-        for seed in Base.seeds {
+        for seed in Seed.notes {
             try home.reindexFile(at: Paths.file(forId: seed.id))
         }
 
         // When
         let marked = try home.read { database in
-            try String.fetchAll(database, sql: "SELECT id FROM notes WHERE base = 1 ORDER BY id")
+            try String.fetchAll(database, sql: "SELECT id FROM notes WHERE seed = 1 ORDER BY id")
         }
         let unmarked = try home.read { database in
-            try String.fetchAll(database, sql: "SELECT id FROM notes WHERE base = 0 ORDER BY id")
+            try String.fetchAll(database, sql: "SELECT id FROM notes WHERE seed = 0 ORDER BY id")
         }
 
         // Then
-        #expect(marked == Base.seeds.map(\.id).sorted(), "\(marked)")
+        #expect(marked == Seed.notes.map(\.id).sorted(), "\(marked)")
         #expect(unmarked == ["tech.mine"], "an authored note must claim nothing: \(unmarked)")
     }
 
-    @Test("every shipped document declares base: true, or nothing could tell it from an authored note")
-    func everySeedDeclaresBase() throws {
-        for seed in Base.seeds {
+    @Test("every shipped document declares seed: true, or nothing could tell it from an authored note")
+    func everySeedDeclaresSeed() throws {
+        for seed in Seed.notes {
             // When
             let (fields, _) = try Frontmatter.parse(seed.markdown)
 
             // Then
-            #expect(fields.base, "\(seed.id) must declare base: true")
+            #expect(fields.seed, "\(seed.id) must declare seed: true")
         }
     }
 
     // The address is shared with authored notes now, so a release that adds an
     // id someone already uses must not be able to take it. Without the mark this
-    // note is indistinguishable from a base copy that was edited.
-    @Test("a note at a base address that does not claim to be base knowledge stops the planting")
-    func anUnmarkedNoteAtABaseAddressIsAConflict() throws {
+    // note is indistinguishable from a seeded copy that was edited.
+    @Test("a note at a seed address that does not claim to be seed notes stops the planting")
+    func anUnmarkedNoteAtASeedAddressIsAConflict() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-base-conflict", seeded: false, base: false)
+        let brain = try CLIBrain(prefix: "llmemory-seed-conflict", seeded: false, seed: false)
         let seed = try firstSeed()
         let file = brain.file(Paths.relativeFile(forId: seed.id))
         let mine = """
@@ -259,7 +259,7 @@ struct BaseKnowledgeTests {
     @Test("a conflict plants nothing at all, not even the seeds that would have been fine")
     func aConflictLeavesEverySeedUnplanted() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-base-allornothing", seeded: false, base: false)
+        let brain = try CLIBrain(prefix: "llmemory-seed-allornothing", seeded: false, seed: false)
         let seed = try firstSeed()
         let file = brain.file(Paths.relativeFile(forId: seed.id))
 
@@ -288,28 +288,28 @@ struct BaseKnowledgeTests {
 
         #expect(planted.isEmpty && refreshed.isEmpty, "\(result.standardOutput)")
 
-        for other in Base.seeds where other.id != seed.id {
+        for other in Seed.notes where other.id != seed.id {
             #expect(!FileManager.default.fileExists(
                 atPath: brain.file(Paths.relativeFile(forId: other.id)).path
             ), "\(other.id) was planted while another seed was in conflict")
         }
     }
 
-    @Test("--no-base leaves the base knowledge out — on init and on update alike")
-    func noBaseSkipsPlanting() throws {
+    @Test("--no-seed leaves the seed notes out — on init and on update alike")
+    func noSeedSkipsPlanting() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-base-none", seeded: false, base: false)
+        let brain = try CLIBrain(prefix: "llmemory-seed-none", seeded: false, seed: false)
         let seed = try firstSeed()
         let file = brain.file(Paths.relativeFile(forId: seed.id))
 
-        #expect(!FileManager.default.fileExists(atPath: file.path), "--no-base must not plant")
+        #expect(!FileManager.default.fileExists(atPath: file.path), "--no-seed must not plant")
 
         // When
-        let result = brain.run(["update", "--no-base", "--json"])
+        let result = brain.run(["update", "--no-seed", "--json"])
 
         // Then
         #expect(result.succeeded, "\(result.standardError)")
-        #expect(!FileManager.default.fileExists(atPath: file.path), "--no-base must not plant on update")
+        #expect(!FileManager.default.fileExists(atPath: file.path), "--no-seed must not plant on update")
 
         // When — and the choice is per invocation, not a setting the brain keeps.
         let again = brain.run(["update", "--json"])
@@ -319,12 +319,12 @@ struct BaseKnowledgeTests {
             "a plain update must plant: \(again.standardOutput)")
     }
 
-    // There is no system-managed directory any more, so a base note's neighbours
+    // There is no system-managed directory any more, so a seeded note's neighbours
     // are ordinary notes — including the ones addressed underneath it.
-    @Test("update touches base ids only — authored notes beside and beneath them are left alone")
+    @Test("update touches seed ids only — authored notes beside and beneath them are left alone")
     func updateLeavesAuthoredNotesAlone() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-base-scope")
+        let brain = try CLIBrain(prefix: "llmemory-seed-scope")
         let seed = try firstSeed()
         let authored = brain.noteURL(id: "tech.di-container")
         let before = try String(contentsOf: authored, encoding: .utf8)
@@ -340,7 +340,7 @@ struct BaseKnowledgeTests {
         title: mine
         priority: lazy
         tags: [flow]
-        summary: authored under a base note's address
+        summary: authored under a seeded note's address
         ---
 
         ## Note
@@ -356,15 +356,15 @@ struct BaseKnowledgeTests {
         #expect(result.succeeded, "\(result.standardError)")
         #expect(try String(contentsOf: authored, encoding: .utf8) == before)
         #expect(try String(contentsOf: beneath, encoding: .utf8) == mine,
-            "a note under a base note's address is not the release's to touch")
+            "a note under a seeded note's address is not the release's to touch")
     }
 
     // The mark decides who may overwrite whom, so a note that could set it on
     // itself could arrange to be replaced by the next release.
-    @Test("ops cannot author the base mark")
-    func opsCannotSetTheBaseMark() throws {
+    @Test("ops cannot author the seed mark")
+    func opsCannotSetTheSeedMark() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-base-reserved")
+        let brain = try CLIBrain(prefix: "llmemory-seed-reserved")
 
         #expect(brain.applyOps("""
             {"ops":[{"op":"create_note","id":"tech.mine","title":"t","tags":["flow"],\
@@ -373,21 +373,21 @@ struct BaseKnowledgeTests {
 
         // When
         let result = brain.applyOps("""
-            {"ops":[{"op":"set_frontmatter","id":"tech.mine","fields":{"base":true}}],\
+            {"ops":[{"op":"set_frontmatter","id":"tech.mine","fields":{"seed":true}}],\
             "rationale":"test"}
             """)
 
         // Then
         #expect(!result.succeeded || result.jsonObject()?["status"] as? String == "rejected",
-            "a note granted itself the base mark: \(result.standardOutput)")
+            "a note granted itself the seed mark: \(result.standardOutput)")
         #expect(!(try String(contentsOf: brain.noteURL(id: "tech.mine"), encoding: .utf8))
-            .contains("base:"), "the mark reached the file")
+            .contains("seed:"), "the mark reached the file")
     }
 
-    @Test("a locked base note refuses an ops mutation")
-    func baseNoteRefusesOpsMutation() throws {
+    @Test("a locked seed note refuses an ops mutation")
+    func seedNoteRefusesOpsMutation() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-base-locked")
+        let brain = try CLIBrain(prefix: "llmemory-seed-locked")
         let seed = try firstSeed()
 
         // When
@@ -398,7 +398,7 @@ struct BaseKnowledgeTests {
 
         // Then
         #expect(!result.succeeded || result.jsonObject()?["status"] as? String == "rejected",
-            "locked base note accepted an ops mutation: \(result.standardOutput)")
+            "locked seed note accepted an ops mutation: \(result.standardOutput)")
     }
 
     @Test("locked is a bot-mutation gate, not ownership — planting restates the note either way")
@@ -418,7 +418,7 @@ struct BaseKnowledgeTests {
 
         // Then
         #expect(result.refreshed.contains(seed.id),
-            "a base id is always the shipped copy, locked or not — got \(result)")
+            "a seed id is always the shipped copy, locked or not — got \(result)")
         #expect(try String(contentsOf: file, encoding: .utf8) == seed.markdown)
     }
 
@@ -430,8 +430,8 @@ struct BaseKnowledgeTests {
         source.file("document/\(Paths.relativeFile(forId: id))")
     }
 
-    private func firstSeed() throws -> Base.Seed {
-        guard let seed = Base.seeds.first else { throw TestFailure("no base documents embedded") }
+    private func firstSeed() throws -> Seed.Note {
+        guard let seed = Seed.notes.first else { throw TestFailure("no seed notes embedded") }
 
         return seed
     }
