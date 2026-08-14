@@ -49,10 +49,6 @@ struct OneTypePerFileInvariantTests {
         var violations: [String] = []
 
         for file in inScope {
-            // A file whose name carries a `+` is an extension file — it adds to
-            // a type it does not own, so there is no declaration to match.
-            if file.name.contains("+") { continue }
-
             let declared = file.codeLines().compactMap { _, text -> String? in
                 guard
                     let match = declaration.firstMatch(
@@ -66,6 +62,18 @@ struct OneTypePerFileInvariantTests {
 
                 return String(text[range])
             }
+            // A file whose name carries a `+` adds to a type it does not own, so
+            // there is no name to match — but it may not declare one either.
+            // Skipping the file outright would leave exactly the habit this
+            // rule removes a place to hide.
+            if file.name.contains("+") {
+                if !declared.isEmpty {
+                    violations.append("\(file.name)  declares \(declared.joined(separator: ", ")) in an extension file")
+                }
+
+                continue
+            }
+
             let expected = String(file.name.dropLast(".swift".count))
 
             if declared.count != 1 {
