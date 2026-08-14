@@ -16,7 +16,7 @@ struct UpdateCommand: ParsableCommand {
         // Whether the seeds were attempted at all — three empty lists read the
         // same whether nothing needed doing or nothing was tried.
         let seed: Bool
-        let planted, refreshed, unchanged, retired, conflicts: [String]
+        let planted, refreshed, unchanged, retired, replaced, conflicts: [String]
         let indexed, changed: Int
         let errors: [String]
 
@@ -75,6 +75,7 @@ struct UpdateCommand: ParsableCommand {
             refreshed: result.seeding?.refreshed ?? [],
             unchanged: result.seeding?.unchanged ?? [],
             retired: result.seeding?.retired ?? [],
+            replaced: result.seeding?.replaced ?? [],
             conflicts: result.seeding?.conflicts ?? [],
             indexed: result.indexed,
             changed: result.changed,
@@ -82,30 +83,20 @@ struct UpdateCommand: ParsableCommand {
         )
 
         render(output, json: format.json) { output in
-            var blocks: [PlainBlock] = [
-                .keyValue([
-                    ("home", output.home),
-                    ("seed", output.seed ? "restated" : "skipped (--no-seed)"),
-                    ("planted", output.planted.isEmpty ? "-" : output.planted.joined(separator: ", ")),
-                    ("refreshed", output.refreshed.isEmpty ? "-" : output.refreshed.joined(separator: ", ")),
-                    ("unchanged", output.unchanged.isEmpty ? "-" : output.unchanged.joined(separator: ", ")),
-                    ("retired", output.retired.isEmpty ? "-" : output.retired.joined(separator: ", "))
-                ])
-            ]
-
-            if !output.conflicts.isEmpty {
-                blocks.append(.text(
-                    "CONFLICT: these addresses hold notes that do not carry `seed: true`, so the "
-                        + "seed notes were left unplanted — move them aside, or rerun with "
-                        + "--force to replace them:\n  " + output.conflicts.joined(separator: "\n  ")
-                ))
-            }
-
-            blocks.append(
-                .text("indexed \(output.indexed) notes (changed=\(output.changed), errors=\(output.errors.count))")
-            )
-
-            return blocks
+            [.keyValue([("home", output.home)])]
+                + SeedingSummary.blocks(
+                    attempted: output.seed,
+                    planted: output.planted,
+                    refreshed: output.refreshed,
+                    unchanged: output.unchanged,
+                    retired: output.retired,
+                    replaced: output.replaced,
+                    conflicts: output.conflicts
+                )
+                + [.text(
+                    "indexed \(output.indexed) notes "
+                        + "(changed=\(output.changed), errors=\(output.errors.count))"
+                )]
         }
 
         for error in result.errors {

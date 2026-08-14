@@ -13,7 +13,7 @@ struct InitCommand: ParsableCommand {
     struct InitOutput: Encodable {
         enum CodingKeys: String, CodingKey {
             case homePath = "home", indexed, changed, errors, seed
-            case planted, refreshed, unchanged, retired, conflicts
+            case planted, refreshed, unchanged, retired, replaced, conflicts
             case alreadyInitialized = "already_initialized"
             case dataExisted = "data_existed"
             case cortexExisted = "cortex_existed"
@@ -30,7 +30,7 @@ struct InitCommand: ParsableCommand {
         // Whether the seeds were attempted at all — three empty lists read the
         // same whether nothing needed doing or nothing was tried.
         let seed: Bool
-        let planted, refreshed, unchanged, retired, conflicts: [String]
+        let planted, refreshed, unchanged, retired, replaced, conflicts: [String]
         
         // MARK: - Initializer
         // MARK: - Public
@@ -89,6 +89,7 @@ struct InitCommand: ParsableCommand {
             refreshed: result.seeding?.refreshed ?? [],
             unchanged: result.seeding?.unchanged ?? [],
             retired: result.seeding?.retired ?? [],
+            replaced: result.seeding?.replaced ?? [],
             conflicts: result.seeding?.conflicts ?? []
         )
         
@@ -98,18 +99,16 @@ struct InitCommand: ParsableCommand {
                     ? "already initialized at \(output.homePath) — preserved existing files "
                         + "(data=\(output.dataExisted), cortex=\(output.cortexExisted), db=\(output.dbExisted))"
                     : "initialized at \(output.homePath)"),
-                .text("indexed \(output.indexed) notes (changed=\(output.changed), errors=\(output.errors.count))"),
-                .text(!output.seed
-                    ? "seed notes: skipped (--no-seed)"
-                    : !output.conflicts.isEmpty
-                        ? "CONFLICT: these addresses hold notes that do not carry `seed: true`, so nothing "
-                            + "was planted — move them aside, or rerun with --force:\n  "
-                            + output.conflicts.joined(separator: "\n  ")
-                        : output.planted.isEmpty && output.refreshed.isEmpty
-                            ? "seed notes: already current"
-                            : "seed notes — planted: \(output.planted.isEmpty ? "-" : output.planted.joined(separator: ", "))"
-                                + ", refreshed: \(output.refreshed.isEmpty ? "-" : output.refreshed.joined(separator: ", "))")
-            ]
+                .text("indexed \(output.indexed) notes (changed=\(output.changed), errors=\(output.errors.count))")
+            ] + SeedingSummary.blocks(
+                attempted: output.seed,
+                planted: output.planted,
+                refreshed: output.refreshed,
+                unchanged: output.unchanged,
+                retired: output.retired,
+                replaced: output.replaced,
+                conflicts: output.conflicts
+            )
         }
         
         for error in result.errors {

@@ -178,7 +178,7 @@ struct SeedTests {
     @Test("the seed mark is projected onto the note row")
     func theSeedMarkIsProjected() throws {
         // Given
-        _ = Seeding.plant()
+        _ = Seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
 
         #expect(home.createNote(id: "tech.mine", content: "## A\nmine\n").status == "ok")
 
@@ -252,6 +252,16 @@ struct SeedTests {
 
         #expect(forced.succeeded, "\(forced.standardError)")
         #expect(try String(contentsOf: file, encoding: .utf8) == seed.markdown)
+
+        // Then — the address was taken, not the note destroyed. Overruling a
+        // person stays undoable, and the run says whose address it took.
+        let replaced = forced.jsonObject()?["replaced"] as? [String] ?? []
+        let trashed = brain.file("cortex/.trash/\(seed.id.replacingOccurrences(of: ".", with: "/")).md")
+
+        #expect(replaced == [seed.id], "\(forced.standardOutput)")
+        #expect(FileManager.default.fileExists(atPath: trashed.path),
+            "--force erased an authored note instead of trashing it")
+        #expect(try String(contentsOf: trashed, encoding: .utf8).contains("I got here first"))
     }
 
     // All or nothing: the ids reported are the ids to deal with, not whatever
@@ -322,6 +332,11 @@ struct SeedTests {
         left behind.
         """.write(to: retired, atomically: true, encoding: .utf8)
 
+        #expect(brain.applyOps("""
+            {"ops":[{"op":"create_note","id":"tech.cites-gone","title":"t","tags":["flow"],\
+            "summary":"s","content":"## A\\ncites `innate.gone`.\\n"}],"rationale":"test"}
+            """).succeeded)
+
         // The catalog has to know it before update can look for it.
         #expect(brain.run(["index", "build"]).succeeded)
 
@@ -337,6 +352,13 @@ struct SeedTests {
         #expect(FileManager.default.fileExists(
             atPath: brain.file("cortex/.trash/innate/gone.md").path
         ), "a retired note is moved, not erased")
+
+        // A note leaving the corpus is a note somebody may have cited. Retirement
+        // goes through the same removal as a deletion, so the citers are flagged
+        // the same way rather than discovering it as a dangling reference.
+        let flagged = try brain.rows("SELECT note_id FROM ripple_flags ORDER BY note_id")
+
+        #expect(flagged.contains("tech.cites-gone"), "the citer was not flagged: \(flagged)")
     }
 
     // The row is only as fresh as the last index, and this ends in a file being
@@ -501,7 +523,7 @@ struct SeedTests {
     @Test("locked is a bot-mutation gate, not ownership — planting restates the note either way")
     func plantRestatesSeedRegardlessOfLocked() throws {
         // Given
-        _ = Seeding.plant()
+        _ = Seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
 
         let seed = try firstSeed()
         let file = Paths.file(forId: seed.id)
@@ -511,7 +533,7 @@ struct SeedTests {
         try forked.write(to: file, atomically: true, encoding: .utf8)
 
         // When
-        let result = Seeding.plant()
+        let result = Seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
 
         // Then
         #expect(result.refreshed.contains(seed.id),

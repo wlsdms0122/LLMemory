@@ -65,13 +65,13 @@ public final class Session {
     // a brain whose files moved forward and whose schema did not — and on the near
     // side of the build, so what it writes is indexed by the same pass.
     //
-    // It is handed the migrated catalog, which is what the brain knows about the
-    // corpus before this run's changes: enough to find the notes an earlier
-    // release left behind, and stale enough that the files themselves settle
-    // every decision.
+    // It is handed a scope over the migrated brain: what the catalog knows before
+    // this run's changes — enough to find the notes an earlier release left
+    // behind, and stale enough that the files themselves settle every decision —
+    // and the shared way a note leaves the corpus.
     @discardableResult
     public func bootstrap(
-        beforeIndexing: (Catalog) throws -> Void = { _ in }
+        beforeIndexing: (BootstrapScope) throws -> Void = { _ in }
     ) throws -> Indexer.BuildResult {
         try storage.writeLock {
             try storage.initialize()
@@ -82,7 +82,7 @@ public final class Session {
 
             let queue = try storage.connect()
 
-            try beforeIndexing(Catalog(reader: queue))
+            try beforeIndexing(BootstrapScope(queue: queue))
 
             let built = try Indexer.buildLocked(queue, rebuild: false)
 

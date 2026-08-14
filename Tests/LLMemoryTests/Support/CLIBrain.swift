@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 @testable import LLMemory
 
 // A state root built the way a user builds one — `llmemory init` plus `operations apply`, through the real
@@ -55,6 +56,15 @@ final class CLIBrain {
         url.appendingPathComponent(relativePath)
     }
     
+    // Read the catalog the binary left behind. Some facts the commands record —
+    // ripple flags, projected columns — have no read surface of their own, and a
+    // test that cannot see them can only assert what was printed.
+    func rows(_ sql: String) throws -> [String] {
+        try DatabaseQueue(path: file("data/memory.db").path).read { database in
+            try String.fetchAll(database, sql: sql)
+        }
+    }
+
     func noteURL(id: String) -> URL {
         file(Paths.relativeFile(forId: id))
     }

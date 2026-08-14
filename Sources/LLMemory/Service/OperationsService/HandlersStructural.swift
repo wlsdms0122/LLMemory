@@ -125,21 +125,13 @@ public enum HandlersStructural {
                 ])
             }
             
-            _ = try scope.run(FlagInboundReferrersTransaction(
-                targetId: noteId,
-                reason: "deleted \(noteId)",
+            let trashPath = try scope.run(RemoveNoteTransaction(
+                nid: noteId,
+                file: src,
+                flagReason: "deleted \(noteId)",
+                trashReason: op["reason"] as? String ?? "",
                 now: now
             ))
-            
-            let trashPath = try Trash.file(
-                src,
-                reason: op["reason"] as? String ?? "",
-                now: now
-            )
-            
-            try scope.run(DeleteNoteRowTransaction(nid: noteId))
-            try scope.run(DeleteNoteEntitiesTransaction(noteId: noteId))
-            try scope.run(DeleteNoteRippleFlagsTransaction(noteId: noteId))
             
             let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(80)
             

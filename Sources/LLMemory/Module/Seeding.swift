@@ -45,6 +45,9 @@ public enum Seeding {
         // Ids that still claim a seeded copy this release does not ship — moved
         // to cortex/.trash/.
         public var retired: [String] = []
+        // Ids whose address was taken from an authored note by `--force`. The
+        // note went to cortex/.trash/ — overruling a person is still undoable.
+        public var replaced: [String] = []
         // Seed ids whose address is held by a note that does not claim to hold a
         // seeded copy. Non-empty means nothing was written.
         public var conflicts: [String] = []
@@ -61,30 +64,39 @@ public enum Seeding {
     // narrows the search, and the file decides, because the row is only as fresh
     // as the last index and this ends in a file being moved. A mark planted by
     // hand since then is retired one cycle later, when the index has caught up.
-    public static func plant(force: Bool = false, seeded: [String] = [], now: Int = 0) -> Result {
+    //
+    // Neither argument has a default. Both are the halves of the reconciliation
+    // that are easy to forget, and forgetting them is silent — the retirement
+    // simply stops happening, and a zero clock writes a false timestamp onto a
+    // trashed note.
+    public static func plant(force: Bool, seeded: [String], now: Int, scope: BootstrapScope) -> Result {
         var result = Result()
+
+        // Every seed's address is read once, and every branch below decides from
+        // that one reading. Looking twice invites the file to change in between
+        // and the two answers to disagree.
+        let claimants = Seed.notes.map { seed in (seed: seed, claimant: claimant(of: seed)) }
 
         // Surveyed before anything is written, so a conflict on the last seed
         // does not leave the ones before it already replaced. All or nothing is
         // also what makes the report actionable: the ids listed are exactly the
         // ids to deal with, not whatever was left after a partial run.
         if !force {
-            result.conflicts = Seed.notes
-                .filter { seed in
-                    if case .foreign = claimant(of: seed) { return true }
+            result.conflicts = claimants
+                .filter { entry in
+                    if case .foreign = entry.claimant { return true }
 
                     return false
                 }
-                .map { seed in seed.id }
+                .map { entry in entry.seed.id }
 
             if !result.conflicts.isEmpty { return result }
         }
 
-        for seed in Seed.notes {
+        for (seed, claimant) in claimants {
             let canonical = Paths.file(forId: seed.id)
-            let exists = FileManager.default.fileExists(atPath: canonical.path)
 
-            switch claimant(of: seed) {
+            switch claimant {
             case .identical:
                 result.unchanged.append(seed.id)
                 continue
@@ -101,6 +113,22 @@ public enum Seeding {
             }
 
             do {
+                // `--force` takes an address; it does not destroy what held it.
+                // The note goes to the trash first, so overruling a person is
+                // still something they can undo.
+                //
+                // Moved, not removed: the id keeps resolving, so its citers are
+                // not flagged. A ripple says "what you cite is gone", and here it
+                // is the occupant that changed, not the address.
+                if case .foreign = claimant {
+                    try Trash.file(
+                        canonical,
+                        reason: "replaced by the shipped seed at this id",
+                        now: now
+                    )
+                    result.replaced.append(seed.id)
+                }
+
                 try FileManager.default.createDirectory(
                     at: canonical.deletingLastPathComponent(),
                     withIntermediateDirectories: true
@@ -110,10 +138,12 @@ public enum Seeding {
                 // Reported separately because overwriting is the one outcome a
                 // human could be surprised by — a run that rewrites an edit says
                 // which id it rewrote.
-                if exists {
-                    result.refreshed.append(seed.id)
-                } else {
+                if case .absent = claimant {
                     result.planted.append(seed.id)
+                } else if case .foreign = claimant {
+                    // Already named under `replaced`, which says more.
+                } else {
+                    result.refreshed.append(seed.id)
                 }
             } catch {
                 result.errors.append("\(seed.id): \(error)")
@@ -134,7 +164,13 @@ public enum Seeding {
             }
 
             do {
-                try Trash.file(file, reason: "no longer shipped by this release", now: now)
+                try scope.removeNote(
+                    id: id,
+                    file: file,
+                    flagReason: "retired \(id) — no longer shipped",
+                    trashReason: "no longer shipped by this release",
+                    now: now
+                )
                 result.retired.append(id)
             } catch {
                 result.errors.append("\(id): \(error)")
