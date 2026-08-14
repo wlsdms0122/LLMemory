@@ -295,6 +295,103 @@ struct SeedTests {
         }
     }
 
+    // Walking only the ids a release ships can never find the ones it stopped
+    // shipping. Those notes claim a provenance nothing backs, and nothing else
+    // would ever look at them again.
+    @Test("an id the release no longer ships is retired to the trash and reported")
+    func aRetiredSeedIsTrashedAndReported() throws {
+        // Given — a note that claims to be a seeded copy at an id nothing ships.
+        let brain = try CLIBrain(prefix: "llmemory-seed-retire")
+        let retired = brain.file(Paths.relativeFile(forId: "innate.gone"))
+
+        try FileManager.default.createDirectory(
+            at: retired.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try """
+        ---
+        title: gone
+        priority: lazy
+        tags: [flow]
+        seed: true
+        locked: true
+        summary: shipped by a release that no longer ships it
+        ---
+
+        ## Note
+        left behind.
+        """.write(to: retired, atomically: true, encoding: .utf8)
+
+        // The catalog has to know it before update can look for it.
+        #expect(brain.run(["index", "build"]).succeeded)
+
+        // When
+        let result = brain.run(["update", "--json"])
+
+        // Then
+        let reported = result.jsonObject()?["retired"] as? [String] ?? []
+
+        #expect(result.succeeded, "\(result.standardError)")
+        #expect(reported == ["innate.gone"], "\(result.standardOutput)")
+        #expect(!FileManager.default.fileExists(atPath: retired.path))
+        #expect(FileManager.default.fileExists(
+            atPath: brain.file("cortex/.trash/innate/gone.md").path
+        ), "a retired note is moved, not erased")
+    }
+
+    // The row is only as fresh as the last index, and this ends in a file being
+    // moved — so the catalog says where to look and the file says what to do.
+    @Test("a note the catalog calls seeded is left alone once the file no longer claims it")
+    func retirementIsConfirmedAgainstTheFile() throws {
+        // Given
+        let brain = try CLIBrain(prefix: "llmemory-seed-retire-claim")
+        let file = brain.file(Paths.relativeFile(forId: "innate.gone"))
+
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try """
+        ---
+        title: gone
+        priority: lazy
+        tags: [flow]
+        seed: true
+        summary: seeded for now
+        ---
+
+        ## Note
+        left behind.
+        """.write(to: file, atomically: true, encoding: .utf8)
+
+        #expect(brain.run(["index", "build"]).succeeded)
+
+        // When — the mark is dropped after the catalog recorded it: the note is
+        // claimed by a person now.
+        let mine = """
+        ---
+        title: gone
+        priority: lazy
+        tags: [flow]
+        summary: mine now
+        ---
+
+        ## Note
+        mine.
+        """
+
+        try mine.write(to: file, atomically: true, encoding: .utf8)
+
+        let result = brain.run(["update", "--json"])
+
+        // Then
+        let reported = result.jsonObject()?["retired"] as? [String] ?? []
+
+        #expect(result.succeeded, "\(result.standardError)")
+        #expect(reported.isEmpty, "the file no longer claims to be seeded: \(result.standardOutput)")
+        #expect(try String(contentsOf: file, encoding: .utf8) == mine)
+    }
+
     @Test("--no-seed leaves the seed notes out — on init and on update alike")
     func noSeedSkipsPlanting() throws {
         // Given

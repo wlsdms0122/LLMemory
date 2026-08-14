@@ -349,57 +349,6 @@ public enum Handlers {
         try scope.run(SeedInitialLinksTransaction(nid: nid, tags: tags))
     }
     
-    public static func trashPathFor(_ rel: String) throws -> URL {
-        Paths.trash.appendingPathComponent(try relativeToNotes(rel))
-    }
-    
-    public static func resolveTrashPath(_ rel: String) throws -> URL {
-        let base = try trashPathFor(rel)
-        
-        if !FileManager.default.fileExists(atPath: base.path) { return base }
-        
-        let directory = base.deletingLastPathComponent()
-        let pathExtension = base.pathExtension
-        let stem = base.deletingPathExtension().lastPathComponent
-        var counter = 1
-        
-        while true {
-            let candidate = directory.appendingPathComponent(
-                pathExtension.isEmpty ? "\(stem).\(counter)" : "\(stem).\(counter).\(pathExtension)"
-            )
-            
-            if !FileManager.default.fileExists(atPath: candidate.path) { return candidate }
-            
-            counter += 1
-        }
-    }
-    
-    @discardableResult
-    public static func trashNoteFile(_ src: URL, reason: String, now: Int) throws -> URL? {
-        guard FileManager.default.fileExists(atPath: src.path) else { return nil }
-        
-        let relativePath = try Notes.relativeToBrainRoot(src)
-        var (doc, body) = try Frontmatter.parse(try String(contentsOf: src, encoding: .utf8))
-        doc.trashedAt = now
-        doc.trashedReason = reason.unicodeScalarPrefix(200)
-        
-        let trashPath = try resolveTrashPath(relativePath)
-        try FileManager.default.createDirectory(
-            at: trashPath.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try (Frontmatter.dump(doc) + body).write(to: trashPath, atomically: true, encoding: .utf8)
-        try FileManager.default.removeItem(at: src)
-        
-        return trashPath
-    }
-    
-    public static func trashDestination(_ src: URL) -> URL? {
-        guard let relativePath = try? Notes.relativeToBrainRoot(src) else { return nil }
-        
-        return try? resolveTrashPath(relativePath)
-    }
-    
     static func composeCreateBody(_ op: [String: Any], _ scope: GRDBReadScope) throws -> String {
         let raw = op["content"] as? String ?? ""
         var content = String(raw.reversed().drop(while: { character in character.isWhitespace }).reversed())
@@ -595,16 +544,4 @@ public enum Handlers {
     }
     
     // MARK: - Private
-    private static func relativeToNotes(_ rel: String) throws -> String {
-        let absolutePath = Paths.brainRoot.appendingPathComponent(rel).path
-        let notesPrefix = Paths.notes.path + "/"
-        
-        guard absolutePath.hasPrefix(notesPrefix) else {
-            throw NSError(domain: "Handlers", code: 10, userInfo: [
-                NSLocalizedDescriptionKey: "not under cortex/: \(rel)"
-            ])
-        }
-        
-        return String(absolutePath.dropFirst(notesPrefix.count))
-    }
 }

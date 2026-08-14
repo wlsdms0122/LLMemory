@@ -24,6 +24,13 @@ import Foundation
 //   unmarked → a conflict. Nothing is planted at all until it is resolved, by
 //              moving the note aside or by saying `--force`.
 //
+// And the mark is what makes this a reconciliation rather than a one-way copy.
+// Walking only the ids a release ships would never notice the ones it stopped
+// shipping: a note left claiming to be a release's copy that no release plants,
+// which nothing updates and nothing can find. Those are retired — moved to
+// cortex/.trash/, because a release may unown its own copy but is in no position
+// to destroy what a person kept.
+//
 // Intent is never read out of the filesystem otherwise — a missing file used to
 // mean "opted out" and an edited one "leave me alone", and reading both out of
 // one directory is what made this surface need a --check flag to explain itself.
@@ -35,6 +42,9 @@ public enum Seeding {
         public var planted: [String] = []
         public var refreshed: [String] = []
         public var unchanged: [String] = []
+        // Ids that still claim a seeded copy this release does not ship — moved
+        // to cortex/.trash/.
+        public var retired: [String] = []
         // Seed ids whose address is held by a note that does not claim to hold a
         // seeded copy. Non-empty means nothing was written.
         public var conflicts: [String] = []
@@ -47,7 +57,11 @@ public enum Seeding {
 
     // MARK: - Initializer
     // MARK: - Public
-    public static func plant(force: Bool = false) -> Result {
+    // `seeded` is what the brain records as holding a seeded copy — the catalog
+    // narrows the search, and the file decides, because the row is only as fresh
+    // as the last index and this ends in a file being moved. A mark planted by
+    // hand since then is retired one cycle later, when the index has caught up.
+    public static func plant(force: Bool = false, seeded: [String] = [], now: Int = 0) -> Result {
         var result = Result()
 
         // Surveyed before anything is written, so a conflict on the last seed
@@ -103,6 +117,27 @@ public enum Seeding {
                 }
             } catch {
                 result.errors.append("\(seed.id): \(error)")
+            }
+        }
+
+        let shipped = Set(Seed.notes.map { note in note.id })
+
+        for id in seeded.sorted() where !shipped.contains(id) {
+            let file = Paths.file(forId: id)
+
+            // Confirmed against the file, not taken from the row: what is there
+            // now may no longer be the copy the catalog remembers.
+            guard let text = try? String(contentsOf: file, encoding: .utf8),
+                let (fields, _) = try? Frontmatter.parse(text), fields.seed
+            else {
+                continue
+            }
+
+            do {
+                try Trash.file(file, reason: "no longer shipped by this release", now: now)
+                result.retired.append(id)
+            } catch {
+                result.errors.append("\(id): \(error)")
             }
         }
 

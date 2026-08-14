@@ -64,8 +64,15 @@ public final class Session {
     // writes on the far side of the migration — a failed migration must not leave
     // a brain whose files moved forward and whose schema did not — and on the near
     // side of the build, so what it writes is indexed by the same pass.
+    //
+    // It is handed the migrated catalog, which is what the brain knows about the
+    // corpus before this run's changes: enough to find the notes an earlier
+    // release left behind, and stale enough that the files themselves settle
+    // every decision.
     @discardableResult
-    public func bootstrap(beforeIndexing: () throws -> Void = {}) throws -> Indexer.BuildResult {
+    public func bootstrap(
+        beforeIndexing: (Catalog) throws -> Void = { _ in }
+    ) throws -> Indexer.BuildResult {
         try storage.writeLock {
             try storage.initialize()
 
@@ -73,9 +80,10 @@ public final class Session {
             // there yet — re-warm before anything below reads the caches.
             rewarm()
 
-            try beforeIndexing()
-
             let queue = try storage.connect()
+
+            try beforeIndexing(Catalog(reader: queue))
+
             let built = try Indexer.buildLocked(queue, rebuild: false)
 
             return built

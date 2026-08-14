@@ -13,7 +13,7 @@ struct InitCommand: ParsableCommand {
     struct InitOutput: Encodable {
         enum CodingKeys: String, CodingKey {
             case homePath = "home", indexed, changed, errors, seed
-            case planted, refreshed, unchanged, conflicts
+            case planted, refreshed, unchanged, retired, conflicts
             case alreadyInitialized = "already_initialized"
             case dataExisted = "data_existed"
             case cortexExisted = "cortex_existed"
@@ -30,7 +30,7 @@ struct InitCommand: ParsableCommand {
         // Whether the seeds were attempted at all — three empty lists read the
         // same whether nothing needed doing or nothing was tried.
         let seed: Bool
-        let planted, refreshed, unchanged, conflicts: [String]
+        let planted, refreshed, unchanged, retired, conflicts: [String]
         
         // MARK: - Initializer
         // MARK: - Public
@@ -88,6 +88,7 @@ struct InitCommand: ParsableCommand {
             planted: result.seeding?.planted ?? [],
             refreshed: result.seeding?.refreshed ?? [],
             unchanged: result.seeding?.unchanged ?? [],
+            retired: result.seeding?.retired ?? [],
             conflicts: result.seeding?.conflicts ?? []
         )
         

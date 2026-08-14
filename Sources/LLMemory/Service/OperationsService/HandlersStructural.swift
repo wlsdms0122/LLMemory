@@ -131,7 +131,7 @@ public enum HandlersStructural {
                 now: now
             ))
             
-            let trashPath = try Handlers.trashNoteFile(
+            let trashPath = try Trash.file(
                 src,
                 reason: op["reason"] as? String ?? "",
                 now: now
@@ -158,7 +158,7 @@ public enum HandlersStructural {
                 return []
             }
             
-            return Handlers.trashDestination(src).map { destination in [src, destination] } ?? [src]
+            return Trash.destination(of: src).map { destination in [src, destination] } ?? [src]
         }
     )
     
@@ -784,7 +784,7 @@ public enum HandlersStructural {
                     now: now
                 ))
                 try scope.run(DeleteNoteRowTransaction(nid: fromId))
-                try Handlers.trashNoteFile(
+                try Trash.file(
                     srcPath,
                     reason: "split into \(newIds.joined(separator: ", "))",
                     now: now
@@ -938,7 +938,7 @@ public enum HandlersStructural {
             if let fromId = op["from_id"] as? String, let src = try scope.run(FetchNotePathTransaction(nid: fromId)) {
                 paths.append(src)
                 
-                if let trashPath = Handlers.trashDestination(src) { paths.append(trashPath) }
+                if let trashPath = Trash.destination(of: src) { paths.append(trashPath) }
             }
             
             for child in (op["into"] as? [[String: Any]]) ?? [] {
@@ -1062,7 +1062,7 @@ public enum HandlersStructural {
             try scope.run(SyncNoteEnrichTransaction(noteId: intoId))
             
             for path in fromPaths {
-                try Handlers.trashNoteFile(path, reason: "merged into \(intoId)", now: now)
+                try Trash.file(path, reason: "merged into \(intoId)", now: now)
             }
             
             return [
@@ -1090,7 +1090,7 @@ public enum HandlersStructural {
                 if let path = try scope.run(FetchNotePathTransaction(nid: fromId)) {
                     paths.append(path)
                     
-                    if let trashPath = Handlers.trashDestination(path) { paths.append(trashPath) }
+                    if let trashPath = Trash.destination(of: path) { paths.append(trashPath) }
                 }
             }
             

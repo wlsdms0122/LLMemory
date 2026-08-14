@@ -16,7 +16,7 @@ struct UpdateCommand: ParsableCommand {
         // Whether the seeds were attempted at all — three empty lists read the
         // same whether nothing needed doing or nothing was tried.
         let seed: Bool
-        let planted, refreshed, unchanged, conflicts: [String]
+        let planted, refreshed, unchanged, retired, conflicts: [String]
         let indexed, changed: Int
         let errors: [String]
 
@@ -38,12 +38,15 @@ struct UpdateCommand: ParsableCommand {
             rather than on top of a seeded note. `--no-seed` leaves them untouched;
             it is a per-invocation choice, not a setting the brain remembers.
 
+            An id this release no longer ships, still held by a note carrying
+            `seed: true`, is retired to cortex/.trash/ and reported — a release
+            unowns its own copy rather than leaving it to claim a provenance
+            nothing backs. Authored notes are never in scope.
+
             A seeded note is one that carries `seed: true`. If a release adds an id
             an authored note already holds, that is a conflict: NOTHING is
             planted, the ids are listed, and update exits 1. Move the note to
             another id, or rerun with `--force` to replace it.
-
-            Authored notes are never in scope. Nothing is ever deleted.
 
             EXAMPLES
                 llmemory update --home brain
@@ -71,6 +74,7 @@ struct UpdateCommand: ParsableCommand {
             planted: result.seeding?.planted ?? [],
             refreshed: result.seeding?.refreshed ?? [],
             unchanged: result.seeding?.unchanged ?? [],
+            retired: result.seeding?.retired ?? [],
             conflicts: result.seeding?.conflicts ?? [],
             indexed: result.indexed,
             changed: result.changed,
@@ -84,7 +88,8 @@ struct UpdateCommand: ParsableCommand {
                     ("seed", output.seed ? "restated" : "skipped (--no-seed)"),
                     ("planted", output.planted.isEmpty ? "-" : output.planted.joined(separator: ", ")),
                     ("refreshed", output.refreshed.isEmpty ? "-" : output.refreshed.joined(separator: ", ")),
-                    ("unchanged", output.unchanged.isEmpty ? "-" : output.unchanged.joined(separator: ", "))
+                    ("unchanged", output.unchanged.isEmpty ? "-" : output.unchanged.joined(separator: ", ")),
+                    ("retired", output.retired.isEmpty ? "-" : output.retired.joined(separator: ", "))
                 ])
             ]
 
