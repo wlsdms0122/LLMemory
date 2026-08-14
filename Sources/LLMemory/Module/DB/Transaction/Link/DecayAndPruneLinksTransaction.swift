@@ -1,0 +1,48 @@
+//
+//  DecayAndPruneLinksTransaction.swift
+//  LLMemory
+//
+//  Created by JSilver on 8/15/26.
+//
+
+import Foundation
+import GRDB
+
+struct DecayAndPruneLinksTransaction: GRDBTransaction {
+    // MARK: - Property
+    let factor: Double?
+    let floor: Double?
+
+    // MARK: - Initializer
+    init(factor: Double? = nil, floor: Double? = nil) {
+        self.factor = factor
+        self.floor = floor
+    }
+
+    // MARK: - Public
+    func perform(_ db: Database) throws -> (decayed: Int, pruned: Int) {
+        let factor = self.factor ?? Genes.double("links.decay_factor")
+        let floor = self.floor ?? Genes.double("links.prune_floor")
+        let kindPlaceholders = Array(repeating: "?", count: Links.learnedKinds.count)
+            .joined(separator: ",")
+        let kinds = Array(Links.learnedKinds) as [DatabaseValueConvertible?]
+
+        try db.execute(
+            sql: "UPDATE note_links SET weight = weight * ? WHERE kind IN (\(kindPlaceholders))",
+            arguments: StatementArguments([factor as DatabaseValueConvertible?] + kinds)
+        )
+
+        let decayed = db.changesCount
+
+        try db.execute(
+            sql: "DELETE FROM note_links WHERE weight < ? AND kind IN (\(kindPlaceholders))",
+            arguments: StatementArguments([floor as DatabaseValueConvertible?] + kinds)
+        )
+
+        let pruned = db.changesCount
+
+        return (decayed, pruned)
+    }
+
+    // MARK: - Private
+}

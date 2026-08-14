@@ -22,9 +22,7 @@ struct OneTypePerFileInvariantTests {
     // MARK: - Property
     private let converted = [
         "Sources/LLMemory/Feature",
-        "Sources/LLMemory/Module/DB/Migration",
-        "Sources/LLMemory/Module/DB/Model",
-        "Sources/LLMemory/Module/Lint",
+        "Sources/LLMemory/Module",
         "Sources/LLMemory/Service/LintService",
         "Sources/LLMemory/Service/OperationsService"
     ]

@@ -24,7 +24,7 @@ struct FtsWritePathInvariantTests {
         
         // When
         let violations = sources
-            .filter { file in file.name != "NoteTransactions.swift" }
+            .filter { file in file.name != "ReindexNoteFTSTransaction.swift" }
             .filter { file in file.text.contains("INSERT INTO notes_fts") }
             .map(\.name)
         

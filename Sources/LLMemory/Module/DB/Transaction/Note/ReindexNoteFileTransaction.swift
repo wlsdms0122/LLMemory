@@ -1,0 +1,67 @@
+//
+//  ReindexNoteFileTransaction.swift
+//  LLMemory
+//
+//  Created by JSilver on 8/15/26.
+//
+
+import Foundation
+import GRDB
+
+struct ReindexNoteFileTransaction: GRDBTransaction {
+    // MARK: - Property
+    let path: URL
+
+    // MARK: - Initializer
+    init(path: URL) {
+        self.path = path
+    }
+
+    // MARK: - Public
+    @discardableResult
+    func perform(_ db: Database) throws -> String {
+        if let rejection = Paths.liveNoteRejection(of: path) {
+            throw NotesError.notALiveNote(
+                path: Paths.relative(of: path) ?? path.path,
+                reason: rejection
+            )
+        }
+
+        let now = Int(Date().timeIntervalSince1970)
+
+        var text = try String(contentsOf: path, encoding: .utf8)
+        var (fields, body) = try Frontmatter.parse(text)
+        let tagsChanged = try normalizeTags(db, &fields)
+
+        if tagsChanged {
+            text = Frontmatter.dump(fields) + body
+            try text.write(to: path, atomically: true, encoding: .utf8)
+        }
+
+        return try UpsertNoteTransaction(file: path, fields: fields, body: body, raw: text, now: now)
+            .perform(db)
+    }
+
+    // MARK: - Private
+    private func normalizeTags(
+        _ db: Database,
+        _ doc: inout FrontmatterDoc
+    ) throws -> Bool {
+        guard !doc.tags.isEmpty else { return false }
+
+        var seen = Set<String>()
+        var normalized: [String] = []
+
+        for tag in doc.tags {
+            let canonical = try CanonicalizeTagTransaction(tag: tag).perform(db)
+
+            if seen.insert(canonical).inserted { normalized.append(canonical) }
+        }
+
+        if normalized == doc.tags { return false }
+
+        doc.tags = normalized
+
+        return true
+    }
+}

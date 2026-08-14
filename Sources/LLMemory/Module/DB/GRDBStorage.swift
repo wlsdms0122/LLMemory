@@ -11,8 +11,6 @@ import Storage
 
 @_silgen_name("flock") private func c_flock(_ fd: Int32, _ op: Int32) -> Int32
 
-public protocol GRDBStorable: DBStorable where Connection == any DatabaseWriter { }
-
 public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // MARK: - Property
     // The owning brain's ambient state — bound as a task-local around every
@@ -334,46 +332,4 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
             _ = Darwin.close(lockDescriptor)
         }
     }
-}
-
-// An async-safe mutex — NSLock cannot legally span an await (unlock is
-// thread-affine), so waiters park as continuations and release may happen on
-// any thread. It orders tasks; the guarded body may still block its thread.
-final class WriteGate: @unchecked Sendable {
-    // MARK: - Property
-    private let lock = NSLock()
-    private var busy = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
-
-    // MARK: - Initializer
-    // MARK: - Public
-    func acquire() async {
-        await withCheckedContinuation { continuation in
-            lock.lock()
-
-            if busy {
-                waiters.append(continuation)
-                lock.unlock()
-            } else {
-                busy = true
-                lock.unlock()
-                continuation.resume()
-            }
-        }
-    }
-
-    func release() {
-        lock.lock()
-
-        if waiters.isEmpty {
-            busy = false
-            lock.unlock()
-        } else {
-            let next = waiters.removeFirst()
-            lock.unlock()
-            next.resume()
-        }
-    }
-
-    // MARK: - Private
 }

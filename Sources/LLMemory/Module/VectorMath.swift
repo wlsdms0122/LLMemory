@@ -8,17 +8,6 @@
 import Foundation
 import Accelerate
 
-enum VectorMathError: Error, CustomStringConvertible {
-    case svdFailed(info: Int)
-
-    var description: String {
-        switch self {
-        case .svdFailed(let info):
-            return "SVD failed (LAPACK dgesvd info=\(info))"
-        }
-    }
-}
-
 // Pure numerics behind the algorithmic vectors — PPMI weighting, truncated
 // SVD (LAPACK), and cosine similarity. Rows in and out are the vector
 // transactions' business.

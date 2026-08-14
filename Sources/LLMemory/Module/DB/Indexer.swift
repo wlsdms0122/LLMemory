@@ -8,18 +8,6 @@
 import Foundation
 import GRDB
 
-enum IndexError: Error, CustomStringConvertible {
-    case rebuildAborted([String])
-
-    var description: String {
-        switch self {
-
-        case .rebuildAborted(let errors):
-            return "rebuild aborted — state would not survive the commit: \(errors.joined(separator: "; "))"
-        }
-    }
-}
-
 // Index reconciliation mechanics — scanning cortex/, parsing notes and
 // reconciling the projection into the database.
 public enum Indexer {
