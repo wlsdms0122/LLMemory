@@ -424,7 +424,7 @@ struct InnateTests {
     // it back the same way the generator wrote it — by turning the id into a path
     // rather than by trusting a name.
     private func seedFile(_ id: String) -> URL {
-        source.file("document/innate/\(id.replacingOccurrences(of: ".", with: "/")).md")
+        source.file("document/cortex/\(id.replacingOccurrences(of: ".", with: "/")).md")
     }
 
     private func firstSeed() throws -> Innate.Seed {

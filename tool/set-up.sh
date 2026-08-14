@@ -2,7 +2,7 @@
 # One-time setup after clone (rerun after editing document/) — like tuist generate.
 #
 #   document/GUIDE.md  → Sources/LLMemory/Resource/Guide.swift   (agent usage guide)
-#   document/innate/**/*.md  → Sources/LLMemory/Resource/Innate.swift  (innate brain notes)
+#   document/cortex/**/*.md  → Sources/LLMemory/Resource/Innate.swift  (innate brain notes)
 #
 # Resource/ is gitignored — a persistent local artifact like .build. The package does
 # not compile without it, so a fresh clone runs this first:
@@ -30,14 +30,15 @@ mkdir -p Sources/LLMemory/Resource
 } > Sources/LLMemory/Resource/Guide.swift
 echo "generated Sources/LLMemory/Resource/Guide.swift"
 
-# A seed is addressed by where it sits under document/innate/, exactly as a note
-# is addressed by where it sits under cortex/ — `a/b.md` is the id `a.b`. A dot
-# inside a path component would break that reading in both directions at once
+# document/cortex/ is the shipped subtree of a brain's cortex/, laid out exactly
+# as it will be planted — so a seed's id is read the one way every id is read,
+# off its location: `a/b.md` is `a.b`. A dot inside a path component would break
+# that reading in both directions at once
 # (`a/b.c.md` and `a/b/c.md` would spell one address), so the layout is refused
 # here, before a generated seed can carry the ambiguity into the binary.
 seeds=()
 while IFS= read -r file; do
-  relative=${file#document/innate/}
+  relative=${file#document/cortex/}
 
   if [[ "${relative%.md}" == *.* ]]; then
     echo "seed path may not contain '.': $file" >&2
@@ -45,10 +46,10 @@ while IFS= read -r file; do
   fi
 
   seeds+=("$relative")
-done < <(find document/innate -type f -name '*.md' | sed 's|^\./||' | sort)
+done < <(find document/cortex -type f -name '*.md' | sed 's|^\./||' | sort)
 
 {
-  echo "// Generated from document/innate/**/*.md by tool/set-up.sh — do not edit by hand."
+  echo "// Generated from document/cortex/**/*.md by tool/set-up.sh — do not edit by hand."
   echo "// Drift against the markdown is caught by the Innate byte-equality test."
   echo ""
   echo "/// The knowledge llmemory is born with — what an agent needs to run a memory well"
@@ -70,7 +71,7 @@ done < <(find document/innate -type f -name '*.md' | sed 's|^\./||' | sort)
     id=${relative%.md}
     id=${id//\//.}
     echo "        Seed(id: \"$id\", markdown: #\"\"\""
-    cat "document/innate/$relative"
+    cat "document/cortex/$relative"
     echo ""
     echo "\"\"\"#),"
   done
