@@ -54,7 +54,7 @@ struct OpsRequiredEnforcementTests {
     @Test("every id- or axis-shaped field declares its role, so scope extraction can see it")
     func fieldRoleIsDeclared() {
         // When
-        let violations = home.operationsEngine.registry.flatMap { opName, handler in
+        let violations = home.operationsEngine.registry.handlers.flatMap { opName, handler in
             handler.schema.fields
                 .filter { field in field.role == .plain && Self.carriesScope(field.name) }
                 .map { field in "\(opName).\(field.name)" }

@@ -162,19 +162,6 @@ struct FieldTypeError: Error, CustomStringConvertible {
     // MARK: - Private
 }
 
-public struct OperationHandler: @unchecked Sendable {
-    // MARK: - Property
-    public let schema: OperationSchema
-    public let validate: (_ op: [String: Any], _ context: HandlerContext, _ scope: GRDBReadScope) throws -> String?
-    public let write: (_ op: [String: Any], _ context: HandlerContext, _ scope: GRDBScope) throws -> [String: Any]
-    public let effect: (_ op: [String: Any]) -> [String: [String]]
-    public let touches: (_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL]
-    
-    // MARK: - Initializer
-    // MARK: - Public
-    // MARK: - Private
-}
-
 public struct HandlerContext {
     // MARK: - Property
     // The batch's ambient facts — resolved once at the apply/dry-run entry

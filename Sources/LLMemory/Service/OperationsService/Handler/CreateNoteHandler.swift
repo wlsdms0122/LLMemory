@@ -1,0 +1,163 @@
+//
+//  CreateNoteHandler.swift
+//  LLMemory
+//
+//  Created by JSilver on 8/15/26.
+//
+
+import Foundation
+
+struct CreateNoteHandler: OperationHandling {
+    // MARK: - Property
+    let schema = OperationSchema(
+        summary: "create a new note (file + DB row)",
+        fields: [
+            .required("id", role: .noteId, "the note's address — dot-joined lowercase labels ([a-z0-9-]); `a.b.c` puts the file at cortex/a/b/c.md. unique across active notes"),
+            .required("title", "human-readable note title"),
+            .required("tags", "non-empty string list — how the note is classified"),
+            .required("summary", "one-line summary used by retrieval"),
+            .required("content", unless: "template", "markdown body (frontmatter is generated). optional when 'template' is set — the template frame is scaffolded as empty sections"),
+            .optional("priority", "'eager' | 'lazy' (default 'lazy'); eager has cap"),
+            .optional("source", "string or list of source refs. Local absolute paths are drift-tracked (source_stale); URLs/dates/relative refs are kept as provenance only."),
+            .optional("entities", "string list of named entities"),
+            .optional("template", "id of a template note this note follows (structured document). body must conform to the template frame; empty content is scaffolded"),
+            .optional("locked", "bool. true → human-only: subsequent operations mutation is refused, file is edited directly"),
+            .optional("rationale", "lifecycle event reason recorded on creation")
+        ],
+        example: ##"{"op":"create_note","id":"persona.my-note","title":"...","tags":["persona"],"summary":"...","content":"# body"}"##
+    )
+
+    // MARK: - Initializer
+    // MARK: - Public
+    func validate(
+        _ op: [String: Any],
+        _ context: HandlerContext,
+        _ scope: GRDBReadScope
+    ) throws -> String? {
+        let hasTemplate = (op["template"] as? String).map { value in !value.isEmpty } ?? false
+
+        if let rawLocked = op["locked"], !(rawLocked is Bool) { return "locked must be bool" }
+
+        if hasTemplate {
+            let templateId = op["template"] as! String
+
+            if !(try scope.run(NoteExistsTransaction(nid: templateId)))
+                && !context.inFlightIds.contains(templateId) {
+                return "unknown template note: \(templateId)"
+            }
+        }
+
+        let noteId = op["id"] as? String ?? ""
+        let nsNoteId = noteId as NSString
+
+        if Paths.idRegex.firstMatch(
+            in: noteId,
+            range: NSRange(location: 0, length: nsNoteId.length)
+        ) == nil {
+            return "invalid id format: \(noteId)"
+        }
+
+        guard let tags = op["tags"] as? [Any], !tags.isEmpty else {
+            return "tags must be non-empty list"
+        }
+
+        let priority = op["priority"] as? String ?? "lazy"
+
+        if !Handlers.validPriority.contains(priority) { return "invalid priority: \(priority)" }
+
+        if let entities = op["entities"], !(entities is [Any]) { return "entities must be list" }
+
+        if let rejection = Handlers.sourceInputError(op["source"]) { return rejection }
+
+        do {
+            var probe = FrontmatterDoc()
+
+            try Handlers.mergeFields(&probe, Handlers.customFields(of: op, declaredBy: schema))
+        } catch {
+            return "\(error)"
+        }
+
+        let state = try Handlers.existingState(scope)
+
+        if state.ids.contains(noteId) || context.inFlightIds.contains(noteId) {
+            return "id collision: \(noteId) (use patch_section to update)"
+        }
+
+        let path = Paths.file(forId: noteId)
+
+        if FileManager.default.fileExists(atPath: path.path) {
+            let relativePath = Paths.relative(of: path) ?? path.path
+
+            return "path already exists: \(relativePath) (use patch_section)"
+        }
+
+        return nil
+    }
+
+    func write(
+        _ op: [String: Any],
+        _ context: HandlerContext,
+        _ scope: GRDBScope
+    ) throws -> [String: Any] {
+        let now = context.now
+        let noteId = op["id"] as! String
+        let path = Paths.file(forId: noteId)
+
+        try FileManager.default.createDirectory(
+            at: path.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        let body = try Handlers.composeCreateBody(op, scope.readOnly)
+        var doc = FrontmatterDoc(
+            title: op["title"] as? String ?? "",
+            priority: op["priority"] as? String ?? "lazy",
+            summary: op["summary"] as? String ?? "",
+            tags: (op["tags"] as? [Any])?.compactMap { tag in tag as? String } ?? []
+        )
+        doc.template = (op["template"] as? String).flatMap { value in
+            value.isEmpty ? nil : value
+        }
+
+        if (op["locked"] as? Bool) == true { doc.locked = true }
+
+        if op["source"] != nil {
+            doc.source = try Handlers.finalizeSource(op["source"])
+        }
+
+        let entities = (op["entities"] as? [Any])?
+            .compactMap { entity in entity as? String }
+            .filter { entity in !entity.trimmingCharacters(in: .whitespaces).isEmpty } ?? []
+
+        if !entities.isEmpty { doc.entities = entities }
+
+        try Handlers.mergeFields(&doc, Handlers.customFields(of: op, declaredBy: schema))
+        try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
+
+        try scope.run(ReindexNoteFileTransaction(path: path))
+        try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: true))
+        try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
+            kind: "created",
+            reason: op["rationale"] as? String,
+            now: now
+        ))
+        try Handlers.seedInitialLinks(scope, nid: noteId, tags: doc.tags)
+
+        return [
+            "status": "ok",
+            "path": path.path,
+            "ids": [noteId],
+            "note": "created at \(Paths.relativeFile(forId: noteId))"
+        ]
+    }
+
+    func effect(_ op: [String: Any]) -> [String: [String]] {
+        ["creates": [op["id"] as? String ?? ""]]
+    }
+
+    func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
+        (op["id"] as? String).map { id in [Paths.file(forId: id)] } ?? []
+    }
+
+    // MARK: - Private
+}

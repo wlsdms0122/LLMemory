@@ -566,9 +566,11 @@ struct SourceVerifyInvariantTests {
     @Test("only an ops handler may rebaseline — no read path is allowed to")
     func rebaseAuthorityIsConfinedToOpsHandlers() throws {
         // When
-        let allowed: Set<String> = ["Module/DB/Transaction/SourceTransactions.swift",
-            "Service/OperationsService/HandlersBasic.swift",
-            "Service/OperationsService/HandlersStructural.swift"]
+        // The transaction's own definition, and the handler tier — every op
+        // handler is a file under Handler/, so the permission names the tier
+        // rather than the two files that used to hold all of them.
+        let allowedFile = "Module/DB/Transaction/SourceTransactions.swift"
+        let allowedTier = "Service/OperationsService/Handler/"
         let root = PackageSource().file("Sources/LLMemory")
         let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)?
             .compactMap { element in element as? URL }
@@ -581,7 +583,11 @@ struct SourceVerifyInvariantTests {
         
         let rootPath = root.path + "/"
         
-        for file in files where !allowed.contains(file.path.replacingOccurrences(of: rootPath, with: "")) {
+        for file in files {
+            let relativePath = file.path.replacingOccurrences(of: rootPath, with: "")
+
+            guard relativePath != allowedFile, !relativePath.hasPrefix(allowedTier) else { continue }
+
             let text = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
             
             for (offset, rawLine) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {

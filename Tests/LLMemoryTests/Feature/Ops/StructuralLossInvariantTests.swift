@@ -157,7 +157,7 @@ struct StructuralLossInvariantTests {
         
         // When
         let touched = try home.readScope { scope in
-            try HandlersStructural.migrateNote.touches(operation, scope)
+            try MigrateNoteHandler().touches(operation, scope)
         }
         
         // Then

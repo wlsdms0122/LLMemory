@@ -14,7 +14,7 @@ enum BodyProjection {
     static func advance(
         op: [String: Any],
         name: String,
-        handler: OperationHandler,
+        handler: any OperationHandling,
         context: inout HandlerContext,
         scope: GRDBReadScope
     ) throws -> String? {

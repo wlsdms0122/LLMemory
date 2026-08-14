@@ -13,13 +13,13 @@ public struct OperationsEngine: Sendable {
     let lint: any LintServiceable
     // Assembled with the engine — handlers needing a collaborator captured
     // it at wiring time, so the registry is per-engine, not process-global.
-    let registry: [String: OperationHandler]
+    let registry: HandlerRegistry
 
     // MARK: - Initializer
     init(genome: any GenomeServiceable, lint: any LintServiceable) {
         self.genome = genome
         self.lint = lint
-        self.registry = HandlersRegistry.build(genome: genome, lint: lint)
+        self.registry = HandlerRegistry(genome: genome, lint: lint)
     }
 
     // MARK: - Public
@@ -37,7 +37,7 @@ public struct OperationsEngine: Sendable {
 
     // Catalog reads — the schema vocabulary the registry carries.
     func operationNames() -> [String] {
-        registry.keys.sorted()
+        registry.names
     }
 
     func operationSchema(_ name: String) -> OperationSchema? {
@@ -503,7 +503,7 @@ public struct OperationsEngine: Sendable {
     private func lockedGate(
         op: [String: Any],
         name: String,
-        handler: OperationHandler,
+        handler: any OperationHandling,
         context: HandlerContext,
         scope: GRDBReadScope
     ) throws -> String? {
