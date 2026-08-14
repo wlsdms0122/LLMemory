@@ -12,7 +12,7 @@ struct EmptySectionRule: LintDocumentRule {
     let code = "empty-section"
     let severity = LintSeverity.warn
     
-    private let engine = LintEngine()
+    private let repeated = RepeatedFinding()
 
     // MARK: - Initializer
     // MARK: - Public
@@ -25,13 +25,13 @@ struct EmptySectionRule: LintDocumentRule {
             })
         }
         
-        return engine.groupBySubject(hits, by: \.path).map { _, sections in
+        return repeated.groupBySubject(hits, by: \.path).map { _, sections in
             let section = sections[0]
             let lines = sections.map { section in section.lineStart + 1 }
             
             return .init(
                 "empty section: \(section.path) (line \(lines[0]))"
-                    + engine.repeatSuffix(lines),
+                    + repeated.repeatSuffix(lines),
                 key: "empty:\(section.path)"
             )
         }

@@ -22,7 +22,7 @@ struct HandlerRegistry: Sendable {
     var names: [String] { handlers.keys.sorted() }
 
     // MARK: - Initializer
-    init(genome: any GenomeServiceable, lint: any LintServiceable) {
+    init(genome: any GenomeServiceable, lint: any LintScanning) {
         handlers = [
             "create_note": CreateNoteHandler(),
             "patch_section": PatchSectionHandler(),

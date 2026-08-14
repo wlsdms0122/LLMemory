@@ -16,7 +16,7 @@ struct WikilinkStyleRule: LintDocumentRule {
         pattern: #"\[\[([a-z0-9][a-z0-9-]*)\]\]"#
     )
     
-    private let engine = LintEngine()
+    private let repeated = RepeatedFinding()
 
     // MARK: - Initializer
     // MARK: - Public
@@ -48,12 +48,12 @@ struct WikilinkStyleRule: LintDocumentRule {
             }
         }
         
-        return engine.groupBySubject(hits, by: \.id).map { id, occurrences in
+        return repeated.groupBySubject(hits, by: \.id).map { id, occurrences in
             let lines = occurrences.map(\.line)
             
             return .init(
                 "wikilink `[[\(id)]]` (line \(lines[0])) — use a backtick reference `\(id)` instead"
-                    + engine.repeatSuffix(lines),
+                    + repeated.repeatSuffix(lines),
                 key: "wikilink:\(id)"
             )
         }

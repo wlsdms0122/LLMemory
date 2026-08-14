@@ -19,6 +19,8 @@ struct DanglingNoteRefRule: NoteLintRule {
         pattern: #"\[\[([a-z][a-z0-9-]{3,})\]\]"#
     )
     
+    private let distance = EditDistance()
+
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {
@@ -74,7 +76,7 @@ struct DanglingNoteRefRule: NoteLintRule {
         var extensions: [String] = []
         
         for id in ids where id != nid {
-            if EditDistance().withinOne(id, token) {
+            if distance.withinOne(id, token) {
                 edit1.append(id)
             } else if id.hasPrefix(token + "-") || id.hasSuffix("-" + token) {
                 extensions.append(id)

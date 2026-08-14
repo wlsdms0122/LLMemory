@@ -12,20 +12,20 @@ struct AdjacentEmptyHeadingRule: LintDocumentRule {
     let code = "adjacent-empty-heading"
     let severity = LintSeverity.warn
     
-    private let engine = LintEngine()
+    private let repeated = RepeatedFinding()
 
     // MARK: - Initializer
     // MARK: - Public
     func check(_ doc: LintDocument) -> [LintFinding] {
         let hits = doc.sections.filter { section in section.lineEnd == section.lineStart + 1 }
         
-        return engine.groupBySubject(hits, by: \.path).map { _, sections in
+        return repeated.groupBySubject(hits, by: \.path).map { _, sections in
             let section = sections[0]
             let lines = sections.map { section in section.lineStart + 1 }
             
             return .init(
                 "heading immediately followed by another heading: \(section.path) (line \(lines[0])) — likely lost or displaced body"
-                    + engine.repeatSuffix(lines),
+                    + repeated.repeatSuffix(lines),
                 key: "adjacent:\(section.path)"
             )
         }

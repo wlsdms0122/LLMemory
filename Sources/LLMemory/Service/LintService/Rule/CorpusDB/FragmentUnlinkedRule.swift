@@ -12,9 +12,8 @@ struct FragmentUnlinkedRule: CorpusDBLintRule {
     let code = "fragment-unlinked"
     let severity = LintSeverity.warn
     
-
     private let families = NoteFamilyIndex()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func check(_ scope: GRDBReadScope) throws -> [LintFinding] {

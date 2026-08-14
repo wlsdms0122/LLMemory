@@ -12,6 +12,8 @@ struct TagNearDuplicateRule: CorpusDBLintRule {
     let code = "tag-near-duplicate"
     let severity = LintSeverity.warn
     
+    private let distance = EditDistance()
+
     // MARK: - Initializer
     // MARK: - Public
     func check(_ scope: GRDBReadScope) throws -> [LintFinding] {
@@ -25,7 +27,7 @@ struct TagNearDuplicateRule: CorpusDBLintRule {
                 let right = counts[rightIndex]
                 
                 guard max(left.tag.count, right.tag.count) >= 4 else { continue }
-                guard EditDistance().withinOne(left.tag, right.tag) else { continue }
+                guard distance.withinOne(left.tag, right.tag) else { continue }
                 guard left.tag.filter({ character in !character.isNumber })
                     != right.tag.filter({ character in !character.isNumber })
                 else {

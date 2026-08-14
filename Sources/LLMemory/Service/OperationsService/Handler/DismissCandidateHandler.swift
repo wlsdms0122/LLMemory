@@ -30,7 +30,7 @@ struct DismissCandidateHandler: OperationHandling {
             example: ##"{"op":"dismiss_candidate","id":"my-note","kind":"split","reason":"한 응집 주제 — 크기는 분할 사유 아님"}"##
         )
 
-    let lint: any LintServiceable
+    let lint: any LintScanning
 
     private let payload = OpPayloadCheck()
 

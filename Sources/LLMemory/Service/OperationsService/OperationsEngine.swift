@@ -9,8 +9,6 @@ import Foundation
 
 public struct OperationsEngine: Sendable {
     // MARK: - Property
-    let genome: any GenomeServiceable
-    let lint: any LintServiceable
     // Assembled with the engine — handlers needing a collaborator captured
     // it at wiring time, so the registry is per-engine, not process-global.
     let registry: HandlerRegistry
@@ -21,9 +19,11 @@ public struct OperationsEngine: Sendable {
     private let trashLookup = TrashedNoteLookup()
 
     // MARK: - Initializer
-    init(genome: any GenomeServiceable, lint: any LintServiceable) {
-        self.genome = genome
-        self.lint = lint
+    // The collaborators are parameters, not fields: they belong to the two
+    // handlers that use them, and the engine is the wiring that hands them
+    // over. A field here would say the engine uses them too, and would be the
+    // second path to them.
+    init(genome: any GenomeServiceable, lint: any LintScanning) {
         self.registry = HandlerRegistry(genome: genome, lint: lint)
     }
 

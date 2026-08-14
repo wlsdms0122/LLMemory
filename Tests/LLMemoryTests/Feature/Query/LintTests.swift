@@ -118,7 +118,7 @@ struct LintTests {
         try home.overwriteBody(of: "lf-broken", with: "## A\nx\n## A\ny\n")
         
         // When
-        let all = try home.readScope { scope in try home.lintService.scan(
+        let all = try home.readScope { scope in try home.lintScanner.scan(
                 scope,
                 id: nil,
                 code: nil,
@@ -127,7 +127,7 @@ struct LintTests {
                 includeDismissed: false
             )
         }
-        let errors = try home.readScope { scope in try home.lintService.scan(
+        let errors = try home.readScope { scope in try home.lintScanner.scan(
                 scope,
                 id: nil,
                 code: nil,
@@ -136,7 +136,7 @@ struct LintTests {
                 includeDismissed: false
             )
         }
-        let onlyEnrich = try home.readScope { scope in try home.lintService.scan(
+        let onlyEnrich = try home.readScope { scope in try home.lintScanner.scan(
                 scope,
                 id: nil,
                 code: "enrich-thin",
@@ -145,7 +145,7 @@ struct LintTests {
                 includeDismissed: false
             )
         }
-        let capped = try home.readScope { scope in try home.lintService.scan(
+        let capped = try home.readScope { scope in try home.lintScanner.scan(
                 scope,
                 id: nil,
                 code: nil,
@@ -317,11 +317,11 @@ struct LintTests {
     func catalogAndDismissGateAgree() {
         // When
         let catalogWarns = Set(
-            home.lintService.ruleCatalog().filter { rule in rule.severity == "warn" }.map(\.code)
+            home.lintScanner.ruleCatalog().filter { rule in rule.severity == "warn" }.map(\.code)
         )
         
         // Then
-        #expect(catalogWarns == home.lintService.dismissibleCodes,
+        #expect(catalogWarns == home.lintScanner.dismissibleCodes,
             "the catalog advertises a warning the dismissal gate does not accept, or the reverse")
     }
     
@@ -390,7 +390,7 @@ struct LintTests {
     }
     
     private func issues(of noteId: String) throws -> [LintIssue] {
-        try home.readScope { scope in try home.lintService.lintNote(scope, nid: noteId) }
+        try home.readScope { scope in try home.lintScanner.lintNote(scope, nid: noteId) }
     }
     
     private func codes(of noteId: String) throws -> Set<String> {
@@ -398,11 +398,11 @@ struct LintTests {
     }
     
     private func allIssues() throws -> [LintIssue] {
-        try home.readScope { scope in try home.lintService.lintAll(scope) }
+        try home.readScope { scope in try home.lintScanner.lintAll(scope) }
     }
     
     private func isolatedSubjects() throws -> [String] {
-        try home.readScope { scope in try home.lintService.scan(
+        try home.readScope { scope in try home.lintScanner.scan(
                 scope,
                 id: nil,
                 code: "isolated",

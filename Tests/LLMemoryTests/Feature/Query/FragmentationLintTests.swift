@@ -435,7 +435,7 @@ struct FragmentationLintTests {
     }
     
     private func lint(id: String? = nil, code: String, includeDismissed: Bool = false) throws -> [LintIssue] {
-        try home.readScope { scope in try home.lintService.scan(
+        try home.readScope { scope in try home.lintScanner.scan(
                 scope,
                 id: id,
                 code: code,

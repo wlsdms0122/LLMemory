@@ -12,9 +12,8 @@ struct GistMissingRule: CorpusDBLintRule {
     let code = "gist-missing"
     let severity = LintSeverity.warn
     
-
     private let families = NoteFamilyIndex()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func check(_ scope: GRDBReadScope) throws -> [LintFinding] {

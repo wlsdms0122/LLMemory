@@ -24,7 +24,7 @@ extension OperationsEngine {
             let json = try Self.encodePayload(payload)
             let engine = OperationsEngine(
                 genome: GenomeService(storage: storage, retrieval: RetrievalService(storage: storage)),
-                lint: LintService(storage: storage, rules: LintRuleRegistry())
+                lint: LintScanner(rules: LintRuleRegistry())
             )
 
             guard let decoded = engine.decodePayload(json) else {
@@ -63,7 +63,7 @@ extension OperationsEngine {
             let json = try Self.encodePayload(payload)
             let engine = OperationsEngine(
                 genome: GenomeService(storage: storage, retrieval: RetrievalService(storage: storage)),
-                lint: LintService(storage: storage, rules: LintRuleRegistry())
+                lint: LintScanner(rules: LintRuleRegistry())
             )
 
             guard let decoded = engine.decodePayload(json) else {

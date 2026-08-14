@@ -77,7 +77,7 @@ struct LintFindingIdentityInvariantTests {
         #expect(result.status == "ok", "setup: \(result.error)")
         
         // When
-        let issues = try home.readScope { scope in try home.lintService.lintAll(scope) }
+        let issues = try home.readScope { scope in try home.lintScanner.lintAll(scope) }
         
         // Then
         #expect(issues.contains { issue in issue.target.subject == "identity-3" },
@@ -124,10 +124,12 @@ struct LintFindingIdentityInvariantTests {
     func duplicateCorpusIdentitiesAreReportedNotFatal() throws {
         // When
         let collided = try home.readScope { scope in
-            try home.lintService.lintAll(scope, corpusRules: [CollidingCorpusRule()])
+            try LintScanner(rules: LintRuleRegistry(corpusDBRules: [CollidingCorpusRule()]))
+                .lintAll(scope)
         }
         let clean = try home.readScope { scope in
-            try home.lintService.lintAll(scope, corpusRules: [DistinctCorpusRule()])
+            try LintScanner(rules: LintRuleRegistry(corpusDBRules: [DistinctCorpusRule()]))
+                .lintAll(scope)
         }
         
         // Then
@@ -153,7 +155,7 @@ struct LintFindingIdentityInvariantTests {
         }
         
         // When
-        let issues = try home.readScope { scope in try home.lintService.lintAll(scope) }
+        let issues = try home.readScope { scope in try home.lintScanner.lintAll(scope) }
         
         // Then
         #expect(issues.filter { issue in issue.code == "field-typo" }.count == 2,
@@ -168,7 +170,7 @@ struct LintFindingIdentityInvariantTests {
         let corpusIssue = LintIssue("warn", "isolated", "c", .corpus("alpha"), key: nil)
         
         // Then
-        #expect(home.lintService.checked([noteIssue, corpusIssue]).count == 2)
+        #expect(home.lintScanner.checked([noteIssue, corpusIssue]).count == 2)
     }
     
     // MARK: - Private

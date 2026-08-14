@@ -217,7 +217,7 @@ struct PathIdInvariantTests {
 
         #expect(ids.contains("stale.decl") && !ids.contains("something.else"), "\(ids)")
 
-        let issues = try home.readScope { scope in try home.lintService.lintAll(scope) }
+        let issues = try home.readScope { scope in try home.lintScanner.lintAll(scope) }
             .filter { issue in issue.code == "address-in-frontmatter" }
 
         #expect(!issues.isEmpty, "no rule named the declared address")

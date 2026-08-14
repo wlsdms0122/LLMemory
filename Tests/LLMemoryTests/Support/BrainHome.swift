@@ -51,7 +51,9 @@ extension BrainHome {
     // rather than widening the contract until the test fits through it.
     var retrievalService: RetrievalService { RetrievalService(storage: storage) }
 
-    var lintService: LintService { LintService(storage: storage, rules: LintRuleRegistry()) }
+    var lintScanner: LintScanner { LintScanner(rules: LintRuleRegistry()) }
+
+    var lintService: LintService { LintService(storage: storage, scanner: lintScanner) }
 
     var genomeService: GenomeService {
         GenomeService(storage: storage, retrieval: retrievalService)
@@ -65,7 +67,7 @@ extension BrainHome {
         ConsolidateService(storage: storage, genome: genomeService)
     }
 
-    var operationsEngine: OperationsEngine { OperationsEngine(genome: genomeService, lint: lintService) }
+    var operationsEngine: OperationsEngine { OperationsEngine(genome: genomeService, lint: lintScanner) }
 
     @discardableResult
     func apply(_ operations: [[String: Any]], rationale: String = "test") -> OperationsResult {

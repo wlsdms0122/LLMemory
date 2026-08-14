@@ -14,7 +14,7 @@ struct LintLinePatternRule: LintDocumentRule {
     let pattern: NSRegularExpression
     let message: @Sendable (Int, String) -> String
     
-    private let engine = LintEngine()
+    private let repeated = RepeatedFinding()
 
     // MARK: - Initializer
     init(
@@ -40,7 +40,7 @@ struct LintLinePatternRule: LintDocumentRule {
             ) != nil
         }
         
-        return engine.groupBySubject(hits) { index in
+        return repeated.groupBySubject(hits) { index in
             doc.lines[index].trimmingCharacters(in: .whitespaces)
         }
         .map { text, lineIndices in
@@ -48,7 +48,7 @@ struct LintLinePatternRule: LintDocumentRule {
             
             return .init(
                 message(lineNumbers[0], doc.lines[lineIndices[0]])
-                    + engine.repeatSuffix(lineNumbers),
+                    + repeated.repeatSuffix(lineNumbers),
                 key: "line:\(text)"
             )
         }

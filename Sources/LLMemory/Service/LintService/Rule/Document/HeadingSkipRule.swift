@@ -12,7 +12,7 @@ struct HeadingSkipRule: LintDocumentRule {
     let code = "heading-skip"
     let severity = LintSeverity.warn
     
-    private let engine = LintEngine()
+    private let repeated = RepeatedFinding()
 
     // MARK: - Initializer
     // MARK: - Public
@@ -28,7 +28,7 @@ struct HeadingSkipRule: LintDocumentRule {
             previousLevel = section.level
         }
         
-        return engine
+        return repeated
             .groupBySubject(hits, by: { hit in "\(hit.from)→\(hit.to)\u{0}\(hit.path)" })
             .map { _, occurrences in
                 let hit = occurrences[0]
@@ -36,7 +36,7 @@ struct HeadingSkipRule: LintDocumentRule {
                 
                 return .init(
                     "heading level jump h\(hit.from)→h\(hit.to) (line \(lines[0]): '\(hit.path.prefix(60))')"
-                        + engine.repeatSuffix(lines),
+                        + repeated.repeatSuffix(lines),
                     key: "skip:h\(hit.from)-h\(hit.to):\(hit.path)"
                 )
             }

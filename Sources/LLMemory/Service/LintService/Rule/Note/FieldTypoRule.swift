@@ -16,12 +16,14 @@ struct FieldTypoRule: NoteLintRule {
     let code = "field-typo"
     let severity = LintSeverity.warn
     
+    private let distance = EditDistance()
+
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {
         note.doc.extra.keys.sorted().compactMap { field in
             guard let known = Frontmatter.knownFields.first(
-                where: { known in EditDistance().withinOne(field, known) }
+                where: { known in distance.withinOne(field, known) }
             ) else {
                 return nil
             }
