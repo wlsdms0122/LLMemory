@@ -18,6 +18,8 @@ struct MigrateNoteHandler: OperationHandling {
         example: ##"{"op":"migrate_note","id":"flow.my-note","new_id":"flow.review.my-note"}"##
     )
 
+    private let payload = OpPayloadCheck()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -27,11 +29,11 @@ struct MigrateNoteHandler: OperationHandling {
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
 
-        if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
             return rejection
         }
 
-        let state = try Handlers.existingState(scope)
+        let state = try payload.existingState(scope)
         let newId = (op["new_id"] as? String) ?? noteId
         let nsNewId = newId as NSString
 

@@ -17,6 +17,8 @@ struct UnreadableNoteGateInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let trashLookup = TrashedNoteLookup()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -134,7 +136,7 @@ struct UnreadableNoteGateInvariantTests {
         #expect(missing.error.contains("not in trash"), "unexpected: \(missing.error)")
         
         // When — the trashed file is there but unreadable.
-        let trashed = try #require(try Handlers.findTrashedFile("tr-gone")?.url)
+        let trashed = try #require(try trashLookup.findTrashedFile("tr-gone")?.url)
         
         try "corrupted\n".write(to: trashed, atomically: true, encoding: .utf8)
         
@@ -156,7 +158,7 @@ struct UnreadableNoteGateInvariantTests {
             #expect(home.apply(["op": "delete_note", "id": id, "reason": "test"]).status == "ok")
         }
         
-        let corrupted = try #require(try Handlers.findTrashedFile("tr-a")?.url)
+        let corrupted = try #require(try trashLookup.findTrashedFile("tr-a")?.url)
         
         try "corrupted\n".write(to: corrupted, atomically: true, encoding: .utf8)
         
@@ -176,7 +178,7 @@ struct UnreadableNoteGateInvariantTests {
         let file = try corrupt(id: "sg-note", body: "garbage\n")
         
         // When
-        let violation = OperationsEngine.checkSectionInvariants(affected: [file], backups: [(file, nil)])
+        let violation = home.operationsEngine.checkSectionInvariants(affected: [file], backups: [(file, nil)])
         
         // Then
         #expect(violation?.contains("sg-note") == true, "unexpected: \(violation ?? "nil")")
@@ -189,7 +191,7 @@ struct UnreadableNoteGateInvariantTests {
         let absent = home.url.appendingPathComponent("cortex/deleted.md")
         
         // Then
-        #expect(OperationsEngine.checkSectionInvariants(affected: [absent], backups: [(absent, nil)]) == nil)
+        #expect(home.operationsEngine.checkSectionInvariants(affected: [absent], backups: [(absent, nil)]) == nil)
     }
     
     @Test("the lifecycle stamp refuses to record a shape it could not measure")
@@ -260,13 +262,13 @@ struct UnreadableNoteGateInvariantTests {
         
         #expect(home.apply(["op": "delete_note", "id": "tn-x", "reason": "test"]).status == "ok")
         
-        let first = try #require(try Handlers.findTrashedFile("tn-x")?.url)
+        let first = try #require(try trashLookup.findTrashedFile("tn-x")?.url)
         
         home.createNote(id: "tn-x", content: "## A\nsecond\n")
         
         #expect(home.apply(["op": "delete_note", "id": "tn-x", "reason": "test"]).status == "ok")
         
-        let second = try #require(try Handlers.findTrashedFile("tn-x")?.url)
+        let second = try #require(try trashLookup.findTrashedFile("tn-x")?.url)
         
         #expect(second != first, "the two incarnations collapsed onto one file")
         

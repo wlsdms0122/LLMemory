@@ -16,6 +16,8 @@ struct RestoreEffectInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let trashLookup = TrashedNoteLookup()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -38,7 +40,7 @@ struct RestoreEffectInvariantTests {
         
         // Then
         #expect(result.status != "ok", "a batched create overwrote the note restore had just brought back")
-        #expect(try Handlers.findTrashedFile("rb-note") != nil, "the original was lost")
+        #expect(try trashLookup.findTrashedFile("rb-note") != nil, "the original was lost")
     }
     
     @Test("a patch batched after a restore succeeds — restore's creation is visible to the next op")

@@ -18,6 +18,8 @@ struct InvalidateHandler: OperationHandling {
         example: ##"{"op":"invalidate","id":"my-note","reason":"superseded by newer source"}"##
     )
 
+    private let payload = OpPayloadCheck()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -27,7 +29,7 @@ struct InvalidateHandler: OperationHandling {
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
 
-        if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
             return rejection
         }
 

@@ -27,6 +27,11 @@ struct CreateNoteHandler: OperationHandling {
         example: ##"{"op":"create_note","id":"persona.my-note","title":"...","tags":["persona"],"summary":"...","content":"# body"}"##
     )
 
+    private let composer = NoteComposer()
+    private let payload = OpPayloadCheck()
+    private let sourceInput = NoteSourceInput()
+    private let writeEffects = NoteWriteEffects()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -63,21 +68,21 @@ struct CreateNoteHandler: OperationHandling {
 
         let priority = op["priority"] as? String ?? "lazy"
 
-        if !Handlers.validPriority.contains(priority) { return "invalid priority: \(priority)" }
+        if !OpVocabulary.validPriority.contains(priority) { return "invalid priority: \(priority)" }
 
         if let entities = op["entities"], !(entities is [Any]) { return "entities must be list" }
 
-        if let rejection = Handlers.sourceInputError(op["source"]) { return rejection }
+        if let rejection = sourceInput.sourceInputError(op["source"]) { return rejection }
 
         do {
             var probe = FrontmatterDoc()
 
-            try Handlers.mergeFields(&probe, Handlers.customFields(of: op, declaredBy: schema))
+            try composer.mergeFields(&probe, payload.customFields(of: op, declaredBy: schema))
         } catch {
             return "\(error)"
         }
 
-        let state = try Handlers.existingState(scope)
+        let state = try payload.existingState(scope)
 
         if state.ids.contains(noteId) || context.inFlightIds.contains(noteId) {
             return "id collision: \(noteId) (use patch_section to update)"
@@ -108,7 +113,7 @@ struct CreateNoteHandler: OperationHandling {
             withIntermediateDirectories: true
         )
 
-        let body = try Handlers.composeCreateBody(op, scope.readOnly)
+        let body = try composer.composeCreateBody(op, scope.readOnly)
         var doc = FrontmatterDoc(
             title: op["title"] as? String ?? "",
             priority: op["priority"] as? String ?? "lazy",
@@ -122,7 +127,7 @@ struct CreateNoteHandler: OperationHandling {
         if (op["locked"] as? Bool) == true { doc.locked = true }
 
         if op["source"] != nil {
-            doc.source = try Handlers.finalizeSource(op["source"])
+            doc.source = try sourceInput.finalizeSource(op["source"])
         }
 
         let entities = (op["entities"] as? [Any])?
@@ -131,7 +136,7 @@ struct CreateNoteHandler: OperationHandling {
 
         if !entities.isEmpty { doc.entities = entities }
 
-        try Handlers.mergeFields(&doc, Handlers.customFields(of: op, declaredBy: schema))
+        try composer.mergeFields(&doc, payload.customFields(of: op, declaredBy: schema))
         try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
 
         try scope.run(ReindexNoteFileTransaction(path: path))
@@ -141,7 +146,7 @@ struct CreateNoteHandler: OperationHandling {
             reason: op["rationale"] as? String,
             now: now
         ))
-        try Handlers.seedInitialLinks(scope, nid: noteId, tags: doc.tags)
+        try writeEffects.seedInitialLinks(scope, nid: noteId, tags: doc.tags)
 
         return [
             "status": "ok",

@@ -18,6 +18,8 @@ struct CutTotalOrderInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let writeEffects = NoteWriteEffects()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -105,7 +107,7 @@ struct CutTotalOrderInvariantTests {
         
         // When
         try home.database().write { database in
-            try Handlers.seedInitialLinks(GRDBScope(database), nid: "sd-new", tags: ["shared"])
+            try writeEffects.seedInitialLinks(GRDBScope(database), nid: "sd-new", tags: ["shared"])
         }
         
         // Then

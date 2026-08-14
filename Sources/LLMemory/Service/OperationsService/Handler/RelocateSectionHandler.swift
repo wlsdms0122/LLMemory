@@ -20,6 +20,9 @@ struct RelocateSectionHandler: OperationHandling {
         example: ###"{"op":"relocate_section","from_id":"src-note","to_id":"dst-note","section":"## 부록","position":"end"}"###
     )
 
+    private let payload = OpPayloadCheck()
+    private let writeEffects = NoteWriteEffects()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -32,11 +35,11 @@ struct RelocateSectionHandler: OperationHandling {
 
         if fromId == toId { return "from_id and to_id must differ" }
 
-        if let rejection = try Handlers.checkIDKnown(fromId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(fromId, context: context, scope: scope) {
             return rejection
         }
 
-        if let rejection = try Handlers.checkIDKnown(toId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(toId, context: context, scope: scope) {
             return rejection
         }
 
@@ -133,13 +136,13 @@ struct RelocateSectionHandler: OperationHandling {
 
         try scope.run(StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false))
         try scope.run(StampNoteLifecycleTransaction(nid: toId, now: now, isNew: false))
-        try Handlers.recordEdit(
+        try writeEffects.recordEdit(
             scope,
             nid: fromId,
             opLabel: "relocate_section/from→\(toId)",
             now: now
         )
-        try Handlers.recordEdit(
+        try writeEffects.recordEdit(
             scope,
             nid: toId,
             opLabel: "relocate_section/from←\(fromId)",

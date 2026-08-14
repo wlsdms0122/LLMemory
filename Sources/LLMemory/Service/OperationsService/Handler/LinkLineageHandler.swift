@@ -25,6 +25,8 @@ struct LinkLineageHandler: OperationHandling {
         example: ##"{"op":"link_lineage","src":"bk-5262-rc1-260524","dst":"deploy-approval-policy","kind":"promoted_to","reason":"회차 반복 패턴을 원리로 추출"}"##
     )
 
+    private let payload = OpPayloadCheck()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -43,11 +45,11 @@ struct LinkLineageHandler: OperationHandling {
 
         if src == dst { return "src and dst must differ: \(src)" }
 
-        if let rejection = try Handlers.checkIDKnown(src, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(src, context: context, scope: scope) {
             return rejection
         }
 
-        return try Handlers.checkIDKnown(dst, context: context, scope: scope)
+        return try payload.checkIDKnown(dst, context: context, scope: scope)
     }
 
     func write(

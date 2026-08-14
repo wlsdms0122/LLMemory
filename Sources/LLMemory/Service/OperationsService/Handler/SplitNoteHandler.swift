@@ -20,6 +20,9 @@ struct SplitNoteHandler: OperationHandling {
         example: ###"{"op":"split_note","from_id":"persona.big-note","into":[{"id":"persona.big-note.a","title":"A","tags":["persona"],"summary":"...","sections":["## A"]},{"id":"persona.big-note.b","title":"B","tags":["persona"],"summary":"...","sections":["## B"]}]}"###
     )
 
+    private let payload = OpPayloadCheck()
+    private let sourceInput = NoteSourceInput()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -29,7 +32,7 @@ struct SplitNoteHandler: OperationHandling {
     ) throws -> String? {
         let fromId = op["from_id"] as? String ?? ""
 
-        if let rejection = try Handlers.checkIDKnown(fromId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(fromId, context: context, scope: scope) {
             return rejection
         }
 
@@ -38,7 +41,7 @@ struct SplitNoteHandler: OperationHandling {
         }
 
         var newIds = Set<String>()
-        let state = try Handlers.existingState(scope)
+        let state = try payload.existingState(scope)
         var normalized: [[String: Any]] = into
         var allPaths: [SectionEdit.SectionPath] = []
 
@@ -82,7 +85,7 @@ struct SplitNoteHandler: OperationHandling {
                 return "into[\(index)] sections must be non-empty list"
             }
 
-            if let rejection = Handlers.sourceInputError(child["source"]) {
+            if let rejection = sourceInput.sourceInputError(child["source"]) {
                 return "into[\(index)] \(rejection)"
             }
 
@@ -198,7 +201,7 @@ struct SplitNoteHandler: OperationHandling {
                 tags: (child["tags"] as? [Any])?.compactMap { tag in tag as? String } ?? []
             )
             childDoc.source = child["source"] != nil
-                ? try Handlers.finalizeSource(child["source"])
+                ? try sourceInput.finalizeSource(child["source"])
                 : srcDoc.source
 
             let prefix = (child["content_prefix"] as? String).map { text in

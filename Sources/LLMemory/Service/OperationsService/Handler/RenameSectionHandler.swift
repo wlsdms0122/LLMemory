@@ -19,6 +19,9 @@ struct RenameSectionHandler: OperationHandling {
         example: ###"{"op":"rename_section","id":"my-note","section":"## 옛제목","new_title":"새제목"}"###
     )
 
+    private let payload = OpPayloadCheck()
+    private let writeEffects = NoteWriteEffects()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -28,7 +31,7 @@ struct RenameSectionHandler: OperationHandling {
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
 
-        if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
             return rejection
         }
 
@@ -68,7 +71,7 @@ struct RenameSectionHandler: OperationHandling {
         let now = context.now
 
         try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
-        try Handlers.recordEdit(scope, nid: noteId, opLabel: "rename_section", now: now)
+        try writeEffects.recordEdit(scope, nid: noteId, opLabel: "rename_section", now: now)
 
         return [
             "status": "ok",

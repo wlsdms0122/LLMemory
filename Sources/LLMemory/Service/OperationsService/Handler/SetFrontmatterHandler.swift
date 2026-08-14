@@ -18,6 +18,10 @@ struct SetFrontmatterHandler: OperationHandling {
         example: ##"{"op":"set_frontmatter","id":"my-note","fields":{"summary":"updated summary","affect":"high"}}"##
     )
 
+    private let composer = NoteComposer()
+    private let payload = OpPayloadCheck()
+    private let writeEffects = NoteWriteEffects()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -27,7 +31,7 @@ struct SetFrontmatterHandler: OperationHandling {
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
 
-        if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
             return rejection
         }
 
@@ -42,7 +46,7 @@ struct SetFrontmatterHandler: OperationHandling {
         }
 
         if let priority = fields["priority"] as? String,
-            !Handlers.validPriority.contains(priority) {
+            !OpVocabulary.validPriority.contains(priority) {
             return "invalid priority: \(priority)"
         }
 
@@ -54,7 +58,7 @@ struct SetFrontmatterHandler: OperationHandling {
                 probe = read.doc
             }
 
-            try Handlers.mergeFields(&probe, fields)
+            try composer.mergeFields(&probe, fields)
         } catch {
             return "\(error)"
         }
@@ -81,7 +85,7 @@ struct SetFrontmatterHandler: OperationHandling {
         var (doc, body) = try Frontmatter.parse(raw)
         let fields = op["fields"] as! [String: Any]
 
-        try Handlers.mergeFields(&doc, fields)
+        try composer.mergeFields(&doc, fields)
         try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
         try scope.run(ReindexNoteFileTransaction(path: path))
 
@@ -91,7 +95,7 @@ struct SetFrontmatterHandler: OperationHandling {
 
         let keys = fields.keys.sorted().joined(separator: ",")
 
-        try Handlers.recordEdit(scope, nid: noteId, opLabel: "set_frontmatter/\(keys)", now: now)
+        try writeEffects.recordEdit(scope, nid: noteId, opLabel: "set_frontmatter/\(keys)", now: now)
 
         return [
             "status": "ok",

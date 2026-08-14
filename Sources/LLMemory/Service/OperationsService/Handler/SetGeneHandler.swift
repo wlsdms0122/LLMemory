@@ -23,6 +23,8 @@ struct SetGeneHandler: OperationHandling {
 
     let genome: any GenomeServiceable
 
+    private let payload = OpPayloadCheck()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -37,7 +39,7 @@ struct SetGeneHandler: OperationHandling {
         }
 
         if let raw = op["value"], !(raw is NSNull) {
-            guard let value = Handlers.asDouble(raw) else { return "value must be numeric" }
+            guard let value = payload.asDouble(raw) else { return "value must be numeric" }
 
             if value < definition.min || value > definition.max {
                 return "value \(value) is outside gene '\(id)' bounds [\(definition.min), \(definition.max)]"
@@ -56,7 +58,7 @@ struct SetGeneHandler: OperationHandling {
         let id = op["gene"] as! String
         let reason = op["reason"] as? String
 
-        if let raw = op["value"], !(raw is NSNull), let value = Handlers.asDouble(raw) {
+        if let raw = op["value"], !(raw is NSNull), let value = payload.asDouble(raw) {
             let result = try genome.setGene(
                 scope,
                 id: id,

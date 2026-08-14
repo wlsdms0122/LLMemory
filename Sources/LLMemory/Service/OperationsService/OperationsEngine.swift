@@ -15,6 +15,11 @@ public struct OperationsEngine: Sendable {
     // it at wiring time, so the registry is per-engine, not process-global.
     let registry: HandlerRegistry
 
+    private let bodyProjection = BodyProjection()
+    private let payload = OpPayloadCheck()
+
+    private let trashLookup = TrashedNoteLookup()
+
     // MARK: - Initializer
     init(genome: any GenomeServiceable, lint: any LintServiceable) {
         self.genome = genome
@@ -25,7 +30,7 @@ public struct OperationsEngine: Sendable {
     // MARK: - Public
     // The one place the raw payload string re-enters the [String: Any] world —
     // both ops transactions decode through here.
-    static func decodePayload(_ json: String) -> [String: Any]? {
+    func decodePayload(_ json: String) -> [String: Any]? {
         guard
             let data = json.data(using: .utf8),
             let object = try? JSONSerialization.jsonObject(with: data),
@@ -191,7 +196,7 @@ public struct OperationsEngine: Sendable {
                     }
                 }
                 
-                if let sectionError = Self.checkSectionInvariants(
+                if let sectionError = checkSectionInvariants(
                     affected: affected,
                     backups: backups
                 ) {
@@ -356,11 +361,7 @@ public struct OperationsEngine: Sendable {
         }
     }
     
-    static func targetIds(_ op: [String: Any], schema: OperationSchema) -> Set<String> {
-        schema.mentionedNoteIds(in: op)
-    }
-    
-    static func checkSectionInvariants(
+    func checkSectionInvariants(
         affected: [URL],
         backups: [(URL, String?)]
     ) -> String? {
@@ -369,7 +370,7 @@ public struct OperationsEngine: Sendable {
         for path in affected {
             if path.pathExtension != "md" { continue }
             
-            let noteId = Handlers.trashStemId(path)
+            let noteId = trashLookup.trashStemId(path)
             let body: String
             do {
                 guard let read = try Notes.readNoteIfPresent(at: path) else { continue }
@@ -465,7 +466,7 @@ public struct OperationsEngine: Sendable {
                 return ("op[\(index)] \(name): \(message)", index)
             }
             
-            if let message = Handlers.checkRequired(
+            if let message = payload.checkRequired(
                 op,
                 fields: handler.schema.requiredNames(given: op)
             ) {
@@ -476,7 +477,7 @@ public struct OperationsEngine: Sendable {
                 return ("op[\(index)] \(name): \(message)", index)
             }
             
-            if let message = try BodyProjection.advance(
+            if let message = try bodyProjection.advance(
                 op: op,
                 name: name,
                 handler: handler,
@@ -508,7 +509,7 @@ public struct OperationsEngine: Sendable {
         scope: GRDBReadScope
     ) throws -> String? {
         if name != "create_note", !context.lockedInFlightIds.isEmpty {
-            for noteId in Self.targetIds(op, schema: handler.schema)
+            for noteId in handler.schema.mentionedNoteIds(in: op)
             where context.lockedInFlightIds.contains(noteId) {
                 return "note is locked (human-only) — edit the file directly, not via ops: \(noteId)"
             }
@@ -591,7 +592,7 @@ public struct OperationsEngine: Sendable {
         return failed
     }
     
-    private static func preImage(
+    private func preImage(
         _ path: URL,
         nid: String,
         backups: [(URL, String?)]
@@ -600,7 +601,7 @@ public struct OperationsEngine: Sendable {
             if let text { return text }
         }
         
-        for (url, text) in backups where Handlers.trashStemId(url) == nid {
+        for (url, text) in backups where trashLookup.trashStemId(url) == nid {
             if let text { return text }
         }
         

@@ -17,6 +17,8 @@ struct StructuralLossInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let trashLookup = TrashedNoteLookup()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -29,7 +31,7 @@ struct StructuralLossInvariantTests {
         #expect(home.createNote(id: "trsh-dup", content: "## A\nFIRST_BODY_alpha\n").status == "ok")
         #expect(home.apply(["op": "delete_note", "id": "trsh-dup", "reason": "first"]).status == "ok")
         
-        guard let firstTrash = try Handlers.findTrashedFile("trsh-dup")?.url else {
+        guard let firstTrash = try trashLookup.findTrashedFile("trsh-dup")?.url else {
             throw TestFailure("setup: the first incarnation was not trashed")
         }
         
@@ -53,7 +55,7 @@ struct StructuralLossInvariantTests {
         #expect(preserved.count == 2,
             "expected both incarnations preserved, found \(preserved.map(\.lastPathComponent))")
         
-        let latest = try Handlers.findTrashedFile("trsh-dup")?.url
+        let latest = try trashLookup.findTrashedFile("trsh-dup")?.url
         
         #expect(latest != nil)
         #expect(try String(contentsOf: latest!, encoding: .utf8).contains("SECOND_BODY_beta"),
@@ -270,7 +272,7 @@ struct StructuralLossInvariantTests {
         ]).status == "ok")
         
         // Then
-        #expect(try Handlers.findTrashedFile("trsh-from")?.url != nil,
+        #expect(try trashLookup.findTrashedFile("trsh-from")?.url != nil,
             "the merge hard-deleted the source instead of trashing it")
         #expect(home.apply(["op": "restore", "id": "trsh-from"]).status == "ok")
         #expect(try noteCount(id: "trsh-from") == 1, "the trashed merge source was not restorable")
@@ -294,7 +296,7 @@ struct StructuralLossInvariantTests {
         ]]).status == "ok")
         
         // Then
-        #expect(try Handlers.findTrashedFile("trsh-ssrc")?.url != nil,
+        #expect(try trashLookup.findTrashedFile("trsh-ssrc")?.url != nil,
             "the split hard-deleted the source instead of trashing it")
     }
     

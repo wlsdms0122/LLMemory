@@ -19,6 +19,8 @@ struct FlagHandler: OperationHandling {
         example: ##"{"op":"flag","id":"my-note","kind":"reconsolidate","reason":"two near-duplicate notes detected"}"##
     )
 
+    private let payload = OpPayloadCheck()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -28,9 +30,9 @@ struct FlagHandler: OperationHandling {
     ) throws -> String? {
         let kind = op["kind"] as? String ?? ""
 
-        if !Handlers.creatableFlagKinds.contains(kind) { return "invalid flag kind: \(kind)" }
+        if !OpVocabulary.creatableFlagKinds.contains(kind) { return "invalid flag kind: \(kind)" }
 
-        return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
+        return try payload.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
     }
 
     func write(

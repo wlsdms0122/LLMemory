@@ -19,6 +19,8 @@ struct ResolveFlagHandler: OperationHandling {
         example: ##"{"op":"resolve_flag","id":"my-note","kind":"reconsolidate","reason":"merged with sibling"}"##
     )
 
+    private let payload = OpPayloadCheck()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -28,9 +30,9 @@ struct ResolveFlagHandler: OperationHandling {
     ) throws -> String? {
         let kind = op["kind"] as? String ?? ""
 
-        if !Handlers.resolvableFlagKinds.contains(kind) { return "invalid flag kind: \(kind)" }
+        if !OpVocabulary.resolvableFlagKinds.contains(kind) { return "invalid flag kind: \(kind)" }
 
-        return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
+        return try payload.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
     }
 
     func write(

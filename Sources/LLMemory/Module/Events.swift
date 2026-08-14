@@ -14,6 +14,7 @@ enum Events {
     static let kindConsolidation = "consolidation"
     static let kindRetrieval = "retrieval"
     
+
     // MARK: - Initializer
     // MARK: - Public
     static func record(

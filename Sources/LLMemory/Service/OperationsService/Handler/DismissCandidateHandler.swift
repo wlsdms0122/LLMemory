@@ -32,6 +32,8 @@ struct DismissCandidateHandler: OperationHandling {
 
     let lint: any LintServiceable
 
+    private let payload = OpPayloadCheck()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -102,7 +104,7 @@ struct DismissCandidateHandler: OperationHandling {
                 return "`target` is for corpus-scope lint warns only — '\(kind)' is a note candidate, use `id`"
             }
 
-            return try Handlers.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
+            return try payload.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
     }
 
     func write(

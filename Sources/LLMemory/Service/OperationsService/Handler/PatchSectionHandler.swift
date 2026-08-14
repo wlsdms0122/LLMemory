@@ -21,6 +21,9 @@ struct PatchSectionHandler: OperationHandling {
         example: ###"{"op":"patch_section","id":"my-note","section":"## 관련","action":"append","content":"- 새 항목"}"###
     )
 
+    private let payload = OpPayloadCheck()
+    private let writeEffects = NoteWriteEffects()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -30,8 +33,8 @@ struct PatchSectionHandler: OperationHandling {
     ) throws -> String? {
         let action = op["action"] as? String ?? ""
 
-        if !Handlers.validPatchActions.contains(action) {
-            return "invalid action: \(action) (expected \(Handlers.validPatchActions.sorted()))"
+        if !OpVocabulary.validPatchActions.contains(action) {
+            return "invalid action: \(action) (expected \(OpVocabulary.validPatchActions.sorted()))"
         }
 
         if action != "remove" && (op["content"] as? String ?? "").isEmpty {
@@ -40,7 +43,7 @@ struct PatchSectionHandler: OperationHandling {
 
         let noteId = op["id"] as? String ?? ""
 
-        if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
             return rejection
         }
 
@@ -62,7 +65,7 @@ struct PatchSectionHandler: OperationHandling {
 
                 let nsLine = line as NSString
 
-                if let match = Handlers.headingMarkerRegex.firstMatch(
+                if let match = OpVocabulary.headingMarkerRegex.firstMatch(
                     in: line,
                     range: NSRange(location: 0, length: nsLine.length)
                 ) {
@@ -118,7 +121,7 @@ struct PatchSectionHandler: OperationHandling {
         let now = context.now
 
         try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
-        try Handlers.recordEdit(
+        try writeEffects.recordEdit(
             scope,
             nid: noteId,
             opLabel: "patch_section/\(action)",

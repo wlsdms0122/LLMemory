@@ -24,6 +24,9 @@ struct MergeNotesHandler: OperationHandling {
         example: ##"{"op":"merge_notes","into_id":"umbrella","from_ids":["a","b"],"merged_content":"...","summary":"...","tags":["persona"]}"##
     )
 
+    private let payload = OpPayloadCheck()
+    private let sourceInput = NoteSourceInput()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -33,7 +36,7 @@ struct MergeNotesHandler: OperationHandling {
     ) throws -> String? {
         let intoId = op["into_id"] as? String ?? ""
 
-        if let rejection = try Handlers.checkIDKnown(intoId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(intoId, context: context, scope: scope) {
             return "merge_notes.into_id must be an *existing* note id (or one created earlier in this transaction): '\(intoId)'. To merge into a fresh umbrella note, prepend a `create_note` op with the same id, then merge. (\(rejection))"
         }
 
@@ -48,7 +51,7 @@ struct MergeNotesHandler: OperationHandling {
         }
 
         for fromId in fromStrings {
-            if let rejection = try Handlers.checkIDKnown(fromId, context: context, scope: scope) {
+            if let rejection = try payload.checkIDKnown(fromId, context: context, scope: scope) {
                 return "from_ids: \(rejection)"
             }
         }
@@ -57,7 +60,7 @@ struct MergeNotesHandler: OperationHandling {
             return "tags must be non-empty list"
         }
 
-        if let rejection = Handlers.sourceInputError(op["source"]) { return rejection }
+        if let rejection = sourceInput.sourceInputError(op["source"]) { return rejection }
 
         return nil
     }
@@ -90,7 +93,7 @@ struct MergeNotesHandler: OperationHandling {
         if let priority = op["priority"] as? String { intoDoc.priority = priority }
 
         if op["source"] != nil {
-            intoDoc.source = try Handlers.finalizeSource(op["source"])
+            intoDoc.source = try sourceInput.finalizeSource(op["source"])
         }
 
         let rawMerged = op["merged_content"] as? String ?? ""

@@ -18,6 +18,9 @@ struct RestoreHandler: OperationHandling {
         example: ##"{"op":"restore","id":"deleted-note","reason":"deleted by mistake"}"##
     )
 
+    private let payload = OpPayloadCheck()
+    private let trashLookup = TrashedNoteLookup()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -26,14 +29,14 @@ struct RestoreHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
-        let state = try Handlers.existingState(scope)
+        let state = try payload.existingState(scope)
 
         if state.ids.contains(noteId) || context.inFlightIds.contains(noteId) {
             return "id collision: '\(noteId)' is already a live note — restoring would overwrite it"
         }
 
         do {
-            if try Handlers.findTrashedFile(noteId) != nil { return nil }
+            if try trashLookup.findTrashedFile(noteId) != nil { return nil }
         } catch {
             return "\(error)"
         }
@@ -49,7 +52,7 @@ struct RestoreHandler: OperationHandling {
         let noteId = op["id"] as! String
         let now = context.now
 
-        guard let found = try Handlers.findTrashedFile(noteId) else {
+        guard let found = try trashLookup.findTrashedFile(noteId) else {
             throw NSError(domain: "Handlers", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "not in trash: \(noteId)"
             ])
@@ -97,7 +100,7 @@ struct RestoreHandler: OperationHandling {
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
         let noteId = op["id"] as? String ?? ""
 
-        guard let found = try Handlers.findTrashedFile(noteId) else { return [] }
+        guard let found = try trashLookup.findTrashedFile(noteId) else { return [] }
 
         return [found.url, Paths.file(forId: noteId)]
     }

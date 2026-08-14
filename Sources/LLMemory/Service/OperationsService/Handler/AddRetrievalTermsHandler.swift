@@ -20,6 +20,8 @@ struct AddRetrievalTermsHandler: OperationHandling {
         example: ##"{"op":"add_retrieval_terms","id":"my-note","kind":"alias","terms":["검색 동의어","retrieval synonym"],"provenance":"forge:capture:claude-sonnet-4-6"}"##
     )
 
+    private let payload = OpPayloadCheck()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -29,7 +31,7 @@ struct AddRetrievalTermsHandler: OperationHandling {
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
 
-        if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
             return rejection
         }
 

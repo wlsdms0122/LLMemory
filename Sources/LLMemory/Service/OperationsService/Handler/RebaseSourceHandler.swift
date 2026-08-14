@@ -18,6 +18,8 @@ struct RebaseSourceHandler: OperationHandling {
         example: ##"{"op":"rebase_source","id":"my-note","reason":"note updated to reflect the reworked source file"}"##
     )
 
+    private let payload = OpPayloadCheck()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -27,7 +29,7 @@ struct RebaseSourceHandler: OperationHandling {
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
 
-        if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
             return rejection
         }
 

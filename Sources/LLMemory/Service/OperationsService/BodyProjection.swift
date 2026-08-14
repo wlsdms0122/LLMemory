@@ -7,11 +7,13 @@
 
 import Foundation
 
-enum BodyProjection {
+struct BodyProjection {
     // MARK: - Property
+    private let composer = NoteComposer()
+
     // MARK: - Initializer
     // MARK: - Public
-    static func advance(
+    func advance(
         op: [String: Any],
         name: String,
         handler: any OperationHandling,
@@ -21,7 +23,7 @@ enum BodyProjection {
         switch name {
         case "create_note":
             if let noteId = op["id"] as? String, !noteId.isEmpty {
-                context.stagedBodies[noteId] = try Handlers.composeCreateBody(op, scope)
+                context.stagedBodies[noteId] = try composer.composeCreateBody(op, scope)
                 context.opaqueBodyIds.remove(noteId)
             }
             
@@ -77,7 +79,7 @@ enum BodyProjection {
         
         default:
             if try !handler.touches(op, scope).isEmpty {
-                for noteId in OperationsEngine.targetIds(op, schema: handler.schema) {
+                for noteId in handler.schema.mentionedNoteIds(in: op) {
                     context.opaqueBodyIds.insert(noteId)
                     context.stagedBodies.removeValue(forKey: noteId)
                 }
@@ -88,7 +90,7 @@ enum BodyProjection {
     }
     
     // MARK: - Private
-    private static func stagedBody(
+    private func stagedBody(
         of noteId: String,
         context: HandlerContext,
         scope: GRDBReadScope

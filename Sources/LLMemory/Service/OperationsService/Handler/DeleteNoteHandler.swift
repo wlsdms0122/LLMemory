@@ -19,6 +19,8 @@ struct DeleteNoteHandler: OperationHandling {
         example: ##"{"op":"delete_note","id":"obsolete","reason":"merged into newer-note"}"##
     )
 
+    private let payload = OpPayloadCheck()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -28,7 +30,7 @@ struct DeleteNoteHandler: OperationHandling {
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
 
-        if let rejection = try Handlers.checkIDKnown(noteId, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
             return rejection
         }
 

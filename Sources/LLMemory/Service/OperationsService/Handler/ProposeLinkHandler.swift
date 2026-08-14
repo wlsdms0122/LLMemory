@@ -21,6 +21,8 @@ struct ProposeLinkHandler: OperationHandling {
         example: ##"{"op":"propose_link","src":"note-a","dst":"note-b","kind":"assoc","confidence":0.8,"provenance":"forge:capture:claude-sonnet-4-6"}"##
     )
 
+    private let payload = OpPayloadCheck()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -41,11 +43,11 @@ struct ProposeLinkHandler: OperationHandling {
             }
         }
 
-        if let rejection = try Handlers.checkIDKnown(src, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(src, context: context, scope: scope) {
             return "src: \(rejection)"
         }
 
-        if let rejection = try Handlers.checkIDKnown(dst, context: context, scope: scope) {
+        if let rejection = try payload.checkIDKnown(dst, context: context, scope: scope) {
             return "dst: \(rejection)"
         }
 

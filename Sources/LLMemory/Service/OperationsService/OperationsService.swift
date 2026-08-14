@@ -39,7 +39,7 @@ public struct OperationsService: OperationsServiceable {
         // Shape rejection happens before any lock — a malformed payload must
         // not open the write scope. The string is decoded again inside the
         // scope because [String: Any] cannot cross the Sendable wall.
-        guard OperationsEngine.decodePayload(payloadJSON) != nil else {
+        guard engine.decodePayload(payloadJSON) != nil else {
             return OperationsResult(
                 status: "rejected",
                 opResults: [],
@@ -52,7 +52,7 @@ public struct OperationsService: OperationsServiceable {
 
         do {
             let result = try await storage.run { scope in
-                guard let payload = OperationsEngine.decodePayload(payloadJSON) else {
+                guard let payload = engine.decodePayload(payloadJSON) else {
                     return OperationsResult(
                         status: "rejected",
                         opResults: [],
@@ -88,7 +88,7 @@ public struct OperationsService: OperationsServiceable {
 
         do {
             return try await storage.read { scope in
-                guard let payload = OperationsEngine.decodePayload(payloadJSON) else {
+                guard let payload = engine.decodePayload(payloadJSON) else {
                     return OperationsDryRunResult(
                         status: "rejected",
                         opCount: nil,

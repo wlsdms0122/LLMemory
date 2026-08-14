@@ -25,7 +25,8 @@ struct OneTypePerFileInvariantTests {
         "Sources/LLMemory/Module/DB/Migration",
         "Sources/LLMemory/Module/DB/Model",
         "Sources/LLMemory/Module/Lint",
-        "Sources/LLMemory/Service/LintService"
+        "Sources/LLMemory/Service/LintService",
+        "Sources/LLMemory/Service/OperationsService"
     ]
 
     private let declaration = try! NSRegularExpression(

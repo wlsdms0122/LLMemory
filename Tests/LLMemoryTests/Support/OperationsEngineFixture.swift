@@ -22,8 +22,12 @@ extension OperationsEngine {
     ) -> OperationsResult {
         do {
             let json = try Self.encodePayload(payload)
+            let engine = OperationsEngine(
+                genome: GenomeService(storage: storage, retrieval: RetrievalService(storage: storage)),
+                lint: LintService(storage: storage, rules: LintRuleRegistry())
+            )
 
-            guard let decoded = OperationsEngine.decodePayload(json) else {
+            guard let decoded = engine.decodePayload(json) else {
                 return OperationsResult(
                     status: "rejected",
                     opResults: [],
@@ -36,11 +40,7 @@ extension OperationsEngine {
 
             return try storage.writeLock {
                 try storage.connect().write { db in
-                    OperationsEngine(
-                        genome: GenomeService(storage: storage, retrieval: RetrievalService(storage: storage)),
-                        lint: LintService(storage: storage, rules: LintRuleRegistry())
-                    )
-                    .apply(GRDBScope(db), decoded, sessionId: sessionId)
+                    engine.apply(GRDBScope(db), decoded, sessionId: sessionId)
                 }
             }
         } catch {
@@ -61,8 +61,12 @@ extension OperationsEngine {
     ) -> OperationsDryRunResult {
         do {
             let json = try Self.encodePayload(payload)
+            let engine = OperationsEngine(
+                genome: GenomeService(storage: storage, retrieval: RetrievalService(storage: storage)),
+                lint: LintService(storage: storage, rules: LintRuleRegistry())
+            )
 
-            guard let decoded = OperationsEngine.decodePayload(json) else {
+            guard let decoded = engine.decodePayload(json) else {
                 return OperationsDryRunResult(
                     status: "rejected",
                     opCount: nil,
@@ -72,11 +76,7 @@ extension OperationsEngine {
             }
 
             return try storage.connect().read { db in
-                OperationsEngine(
-                    genome: GenomeService(storage: storage, retrieval: RetrievalService(storage: storage)),
-                    lint: LintService(storage: storage, rules: LintRuleRegistry())
-                )
-                .dryRun(GRDBReadScope(db), decoded)
+                engine.dryRun(GRDBReadScope(db), decoded)
             }
         } catch {
             return OperationsDryRunResult(
