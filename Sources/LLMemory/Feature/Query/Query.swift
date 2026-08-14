@@ -187,7 +187,7 @@ public struct Query {
         severity: String? = nil,
         limit: Int? = nil,
         includeDismissed: Bool = false
-    ) async throws -> [Lint.Issue] {
+    ) async throws -> [LintIssue] {
         try await lint.lint(
             id: id,
             code: code,
@@ -195,6 +195,12 @@ public struct Query {
             limit: limit,
             includeDismissed: includeDismissed
         )
+    }
+
+    // The rule vocabulary, beside the findings it explains — `query lint --rules`
+    // asks what may be reported before anything is reported.
+    public func lintRuleCatalog() -> [LintRuleInfo] {
+        lint.ruleCatalog()
     }
 
     public func enrichment() async throws -> EnrichmentStatus {

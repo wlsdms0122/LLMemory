@@ -118,10 +118,42 @@ struct LintTests {
         try home.overwriteBody(of: "lf-broken", with: "## A\nx\n## A\ny\n")
         
         // When
-        let all = try home.readScope { scope in try Lint.scan(scope) }
-        let errors = try home.readScope { scope in try Lint.scan(scope, severity: "error") }
-        let onlyEnrich = try home.readScope { scope in try Lint.scan(scope, code: "enrich-thin") }
-        let capped = try home.readScope { scope in try Lint.scan(scope, limit: 1) }
+        let all = try home.readScope { scope in try home.lintService.scan(
+                scope,
+                id: nil,
+                code: nil,
+                severity: nil,
+                limit: nil,
+                includeDismissed: false
+            )
+        }
+        let errors = try home.readScope { scope in try home.lintService.scan(
+                scope,
+                id: nil,
+                code: nil,
+                severity: "error",
+                limit: nil,
+                includeDismissed: false
+            )
+        }
+        let onlyEnrich = try home.readScope { scope in try home.lintService.scan(
+                scope,
+                id: nil,
+                code: "enrich-thin",
+                severity: nil,
+                limit: nil,
+                includeDismissed: false
+            )
+        }
+        let capped = try home.readScope { scope in try home.lintService.scan(
+                scope,
+                id: nil,
+                code: nil,
+                severity: nil,
+                limit: 1,
+                includeDismissed: false
+            )
+        }
         
         // Then
         #expect(all.contains { issue in issue.severity == "error" })
@@ -252,14 +284,14 @@ struct LintTests {
         
         // Then
         for _ in 0 ..< 50 {
-            #expect(DanglingNoteRefRule.nearestId("ref-target", candidates, excluding: "self-note") == "ref-targe",
+            #expect(DanglingNoteRefRule().nearestId("ref-target", candidates, excluding: "self-note") == "ref-targe",
                 "an edit-distance-1 candidate must beat an extension, and must do so every call")
         }
         
-        #expect(DanglingNoteRefRule.nearestId("ref-target", ["ref-target-aa"], excluding: "x") == "ref-target-aa")
-        #expect(DanglingNoteRefRule.nearestId("ref-target", ["ref-target-aa", "ref-target-ab"], excluding: "x") == nil,
+        #expect(DanglingNoteRefRule().nearestId("ref-target", ["ref-target-aa"], excluding: "x") == "ref-target-aa")
+        #expect(DanglingNoteRefRule().nearestId("ref-target", ["ref-target-aa", "ref-target-ab"], excluding: "x") == nil,
             "two equally near candidates is not an answer")
-        #expect(DanglingNoteRefRule.nearestId("ref-targex", ["ref-targea", "ref-targeb"], excluding: "x") == "ref-targea")
+        #expect(DanglingNoteRefRule().nearestId("ref-targex", ["ref-targea", "ref-targeb"], excluding: "x") == "ref-targea")
     }
     
     @Test("a document-scope warning is dismissible like any other warning")
@@ -285,11 +317,11 @@ struct LintTests {
     func catalogAndDismissGateAgree() {
         // When
         let catalogWarns = Set(
-            Lint.ruleCatalog().filter { rule in rule.severity == "warn" }.map(\.code)
+            home.lintService.ruleCatalog().filter { rule in rule.severity == "warn" }.map(\.code)
         )
         
         // Then
-        #expect(catalogWarns == LintRules.dismissibleCodes,
+        #expect(catalogWarns == home.lintService.dismissibleCodes,
             "the catalog advertises a warning the dismissal gate does not accept, or the reverse")
     }
     
@@ -357,19 +389,27 @@ struct LintTests {
         home.createNote(id: id, tags: ["tech"] + tags, content: "## A\nx body\n")
     }
     
-    private func issues(of noteId: String) throws -> [Lint.Issue] {
-        try home.readScope { scope in try Lint.lintNote(scope, nid: noteId) }
+    private func issues(of noteId: String) throws -> [LintIssue] {
+        try home.readScope { scope in try home.lintService.lintNote(scope, nid: noteId) }
     }
     
     private func codes(of noteId: String) throws -> Set<String> {
         Set(try issues(of: noteId).map(\.code))
     }
     
-    private func allIssues() throws -> [Lint.Issue] {
-        try home.readScope { scope in try Lint.lintAll(scope) }
+    private func allIssues() throws -> [LintIssue] {
+        try home.readScope { scope in try home.lintService.lintAll(scope) }
     }
     
     private func isolatedSubjects() throws -> [String] {
-        try home.readScope { scope in try Lint.scan(scope, code: "isolated") }.map(\.target.subject)
+        try home.readScope { scope in try home.lintService.scan(
+                scope,
+                id: nil,
+                code: "isolated",
+                severity: nil,
+                limit: nil,
+                includeDismissed: false
+            )
+        }.map(\.target.subject)
     }
 }

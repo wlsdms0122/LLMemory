@@ -14,11 +14,11 @@ import GRDB
 struct DistinctCorpusRule: CorpusDBLintRule {
     // MARK: - Property
     let code = "tag-near-duplicate"
-    let severity = LintEngine.Severity.warn
+    let severity = LintSeverity.warn
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope) throws -> [LintEngine.Finding] {
+    func check(_ scope: GRDBReadScope) throws -> [LintFinding] {
         [
             .init("one", target: .corpus("tag-pair:a|b"), key: "pair:a|b"),
             .init("two", target: .corpus("tag-pair:c|d"), key: "pair:c|d")

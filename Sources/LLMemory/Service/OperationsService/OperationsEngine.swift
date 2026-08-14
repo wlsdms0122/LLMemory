@@ -10,14 +10,16 @@ import Foundation
 public struct OperationsEngine: Sendable {
     // MARK: - Property
     let genome: any GenomeServiceable
+    let lint: any LintServiceable
     // Assembled with the engine — handlers needing a collaborator captured
     // it at wiring time, so the registry is per-engine, not process-global.
     let registry: [String: OperationHandler]
 
     // MARK: - Initializer
-    init(genome: any GenomeServiceable) {
+    init(genome: any GenomeServiceable, lint: any LintServiceable) {
         self.genome = genome
-        self.registry = HandlersRegistry.build(genome: genome)
+        self.lint = lint
+        self.registry = HandlersRegistry.build(genome: genome, lint: lint)
     }
 
     // MARK: - Public

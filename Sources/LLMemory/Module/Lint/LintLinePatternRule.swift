@@ -10,14 +10,16 @@ import Foundation
 struct LintLinePatternRule: LintDocumentRule {
     // MARK: - Property
     let code: String
-    let severity: LintEngine.Severity
+    let severity: LintSeverity
     let pattern: NSRegularExpression
     let message: @Sendable (Int, String) -> String
     
+    private let engine = LintEngine()
+
     // MARK: - Initializer
     init(
         code: String,
-        severity: LintEngine.Severity,
+        severity: LintSeverity,
         pattern: String,
         message: @escaping @Sendable (Int, String) -> String
     ) {
@@ -28,7 +30,7 @@ struct LintLinePatternRule: LintDocumentRule {
     }
     
     // MARK: - Public
-    func check(_ doc: LintEngine.Document) -> [LintEngine.Finding] {
+    func check(_ doc: LintDocument) -> [LintFinding] {
         let hits = doc.contentLineIndices().filter { index in
             let nsLine = doc.lines[index] as NSString
             
@@ -38,7 +40,7 @@ struct LintLinePatternRule: LintDocumentRule {
             ) != nil
         }
         
-        return LintEngine.groupBySubject(hits) { index in
+        return engine.groupBySubject(hits) { index in
             doc.lines[index].trimmingCharacters(in: .whitespaces)
         }
         .map { text, lineIndices in
@@ -46,7 +48,7 @@ struct LintLinePatternRule: LintDocumentRule {
             
             return .init(
                 message(lineNumbers[0], doc.lines[lineIndices[0]])
-                    + LintEngine.repeatSuffix(lineNumbers),
+                    + engine.repeatSuffix(lineNumbers),
                 key: "line:\(text)"
             )
         }

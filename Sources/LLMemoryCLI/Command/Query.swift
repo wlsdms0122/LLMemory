@@ -2233,7 +2233,7 @@ struct QueryLint: AsyncParsableCommand {
         let brain = Brain(home: global.home)
         
         if rules {
-            let catalog = Lint.ruleCatalog()
+            let catalog = brain.query.lintRuleCatalog()
             
             render(catalog, json: format.json) { rules in
                 [

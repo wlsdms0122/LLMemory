@@ -8,5 +8,5 @@
 import Foundation
 
 protocol LintDocumentRule: LintRuleMeta {
-    func check(_ doc: LintEngine.Document) -> [LintEngine.Finding]
+    func check(_ doc: LintDocument) -> [LintFinding]
 }

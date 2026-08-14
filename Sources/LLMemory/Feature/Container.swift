@@ -36,18 +36,19 @@ struct Container: Sendable {
     init(storage: GRDBStorage) {
         let retrieval = RetrievalService(storage: storage)
         let genome = GenomeService(storage: storage, retrieval: retrieval)
+        let lint = LintService(storage: storage, rules: LintRuleRegistry())
 
         self.retrieval = retrieval
         self.notes = NotesService(storage: storage, retrieval: retrieval)
         self.stats = StatsService(storage: storage)
-        self.lint = LintService(storage: storage)
+        self.lint = lint
         self.enrichment = EnrichmentService(storage: storage)
         self.consolidate = ConsolidateService(storage: storage, genome: genome)
         self.index = IndexService(storage: storage)
         self.genome = genome
         self.operations = OperationsService(
             storage: storage,
-            engine: OperationsEngine(genome: genome)
+            engine: OperationsEngine(genome: genome, lint: lint)
         )
     }
 

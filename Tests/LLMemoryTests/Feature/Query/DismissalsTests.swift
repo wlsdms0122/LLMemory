@@ -271,12 +271,12 @@ struct DismissalsTests {
     @Test("an untargeted corpus finding is a rule defect, reported as an error nobody can dismiss")
     func untargetedCorpusFindingFailsLoud() {
         // When
-        let untargeted = Lint.corpusIssue(
+        let untargeted = home.lintService.corpusIssue(
             code: "some-corpus-rule",
             severity: "warn",
             .init("two things collide")
         )
-        let targeted = Lint.corpusIssue(
+        let targeted = home.lintService.corpusIssue(
             code: "some-corpus-rule",
             severity: "warn",
             .init("m", target: .corpus("k"))
@@ -287,7 +287,7 @@ struct DismissalsTests {
         #expect(untargeted.code == "lint-rule-untargeted")
         #expect(untargeted.target == .corpus("rule:some-corpus-rule"))
         #expect(untargeted.message.contains("two things collide"), "the original finding must not be lost")
-        #expect(!LintRules.dismissibleCodes.contains("lint-rule-untargeted"))
+        #expect(!home.lintService.dismissibleCodes.contains("lint-rule-untargeted"))
         #expect(targeted.severity == "warn")
         #expect(targeted.target == .corpus("k"))
     }
@@ -301,7 +301,7 @@ struct DismissalsTests {
         
         // When
         let untargeted = try home.readScope { scope in
-            try Lint.lintAll(scope).filter { issue in issue.code == "lint-rule-untargeted" }
+            try home.lintService.lintAll(scope).filter { issue in issue.code == "lint-rule-untargeted" }
         }
         
         // Then
@@ -374,10 +374,10 @@ struct DismissalsTests {
         }
     }
     
-    private func lintIssues(code: String, includeDismissed: Bool = false) throws -> [Lint.Issue] {
+    private func lintIssues(code: String, includeDismissed: Bool = false) throws -> [LintIssue] {
         try home.readScope { scope in
-            let all = try Lint.lintAll(scope)
-            let visible = includeDismissed ? all : try Lint.suppressDismissed(scope, all)
+            let all = try home.lintService.lintAll(scope)
+            let visible = includeDismissed ? all : try home.lintService.suppressDismissed(scope, all)
             
             return visible.filter { issue in issue.code == code }
         }

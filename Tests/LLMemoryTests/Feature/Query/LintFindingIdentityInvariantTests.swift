@@ -77,7 +77,7 @@ struct LintFindingIdentityInvariantTests {
         #expect(result.status == "ok", "setup: \(result.error)")
         
         // When
-        let issues = try home.readScope { scope in try Lint.lintAll(scope) }
+        let issues = try home.readScope { scope in try home.lintService.lintAll(scope) }
         
         // Then
         #expect(issues.contains { issue in issue.target.subject == "identity-3" },
@@ -97,9 +97,9 @@ struct LintFindingIdentityInvariantTests {
         """
         
         // When
-        let outputs = LintEngine.run(
-            LintRules.documentRules,
-            over: LintRules.document(nid: "identity-4", body: body)
+        let outputs = LintEngine().run(
+            LintRuleRegistry().documentRules,
+            over: LintRuleRegistry().document(nid: "identity-4", body: body)
         )
         
         // Then
@@ -124,10 +124,10 @@ struct LintFindingIdentityInvariantTests {
     func duplicateCorpusIdentitiesAreReportedNotFatal() throws {
         // When
         let collided = try home.readScope { scope in
-            try Lint.lintAll(scope, corpusRules: [CollidingCorpusRule()])
+            try home.lintService.lintAll(scope, corpusRules: [CollidingCorpusRule()])
         }
         let clean = try home.readScope { scope in
-            try Lint.lintAll(scope, corpusRules: [DistinctCorpusRule()])
+            try home.lintService.lintAll(scope, corpusRules: [DistinctCorpusRule()])
         }
         
         // Then
@@ -153,7 +153,7 @@ struct LintFindingIdentityInvariantTests {
         }
         
         // When
-        let issues = try home.readScope { scope in try Lint.lintAll(scope) }
+        let issues = try home.readScope { scope in try home.lintService.lintAll(scope) }
         
         // Then
         #expect(issues.filter { issue in issue.code == "field-typo" }.count == 2,
@@ -164,11 +164,11 @@ struct LintFindingIdentityInvariantTests {
     @Test("a note subject and a corpus subject spelled the same are still two subjects")
     func noteAndCorpusSubjectsWithTheSameSpellingDoNotCollide() {
         // Given
-        let noteIssue = Lint.Issue("warn", "isolated", "n", .note("alpha"), key: nil)
-        let corpusIssue = Lint.Issue("warn", "isolated", "c", .corpus("alpha"), key: nil)
+        let noteIssue = LintIssue("warn", "isolated", "n", .note("alpha"), key: nil)
+        let corpusIssue = LintIssue("warn", "isolated", "c", .corpus("alpha"), key: nil)
         
         // Then
-        #expect(Lint.checked([noteIssue, corpusIssue]).count == 2)
+        #expect(home.lintService.checked([noteIssue, corpusIssue]).count == 2)
     }
     
     // MARK: - Private
@@ -204,7 +204,7 @@ struct LintFindingIdentityInvariantTests {
 
     """
     
-    private static func documentFindings(nid: String) -> [LintEngine.Output] {
-        LintEngine.run(LintRules.documentRules, over: LintRules.document(nid: nid, body: repeatingBody))
+    private static func documentFindings(nid: String) -> [LintOutput] {
+        LintEngine().run(LintRuleRegistry().documentRules, over: LintRuleRegistry().document(nid: nid, body: repeatingBody))
     }
 }

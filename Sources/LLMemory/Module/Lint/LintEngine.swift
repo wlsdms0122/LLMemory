@@ -2,119 +2,59 @@
 //  LintEngine.swift
 //  LLMemory
 //
-//  Created by JSilver on 8/7/26.
+//  Created by JSilver on 8/15/26.
 //
 
 import Foundation
 
-enum LintEngine {
-    enum Severity: String {
-        case error
-        case warn
-    }
-    
-    struct Finding {
-        // MARK: - Property
-        let message: String
-        let target: LintTarget?
-        let key: String?
-        
-        // MARK: - Initializer
-        init(_ message: String, target: LintTarget? = nil, key: String? = nil) {
-            self.message = message
-            self.target = target
-            self.key = key
-        }
-        
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    struct Section {
-        // MARK: - Property
-        let level: Int
-        let title: String
-        let lineStart: Int
-        let lineEnd: Int
-        let path: String
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
-    struct Document {
-        // MARK: - Property
-        let id: String
-        let lines: [String]
-        let sections: [Section]
-        let inFence: [Bool]
-        let unclosedFence: Int?
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        func contentLineIndices() -> [Int] {
-            lines.indices.filter { index in !inFence[index] }
-        }
-        
-        // MARK: - Private
-    }
-    
-    struct Output {
-        // MARK: - Property
-        let severity: Severity
-        let code: String
-        let message: String
-        let target: LintTarget
-        let key: String?
-        
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-    }
-    
+// Runs document rules over one parsed note and stamps each finding with the
+// rule that produced it. It knows nothing about which rules exist — the
+// catalog is handed in, so a caller can drive one rule in isolation.
+struct LintEngine {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    static func groupBySubject<Item, Subject: Hashable>(
-        _ items: [Item],
-        by subject: (Item) -> Subject
-    ) -> [(subject: Subject, items: [Item])] {
-        var order: [Subject] = []
-        var bucket: [Subject: [Item]] = [:]
-        
-        for item in items {
-            let key = subject(item)
-            
-            if bucket[key] == nil { order.append(key) }
-            
-            bucket[key, default: []].append(item)
-        }
-        
-        return order.map { key in (key, bucket[key]!) }
-    }
-    
-    static func repeatSuffix(_ lineNumbers: [Int]) -> String {
-        guard lineNumbers.count > 1 else { return "" }
-        
-        let rest = lineNumbers.dropFirst().map(String.init).joined(separator: ", ")
-        
-        return " (+\(lineNumbers.count - 1) more at line\(lineNumbers.count > 2 ? "s" : "") \(rest))"
-    }
-    
-    static func run(_ rules: [any LintDocumentRule], over doc: Document) -> [Output] {
+    func run(_ rules: [any LintDocumentRule], over document: LintDocument) -> [LintOutput] {
         rules.flatMap { rule in
-            rule.check(doc).map { finding in
-                Output(
+            rule.check(document).map { finding in
+                LintOutput(
                     severity: rule.severity,
                     code: rule.code,
                     message: finding.message,
-                    target: finding.target ?? .note(doc.id),
+                    target: finding.target ?? .note(document.id),
                     key: finding.key
                 )
             }
         }
     }
-    
+
+    // Groups findings by whatever identifies their subject, preserving first
+    // appearance — a rule that reports per line still reports once per note.
+    func groupBySubject<Item, Subject: Hashable>(
+        _ items: [Item],
+        by subject: (Item) -> Subject
+    ) -> [(subject: Subject, items: [Item])] {
+        var order: [Subject] = []
+        var bucket: [Subject: [Item]] = [:]
+
+        for item in items {
+            let key = subject(item)
+
+            if bucket[key] == nil { order.append(key) }
+
+            bucket[key, default: []].append(item)
+        }
+
+        return order.map { key in (key, bucket[key]!) }
+    }
+
+    func repeatSuffix(_ lineNumbers: [Int]) -> String {
+        guard lineNumbers.count > 1 else { return "" }
+
+        let rest = lineNumbers.dropFirst().map(String.init).joined(separator: ", ")
+
+        return " (+\(lineNumbers.count - 1) more at line\(lineNumbers.count > 2 ? "s" : "") \(rest))"
+    }
+
     // MARK: - Private
 }

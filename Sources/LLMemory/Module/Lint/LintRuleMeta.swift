@@ -9,5 +9,5 @@ import Foundation
 
 protocol LintRuleMeta: Sendable {
     var code: String { get }
-    var severity: LintEngine.Severity { get }
+    var severity: LintSeverity { get }
 }
