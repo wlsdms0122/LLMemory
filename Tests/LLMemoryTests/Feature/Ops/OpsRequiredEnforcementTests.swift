@@ -54,7 +54,7 @@ struct OpsRequiredEnforcementTests {
     @Test("every id- or axis-shaped field declares its role, so scope extraction can see it")
     func fieldRoleIsDeclared() {
         // When
-        let violations = home.container.operations.engine.registry.flatMap { opName, handler in
+        let violations = home.operationsEngine.registry.flatMap { opName, handler in
             handler.schema.fields
                 .filter { field in field.role == .plain && Self.carriesScope(field.name) }
                 .map { field in "\(opName).\(field.name)" }
@@ -94,7 +94,7 @@ struct OpsRequiredEnforcementTests {
     }
     
     private func schema(of op: String) throws -> OperationSchema {
-        guard let handler = home.container.operations.engine.registry[op] else { throw TestFailure("no handler registered for \(op)") }
+        guard let handler = home.operationsEngine.registry[op] else { throw TestFailure("no handler registered for \(op)") }
         
         return handler.schema
     }

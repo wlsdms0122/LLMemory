@@ -20,7 +20,7 @@ public struct IndexService: IndexServiceable {
 
     // MARK: - Public
     public func build(
-        rebuild: Bool = false
+        rebuild: Bool
     ) async throws -> Indexer.BuildResult {
         // The scan runs inside the exclusion boundary — orphan judgement
         // compares scanned paths against DB rows, so a scan taken before the
@@ -48,7 +48,7 @@ public struct IndexService: IndexServiceable {
     }
 
     public func check(
-        level: Indexer.IntegrityLevel = .l1
+        level: Indexer.IntegrityLevel
     ) async throws -> (ok: Bool, msgs: [String]) {
         try await storage.read { scope in try scope.run(CheckIntegrityTransaction(level: level)) }
     }

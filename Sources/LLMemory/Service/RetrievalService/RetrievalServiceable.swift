@@ -9,11 +9,12 @@ import Foundation
 
 // The associative read surface — search, related, neighbors, entity.
 //
-// The scope-taking members are here because siblings compose with them inside
-// a scope somebody else opened: notes records a retrieval it caused, genome
-// replays a logged query under a candidate gene value. They are part of the
-// contract precisely because a collaborator depends on them, and a contract
-// that hides what its collaborators call is not the contract.
+// Two scope-taking members are here, and only two, because exactly two
+// collaborators call them: genome replays a logged query under a candidate
+// gene value (`snapshot`), and notes applies the retrieval its own reads
+// caused (`applyRecord`). The rest of the sync cores stay off the contract —
+// what a contract admits is what a collaborator asks for, and everything
+// beyond that is an implementation detail handed out for free.
 protocol RetrievalServiceable: Sendable {
     func search(
         query: String,
@@ -43,34 +44,6 @@ protocol RetrievalServiceable: Sendable {
         name: String?,
         limit: Int
     ) async throws -> [EntityHit]
-
-    func search(
-        _ scope: GRDBReadScope,
-        query: String,
-        tags: [String],
-        limit: Int,
-        expand: Int,
-        sessionId: String?,
-        includeStale: Bool,
-        excludeTags: [String]?,
-        sinceTs: Int?,
-        raw: Bool
-    ) throws -> (rows: [SearchRow], extra: [ExpandedNote], record: RetrievalRecord)
-
-    func related(
-        _ scope: GRDBReadScope,
-        text: String,
-        kind: String?,
-        sessionId: String?,
-        includeBodies: Bool
-    ) throws -> (result: RelatedResult, record: RetrievalRecord)
-
-    func neighbors(
-        _ scope: GRDBReadScope,
-        id: String,
-        k: Int,
-        sessionId: String?
-    ) throws -> (scores: [NeighborScore], record: RetrievalRecord?)
 
     func snapshot(
         _ scope: GRDBReadScope,

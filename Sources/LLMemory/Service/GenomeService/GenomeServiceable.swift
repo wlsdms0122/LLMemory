@@ -29,20 +29,6 @@ protocol GenomeServiceable: Sendable {
         sampleDiffs: Int
     ) async throws -> GenomeShadowResult
 
-    func history(
-        _ scope: GRDBReadScope,
-        gene: String?,
-        limit: Int
-    ) throws -> [GeneHistoryRow]
-
-    func shadow(
-        _ scope: GRDBReadScope,
-        gene: String,
-        value: Double,
-        limit: Int,
-        sampleDiffs: Int
-    ) throws -> GenomeShadowResult
-
     @discardableResult
     func setGene(
         _ scope: GRDBScope,

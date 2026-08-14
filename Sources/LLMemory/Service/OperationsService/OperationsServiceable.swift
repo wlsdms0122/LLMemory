@@ -10,12 +10,12 @@ import Foundation
 // The write door — every mutation enters as an op payload, is validated
 // against its schema, and lands as one transaction or not at all.
 //
-// The engine is on the contract because it is the op vocabulary itself:
-// the names and schemas a caller needs to author a payload, and the
-// scope-level apply/dryRun a caller inside an open scope composes with.
+// The engine that dispatches those ops is not on the contract. Handing back
+// the collaborator would let anyone holding the contract acquire whatever
+// the engine holds — the op vocabulary is already here as behaviour
+// (`operationNames`/`operationSchema`), and if a scope-level apply is ever
+// needed it belongs here as a method, not as the object that has one.
 protocol OperationsServiceable: Sendable {
-    var engine: OperationsEngine { get }
-
     func apply(
         payloadJSON: String,
         cliSessionId: String

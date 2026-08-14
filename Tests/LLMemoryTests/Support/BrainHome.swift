@@ -44,6 +44,27 @@ extension BrainHome {
 
     var container: Container { Container(storage: storage) }
 
+    // Concrete services, for the tests that drive a scope-taking core
+    // directly. The container hands out contracts, and those contracts carry
+    // only what a production collaborator calls — so a test that wants the
+    // sync core inside an open scope assembles the implementation itself
+    // rather than widening the contract until the test fits through it.
+    var retrievalService: RetrievalService { RetrievalService(storage: storage) }
+
+    var genomeService: GenomeService {
+        GenomeService(storage: storage, retrieval: retrievalService)
+    }
+
+    var notesService: NotesService {
+        NotesService(storage: storage, retrieval: retrievalService)
+    }
+
+    var consolidateService: ConsolidateService {
+        ConsolidateService(storage: storage, genome: genomeService)
+    }
+
+    var operationsEngine: OperationsEngine { OperationsEngine(genome: genomeService) }
+
     @discardableResult
     func apply(_ operations: [[String: Any]], rationale: String = "test") -> OperationsResult {
         OperationsEngine.apply(storage, ["ops": operations, "rationale": rationale])

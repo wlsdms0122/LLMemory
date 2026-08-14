@@ -82,7 +82,7 @@ public struct RetrievalService: RetrievalServiceable {
     public func neighbors(
         id: String,
         k: Int,
-        cliSessionId: String = ""
+        cliSessionId: String
     ) async throws -> [NeighborScore] {
         let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
@@ -167,10 +167,10 @@ public struct RetrievalService: RetrievalServiceable {
         _ scope: GRDBReadScope,
         userInput: String,
         agentOutput: String,
-        similarLimit: Int? = nil,
-        expandHops: Int? = nil,
-        linkKind: String? = nil,
-        sessionId: String? = nil
+        similarLimit: Int?,
+        expandHops: Int?,
+        linkKind: String?,
+        sessionId: String?
     ) throws -> FramingSnapshot {
         let similarLimit = similarLimit ?? Genes.int("related.similar_limit")
         let expandHops = expandHops ?? Genes.int("related.expand_hops")
@@ -258,6 +258,8 @@ public struct RetrievalService: RetrievalServiceable {
             scope,
             userInput: text,
             agentOutput: "",
+            similarLimit: nil,
+            expandHops: nil,
             linkKind: kind,
             sessionId: sessionId
         )

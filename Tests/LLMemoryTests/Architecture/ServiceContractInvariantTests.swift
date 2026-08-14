@@ -72,29 +72,35 @@ struct ServiceContractInvariantTests {
 
     @Test("a concrete service type is named only where it is constructed")
     func serviceTypeNamedOnlyInContainer() {
+        // Given
+        #expect(!sources.isEmpty, "no sources found under \(source.root.path)")
+
         // When
         // `\w+Service` with a trailing word boundary — `RetrievalServiceable`
-        // does not match, so the contract may be named anywhere. A service's
-        // own file names itself in its declaration, which is the one place
-        // the implementation is allowed to admit what it is.
+        // does not match, so the contract may be named anywhere. What this
+        // covers is the service tier by name; `OperationsEngine` is a service
+        // collaborator that is not yet under a contract of its own, and it
+        // belongs in this pattern the moment it has one.
+        //
+        // The exemption is per file and is exactly one token — the type that
+        // file declares. A file may admit what it is; it may not name a
+        // sibling. Exempting `*Service.swift` wholesale would leave
+        // `NotesService.swift` free to hold `let retrieval: RetrievalService`
+        // again, which is the shape this contract layer exists to remove.
         let concrete = try! NSRegularExpression(pattern: #"\b\w+Service\b"#)
-        let allowed = Set(
-            ["Container.swift"]
-                + sources.map(\.name).filter { name in name.hasSuffix("Service.swift") }
-        )
+        let compositionRoot = "Sources/LLMemory/Feature/Container.swift"
         let violations = sources
-            .filter { file in !allowed.contains(file.name) }
+            .filter { file in !file.url.path.hasSuffix(compositionRoot) }
             .flatMap { file in
-                file.codeLines()
-                    .filter { _, text in
-                        concrete.firstMatch(
-                            in: text,
-                            range: NSRange(text.startIndex..., in: text)
-                        ) != nil
-                    }
-                    .map { number, text in
-                        "\(file.location(number))  \(text.trimmingCharacters(in: .whitespaces))"
-                    }
+                let own = String(file.name.dropLast(".swift".count))
+
+                return file.codeLines().flatMap { number, text -> [String] in
+                    concrete
+                        .matches(in: text, range: NSRange(text.startIndex..., in: text))
+                        .compactMap { match in Range(match.range, in: text).map { String(text[$0]) } }
+                        .filter { name in name != own }
+                        .map { name in "\(file.location(number))  [\(name)]" }
+                }
             }
 
         // Then

@@ -28,7 +28,7 @@ public struct OperationsService: OperationsServiceable {
     // MARK: - Public
     public func apply(
         payloadJSON: String,
-        cliSessionId: String = ""
+        cliSessionId: String
     ) async -> OperationsResult {
         // Session resolution happens here, below every surface, with the
         // sibling services' convention: the CLI override wins, the
@@ -82,7 +82,7 @@ public struct OperationsService: OperationsServiceable {
 
     public func dryRun(
         payloadJSON: String,
-        cliSessionId: String = ""
+        cliSessionId: String
     ) async -> OperationsDryRunResult {
         let sessionId = Environment.retrievalSession(cli: cliSessionId)
 

@@ -42,7 +42,7 @@ struct SearchAssocRehearsalTests {
         #expect(try assocWeight(between: "areh-a", and: "areh-b") == 0.5)
         
         // When
-        let outcome = try home.readScope { scope in try home.container.retrieval.search(
+        let outcome = try home.readScope { scope in try home.retrievalService.search(
                 scope,
                 query: "zephyrquasar",
                 tags: [],
