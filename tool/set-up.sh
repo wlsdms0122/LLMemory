@@ -32,21 +32,38 @@ echo "generated Sources/LLMemory/Resource/Guide.swift"
 
 # document/cortex/ is the shipped subtree of a brain's cortex/, laid out exactly
 # as it will be planted — so a seed's id is read the one way every id is read,
-# off its location: `a/b.md` is `a.b`. A dot inside a path component would break
-# that reading in both directions at once
-# (`a/b.c.md` and `a/b/c.md` would spell one address), so the layout is refused
-# here, before a generated seed can carry the ambiguity into the binary.
+# off its location: `a/b.md` is `a.b`. Every path component must therefore be a
+# label, the same shape Paths.idRegex spells in Swift and migrate-legacy.sh in
+# python. Checking only for a dot would let `Knowledge_Fragmentation.md` through
+# and ship a seed that the brain's own lint calls an invalid id.
+#
+# The check runs before the generated file is opened for writing. `>` truncates
+# on open, so a failure inside the block below leaves a half-written Innate.swift
+# behind — a working artifact destroyed by the run that was meant to refresh it.
+LABEL='^[a-z0-9][a-z0-9-]*$'
 seeds=()
+
 while IFS= read -r file; do
   relative=${file#document/cortex/}
 
-  if [[ "${relative%.md}" == *.* ]]; then
-    echo "seed path may not contain '.': $file" >&2
-    exit 1
-  fi
+  IFS='/' read -ra labels <<< "${relative%.md}"
+
+  for label in "${labels[@]}"; do
+    if [[ ! $label =~ $LABEL ]]; then
+      echo "seed path component is not a label ([a-z0-9][a-z0-9-]*): $file" >&2
+      exit 1
+    fi
+  done
 
   seeds+=("$relative")
-done < <(find document/cortex -type f -name '*.md' | sed 's|^\./||' | sort)
+done < <(find document/cortex -type f -name '*.md' | LC_ALL=C sort)
+
+# An empty seed set is never intended, and `find` cannot report its own failure
+# from inside a process substitution.
+if [ ${#seeds[@]} -eq 0 ]; then
+  echo "no seed documents under document/cortex/" >&2
+  exit 1
+fi
 
 {
   echo "// Generated from document/cortex/**/*.md by tool/set-up.sh — do not edit by hand."

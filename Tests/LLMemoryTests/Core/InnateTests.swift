@@ -58,13 +58,39 @@ struct InnateTests {
                 "\(seed.id): the markdown still declares an id line")
             #expect(seed.id.hasPrefix("innate."),
                 "\(seed.id): an innate seed is addressed under innate")
-
-            // The generator reads the id off the document's location, so a dot in
-            // any path component would be read as a separator and plant the seed
-            // somewhere its own document is not. The round trip is what forbids it.
-            #expect(Paths.id(ofFile: Paths.file(forId: seed.id)) == seed.id,
-                "\(seed.id): the seed's address does not survive a round trip")
         }
+    }
+
+    // Every other test here iterates Innate.seeds, so a document added without
+    // rerunning tool/set-up.sh is a document nothing looks at. This walks the
+    // other way — from the tree — and compares both directions, which is also
+    // where a dotted file name actually gets caught: `innate/a.b.md` derives the
+    // id `innate.a.b`, which no seed carries.
+    @Test("the embedded set is exactly the document tree — nothing missing, nothing extra")
+    func embeddedSeedsAreExactlyTheDocumentTree() throws {
+        // Given
+        let root = source.file("document/cortex")
+        var onDisk = Set<String>()
+
+        guard let walk = FileManager.default.enumerator(atPath: root.path) else {
+            throw TestFailure("document/cortex is not readable at \(root.path)")
+        }
+
+        // When — the id is the location, derived here the way the generator derives it.
+        for case let relative as String in walk where relative.hasSuffix(".md") {
+            onDisk.insert(
+                String(relative.dropLast(3)).replacingOccurrences(of: "/", with: ".")
+            )
+        }
+
+        // Then
+        let embedded = Set(Innate.seeds.map(\.id))
+
+        #expect(!onDisk.isEmpty, "no seed documents found under \(root.path)")
+        #expect(onDisk.subtracting(embedded).isEmpty,
+            "documents with no embedded seed — run tool/set-up.sh: \(onDisk.subtracting(embedded).sorted())")
+        #expect(embedded.subtracting(onDisk).isEmpty,
+            "embedded seeds with no document: \(embedded.subtracting(onDisk).sorted())")
     }
 
     @Test("init plants each seed under cortex/innate/ as a note that can actually be retrieved")
@@ -420,11 +446,11 @@ struct InnateTests {
     }
 
     // MARK: - Private
-    // A seed's document lives where its address says it does, so the test reads
-    // it back the same way the generator wrote it — by turning the id into a path
-    // rather than by trusting a name.
+    // document/ holds the shipped subtree of a cortex, so a seed's document sits
+    // at exactly the brain-relative path its id spells. Going through Paths rather
+    // than repeating the mapping here makes that sameness the thing under test.
     private func seedFile(_ id: String) -> URL {
-        source.file("document/cortex/\(id.replacingOccurrences(of: ".", with: "/")).md")
+        source.file("document/\(Paths.relativeFile(forId: id))")
     }
 
     private func firstSeed() throws -> Innate.Seed {
