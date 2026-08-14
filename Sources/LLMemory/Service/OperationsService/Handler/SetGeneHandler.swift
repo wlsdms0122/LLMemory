@@ -23,7 +23,7 @@ struct SetGeneHandler: OperationHandling {
     
     let genome: any GenomeServiceable
     
-    private let noteExistence = NoteExistence()
+    private let number = PayloadNumber()
     
     // MARK: - Initializer
     // MARK: - Public
@@ -39,7 +39,7 @@ struct SetGeneHandler: OperationHandling {
         }
         
         if let raw = op["value"], !(raw is NSNull) {
-            guard let value = doubleValue(raw) else { return "value must be numeric" }
+            guard let value = number.value(of: raw) else { return "value must be numeric" }
             
             if value < definition.min || value > definition.max {
                 return "value \(value) is outside gene '\(id)' bounds [\(definition.min), \(definition.max)]"
@@ -58,7 +58,7 @@ struct SetGeneHandler: OperationHandling {
         let id = op["gene"] as! String
         let reason = op["reason"] as? String
         
-        if let raw = op["value"], !(raw is NSNull), let value = doubleValue(raw) {
+        if let raw = op["value"], !(raw is NSNull), let value = number.value(of: raw) {
             let result = try genome.setGene(
                 scope,
                 id: id,
@@ -82,16 +82,5 @@ struct SetGeneHandler: OperationHandling {
     }
     
     // MARK: - Private
-    // A gene value arrives as whatever JSON made of it. A bool is refused
-    // outright — `true` bridging to 1 would set a gene to 1 without anyone
-    // saying so.
-    private func doubleValue(_ raw: Any) -> Double? {
-        if raw is Bool { return nil }
-        if let double = raw as? Double { return double }
-        if let int = raw as? Int { return Double(int) }
-        if let number = raw as? NSNumber { return number.doubleValue }
-        
-        return nil
-    }
     
 }

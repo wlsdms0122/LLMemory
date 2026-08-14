@@ -25,7 +25,7 @@ struct Events: Sendable {
         ts: Int? = nil
     ) {
         let timestamp = ts ?? Int(Date().timeIntervalSince1970)
-        let json = serializePayload(payload)
+        let json = Self.serializePayload(payload)
         
         var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId, payload: json)
         
@@ -81,12 +81,12 @@ struct Events: Sendable {
         
         for (key, value) in payload { fields[key] = value }
         
-        return serializePayload(fields)
+        return Self.serializePayload(fields)
     }
     
     
     // MARK: - Private
-    func serializePayload(_ payload: [String: Any?]) -> String {
+    static func serializePayload(_ payload: [String: Any?]) -> String {
         let cleaned = payload.compactMapValues { value in value }
         
         if let data = try? JSONSerialization.data(withJSONObject: cleaned, options: []),

@@ -667,6 +667,33 @@ struct EnrichmentTests {
     }
     
     // propose_link
+    // JSONSerialization decodes `true` to an NSNumber, and `NSNumber as? Double`
+    // succeeds with 1.0 — so a hand-rolled cast records maximum confidence for a
+    // caller who never named a number.
+    @Test("a bool is not a confidence — `true` is refused, not read as 1.0")
+    func proposeLinkRefusesBoolConfidence() throws {
+        // Given
+        home.createNote(id: "enr-pl-bool-a")
+        home.createNote(id: "enr-pl-bool-b")
+
+        // When
+        let result = home.apply([[
+            "op": "propose_link", "src": "enr-pl-bool-a", "dst": "enr-pl-bool-b",
+            "confidence": true, "provenance": "test:capture"
+        ]])
+
+        // Then
+        #expect(result.status == "rejected", "a bool confidence must not be read as a number")
+        #expect(result.error.contains("confidence must be a number"), "unexpected: \(result.error)")
+
+        let queue = try home.storage.connect()
+        let count = try queue.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM note_links WHERE kind = 'assoc'") ?? 0
+        }
+
+        #expect(count == 0, "a refused op must leave no edge behind")
+    }
+
     @Test("a proposed edge enters dormant, so the decay loop is its validator")
     func proposeLinkInsertsDormantAssocEdge() throws {
         // Given

@@ -84,9 +84,7 @@ public struct Search: Sendable {
         
         return parts.isEmpty ? nil : parts.joined(separator: " OR ")
     }
-    
 
-    
     // The boost takes the item's *strongest* reinstated tag rather than the sum:
     // a note that carries five tags is not five times more primed, and summing
     // would make tag count itself a ranking signal.

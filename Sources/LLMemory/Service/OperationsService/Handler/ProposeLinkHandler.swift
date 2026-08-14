@@ -22,6 +22,7 @@ struct ProposeLinkHandler: OperationHandling {
     )
     
     private let noteExistence = NoteExistence()
+    private let number = PayloadNumber()
     
     private let links = Links()
     
@@ -53,9 +54,8 @@ struct ProposeLinkHandler: OperationHandling {
             return "dst: \(rejection)"
         }
         
-        if let rawConfidence = op["confidence"] {
-            guard let confidence = (rawConfidence as? Double)
-                ?? (rawConfidence as? Int).map(Double.init),
+        if op["confidence"] != nil {
+            guard let confidence = number.value(of: op["confidence"]),
                 confidence > 0, confidence <= 1
             else {
                 return "confidence must be a number in (0, 1]"
@@ -77,12 +77,7 @@ struct ProposeLinkHandler: OperationHandling {
             .flatMap { value in value.isEmpty ? nil : value } ?? Links.kindAssoc
         let provenance = (op["provenance"] as? String)
             .flatMap { value in value.isEmpty ? nil : value }
-        let confidence: Double = {
-            if let double = op["confidence"] as? Double { return double }
-            if let int = op["confidence"] as? Int { return Double(int) }
-            
-            return 1.0
-        }()
+        let confidence = number.value(of: op["confidence"]) ?? 1.0
         let base = Genes.double("links.proposed_initial_weight")
         let neighborFloor = Genes.double("links.neighbor_floor")
         let ceiling = neighborFloor - 0.02

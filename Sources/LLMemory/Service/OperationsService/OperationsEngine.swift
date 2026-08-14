@@ -14,7 +14,6 @@ public struct OperationsEngine: Sendable {
     let registry: HandlerRegistry
     
     private let bodyProjection = BodyProjection()
-    private let noteExistence = NoteExistence()
     
     private let trashLookup = TrashedNoteLookup()
     

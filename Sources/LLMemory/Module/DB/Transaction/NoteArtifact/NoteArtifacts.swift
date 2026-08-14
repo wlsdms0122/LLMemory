@@ -82,19 +82,6 @@ public struct NoteArtifacts: Sendable {
     
     // MARK: - Initializer
     // MARK: - Public
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    // MARK: - Private
     func stage(_ table: String) -> String { "_rb_saved_\(table)" }
     
     func notReconstructableClause(
@@ -118,4 +105,6 @@ public struct NoteArtifacts: Sendable {
             arguments: StatementArguments([to, from] + kinds)
         )
     }
+
+    // MARK: - Private
 }

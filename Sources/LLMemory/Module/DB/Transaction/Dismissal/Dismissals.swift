@@ -76,23 +76,11 @@ struct Dismissals: Sendable {
         
         return String(body[body.startIndex..<cut])
     }
-    
 
-    
-
-    
-
-    
-
-    
     func lintLookupKey(_ target: LintTarget, _ kind: String) -> String {
         "\(target.storageKey)\u{0}\(kind)"
     }
-    
 
-    
-
-    
     func gate(
         _ dismissal: Dismissal?,
         currentWords: Int,
