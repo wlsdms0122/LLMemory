@@ -199,12 +199,11 @@ LABEL = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 proposed = {}
 
 for note_id, axis, path in rows:
-    # The legacy `.innate` axis was a system space, and there is no such space
-    # any more — base knowledge sits at whatever address the release gives it,
-    # which is the bare stem. Dropping the branch is what makes `update` restate
-    # these notes in place instead of leaving an orphaned copy beside them.
-    branch = None if axis in ("innate", ".innate") else axis
-    prefix = [] if branch is None else [branch]
+    # `.innate` was a system path; `innate` is an ordinary branch. The dot goes
+    # and nothing else about it is special — it becomes the first label the same
+    # way every other axis does.
+    branch = "innate" if axis in ("innate", ".innate") else axis
+    prefix = [branch]
     tail = DATE_TAIL.match(note_id)
 
     if tail:

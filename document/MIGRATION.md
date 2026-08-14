@@ -40,10 +40,11 @@ split routing 의 `type:"meta"` 가 함께 사라졌다.
   `index build` 는 파일 위치에서 id 를 복원한다. 중복 id 검사도 사라졌다 — 두 파일은 두 위치이고
   두 위치는 두 주소라, 남의 id 를 주장할 방법이 없다. lint `invalid-id` 는 점 표기를 허용하도록
   넓어졌고, 이제 "이 경로가 id 가 될 수 있는 이름인가" 를 본다.
-- **선천 지식(`.innate` 축) → 기본 지식(base), 전용 공간 없음** — 배포본이 싣고 오는 노트는
-  이제 시스템 구역이 아니라 평범한 주소에 앉는다(`knowledge-fragmentation`). 배포본이냐는
-  *어디 있냐*가 아니라 *어디서 왔냐*의 문제라, 자리로 표시하지 않는다. 옛 `.innate` 축의
-  노트는 축 라벨 없이 그 이름 그대로 옮겨지고, `update` 가 같은 id 에 배포본을 다시 쓴다.
+- **`cortex/.innate/` → `cortex/innate/`, 시스템 공간 아님** — 배포본이 싣고 오는 노트(기본 지식)는
+  전용 구역에 살지 않는다. `innate` 는 이제 코드가 모르는 평범한 브랜치이고, 점 디렉터리 예외도
+  opt-out 도 foreign 청소도 없다. 배포본이냐는 *어디 있냐*가 아니라 *어디서 왔냐*의 문제라
+  자리로 표시하지 않는다 — id 는 `innate.knowledge-fragmentation` 이 되고, `update` 가 그 id 에
+  배포본을 다시 쓴다.
 - **예약 파일명 없음** — `README.md`·`INDEX.md`·`GUIDE.md`·`_` 접두를 스캔에서 건너뛰던
   분기가 사라졌다. cortex 아래는 전부 지식이다. **대신 아무 메모나 떨어뜨려 두면 안 된다** —
   frontmatter 없는 파일은 인덱싱 에러가 되고, `index build --rebuild` 는 에러가 하나라도

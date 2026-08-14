@@ -1,7 +1,7 @@
 ---
 title: 지식 분화 원리 — 희소 활성화를 위해 쪼개고 잇는다
 priority: lazy
-tags: [base, brain, memory, retrieval, fragmentation]
+tags: [innate, brain, memory, retrieval, fragmentation]
 locked: true
 summary: 인출 비용은 총량이 아니라 활성 영역이 정한다 — 분화 판정(낭비율·성장구조·cue응집도)과 3층(요지/면/낱개), 분화는 연결과 짝으로만 유효
 ---
