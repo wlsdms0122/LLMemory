@@ -12,13 +12,13 @@ import Storage
 // mutability, integer genes) and the observation surfaces. DB touches ride
 // genome transactions; the code-owned catalog and value cache live in the
 // Genome module.
-public struct GenomeService: Sendable {
+public struct GenomeService: GenomeServiceable {
     // MARK: - Property
     let storage: GRDBStorage
-    let retrieval: RetrievalService
+    let retrieval: any RetrievalServiceable
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, retrieval: RetrievalService) {
+    init(storage: GRDBStorage, retrieval: any RetrievalServiceable) {
         self.storage = storage
         self.retrieval = retrieval
     }
@@ -114,6 +114,9 @@ public struct GenomeService: Sendable {
                     scope,
                     userInput: loggedQuery.text,
                     agentOutput: "",
+                    similarLimit: nil,
+                    expandHops: nil,
+                    linkKind: nil,
                     sessionId: loggedQuery.sessionId
                 )
 

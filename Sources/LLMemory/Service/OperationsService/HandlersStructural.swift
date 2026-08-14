@@ -1155,7 +1155,7 @@ public enum HandlersStructural {
 public enum HandlersRegistry {
     // The registry is assembled per engine, so handlers that need a
     // collaborator capture it here — nothing reaches through the context.
-    public static func build(genome: GenomeService) -> [String: OperationHandler] {
+    static func build(genome: any GenomeServiceable) -> [String: OperationHandler] {
         [
             "create_note": HandlersBasic.createNote,
             "patch_section": HandlersBasic.patchSection,

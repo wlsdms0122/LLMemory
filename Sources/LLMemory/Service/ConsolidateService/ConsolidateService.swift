@@ -9,27 +9,26 @@ import Foundation
 import Storage
 
 // Consolidation-domain service — the periodic hygiene passes.
-public struct ConsolidateService: Sendable {
-
+public struct ConsolidateService: ConsolidateServiceable {
     // MARK: - Property
-    static let homeostasisWatermarkKey = "homeostasis.window_watermark"
-    static let homeostasisSeenKey = "homeostasis.expand_seen"
-    static let homeostasisLandedKey = "homeostasis.expand_landed"
+    let homeostasisWatermarkKey = "homeostasis.window_watermark"
+    let homeostasisSeenKey = "homeostasis.expand_seen"
+    let homeostasisLandedKey = "homeostasis.expand_landed"
 
-    static var homeostasisMinSample: Int { Config.getInt("homeostasis.min_sample", default: 50) }
-    static var homeostasisLowRate: Double { Config.getDouble("homeostasis.low_rate", default: 0.02) }
-    static var homeostasisHighRate: Double { Config.getDouble("homeostasis.high_rate", default: 0.15) }
+    var homeostasisMinSample: Int { Config.getInt("homeostasis.min_sample", default: 50) }
+    var homeostasisLowRate: Double { Config.getDouble("homeostasis.low_rate", default: 0.02) }
+    var homeostasisHighRate: Double { Config.getDouble("homeostasis.high_rate", default: 0.15) }
 
     // Candidate-kind catalog — code-owned vocabulary for the surfacing CLI.
-    public static let candidateRetrievalKinds = Candidates.retrievalKinds
-    public static let candidateStructuralKinds = Candidates.structuralKinds
-    public static var candidateValidKinds: [String] { Candidates.validKinds }
+    public let candidateRetrievalKinds = Candidates.retrievalKinds
+    public let candidateStructuralKinds = Candidates.structuralKinds
+    public var candidateValidKinds: [String] { Candidates.validKinds }
 
     let storage: GRDBStorage
-    let genome: GenomeService
+    let genome: any GenomeServiceable
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, genome: GenomeService) {
+    init(storage: GRDBStorage, genome: any GenomeServiceable) {
         self.storage = storage
         self.genome = genome
     }
@@ -280,7 +279,7 @@ public struct ConsolidateService: Sendable {
     // the ceiling. Windows are consumed exactly once via the watermark.
     func homeostasisTick(_ scope: GRDBScope, now: Int) throws -> HomeostasisReport {
         let watermark = Int(
-            try scope.run(FetchConfigValueTransaction(key: Self.homeostasisWatermarkKey, default: "0"))
+            try scope.run(FetchConfigValueTransaction(key: homeostasisWatermarkKey, default: "0"))
         ) ?? 0
         let closedBefore = now - Genes.int("activation.window_gap_sec")
         let windows = try scope.run(
@@ -303,10 +302,10 @@ public struct ConsolidateService: Sendable {
         }
 
         let sampleSeen = (Int(
-            try scope.run(FetchConfigValueTransaction(key: Self.homeostasisSeenKey, default: "0"))
+            try scope.run(FetchConfigValueTransaction(key: homeostasisSeenKey, default: "0"))
         ) ?? 0) + cohortSeen
         let sampleLanded = (Int(
-            try scope.run(FetchConfigValueTransaction(key: Self.homeostasisLandedKey, default: "0"))
+            try scope.run(FetchConfigValueTransaction(key: homeostasisLandedKey, default: "0"))
         ) ?? 0) + cohortLanded
         var remainderSeen = sampleSeen
         var remainderLanded = sampleLanded
@@ -315,9 +314,9 @@ public struct ConsolidateService: Sendable {
         var adjustedGene: String? = nil
         var oldValue: Double? = nil
         var newValue: Double? = nil
-        var note = "accumulating (\(sampleSeen)/\(Self.homeostasisMinSample) expand hits)"
+        var note = "accumulating (\(sampleSeen)/\(homeostasisMinSample) expand hits)"
 
-        if sampleSeen >= Self.homeostasisMinSample {
+        if sampleSeen >= homeostasisMinSample {
             evaluated = true
 
             let landingRate = Double(sampleLanded) / Double(sampleSeen)
@@ -329,12 +328,12 @@ public struct ConsolidateService: Sendable {
             let bounds = Genes.gene(gene)!
             var target = current
 
-            if landingRate < Self.homeostasisLowRate && current > bounds.min {
+            if landingRate < homeostasisLowRate && current > bounds.min {
                 target = current - 1
-                note = "expand landing rate \(String(format: "%.3f", landingRate)) < \(Self.homeostasisLowRate) — narrowing"
-            } else if landingRate > Self.homeostasisHighRate && current < wildType {
+                note = "expand landing rate \(String(format: "%.3f", landingRate)) < \(homeostasisLowRate) — narrowing"
+            } else if landingRate > homeostasisHighRate && current < wildType {
                 target = current + 1
-                note = "expand landing rate \(String(format: "%.3f", landingRate)) > \(Self.homeostasisHighRate) — restoring toward wild-type"
+                note = "expand landing rate \(String(format: "%.3f", landingRate)) > \(homeostasisHighRate) — restoring toward wild-type"
             } else {
                 note = "expand landing rate \(String(format: "%.3f", landingRate)) — within band, no adjustment"
             }
@@ -358,9 +357,9 @@ public struct ConsolidateService: Sendable {
             remainderLanded = 0
         }
 
-        try scope.run(SetConfigValueTransaction(key: Self.homeostasisWatermarkKey, value: String(lastWindow)))
-        try scope.run(SetConfigValueTransaction(key: Self.homeostasisSeenKey, value: String(remainderSeen)))
-        try scope.run(SetConfigValueTransaction(key: Self.homeostasisLandedKey, value: String(remainderLanded)))
+        try scope.run(SetConfigValueTransaction(key: homeostasisWatermarkKey, value: String(lastWindow)))
+        try scope.run(SetConfigValueTransaction(key: homeostasisSeenKey, value: String(remainderSeen)))
+        try scope.run(SetConfigValueTransaction(key: homeostasisLandedKey, value: String(remainderLanded)))
 
         return HomeostasisReport(
             windowsProcessed: windows.count,

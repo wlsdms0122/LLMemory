@@ -12,7 +12,7 @@ import Storage
 // neighbors, entity) and the side-effect record they derive. Reads run in a
 // read scope; the record is applied afterwards in its own write scope, so
 // retrieval must not fail because its trace could not be written.
-public struct RetrievalService: Sendable {
+public struct RetrievalService: RetrievalServiceable {
     // MARK: - Property
     let storage: GRDBStorage
 

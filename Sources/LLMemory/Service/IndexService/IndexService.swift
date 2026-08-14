@@ -9,7 +9,7 @@ import Foundation
 import Storage
 
 // Index-domain service — build/verify surfaces over the write transactions.
-public struct IndexService: Sendable {
+public struct IndexService: IndexServiceable {
     // MARK: - Property
     let storage: GRDBStorage
 

@@ -10,7 +10,7 @@ import Storage
 
 // Stats-domain service — pure observation of the corpus and its activation
 // traces.
-public struct StatsService: Sendable {
+public struct StatsService: StatsServiceable {
     // MARK: - Property
     let storage: GRDBStorage
 

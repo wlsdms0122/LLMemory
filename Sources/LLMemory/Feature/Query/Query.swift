@@ -9,21 +9,21 @@ import Foundation
 
 public struct Query {
     // MARK: - Property
-    let retrieval: RetrievalService
-    let notes: NotesService
-    let stats: StatsService
-    let lint: LintService
-    let enrichment: EnrichmentService
-    let consolidate: ConsolidateService
+    let retrieval: any RetrievalServiceable
+    let notes: any NotesServiceable
+    let stats: any StatsServiceable
+    let lint: any LintServiceable
+    let enrichment: any EnrichmentServiceable
+    let consolidate: any ConsolidateServiceable
 
     // MARK: - Initializer
     init(
-        retrieval: RetrievalService,
-        notes: NotesService,
-        stats: StatsService,
-        lint: LintService,
-        enrichment: EnrichmentService,
-        consolidate: ConsolidateService
+        retrieval: any RetrievalServiceable,
+        notes: any NotesServiceable,
+        stats: any StatsServiceable,
+        lint: any LintServiceable,
+        enrichment: any EnrichmentServiceable,
+        consolidate: any ConsolidateServiceable
     ) {
         self.retrieval = retrieval
         self.notes = notes
@@ -207,6 +207,15 @@ public struct Query {
     ) async throws -> [String: CandidateBatch] {
         try await consolidate.candidates(kinds: kinds, limit: limit)
     }
+
+    // The vocabulary of `candidates(kinds:)`, beside the call it constrains —
+    // a surface that validates its own argument needs the accepted set from
+    // the same facade it asks, not from a service type it cannot otherwise see.
+    public var candidateRetrievalKinds: [String] { consolidate.candidateRetrievalKinds }
+
+    public var candidateStructuralKinds: [String] { consolidate.candidateStructuralKinds }
+
+    public var candidateValidKinds: [String] { consolidate.candidateValidKinds }
 
     // MARK: - Private
 }

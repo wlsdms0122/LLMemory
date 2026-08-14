@@ -42,7 +42,18 @@ struct SearchAssocRehearsalTests {
         #expect(try assocWeight(between: "areh-a", and: "areh-b") == 0.5)
         
         // When
-        let outcome = try home.readScope { scope in try home.container.retrieval.search(scope, query: "zephyrquasar", limit: 5) }
+        let outcome = try home.readScope { scope in try home.container.retrieval.search(
+                scope,
+                query: "zephyrquasar",
+                tags: [],
+                limit: 5,
+                expand: 0,
+                sessionId: nil,
+                includeStale: false,
+                excludeTags: nil,
+                sinceTs: nil,
+                raw: false
+            ) }
         
         try home.database().write { db in _ = try RecordRetrievalTransaction(outcome.record).perform(db) }
         

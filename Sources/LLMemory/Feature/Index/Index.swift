@@ -43,10 +43,10 @@ public struct Index {
     // Session stays for the lifecycle gates (bootstrap) — init/update are the
     // migration surface, not a domain service.
     let session: Session
-    let service: IndexService
+    let service: any IndexServiceable
 
     // MARK: - Initializer
-    init(session: Session, service: IndexService) {
+    init(session: Session, service: any IndexServiceable) {
         self.session = session
         self.service = service
     }

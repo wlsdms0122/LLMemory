@@ -9,10 +9,10 @@ import Foundation
 
 public struct Operations {
     // MARK: - Property
-    let service: OperationsService
+    let service: any OperationsServiceable
 
     // MARK: - Initializer
-    init(service: OperationsService) {
+    init(service: any OperationsServiceable) {
         self.service = service
     }
 

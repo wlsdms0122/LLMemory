@@ -9,10 +9,10 @@ import Foundation
 
 public struct Genome {
     // MARK: - Property
-    let service: GenomeService
+    let service: any GenomeServiceable
 
     // MARK: - Initializer
-    init(service: GenomeService) {
+    init(service: any GenomeServiceable) {
         self.service = service
     }
 

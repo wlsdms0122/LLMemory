@@ -11,13 +11,13 @@ import Storage
 // Notes-domain service — body reads (whole, sections, budget, toc, frame),
 // enumeration, history, and structure. Body reads
 // derive a retrieval record; RetrievalService applies it.
-public struct NotesService: Sendable {
+public struct NotesService: NotesServiceable {
     // MARK: - Property
     let storage: GRDBStorage
-    let retrieval: RetrievalService
+    let retrieval: any RetrievalServiceable
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, retrieval: RetrievalService) {
+    init(storage: GRDBStorage, retrieval: any RetrievalServiceable) {
         self.storage = storage
         self.retrieval = retrieval
     }

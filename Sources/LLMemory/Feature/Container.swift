@@ -14,17 +14,23 @@ import Foundation
 // values over storage, so assembling the container twice is semantically
 // the same container (which is exactly what test fixtures do). Owned by
 // Brain, the composition root; features receive only what they need.
-public struct Container: Sendable {
+//
+// It holds contracts, not implementations. This is the one place in the
+// package that names a concrete service type — everything downstream sees
+// `any XServiceable`, so a collaborator can be swapped or faked without a
+// single call site changing, and nothing can quietly reach past a
+// contract into an implementation detail.
+struct Container: Sendable {
     // MARK: - Property
-    public let retrieval: RetrievalService
-    public let notes: NotesService
-    public let stats: StatsService
-    public let lint: LintService
-    public let enrichment: EnrichmentService
-    public let consolidate: ConsolidateService
-    public let index: IndexService
-    public let genome: GenomeService
-    public let operations: OperationsService
+    let retrieval: any RetrievalServiceable
+    let notes: any NotesServiceable
+    let stats: any StatsServiceable
+    let lint: any LintServiceable
+    let enrichment: any EnrichmentServiceable
+    let consolidate: any ConsolidateServiceable
+    let index: any IndexServiceable
+    let genome: any GenomeServiceable
+    let operations: any OperationsServiceable
 
     // MARK: - Initializer
     init(storage: GRDBStorage) {

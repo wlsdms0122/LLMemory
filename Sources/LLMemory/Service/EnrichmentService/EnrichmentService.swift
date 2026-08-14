@@ -10,7 +10,7 @@ import Storage
 
 // Enrichment-domain service — observation of the semantic layer (terms,
 // assoc edges, vectors, provenance noise).
-public struct EnrichmentService: Sendable {
+public struct EnrichmentService: EnrichmentServiceable {
     // MARK: - Property
     let storage: GRDBStorage
 

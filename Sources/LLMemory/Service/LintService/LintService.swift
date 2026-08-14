@@ -11,7 +11,7 @@ import Storage
 // Lint-domain service — the async door over the Lint policy namespace
 // (rule catalog + judgment + scan). Habituation suppresses findings the
 // owner has reviewed and kept.
-public struct LintService: Sendable {
+public struct LintService: LintServiceable {
     // MARK: - Property
     let storage: GRDBStorage
 

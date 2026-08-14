@@ -898,7 +898,7 @@ public enum HandlersBasic {
     // and the registry captures it at assembly instead of smuggling it
     // through the context (facts ride the context; collaborators ride the
     // wiring).
-    public static func setGene(genome: GenomeService) -> OperationHandler {
+    static func setGene(genome: any GenomeServiceable) -> OperationHandler {
         OperationHandler(
         schema: OperationSchema(
             summary: "set a gene's per-brain value directly. Works on every cataloged gene (locked "

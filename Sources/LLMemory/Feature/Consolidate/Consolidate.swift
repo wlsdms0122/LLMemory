@@ -9,10 +9,10 @@ import Foundation
 
 public struct Consolidate {
     // MARK: - Property
-    let service: ConsolidateService
+    let service: any ConsolidateServiceable
 
     // MARK: - Initializer
-    init(service: ConsolidateService) {
+    init(service: any ConsolidateServiceable) {
         self.service = service
     }
     

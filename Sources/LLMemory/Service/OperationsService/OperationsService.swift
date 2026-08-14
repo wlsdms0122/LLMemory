@@ -14,7 +14,7 @@ import Storage
 // errors are normalized here as "unavailable" — a first-class state distinct
 // from "failed" (ran and rolled back) and "rejected" (payload refused),
 // because nothing was executed and the payload was never interpreted.
-public struct OperationsService: Sendable {
+public struct OperationsService: OperationsServiceable {
     // MARK: - Property
     let storage: GRDBStorage
     let engine: OperationsEngine
