@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum SectionEdit {
+struct SectionEdit: Sendable {
     enum InsertAnchor {
         case after(SectionPath)
         case before(SectionPath)
@@ -107,9 +107,9 @@ enum SectionEdit {
     
     // MARK: - Initializer
     // MARK: - Public
-    static func parsePath(_ path: String) throws -> SectionPath {
+    func parsePath(_ path: String) throws -> SectionPath {
         let nsPath = path as NSString
-        let separators = pathSepRegex.matches(
+        let separators = Self.pathSepRegex.matches(
             in: path,
             range: NSRange(location: 0, length: nsPath.length)
         )
@@ -132,17 +132,17 @@ enum SectionEdit {
         
         for segment in segments {
             if segment.isEmpty {
-                throw SectionError.parse("empty segment in path: '\(path)' \(parsePathHint)")
+                throw SectionError.parse("empty segment in path: '\(path)' \(Self.parsePathHint)")
             }
             
             let nsSegment = segment as NSString
             
-            guard let match = headingRegex.firstMatch(
+            guard let match = Self.headingRegex.firstMatch(
                 in: segment,
                 range: NSRange(location: 0, length: nsSegment.length)
             ) else {
                 throw SectionError.parse(
-                    "invalid heading in path segment: '\(segment)' \(parsePathHint)"
+                    "invalid heading in path segment: '\(segment)' \(Self.parsePathHint)"
                 )
             }
             
@@ -165,7 +165,7 @@ enum SectionEdit {
         return SectionPath(parts: parts)
     }
     
-    static func scanFences(_ lines: [String]) -> FenceScan {
+    func scanFences(_ lines: [String]) -> FenceScan {
         var mask = [Bool](repeating: false, count: lines.count)
         var openLine: Int? = nil
         var openChar: Character = "`"
@@ -178,7 +178,7 @@ enum SectionEdit {
             }
             
             let nsLine = line as NSString
-            let match = fenceRegex.firstMatch(
+            let match = Self.fenceRegex.firstMatch(
                 in: line,
                 range: NSRange(location: 0, length: nsLine.length)
             )
@@ -216,11 +216,11 @@ enum SectionEdit {
         return FenceScan(mask: mask, unclosedOpen: openLine)
     }
     
-    static func fenceMask(_ lines: [String]) -> [Bool] {
+    func fenceMask(_ lines: [String]) -> [Bool] {
         scanFences(lines).mask
     }
     
-    static func splitSections(_ body: String) -> [Section] {
+    func splitSections(_ body: String) -> [Section] {
         let lines = body.unicodeLines()
         let fence = fenceMask(lines)
         var headings: [(Int, Int, String)] = []
@@ -230,7 +230,7 @@ enum SectionEdit {
             
             let nsLine = line as NSString
             
-            if let match = headingRegex.firstMatch(
+            if let match = Self.headingRegex.firstMatch(
                 in: line,
                 range: NSRange(location: 0, length: nsLine.length)
             ) {
@@ -259,7 +259,7 @@ enum SectionEdit {
         return sections
     }
     
-    static func findSection(_ body: String, path: SectionPath) throws -> Section {
+    func findSection(_ body: String, path: SectionPath) throws -> Section {
         let sections = splitSections(body)
         let candidates = findMatches(sections: sections, path: path)
         
@@ -278,7 +278,7 @@ enum SectionEdit {
         return candidates[0]
     }
     
-    static func descendantSections(_ body: String, of section: Section) -> [Section] {
+    func descendantSections(_ body: String, of section: Section) -> [Section] {
         splitSections(body)
             .filter { child in
                 child.lineStart > section.lineStart && child.lineEnd <= section.lineEnd
@@ -286,17 +286,17 @@ enum SectionEdit {
             .sorted { lhs, rhs in lhs.lineStart < rhs.lineStart }
     }
     
-    static func directBodyEnd(of section: Section, within sections: [Section]) -> Int {
+    func directBodyEnd(of section: Section, within sections: [Section]) -> Int {
         sections.first { child in
             child.lineStart > section.lineStart && child.lineEnd <= section.lineEnd
         }?.lineStart ?? section.lineEnd
     }
     
-    static func directBodyEnd(_ body: String, of section: Section) -> Int {
+    func directBodyEnd(_ body: String, of section: Section) -> Int {
         directBodyEnd(of: section, within: splitSections(body))
     }
     
-    static func replace(
+    func replace(
         _ body: String,
         path: SectionPath,
         newContent: String,
@@ -316,7 +316,7 @@ enum SectionEdit {
         return lines.joined(separator: "\n") + "\n"
     }
     
-    static func append(
+    func append(
         _ body: String,
         path: SectionPath,
         content: String,
@@ -331,7 +331,7 @@ enum SectionEdit {
         return lines.joined(separator: "\n") + "\n"
     }
     
-    static func prepend(_ body: String, path: SectionPath, content: String) throws -> String {
+    func prepend(_ body: String, path: SectionPath, content: String) throws -> String {
         let section = try findSection(body, path: path)
         var lines = body.unicodeLines()
         let insertAt = section.lineStart + 1
@@ -341,7 +341,7 @@ enum SectionEdit {
         return lines.joined(separator: "\n") + "\n"
     }
     
-    static func remove(
+    func remove(
         _ body: String,
         path: SectionPath,
         subtree: Bool = false
@@ -369,14 +369,14 @@ enum SectionEdit {
         return lines.isEmpty ? "" : lines.joined(separator: "\n") + "\n"
     }
     
-    static func applyPatch(
+    func applyPatch(
         _ body: String,
         section: String,
         action: String,
         content: String,
         subtree: Bool
     ) throws -> String {
-        if section == preambleToken {
+        if section == Self.preambleToken {
             switch action {
             case "replace":
                 return replacePreamble(body, newContent: content)
@@ -415,7 +415,7 @@ enum SectionEdit {
         }
     }
     
-    static func replacePreamble(_ body: String, newContent: String) -> String {
+    func replacePreamble(_ body: String, newContent: String) -> String {
         let lines = body.unicodeLines()
         let trimmedContent = newContent.trimmingTrailingNewlines()
         let block = trimmedContent.isEmpty ? [] : trimmedContent.unicodeLines()
@@ -424,28 +424,28 @@ enum SectionEdit {
         return spliced.isEmpty ? "" : spliced.joined(separator: "\n") + "\n"
     }
     
-    static func appendPreamble(_ body: String, content: String) -> String {
+    func appendPreamble(_ body: String, content: String) -> String {
         var lines = body.unicodeLines()
         lines.insert(contentsOf: contentLines(content), at: preambleEnd(body, lines))
         
         return lines.joined(separator: "\n") + "\n"
     }
     
-    static func prependPreamble(_ body: String, content: String) -> String {
+    func prependPreamble(_ body: String, content: String) -> String {
         var lines = body.unicodeLines()
         lines.insert(contentsOf: contentLines(content), at: 0)
         
         return lines.joined(separator: "\n") + "\n"
     }
     
-    static func removePreamble(_ body: String) -> String {
+    func removePreamble(_ body: String) -> String {
         let lines = body.unicodeLines()
         let remaining = Array(lines[preambleEnd(body, lines)...])
         
         return remaining.isEmpty ? "" : remaining.joined(separator: "\n") + "\n"
     }
     
-    static func insert(
+    func insert(
         _ body: String,
         newSectionText: String,
         anchor: InsertAnchor
@@ -472,7 +472,7 @@ enum SectionEdit {
         return lines.joined(separator: "\n") + "\n"
     }
     
-    static func rename(_ body: String, path: SectionPath, newTitle: String) throws -> String {
+    func rename(_ body: String, path: SectionPath, newTitle: String) throws -> String {
         let section = try findSection(body, path: path)
         let trimmed = newTitle.trimmingCharacters(in: .whitespaces)
         
@@ -486,7 +486,7 @@ enum SectionEdit {
         return lines.joined(separator: "\n") + "\n"
     }
     
-    static func resolveDisjoint(_ body: String, paths: [SectionPath]) throws -> [Section] {
+    func resolveDisjoint(_ body: String, paths: [SectionPath]) throws -> [Section] {
         let sections = try paths.map { path in try findSection(body, path: path) }
         let byStart = sections.sorted { lhs, rhs in lhs.lineStart < rhs.lineStart }
         
@@ -506,7 +506,7 @@ enum SectionEdit {
         return sections
     }
     
-    static func extract(
+    func extract(
         _ body: String,
         paths: [SectionPath]
     ) throws -> (extracted: String, remaining: String) {
@@ -532,7 +532,7 @@ enum SectionEdit {
         return (extracted, remaining)
     }
     
-    static func sectionRows(_ body: String) -> (preamble: String, rows: [SectionRow]) {
+    func sectionRows(_ body: String) -> (preamble: String, rows: [SectionRow]) {
         let lines = body.unicodeLines()
         let sections = splitSections(body)
         let preambleEnd = sections.first?.lineStart ?? lines.count
@@ -557,13 +557,13 @@ enum SectionEdit {
         return (preamble, rows)
     }
     
-    static func subtreeText(_ body: String, path: SectionPath) throws -> String {
+    func subtreeText(_ body: String, path: SectionPath) throws -> String {
         let section = try findSection(body, path: path)
         
         return body.unicodeLines()[section.lineStart..<section.lineEnd].joined(separator: "\n")
     }
     
-    static func findPathCollisions(_ body: String) -> [PathCollision] {
+    func findPathCollisions(_ body: String) -> [PathCollision] {
         let sections = splitSections(body)
         
         if sections.isEmpty { return [] }
@@ -648,7 +648,7 @@ enum SectionEdit {
         return collisions
     }
     
-    static func assertResolvable(_ body: String, noteId: String = "") throws {
+    func assertResolvable(_ body: String, noteId: String = "") throws {
         let collisions = findPathCollisions(body)
         
         if !collisions.isEmpty {
@@ -656,7 +656,7 @@ enum SectionEdit {
         }
     }
     
-    static func wordCount(_ body: String) -> Int {
+    func wordCount(_ body: String) -> Int {
         let regex = try! NSRegularExpression(pattern: "\\S+", options: [])
         
         return regex.numberOfMatches(
@@ -665,12 +665,12 @@ enum SectionEdit {
         )
     }
     
-    static func sectionCount(_ body: String) -> Int {
+    func sectionCount(_ body: String) -> Int {
         splitSections(body).count
     }
     
     // MARK: - Private
-    private static func couldBeFence(_ line: String) -> Bool {
+    private func couldBeFence(_ line: String) -> Bool {
         var spaces = 0
         
         for character in line {
@@ -688,7 +688,7 @@ enum SectionEdit {
         return false
     }
     
-    private static func findMatches(sections: [Section], path: SectionPath) -> [Section] {
+    private func findMatches(sections: [Section], path: SectionPath) -> [Section] {
         guard let first = path.parts.first else { return [] }
         
         let matches = sections.filter { section in
@@ -729,15 +729,15 @@ enum SectionEdit {
         return resolved
     }
     
-    private static func headingLabel(_ section: Section) -> String {
+    private func headingLabel(_ section: Section) -> String {
         "\(String(repeating: "#", count: section.level)) \(section.title)"
     }
     
-    private static func preambleEnd(_ body: String, _ lines: [String]) -> Int {
+    private func preambleEnd(_ body: String, _ lines: [String]) -> Int {
         splitSections(body).first?.lineStart ?? lines.count
     }
     
-    private static func splice(
+    private func splice(
         _ lines: [String],
         start: Int,
         end: Int,
@@ -746,7 +746,7 @@ enum SectionEdit {
         Array(lines[..<start]) + newBlock + Array(lines[end...])
     }
     
-    private static func contentLines(_ text: String) -> [String] {
+    private func contentLines(_ text: String) -> [String] {
         let trimmed = text.trimmingTrailingNewlines()
         
         return trimmed.isEmpty ? [""] : trimmed.unicodeLines()

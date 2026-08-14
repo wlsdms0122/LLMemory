@@ -20,6 +20,8 @@ struct InvalidateHandler: OperationHandling {
 
     private let payload = OpPayloadCheck()
 
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -56,7 +58,7 @@ struct InvalidateHandler: OperationHandling {
             ])
         }
 
-        var (doc, body) = try Frontmatter.parse(try String(contentsOf: path, encoding: .utf8))
+        var (doc, body) = try frontmatter.parse(try String(contentsOf: path, encoding: .utf8))
         doc.stale = true
         doc.invalidatedAt = now
 
@@ -64,7 +66,7 @@ struct InvalidateHandler: OperationHandling {
             doc.invalidatedReason = reason.unicodeScalarPrefix(200)
         }
 
-        try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
+        try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
         try scope.run(ReindexNoteFileTransaction(path: path))
         try scope.run(SetNoteStaleTransaction(nid: noteId, stale: true))
         try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,

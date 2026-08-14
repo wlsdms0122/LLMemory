@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-public enum Links {
+public struct Links: Sendable {
     // MARK: - Property
     static let kindCooccur = "cooccur"
     static let kindReference = "reference"
@@ -20,17 +20,17 @@ public enum Links {
 
     static let undirectedKinds: Set<String> = [kindCooccur, kindAssoc, kindSibling]
     static let directedKinds: Set<String> = [
-        kindReference, kindMergeAncestor, kindSupersedes, kindPromotedTo
+        Self.kindReference, Self.kindMergeAncestor, Self.kindSupersedes, Self.kindPromotedTo
     ]
     static let learnedKinds: Set<String> = [kindCooccur, kindAssoc]
     static let lineageKinds: Set<String> = [kindPromotedTo, kindSupersedes, kindMergeAncestor]
     static let deleteBlockingKinds: Set<String> = [
-        kindReference, kindPromotedTo, kindSupersedes, kindMergeAncestor, kindSibling
+        Self.kindReference, Self.kindPromotedTo, Self.kindSupersedes, Self.kindMergeAncestor, Self.kindSibling
     ]
     static let deleteNonBlockingKinds: Set<String> = learnedKinds
     static let allKinds: Set<String> = [
-        kindCooccur, kindReference, kindMergeAncestor, kindSupersedes, kindPromotedTo, kindAssoc,
-        kindSibling
+        Self.kindCooccur, Self.kindReference, Self.kindMergeAncestor, Self.kindSupersedes, Self.kindPromotedTo, Self.kindAssoc,
+        Self.kindSibling
     ]
 
     static var siblingRankWeight: Double {
@@ -39,13 +39,13 @@ public enum Links {
 
     // MARK: - Initializer
     // MARK: - Public
-    static func rankWeightSQL(_ alias: String) -> String {
-        "(\(alias).weight * (CASE WHEN \(alias).kind = '\(kindSibling)' THEN \(siblingRankWeight) ELSE 1.0 END))"
+    func rankWeightSQL(_ alias: String) -> String {
+        "(\(alias).weight * (CASE WHEN \(alias).kind = '\(Self.kindSibling)' THEN \(Self.siblingRankWeight) ELSE 1.0 END))"
     }
 
-    static func normalize(src: String, dst: String, kind: String) -> (String, String)? {
+    func normalize(src: String, dst: String, kind: String) -> (String, String)? {
         if src == dst { return nil }
-        if undirectedKinds.contains(kind) && src > dst { return (dst, src) }
+        if Self.undirectedKinds.contains(kind) && src > dst { return (dst, src) }
 
         return (src, dst)
     }

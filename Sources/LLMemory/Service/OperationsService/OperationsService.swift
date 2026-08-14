@@ -19,6 +19,8 @@ public struct OperationsService: OperationsServiceable {
     let storage: GRDBStorage
     let engine: OperationsEngine
 
+    private let environment = Environment()
+
     // MARK: - Initializer
     init(storage: GRDBStorage, engine: OperationsEngine) {
         self.storage = storage
@@ -34,7 +36,7 @@ public struct OperationsService: OperationsServiceable {
         // sibling services' convention: the CLI override wins, the
         // environment is the fallback — so the observation policy never
         // silently loses its session filter.
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
+        let sessionId = environment.retrievalSession(cli: cliSessionId)
 
         // Shape rejection happens before any lock — a malformed payload must
         // not open the write scope. The string is decoded again inside the
@@ -84,7 +86,7 @@ public struct OperationsService: OperationsServiceable {
         payloadJSON: String,
         cliSessionId: String
     ) async -> OperationsDryRunResult {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
+        let sessionId = environment.retrievalSession(cli: cliSessionId)
 
         do {
             return try await storage.read { scope in

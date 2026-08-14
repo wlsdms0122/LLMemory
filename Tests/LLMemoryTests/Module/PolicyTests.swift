@@ -13,6 +13,8 @@ import GRDB
 @Suite("Policy Tests")
 struct PolicyTests {
     // MARK: - Property
+    private let policy = Policy()
+
     // MARK: - Initializer
     // MARK: - Test
     @Test("surface and notSurface partition the corpus — every note is on exactly one side")
@@ -41,17 +43,17 @@ struct PolicyTests {
             let total = try Int.fetchOne(database, sql: "SELECT COUNT(*) FROM notes")!
             let surfaced = try Int.fetchOne(
                 database,
-                sql: "SELECT COUNT(*) FROM notes WHERE \(Policy.surface(""))"
+                sql: "SELECT COUNT(*) FROM notes WHERE \(policy.surface(""))"
             )!
             let withheld = try Int.fetchOne(
                 database,
-                sql: "SELECT COUNT(*) FROM notes WHERE \(Policy.notSurface(""))"
+                sql: "SELECT COUNT(*) FROM notes WHERE \(policy.notSurface(""))"
             )!
             let both = try Int.fetchOne(
                 database,
                 sql: """
                     SELECT COUNT(*) FROM notes \
-                    WHERE (\(Policy.surface(""))) AND (\(Policy.notSurface("")))
+                    WHERE (\(policy.surface(""))) AND (\(policy.notSurface("")))
                     """
             )!
             
@@ -65,14 +67,14 @@ struct PolicyTests {
     @Test("each atom emits the predicate the rest of the codebase is composed from")
     func atomsEmitExpectedSQL() {
         // Then
-        #expect(Policy.fresh("n") == "COALESCE(n.stale, 0) = 0")
-        #expect(Policy.stale("n") == "COALESCE(n.stale, 0) = 1")
-        #expect(Policy.eager("n") == "n.priority = 'eager'")
-        #expect(Policy.notEager("n") == "n.priority != 'eager'")
-        #expect(Policy.forgetExempt("n") == "n.template IS NULL AND n.locked = 0")
-        #expect(Policy.surface("n") == "COALESCE(n.stale, 0) = 0")
-        #expect(Policy.decayCandidate("a") ==
+        #expect(policy.fresh("n") == "COALESCE(n.stale, 0) = 0")
+        #expect(policy.stale("n") == "COALESCE(n.stale, 0) = 1")
+        #expect(policy.eager("n") == "n.priority = 'eager'")
+        #expect(policy.notEager("n") == "n.priority != 'eager'")
+        #expect(policy.forgetExempt("n") == "n.template IS NULL AND n.locked = 0")
+        #expect(policy.surface("n") == "COALESCE(n.stale, 0) = 0")
+        #expect(policy.decayCandidate("a") ==
             "COALESCE(a.stale, 0) = 0 AND a.priority != 'eager' AND a.template IS NULL AND a.locked = 0")
-        #expect(Policy.forgetExempt("") == "template IS NULL AND locked = 0")
+        #expect(policy.forgetExempt("") == "template IS NULL AND locked = 0")
     }
 }

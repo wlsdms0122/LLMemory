@@ -20,6 +20,8 @@ struct MigrateNoteHandler: OperationHandling {
 
     private let payload = OpPayloadCheck()
 
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -66,7 +68,7 @@ struct MigrateNoteHandler: OperationHandling {
             ])
         }
 
-        let (doc, body) = try Frontmatter.parse(try String(contentsOf: srcPath, encoding: .utf8))
+        let (doc, body) = try frontmatter.parse(try String(contentsOf: srcPath, encoding: .utf8))
 
         try FileManager.default.createDirectory(
             at: newPath.deletingLastPathComponent(),
@@ -75,7 +77,7 @@ struct MigrateNoteHandler: OperationHandling {
 
         let now = context.now
 
-        try (Frontmatter.dump(doc) + body).write(to: newPath, atomically: true, encoding: .utf8)
+        try (frontmatter.dump(doc) + body).write(to: newPath, atomically: true, encoding: .utf8)
 
         if newPath != srcPath {
             try FileManager.default.removeItem(at: srcPath)

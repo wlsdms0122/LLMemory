@@ -17,6 +17,8 @@ struct RippleTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let detectors = Candidates()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -114,7 +116,7 @@ struct RippleTests {
     
     private func candidateIds() throws -> Set<String> {
         try home.readScope { scope in
-            Set(try Candidates.rippleCandidates(scope, limit: 50).map(\.id))
+            Set(try detectors.rippleCandidates(scope, limit: 50).map(\.id))
         }
     }
 }

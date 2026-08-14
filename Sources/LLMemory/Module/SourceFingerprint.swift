@@ -11,15 +11,15 @@ import CryptoKit
 // Content fingerprints for a note's declared source files — the pure
 // hashing mechanics behind source-drift detection. DB rows are the source
 // transactions' business.
-public enum SourceFingerprint {
+public struct SourceFingerprint: Sendable {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    public static func isDriftCheckable(_ ref: String) -> Bool {
+    public func isDriftCheckable(_ ref: String) -> Bool {
         (ref as NSString).expandingTildeInPath.hasPrefix("/")
     }
 
-    static func computeSha(path: URL) -> String? {
+    func computeSha(path: URL) -> String? {
         guard let data = try? Data(contentsOf: path) else { return nil }
 
         let digest = SHA256.hash(data: data)
@@ -28,7 +28,7 @@ public enum SourceFingerprint {
         return String(hex.prefix(16))
     }
 
-    static func computeFingerprint(_ paths: [String]) -> String? {
+    func computeFingerprint(_ paths: [String]) -> String? {
         let checkable = paths.filter(isDriftCheckable)
 
         if checkable.isEmpty { return nil }
@@ -42,7 +42,7 @@ public enum SourceFingerprint {
         return String(digest.map { byte in String(format: "%02x", byte) }.joined().prefix(16))
     }
 
-    static func computeDeclHash(_ paths: [String]) -> String? {
+    func computeDeclHash(_ paths: [String]) -> String? {
         let checkable = paths.filter(isDriftCheckable)
 
         if checkable.isEmpty { return nil }
@@ -53,7 +53,7 @@ public enum SourceFingerprint {
         return String(digest.map { byte in String(format: "%02x", byte) }.joined().prefix(16))
     }
 
-    static func resolve(_ path: String) -> URL {
+    func resolve(_ path: String) -> URL {
         URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
     }
 

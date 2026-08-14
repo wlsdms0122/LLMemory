@@ -17,6 +17,10 @@ struct FrontmatterSourceOptionalityTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let frontmatter = Frontmatter()
+
+    private let sourceFingerprint = SourceFingerprint()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -30,20 +34,20 @@ struct FrontmatterSourceOptionalityTests {
         let withEmptyList = "---\nid: a\ntitle: t\naxis: flow\ntags: [flow]\nsummary: s\nsource: []\n---\n\nbody\n"
         
         // When
-        let (fromNoKey, _) = try Frontmatter.parse(withoutKey)
-        let (fromEmptyList, _) = try Frontmatter.parse(withEmptyList)
+        let (fromNoKey, _) = try frontmatter.parse(withoutKey)
+        let (fromEmptyList, _) = try frontmatter.parse(withEmptyList)
         
         // Then
         #expect(fromNoKey.source == [])
         #expect(fromEmptyList.source == [])
-        #expect(!Frontmatter.dump(fromNoKey).contains("source:"))
-        #expect(!Frontmatter.dump(fromEmptyList).contains("source:"), "an empty list must not be written back")
+        #expect(!frontmatter.dump(fromNoKey).contains("source:"))
+        #expect(!frontmatter.dump(fromEmptyList).contains("source:"), "an empty list must not be written back")
     }
     
     @Test("an empty declaration hashes to nothing, exactly as an absent one does")
     func emptyDeclarationHashesToNothingJustLikeAbsent() {
-        #expect(SourceFingerprint.computeFingerprint([]) == nil)
-        #expect(SourceFingerprint.computeDeclHash([]) == nil)
+        #expect(sourceFingerprint.computeFingerprint([]) == nil)
+        #expect(sourceFingerprint.computeDeclHash([]) == nil)
     }
     
     @Test("a split child inherits an empty basis without inventing a key for it")
@@ -70,7 +74,7 @@ struct FrontmatterSourceOptionalityTests {
             let text = try home.bodyText(of: childId)
             
             #expect(!text.contains("source:"), "\(childId) was handed an empty basis spelled as a key")
-            #expect(try Frontmatter.parse(text).0.source == [])
+            #expect(try frontmatter.parse(text).0.source == [])
         }
     }
 }

@@ -20,6 +20,10 @@ struct LintScanner: LintScanning {
 
     var errorCodes: Set<String> { rules.errorCodes }
 
+    private let frontmatter = Frontmatter()
+
+    private let dismissalPolicy = Dismissals()
+
     // MARK: - Initializer
     init(rules: LintRuleRegistry) {
         self.rules = rules
@@ -140,18 +144,18 @@ struct LintScanner: LintScanning {
         return try issues.filter { issue in
             guard issue.severity == "warn" else { return true }
             
-            let fine = Dismissals.lintKind(issue.code, fingerprint: issue.dismissalKey)
-            let coarse = Dismissals.lintKind(issue.code)
+            let fine = dismissalPolicy.lintKind(issue.code, fingerprint: issue.dismissalKey)
+            let coarse = dismissalPolicy.lintKind(issue.code)
             
-            guard let dismissal = dismissals[Dismissals.lintLookupKey(issue.target, fine)]
-                ?? dismissals[Dismissals.lintLookupKey(issue.target, coarse)]
+            guard let dismissal = dismissals[dismissalPolicy.lintLookupKey(issue.target, fine)]
+                ?? dismissals[dismissalPolicy.lintLookupKey(issue.target, coarse)]
             else {
                 return true
             }
             
             switch issue.target {
             case .corpus:
-                return Dismissals.corpusGate(dismissal, globalGeneration: generation).surface
+                return dismissalPolicy.corpusGate(dismissal, globalGeneration: generation).surface
             
             case .note(let nid):
                 if shapes[nid] == nil {
@@ -160,7 +164,7 @@ struct LintScanner: LintScanning {
                 
                 let shape = shapes[nid]!
                 
-                return Dismissals.gate(
+                return dismissalPolicy.gate(
                     dismissal,
                     currentWords: shape.words,
                     currentSections: shape.sections,
@@ -245,7 +249,7 @@ struct LintScanner: LintScanning {
         let text: String
         do {
             text = try String(contentsOf: path, encoding: .utf8)
-            (document, body) = try Frontmatter.parse(text)
+            (document, body) = try frontmatter.parse(text)
         } catch {
             return [LintIssue("error", "frontmatter-parse", "parse failed: \(error)", .note(nid))]
         }

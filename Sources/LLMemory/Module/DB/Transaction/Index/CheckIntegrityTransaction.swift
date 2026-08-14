@@ -12,6 +12,8 @@ struct CheckIntegrityTransaction: GRDBReadTransaction {
     // MARK: - Property
     let level: Indexer.IntegrityLevel
 
+    private let indexer = Indexer()
+
     // MARK: - Initializer
     init(level: Indexer.IntegrityLevel = .l1) {
         self.level = level
@@ -19,7 +21,7 @@ struct CheckIntegrityTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> (ok: Bool, msgs: [String]) {
-        try Indexer.check(db, rawLevel: level.rawValue)
+        try indexer.check(db, rawLevel: level.rawValue)
     }
 
     // MARK: - Private

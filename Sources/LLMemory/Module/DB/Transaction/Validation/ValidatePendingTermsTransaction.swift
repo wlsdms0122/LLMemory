@@ -26,6 +26,10 @@ struct ValidatePendingTermsTransaction: GRDBTransaction {
 
     let noteIds: [String]?
 
+    private let framing = Framing()
+
+    private let policy = Policy()
+
     // MARK: - Initializer
     init(noteIds: [String]? = nil) {
         self.noteIds = noteIds
@@ -53,7 +57,7 @@ struct ValidatePendingTermsTransaction: GRDBTransaction {
         let dfCeiling = Config.getDouble("enrich.idf_df_ceiling", default: 0.25)
         let totalNotes = try Int.fetchOne(
             db,
-            sql: "SELECT COUNT(*) FROM notes n WHERE \(Policy.surface())"
+            sql: "SELECT COUNT(*) FROM notes n WHERE \(policy.surface())"
         ) ?? 0
         let now = Int(Date().timeIntervalSince1970)
         var result = TermValidationPass()
@@ -63,7 +67,7 @@ struct ValidatePendingTermsTransaction: GRDBTransaction {
             let noteId: String = row["note_id"]
             let kind: String = row["kind"]
             let term: String = row["term"]
-            let tokens = Framing.extractKeywords(term, limit: 24)
+            let tokens = framing.extractKeywords(term, limit: 24)
 
             if tokens.isEmpty {
                 try reject(db, nid: noteId, kind: kind, term: term, reason: .malformed, now: now)
@@ -151,7 +155,7 @@ struct ValidatePendingTermsTransaction: GRDBTransaction {
             let documentFrequency = try Int.fetchOne(
                 db,
                 sql: "SELECT COUNT(DISTINCT f.id) FROM notes_fts f JOIN notes n ON n.id = f.id "
-                    + "WHERE notes_fts MATCH ? AND \(Policy.surface())",
+                    + "WHERE notes_fts MATCH ? AND \(policy.surface())",
                 arguments: ["\"\(token.replacingOccurrences(of: "\"", with: ""))\""]
             ) ?? 0
 
@@ -221,7 +225,7 @@ struct ValidatePendingTermsTransaction: GRDBTransaction {
 
         let hits = try String.fetchAll(db, sql: """
             SELECT f.id FROM notes_fts f JOIN notes n ON n.id = f.id
-            WHERE notes_fts MATCH ? AND \(Policy.surface())
+            WHERE notes_fts MATCH ? AND \(policy.surface())
             GROUP BY f.id
             ORDER BY MIN(rank), f.id LIMIT ?
             """, arguments: [matchExpr, topK])

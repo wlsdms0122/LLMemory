@@ -12,19 +12,21 @@ import Foundation
 // refuse bad input, once to normalise good input.
 struct NoteSourceInput {
     // MARK: - Property
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Public
     func finalizeSource(_ items: Any?) throws -> [String] {
         guard let items else { return [] }
         
-        return try Frontmatter.decodeSource(items)
+        return try frontmatter.decodeSource(items)
     }
 
     func sourceInputError(_ items: Any?) -> String? {
         guard let items else { return nil }
         
         do {
-            _ = try Frontmatter.decodeSource(items)
+            _ = try frontmatter.decodeSource(items)
             
             return nil
         } catch {

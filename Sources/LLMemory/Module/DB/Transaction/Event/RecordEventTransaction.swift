@@ -18,11 +18,13 @@ struct RecordEventTransaction: GRDBTransaction {
     let sessionId: String?
     let ts: Int?
 
+    private let events = Events()
+
     // MARK: - Initializer
     init(kind: String, payload: [String: Any?], sessionId: String? = nil, ts: Int? = nil) {
         self.init(
             kind: kind,
-            payloadJSON: Events.serializePayload(payload),
+            payloadJSON: Events().serializePayload(payload),
             sessionId: sessionId,
             ts: ts
         )
@@ -37,7 +39,7 @@ struct RecordEventTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws {
-        Events.record(db, kind: kind, payloadJSON: payloadJSON, sessionId: sessionId, ts: ts)
+        events.record(db, kind: kind, payloadJSON: payloadJSON, sessionId: sessionId, ts: ts)
     }
 
     // MARK: - Private

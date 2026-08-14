@@ -16,6 +16,16 @@ public struct RetrievalService: RetrievalServiceable {
     // MARK: - Property
     let storage: GRDBStorage
 
+    private let noteText = NoteText()
+
+    private let events = Events()
+
+    private let framing = Framing()
+
+    private let detectors = Candidates()
+
+    private let environment = Environment()
+
     // MARK: - Initializer
     init(storage: GRDBStorage) {
         self.storage = storage
@@ -32,7 +42,7 @@ public struct RetrievalService: RetrievalServiceable {
         excludeTags: [String],
         raw: Bool
     ) async throws -> (rows: [SearchRow], extra: [ExpandedNote]) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
+        let sessionId = environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try search(
                 scope,
@@ -58,7 +68,7 @@ public struct RetrievalService: RetrievalServiceable {
         cliSessionId: String,
         includeBodies: Bool
     ) async throws -> RelatedResult {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
+        let sessionId = environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try related(
                 scope,
@@ -84,7 +94,7 @@ public struct RetrievalService: RetrievalServiceable {
         k: Int,
         cliSessionId: String
     ) async throws -> [NeighborScore] {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
+        let sessionId = environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try neighbors(scope, id: id, k: k, sessionId: sessionId)
         }
@@ -157,7 +167,7 @@ public struct RetrievalService: RetrievalServiceable {
             activateIds: hitIds,
             strengthenPairs: cooccurrencePairs(hitIds),
             rebirthRanked: searchRanked(rows: rows, extra: extra),
-            payloadJSON: Events.retrievalPayloadJSON(cmd: "search", payload: payload)
+            payloadJSON: events.retrievalPayloadJSON(cmd: "search", payload: payload)
         )
 
         return (rows, extra, record)
@@ -175,8 +185,8 @@ public struct RetrievalService: RetrievalServiceable {
         let similarLimit = similarLimit ?? Genes.int("related.similar_limit")
         let expandHops = expandHops ?? Genes.int("related.expand_hops")
         let text = "\(userInput)\n\(agentOutput)"
-        let keywords = Framing.extractKeywords(text)
-        let entityHints = NoteText.extractEntityHints(text)
+        let keywords = framing.extractKeywords(text)
+        let entityHints = noteText.extractEntityHints(text)
         var similarNotes: [SimilarNote] = []
         var topTagCounts: [(String, Int)] = []
         var cooccurrences: [(String, String, Int)] = []
@@ -279,7 +289,7 @@ public struct RetrievalService: RetrievalServiceable {
         let record = RetrievalRecord(
             sessionId: sessionId,
             rebirthRanked: relatedRanked(snapshot: snapshot),
-            payloadJSON: Events.retrievalPayloadJSON(cmd: "related", payload: [
+            payloadJSON: events.retrievalPayloadJSON(cmd: "related", payload: [
                 ("text", String(text.prefix(200))),
                 ("hit_ids", snapshot.similar.map { note in note.id }),
                 ("expand_ids", snapshot.linked.map { note in note.id })
@@ -295,10 +305,10 @@ public struct RetrievalService: RetrievalServiceable {
         k: Int,
         sessionId: String? = nil
     ) throws -> (scores: [NeighborScore], record: RetrievalRecord?) {
-        let scores = try Candidates.neighbors(scope, noteId: id, k: k)
+        let scores = try detectors.neighbors(scope, noteId: id, k: k)
         let record: RetrievalRecord? = scores.isEmpty ? nil : .init(
             sessionId: sessionId,
-            payloadJSON: Events.retrievalPayloadJSON(cmd: "neighbors", payload: [
+            payloadJSON: events.retrievalPayloadJSON(cmd: "neighbors", payload: [
                 ("anchor", id),
                 ("hit_ids", scores.map { score in score.id })
             ])

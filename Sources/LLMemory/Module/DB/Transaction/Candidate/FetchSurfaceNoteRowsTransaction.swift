@@ -21,6 +21,8 @@ struct FetchSurfaceNoteRowsTransaction: GRDBReadTransaction {
         // MARK: - Private
     }
 
+    private let policy = Policy()
+
     // MARK: - Initializer
     init() { }
 
@@ -28,7 +30,7 @@ struct FetchSurfaceNoteRowsTransaction: GRDBReadTransaction {
     func perform(_ db: Database) throws -> [SurfaceNote] {
         try Row.fetchAll(db, sql: """
             SELECT id, title, summary FROM notes
-            WHERE \(Policy.all(Policy.surface(""), Policy.forgetExempt("")))
+            WHERE \(policy.all(policy.surface(""), policy.forgetExempt("")))
             ORDER BY id
             """).map { row in
             SurfaceNote(

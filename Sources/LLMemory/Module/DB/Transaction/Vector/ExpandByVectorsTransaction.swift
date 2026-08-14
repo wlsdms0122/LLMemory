@@ -14,6 +14,10 @@ struct ExpandByVectorsTransaction: GRDBReadTransaction {
     let limit: Int
     let excludeIds: Set<String>
 
+    private let vectorMath = VectorMath()
+
+    private let policy = Policy()
+
     // MARK: - Initializer
     init(seedIds: [String], limit: Int = 10, excludeIds: Set<String> = []) {
         self.seedIds = seedIds
@@ -47,14 +51,14 @@ struct ExpandByVectorsTransaction: GRDBReadTransaction {
         excluded.formUnion(seedIds)
 
         let inactive = try Set(String.fetchAll(db, sql: """
-            SELECT id FROM notes WHERE \(Policy.notSurface(""))
+            SELECT id FROM notes WHERE \(policy.notSurface(""))
             """))
         excluded.formUnion(inactive)
 
         var scored: [(id: String, score: Double)] = []
 
         for (id, vector) in vectors where !excluded.contains(id) {
-            let similarity = VectorMath.cosine(centroidVector, vector)
+            let similarity = vectorMath.cosine(centroidVector, vector)
 
             if similarity > 0 { scored.append((id, similarity)) }
         }
@@ -71,7 +75,7 @@ struct ExpandByVectorsTransaction: GRDBReadTransaction {
         let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
         let rows = try Row.fetchAll(db, sql: """
             SELECT id, title, summary FROM notes
-            WHERE id IN (\(placeholders)) AND \(Policy.surface(""))
+            WHERE id IN (\(placeholders)) AND \(policy.surface(""))
             """, arguments: StatementArguments(ids))
         var metaById: [String: Row] = [:]
 

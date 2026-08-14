@@ -12,6 +12,8 @@ struct ReindexNotesTransaction: GRDBTransaction {
     // MARK: - Property
     let filePaths: [String]
 
+    private let indexer = Indexer()
+
     // MARK: - Initializer
     init(filePaths: [String]) {
         self.filePaths = filePaths
@@ -19,7 +21,7 @@ struct ReindexNotesTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [Indexer.ReindexOutcome] {
-        try Indexer.reindexFiles(db, filePaths: filePaths)
+        try indexer.reindexFiles(db, filePaths: filePaths)
     }
 
     // MARK: - Private

@@ -27,6 +27,8 @@ public struct ConsolidateService: ConsolidateServiceable {
     let storage: GRDBStorage
     let genome: any GenomeServiceable
 
+    private let detectors = Candidates()
+
     // MARK: - Initializer
     init(storage: GRDBStorage, genome: any GenomeServiceable) {
         self.storage = storage
@@ -65,25 +67,25 @@ public struct ConsolidateService: ConsolidateServiceable {
         for kind in kinds {
             switch kind {
             case .split:
-                batches[kind.rawValue] = .split(try Candidates.splitCandidates(scope, limit: limit))
+                batches[kind.rawValue] = .split(try detectors.splitCandidates(scope, limit: limit))
 
             case .reconsolidate:
-                batches[kind.rawValue] = .flagged(try Candidates.reconsolidateCandidates(scope, limit: limit))
+                batches[kind.rawValue] = .flagged(try detectors.reconsolidateCandidates(scope, limit: limit))
 
             case .ripple:
-                batches[kind.rawValue] = .flagged(try Candidates.rippleCandidates(scope, limit: limit))
+                batches[kind.rawValue] = .flagged(try detectors.rippleCandidates(scope, limit: limit))
 
             case .enrichReview:
-                batches[kind.rawValue] = .flagged(try Candidates.enrichReviewCandidates(scope, limit: limit))
+                batches[kind.rawValue] = .flagged(try detectors.enrichReviewCandidates(scope, limit: limit))
 
             case .clusters:
-                batches[kind.rawValue] = .clusters(try Candidates.clusters(scope, limit: limit))
+                batches[kind.rawValue] = .clusters(try detectors.clusters(scope, limit: limit))
 
             case .missingEdge:
-                batches[kind.rawValue] = .missingEdge(try Candidates.missingEdges(scope, limit: limit))
+                batches[kind.rawValue] = .missingEdge(try detectors.missingEdges(scope, limit: limit))
 
             case .nearDuplicate:
-                batches[kind.rawValue] = .nearDuplicate(try Candidates.nearDuplicates(scope, limit: limit))
+                batches[kind.rawValue] = .nearDuplicate(try detectors.nearDuplicates(scope, limit: limit))
             }
         }
 

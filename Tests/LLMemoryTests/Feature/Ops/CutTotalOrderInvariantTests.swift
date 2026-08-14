@@ -20,6 +20,10 @@ struct CutTotalOrderInvariantTests {
     
     private let writeEffects = NoteWriteEffects()
 
+    private let frontmatter = Frontmatter()
+
+    private let detectors = Candidates()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -76,7 +80,7 @@ struct CutTotalOrderInvariantTests {
         }
         
         // When
-        let rows = try home.readScope { scope in try Candidates.reconsolidateCandidates(scope, limit: 3) }
+        let rows = try home.readScope { scope in try detectors.reconsolidateCandidates(scope, limit: 3) }
         
         // Then
         #expect(rows.map(\.id) == ["fl-n1", "fl-n2", "fl-n3"])
@@ -91,7 +95,7 @@ struct CutTotalOrderInvariantTests {
         try seedTags(ids: ids) { _ in ["ta", "tb", "tc"] }
         
         // When
-        let rows = try home.readScope { scope in try Candidates.splitCandidates(scope, limit: 3) }
+        let rows = try home.readScope { scope in try detectors.splitCandidates(scope, limit: 3) }
         
         // Then
         #expect(rows.map(\.id) == ["sp-n1", "sp-n2", "sp-n3"])
@@ -154,7 +158,7 @@ struct CutTotalOrderInvariantTests {
         }
         
         // When
-        let clusters = try home.readScope { scope in try Candidates.clusters(scope) }
+        let clusters = try home.readScope { scope in try detectors.clusters(scope) }
         
         // Then
         #expect(clusters.count == 1)
@@ -202,7 +206,7 @@ struct CutTotalOrderInvariantTests {
                     at: file.deletingLastPathComponent(),
                     withIntermediateDirectories: true
                 )
-                try (Frontmatter.dump(FrontmatterDoc(title: noteId))
+                try (frontmatter.dump(FrontmatterDoc(title: noteId))
                     + "## A\nx\n## B\ny\n").write(to: file, atomically: true, encoding: .utf8)
             }
         }

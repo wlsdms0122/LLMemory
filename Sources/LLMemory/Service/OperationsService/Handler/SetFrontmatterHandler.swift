@@ -22,6 +22,10 @@ struct SetFrontmatterHandler: OperationHandling {
     private let payload = OpPayloadCheck()
     private let writeEffects = NoteWriteEffects()
 
+    private let frontmatter = Frontmatter()
+
+    private let noteFiles = Notes()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -54,7 +58,7 @@ struct SetFrontmatterHandler: OperationHandling {
             var probe = FrontmatterDoc()
 
             if let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
-                let read = try Notes.readNoteIfPresent(at: path) {
+                let read = try noteFiles.readNoteIfPresent(at: path) {
                 probe = read.doc
             }
 
@@ -82,11 +86,11 @@ struct SetFrontmatterHandler: OperationHandling {
         }
 
         let raw = try String(contentsOf: path, encoding: .utf8)
-        var (doc, body) = try Frontmatter.parse(raw)
+        var (doc, body) = try frontmatter.parse(raw)
         let fields = op["fields"] as! [String: Any]
 
         try composer.mergeFields(&doc, fields)
-        try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
+        try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
         try scope.run(ReindexNoteFileTransaction(path: path))
 
         let now = context.now

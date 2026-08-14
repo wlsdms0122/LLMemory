@@ -17,6 +17,8 @@ import Foundation
 // anything else that needs to look.
 struct TrashedNoteLookup {
     // MARK: - Property
+    private let noteFiles = Notes()
+
     // MARK: - Initializer
     // MARK: - Public
     func trashName(_ url: URL) -> (nid: String, counter: Int) {
@@ -69,7 +71,7 @@ struct TrashedNoteLookup {
             let doc: FrontmatterDoc
             let body: String
             do {
-                guard let read = try Notes.readNoteIfPresent(at: url) else { continue }
+                guard let read = try noteFiles.readNoteIfPresent(at: url) else { continue }
                 
                 (doc, body) = read
             } catch let error as NoteUnreadable {

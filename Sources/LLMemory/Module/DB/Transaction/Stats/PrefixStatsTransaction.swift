@@ -15,6 +15,8 @@ struct PrefixStatsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let prefix: String
 
+    private let policy = Policy()
+
     // MARK: - Initializer
     init(prefix: String) {
         self.prefix = prefix
@@ -24,8 +26,8 @@ struct PrefixStatsTransaction: GRDBReadTransaction {
     func perform(_ db: Database) throws -> PrefixStats {
         let row = try Row.fetchOne(db, sql: """
             SELECT COUNT(*) AS total,
-                   SUM(CASE WHEN \(Policy.stale()) THEN 1 ELSE 0 END) AS stale_count,
-                   SUM(CASE WHEN \(Policy.eager()) THEN 1 ELSE 0 END) AS eager_count,
+                   SUM(CASE WHEN \(policy.stale()) THEN 1 ELSE 0 END) AS stale_count,
+                   SUM(CASE WHEN \(policy.eager()) THEN 1 ELSE 0 END) AS eager_count,
                    COALESCE(AVG(n.word_count), 0) AS avg_words,
                    COALESCE(MAX(n.word_count), 0) AS max_words,
                    COALESCE(AVG(n.section_count), 0) AS avg_sections,

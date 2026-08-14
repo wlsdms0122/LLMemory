@@ -14,6 +14,10 @@ struct SectionRowsRobustnessTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let sectionEdit = SectionEdit()
+
+    private let indexer = Indexer()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -24,7 +28,7 @@ struct SectionRowsRobustnessTests {
     func crlfBodySplitsIntoSections() {
         // When
         let body = "intro\r\n## A\r\na-body\r\n## B\r\nb-body\r\n"
-        let (preamble, rows) = SectionEdit.sectionRows(body)
+        let (preamble, rows) = sectionEdit.sectionRows(body)
         
         // Then
         #expect(preamble == "intro")
@@ -42,7 +46,7 @@ struct SectionRowsRobustnessTests {
             try db.execute(sql: "DELETE FROM notes_fts WHERE id = 'hl-note' AND section = ''")
         }
         
-        let (ok, messages) = try Indexer.check(home.database(), level: .l2)
+        let (ok, messages) = try indexer.check(home.database(), level: .l2)
         
         #expect(!ok)
         #expect(messages.contains { message in message.contains("fts-headless") && message.contains("hl-note") })

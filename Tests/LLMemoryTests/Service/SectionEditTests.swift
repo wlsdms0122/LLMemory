@@ -13,10 +13,12 @@ struct SectionEditTests {
     // MARK: - Property
     private let nested = "## A\nintro of A\n\n### B\nbody B\n\n### C\nbody C\n"
     
+    private let sectionEdit = SectionEdit()
+
     // MARK: - Initializer
     // MARK: - Test
     private func path(_ text: String) throws -> SectionEdit.SectionPath {
-        try SectionEdit.parsePath(text)
+        try sectionEdit.parsePath(text)
     }
     
     // extract — overlapping/duplicate ranges throw (catchable) instead of trapping
@@ -27,7 +29,7 @@ struct SectionEditTests {
         
         // Then
         #expect(throws: SectionError.self) {
-            _ = try SectionEdit.extract(body, paths: [try path("## A"), try path("## A")])
+            _ = try sectionEdit.extract(body, paths: [try path("## A"), try path("## A")])
         }
     }
     
@@ -38,7 +40,7 @@ struct SectionEditTests {
         
         // Then
         #expect(throws: SectionError.self) {
-            _ = try SectionEdit.extract(body, paths: [try path("## A"), try path("## A > ### B")])
+            _ = try sectionEdit.extract(body, paths: [try path("## A"), try path("## A > ### B")])
         }
     }
     
@@ -46,7 +48,7 @@ struct SectionEditTests {
     func extractDisjointSectionsSucceeds() throws {
         // When
         let body = "## A\nbody A\n\n## B\nbody B\n"
-        let (extracted, remaining) = try SectionEdit.extract(body, paths: [try path("## A"), try path("## B")])
+        let (extracted, remaining) = try sectionEdit.extract(body, paths: [try path("## A"), try path("## B")])
         
         // Then
         #expect(extracted.contains("body A"))
@@ -59,7 +61,7 @@ struct SectionEditTests {
     @Test("replace touches the section it names and leaves its children in place")
     func replaceDefaultKeepsChildSections() throws {
         // When
-        let out = try SectionEdit.replace(nested, path: path("## A"), newContent: "NEW intro")
+        let out = try sectionEdit.replace(nested, path: path("## A"), newContent: "NEW intro")
         
         // Then
         #expect(out.contains("NEW intro"))
@@ -73,7 +75,7 @@ struct SectionEditTests {
     @Test("replace with subtree takes the children too — the caller asked for the whole branch")
     func replaceSubtreeWipesChildSections() throws {
         // When
-        let out = try SectionEdit.replace(nested, path: path("## A"), newContent: "only A", subtree: true)
+        let out = try sectionEdit.replace(nested, path: path("## A"), newContent: "only A", subtree: true)
         
         // Then
         #expect(out.contains("only A"))
@@ -85,8 +87,8 @@ struct SectionEditTests {
     func replaceLeafSectionUnaffectedByMode() throws {
         // When
         let leaf = "## A\nold body\n"
-        let direct = try SectionEdit.replace(leaf, path: path("## A"), newContent: "new body")
-        let subtree = try SectionEdit.replace(leaf, path: path("## A"), newContent: "new body", subtree: true)
+        let direct = try sectionEdit.replace(leaf, path: path("## A"), newContent: "new body")
+        let subtree = try sectionEdit.replace(leaf, path: path("## A"), newContent: "new body", subtree: true)
         
         // Then
         #expect(direct == subtree)
@@ -97,7 +99,7 @@ struct SectionEditTests {
     @Test("a child section can be addressed and replaced on its own")
     func replaceChildSectionDirectly() throws {
         // When
-        let out = try SectionEdit.replace(nested, path: path("## A > ### B"), newContent: "patched B")
+        let out = try sectionEdit.replace(nested, path: path("## A > ### B"), newContent: "patched B")
         
         // Then
         #expect(out.contains("patched B"))
@@ -132,7 +134,7 @@ struct SectionEditTests {
     func replaceSectionWithAngleBracketHeading() throws {
         // When
         let body = "## Ledger schema (`jobs/<id>.json`)\nold schema\n"
-        let out = try SectionEdit.replace(body, path: path("## Ledger schema (`jobs/<id>.json`)"), newContent: "new schema")
+        let out = try sectionEdit.replace(body, path: path("## Ledger schema (`jobs/<id>.json`)"), newContent: "new schema")
         
         // Then
         #expect(out.contains("new schema"))
@@ -144,7 +146,7 @@ struct SectionEditTests {
     func removeGuardsAgainstChildLoss() throws {
         // Then
         #expect(throws: SectionError.self) {
-            _ = try SectionEdit.remove(nested, path: path("## A"))
+            _ = try sectionEdit.remove(nested, path: path("## A"))
         }
     }
     
@@ -152,7 +154,7 @@ struct SectionEditTests {
     func removeGuardErrorNamesSwallowedSections() throws {
         // Given
         do {
-            _ = try SectionEdit.remove(nested, path: path("## A"))
+            _ = try sectionEdit.remove(nested, path: path("## A"))
         
         // When
             Issue.record("the guarded remove did not throw")
@@ -169,7 +171,7 @@ struct SectionEditTests {
     @Test("remove with subtree drops the section and its children together")
     func removeSubtreeDropsWholeSection() throws {
         // When
-        let out = try SectionEdit.remove(nested, path: path("## A"), subtree: true)
+        let out = try sectionEdit.remove(nested, path: path("## A"), subtree: true)
         
         // Then
         #expect(!out.contains("## A"))
@@ -181,7 +183,7 @@ struct SectionEditTests {
     func removeLeafSectionNeedsNoFlag() throws {
         // When
         let body = "## A\nbody A\n\n## B\nbody B\n"
-        let out = try SectionEdit.remove(body, path: path("## B"))
+        let out = try sectionEdit.remove(body, path: path("## B"))
         
         // Then
         #expect(!out.contains("## B"))
@@ -191,7 +193,7 @@ struct SectionEditTests {
     @Test("removing a child leaves its sibling and its parent alone")
     func removeChildSectionLeavesSiblingAndParent() throws {
         // When
-        let out = try SectionEdit.remove(nested, path: path("## A > ### B"))
+        let out = try sectionEdit.remove(nested, path: path("## A > ### B"))
         
         // Then
         #expect(!out.contains("body B"))
@@ -204,7 +206,7 @@ struct SectionEditTests {
     func replacePreambleRewritesHeadingFreeBody() throws {
         // When
         let flat = "| id | desc |\n|---|---|\n| a | one |\n"
-        let out = SectionEdit.replacePreamble(flat, newContent: "| id | desc |\n|---|---|\n| b | two |")
+        let out = sectionEdit.replacePreamble(flat, newContent: "| id | desc |\n|---|---|\n| b | two |")
         
         // Then
         #expect(out.contains("| b | two |"))
@@ -215,7 +217,7 @@ struct SectionEditTests {
     func appendPreambleHeadingFreeAddsAtEnd() throws {
         // When
         let flat = "| id | desc |\n|---|---|\n| a | one |\n"
-        let out = SectionEdit.appendPreamble(flat, content: "| b | two |")
+        let out = sectionEdit.appendPreamble(flat, content: "| b | two |")
         
         // Then
         #expect(out.contains("| a | one |"))
@@ -227,7 +229,7 @@ struct SectionEditTests {
     func preambleEditsPreserveHeadingSections() throws {
         // When
         let body = "intro line\n\n## A\nbody A\n"
-        let replaced = SectionEdit.replacePreamble(body, newContent: "new intro")
+        let replaced = sectionEdit.replacePreamble(body, newContent: "new intro")
         
         // Then
         #expect(replaced.contains("new intro"))
@@ -235,7 +237,7 @@ struct SectionEditTests {
         #expect(replaced.contains("## A"))
         #expect(replaced.contains("body A"))
         
-        let appended = SectionEdit.appendPreamble(body, content: "extra")
+        let appended = sectionEdit.appendPreamble(body, content: "extra")
         
         #expect(appended.range(of: "extra")!.lowerBound < appended.range(of: "## A")!.lowerBound)
         #expect(appended.contains("intro line"))
@@ -245,7 +247,7 @@ struct SectionEditTests {
     func prependPreambleInsertsAtTop() throws {
         // When
         let body = "intro line\n\n## A\nbody A\n"
-        let out = SectionEdit.prependPreamble(body, content: "header")
+        let out = sectionEdit.prependPreamble(body, content: "header")
         
         // Then
         #expect(out.hasPrefix("header"))
@@ -257,7 +259,7 @@ struct SectionEditTests {
     func removePreambleKeepsHeadingsButEmptiesFlatNote() throws {
         // When
         let body = "intro line\n\n## A\nbody A\n"
-        let kept = SectionEdit.removePreamble(body)
+        let kept = sectionEdit.removePreamble(body)
         
         // Then
         #expect(!kept.contains("intro line"))
@@ -266,14 +268,14 @@ struct SectionEditTests {
         
         let flat = "just a line\nand another\n"
         
-        #expect(SectionEdit.removePreamble(flat).isEmpty)
+        #expect(sectionEdit.removePreamble(flat).isEmpty)
     }
     
     // append — direct body vs subtree (07-14 regression)
     @Test("append lands in the section it names, above its children")
     func appendDefaultLandsInDirectBody() throws {
         // When
-        let out = try SectionEdit.append(nested, path: path("## A"), content: "appended-to-A")
+        let out = try sectionEdit.append(nested, path: path("## A"), content: "appended-to-A")
         let appendedIndex = out.range(of: "appended-to-A")!.lowerBound
         let childIndex = out.range(of: "### B")!.lowerBound
         
@@ -284,8 +286,8 @@ struct SectionEditTests {
     @Test("appended text is attributed to the section that owns it, not to a child")
     func appendedTextAttributedToParentInSectionRows() throws {
         // When
-        let out = try SectionEdit.append(nested, path: path("## A"), content: "zzmarker")
-        let (_, rows) = SectionEdit.sectionRows(out)
+        let out = try sectionEdit.append(nested, path: path("## A"), content: "zzmarker")
+        let (_, rows) = sectionEdit.sectionRows(out)
         let parentRow = rows.first { row in row.path == "## A" }
         let childRow = rows.first { row in row.path == "## A > ### C" }
         
@@ -297,7 +299,7 @@ struct SectionEditTests {
     @Test("append with subtree lands after the children instead")
     func appendSubtreeLandsAfterChildren() throws {
         // When
-        let out = try SectionEdit.append(nested, path: path("## A"), content: "tail-block", subtree: true)
+        let out = try sectionEdit.append(nested, path: path("## A"), content: "tail-block", subtree: true)
         
         // Then
         #expect(out.range(of: "tail-block")!.lowerBound > out.range(of: "body C")!.lowerBound,
@@ -308,8 +310,8 @@ struct SectionEditTests {
     func appendChildlessSectionUnchangedAcrossModes() throws {
         // When
         let leaf = "## A\nbody A\n"
-        let direct = try SectionEdit.append(leaf, path: path("## A"), content: "x")
-        let subtree = try SectionEdit.append(leaf, path: path("## A"), content: "x", subtree: true)
+        let direct = try sectionEdit.append(leaf, path: path("## A"), content: "x")
+        let subtree = try sectionEdit.append(leaf, path: path("## A"), content: "x", subtree: true)
         
         // Then
         #expect(direct == subtree, "with no children the two modes agree, so a flat-list append is unaffected")
@@ -329,12 +331,12 @@ struct SectionEditTests {
         ```
         ````
         """
-        let titles = SectionEdit.splitSections(body).map { section in section.title }
+        let titles = sectionEdit.splitSections(body).map { section in section.title }
         
         // Then
         #expect(titles == ["Real"], "an example heading inside a four-backtick fence was projected as a section: \(titles)")
         
-        let mask = SectionEdit.fenceMask(body.unicodeLines())
+        let mask = sectionEdit.fenceMask(body.unicodeLines())
         
         #expect(mask[3...7].allSatisfy { masked in masked }, "the whole fenced block must be masked: \(mask)")
     }
@@ -343,7 +345,7 @@ struct SectionEditTests {
     func infoStringLineIsNotACloser() {
         // When
         let lines = ["```", "code", "```swift", "## Nope", "```"]
-        let scan = SectionEdit.scanFences(lines)
+        let scan = sectionEdit.scanFences(lines)
         
         // Then
         #expect(scan.unclosedOpen == nil)
@@ -354,13 +356,13 @@ struct SectionEditTests {
     func indentedAndLengthMatchedFences() {
         // When
         let lines = ["  ```json", "  # not a heading", "  ```", "# heading"]
-        let scan = SectionEdit.scanFences(lines)
+        let scan = sectionEdit.scanFences(lines)
         
         // Then
         #expect(scan.mask == [true, true, true, false])
         #expect(scan.unclosedOpen == nil)
         
-        let short = SectionEdit.scanFences(["~~~~", "~~~", "still inside", "~~~~"])
+        let short = sectionEdit.scanFences(["~~~~", "~~~", "still inside", "~~~~"])
         
         #expect(short.unclosedOpen == nil)
         #expect(short.mask == [true, true, true, true])
@@ -369,7 +371,7 @@ struct SectionEditTests {
     @Test("the scanner reports a fence that never closed")
     func unclosedFenceIsReportedByTheScanner() {
         // When
-        let scan = SectionEdit.scanFences(["intro", "```swift", "code", "## Nope"])
+        let scan = sectionEdit.scanFences(["intro", "```swift", "code", "## Nope"])
         
         // Then
         #expect(scan.unclosedOpen == 1)
@@ -379,7 +381,7 @@ struct SectionEditTests {
     @Test("a backtick inside an info string does not open a fence")
     func backtickInfoStringIsNotAFence() {
         // When
-        let scan = SectionEdit.scanFences(["```a``b", "## Heading"])
+        let scan = sectionEdit.scanFences(["```a``b", "## Heading"])
         
         // Then
         #expect(scan.mask == [false, false])

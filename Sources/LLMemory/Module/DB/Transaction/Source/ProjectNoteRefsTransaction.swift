@@ -14,6 +14,8 @@ struct ProjectNoteRefsTransaction: GRDBTransaction {
     let paths: [String]
     let now: Int
 
+    private let sourceFingerprint = SourceFingerprint()
+
     // MARK: - Initializer
     init(noteId: String, paths: [String], now: Int) {
         self.noteId = noteId
@@ -23,8 +25,8 @@ struct ProjectNoteRefsTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws {
-        guard let fingerprint = SourceFingerprint.computeFingerprint(paths),
-            let declHash = SourceFingerprint.computeDeclHash(paths)
+        guard let fingerprint = sourceFingerprint.computeFingerprint(paths),
+            let declHash = sourceFingerprint.computeDeclHash(paths)
         else {
             try db.execute(
                 sql: "DELETE FROM note_source WHERE note_id = ?",

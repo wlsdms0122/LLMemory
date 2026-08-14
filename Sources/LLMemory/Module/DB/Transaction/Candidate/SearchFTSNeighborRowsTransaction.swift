@@ -13,6 +13,8 @@ struct SearchFTSNeighborRowsTransaction: GRDBReadTransaction {
     let matchExpr: String
     let excludeId: String
 
+    private let policy = Policy()
+
     // MARK: - Initializer
     init(matchExpr: String, excludeId: String) {
         self.matchExpr = matchExpr
@@ -24,7 +26,7 @@ struct SearchFTSNeighborRowsTransaction: GRDBReadTransaction {
         try Row.fetchAll(db, sql: """
             SELECT n.id, n.title, n.summary, MIN(rank) AS s
             FROM notes_fts f JOIN notes n ON n.id = f.id
-            WHERE notes_fts MATCH ? AND n.id != ? AND \(Policy.surface())
+            WHERE notes_fts MATCH ? AND n.id != ? AND \(policy.surface())
             GROUP BY n.id
             ORDER BY s, n.id LIMIT 30
             """, arguments: [matchExpr, excludeId]).map { row in

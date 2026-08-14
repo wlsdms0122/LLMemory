@@ -11,6 +11,8 @@ import Testing
 @Suite("Frontmatter Tests")
 struct FrontmatterTests {
     // MARK: - Property
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Test
     @Test("parse and dump are idempotent — repeated rewrites do not accumulate blank lines")
@@ -22,16 +24,16 @@ struct FrontmatterTests {
         )
         
         let body = "# Heading\n\ncontent line\n"
-        let initial = Frontmatter.dump(document) + body
+        let initial = frontmatter.dump(document) + body
         
         var current = initial
         
         for _ in 0..<5 {
-            let (parsedDocument, parsedBody) = try Frontmatter.parse(current)
+            let (parsedDocument, parsedBody) = try frontmatter.parse(current)
         
         // When
             document = parsedDocument
-            current = Frontmatter.dump(document) + parsedBody
+            current = frontmatter.dump(document) + parsedBody
         }
         
         // Then
@@ -47,13 +49,13 @@ struct FrontmatterTests {
         )
         
         // When
-        let polluted = Frontmatter.dump(document).replacingOccurrences(of: "---\n\n", with: "---\n\n\n\n") + "# Body\n"
+        let polluted = frontmatter.dump(document).replacingOccurrences(of: "---\n\n", with: "---\n\n\n\n") + "# Body\n"
         
         // Then
         #expect(polluted.contains("---\n\n\n\n"))
         
-        let (parsed, body) = try Frontmatter.parse(polluted)
-        let healed = Frontmatter.dump(parsed) + body
+        let (parsed, body) = try frontmatter.parse(polluted)
+        let healed = frontmatter.dump(parsed) + body
         
         #expect(!healed.contains("---\n\n\n"), "healed should have at most 1 blank line after ---")
         #expect(healed.contains("---\n\n# Body"))
@@ -68,9 +70,9 @@ struct FrontmatterTests {
         )
         
         // When
-        let raw = Frontmatter.dump(document).replacingOccurrences(of: "---\n\n", with: "---\n") + "# Body\n"
-        let (parsed, body) = try Frontmatter.parse(raw)
-        let healed = Frontmatter.dump(parsed) + body
+        let raw = frontmatter.dump(document).replacingOccurrences(of: "---\n\n", with: "---\n") + "# Body\n"
+        let (parsed, body) = try frontmatter.parse(raw)
+        let healed = frontmatter.dump(parsed) + body
         
         // Then
         #expect(healed.contains("---\n\n# Body"))
@@ -94,18 +96,18 @@ struct FrontmatterTests {
         """
         
         // When
-        let (document, _) = try Frontmatter.parse(file)
+        let (document, _) = try frontmatter.parse(file)
         
         // Then
         #expect(document.extra["custom_axis_score"] == "0.87")
         #expect(document.extra["owner"] == "jineun")
         
-        let dumped = Frontmatter.dump(document)
+        let dumped = frontmatter.dump(document)
         
         #expect(dumped.contains("custom_axis_score: 0.87"), "dump dropped an unknown field → silent loss on rewrite")
         #expect(dumped.contains("owner: jineun"))
         
-        let (reparsed, _) = try Frontmatter.parse(dumped + "# Body\n")
+        let (reparsed, _) = try frontmatter.parse(dumped + "# Body\n")
         
         #expect(reparsed.extra == document.extra)
     }

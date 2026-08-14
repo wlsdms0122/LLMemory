@@ -25,6 +25,8 @@ struct FetchEntityOverlapRowsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let nid: String
 
+    private let policy = Policy()
+
     // MARK: - Initializer
     init(nid: String) {
         self.nid = nid
@@ -39,7 +41,7 @@ struct FetchEntityOverlapRowsTransaction: GRDBReadTransaction {
                      WHERE e1.note_id = ? AND e2.note_id = n.id) AS inter,
                    (SELECT COUNT(*) FROM entity_index WHERE note_id = n.id) AS sz
             FROM notes n
-            WHERE n.id != ? AND \(Policy.surface())
+            WHERE n.id != ? AND \(policy.surface())
             """, arguments: [nid, nid]).map { row in
             EntityOverlap(
                 id: row["id"],

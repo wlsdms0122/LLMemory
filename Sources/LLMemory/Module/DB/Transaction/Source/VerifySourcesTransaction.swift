@@ -12,6 +12,8 @@ struct VerifySourcesTransaction: GRDBTransaction {
     // MARK: - Property
     let now: Int?
 
+    private let sourceFingerprint = SourceFingerprint()
+
     // MARK: - Initializer
     init(now: Int? = nil) {
         self.now = now
@@ -48,7 +50,7 @@ struct VerifySourcesTransaction: GRDBTransaction {
                 continue
             }
 
-            let sourcePaths = allPaths.filter(SourceFingerprint.isDriftCheckable)
+            let sourcePaths = allPaths.filter(sourceFingerprint.isDriftCheckable)
 
             if sourcePaths.isEmpty {
                 try db.execute(
@@ -58,7 +60,7 @@ struct VerifySourcesTransaction: GRDBTransaction {
                 continue
             }
 
-            if SourceFingerprint.computeDeclHash(allPaths) != storedDecl {
+            if sourceFingerprint.computeDeclHash(allPaths) != storedDecl {
                 try RebaseNoteSourceTransaction(noteId: noteId, paths: allPaths, now: now).perform(db)
                 result.rechecked += 1
 
@@ -68,7 +70,7 @@ struct VerifySourcesTransaction: GRDBTransaction {
             }
 
             let anyExists = sourcePaths.contains { path in
-                FileManager.default.fileExists(atPath: SourceFingerprint.resolve(path).path)
+                FileManager.default.fileExists(atPath: sourceFingerprint.resolve(path).path)
             }
             let newStale: Int
 
@@ -76,7 +78,7 @@ struct VerifySourcesTransaction: GRDBTransaction {
                 result.missing += 1
                 newStale = 1
             } else {
-                let current = SourceFingerprint.computeFingerprint(sourcePaths)
+                let current = sourceFingerprint.computeFingerprint(sourcePaths)
                 newStale = (current == stored) ? 0 : 1
 
                 if newStale == 0 { result.stillFresh += 1 }

@@ -15,6 +15,8 @@ struct SourceVerifyInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let sourceFingerprint = SourceFingerprint()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -407,7 +409,7 @@ struct SourceVerifyInvariantTests {
         
         #expect(after?.stale == 0, "a new declaration is a new baseline — no inherited stale")
         
-        let expected = try queue.read { _ in SourceFingerprint.computeFingerprint([second.path]) }
+        let expected = try queue.read { _ in sourceFingerprint.computeFingerprint([second.path]) }
         
         #expect(after?.hash == expected, "baseline must be the new declaration's fingerprint")
     }
@@ -486,7 +488,7 @@ struct SourceVerifyInvariantTests {
         
         #expect(after?.stale == 0, "an authored declaration change re-baselines")
         
-        let expected = try queue.read { _ in SourceFingerprint.computeFingerprint([second.path]) }
+        let expected = try queue.read { _ in sourceFingerprint.computeFingerprint([second.path]) }
         
         #expect(after?.hash == expected, "baseline must be the merged declaration's fingerprint")
     }

@@ -12,6 +12,8 @@ struct ReindexNoteFileTransaction: GRDBTransaction {
     // MARK: - Property
     let path: URL
 
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     init(path: URL) {
         self.path = path
@@ -30,11 +32,11 @@ struct ReindexNoteFileTransaction: GRDBTransaction {
         let now = Int(Date().timeIntervalSince1970)
 
         var text = try String(contentsOf: path, encoding: .utf8)
-        var (fields, body) = try Frontmatter.parse(text)
+        var (fields, body) = try frontmatter.parse(text)
         let tagsChanged = try normalizeTags(db, &fields)
 
         if tagsChanged {
-            text = Frontmatter.dump(fields) + body
+            text = frontmatter.dump(fields) + body
             try text.write(to: path, atomically: true, encoding: .utf8)
         }
 

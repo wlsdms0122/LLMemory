@@ -14,6 +14,10 @@ struct StampNoteLifecycleTransaction: GRDBTransaction {
     let now: Int
     let isNew: Bool
 
+    private let sectionEdit = SectionEdit()
+
+    private let noteFiles = Notes()
+
     // MARK: - Initializer
     init(nid: String, now: Int, isNew: Bool) {
         self.nid = nid
@@ -34,9 +38,9 @@ struct StampNoteLifecycleTransaction: GRDBTransaction {
             arguments: [nid]
         )) ?? 0
         let path = Paths.brainRoot.appendingPathComponent(relativePath)
-        let (_, body) = try Notes.requireNote(at: path)
-        let wordCount = SectionEdit.wordCount(body)
-        let sectionCount = SectionEdit.sectionCount(body)
+        let (_, body) = try noteFiles.requireNote(at: path)
+        let wordCount = sectionEdit.wordCount(body)
+        let sectionCount = sectionEdit.sectionCount(body)
         var created = previousCreated != 0 ? previousCreated : now
 
         if isNew { created = now }

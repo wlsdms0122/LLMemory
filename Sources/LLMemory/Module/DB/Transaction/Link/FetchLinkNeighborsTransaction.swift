@@ -15,6 +15,10 @@ struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
     let limit: Int
     let kind: String?
 
+    private let links = Links()
+
+    private let policy = Policy()
+
     // MARK: - Initializer
     init(noteId: String, minWeight: Double? = nil, limit: Int = 5, kind: String? = nil) {
         self.noteId = noteId
@@ -28,11 +32,11 @@ struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
         let floor = minWeight ?? Genes.double("links.neighbor_floor")
         var sql = """
             SELECT n.id, n.title, n.summary, l.kind, l.weight,
-                   \(Links.rankWeightSQL("l")) AS rank_w
+                   \(links.rankWeightSQL("l")) AS rank_w
             FROM note_links l
             JOIN notes n ON n.id = CASE WHEN l.src = ? THEN l.dst ELSE l.src END
             WHERE (l.src = ? OR l.dst = ?) AND l.weight >= ?
-              AND \(Policy.surface())
+              AND \(policy.surface())
             """
         var arguments: [DatabaseValueConvertible?] = [noteId, noteId, noteId, floor]
 

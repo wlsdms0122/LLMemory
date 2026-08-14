@@ -7,23 +7,25 @@
 
 import Foundation
 
-public enum Template {
+public struct Template: Sendable {
     // MARK: - Property
     private static let leadingMarkerRegex = try! NSRegularExpression(
         pattern: #"^\s*(?:[0-9]+[.)]?|[①-⑳]|[-*•◦])\s+"#
     )
     
+    private let sectionEdit = SectionEdit()
+
     // MARK: - Initializer
     // MARK: - Public
-    public static func parseFrame(_ body: String) -> [TemplateFrameNode] {
+    public func parseFrame(_ body: String) -> [TemplateFrameNode] {
         parseTree(body, withGuides: true)
     }
     
-    static func normalize(_ title: String) -> String {
+    func normalize(_ title: String) -> String {
         var normalized = title.precomposedStringWithCanonicalMapping
         let nsTitle = normalized as NSString
         
-        if let match = leadingMarkerRegex.firstMatch(
+        if let match = Self.leadingMarkerRegex.firstMatch(
             in: normalized,
             range: NSRange(location: 0, length: nsTitle.length)
         ), match.range.location == 0 {
@@ -33,9 +35,9 @@ public enum Template {
         return normalized.trimmingCharacters(in: .whitespaces).lowercased()
     }
     
-    static func parseTree(_ body: String, withGuides: Bool) -> [TemplateFrameNode] {
+    func parseTree(_ body: String, withGuides: Bool) -> [TemplateFrameNode] {
         let lines = body.unicodeLines()
-        let sections = SectionEdit.splitSections(body)
+        let sections = sectionEdit.splitSections(body)
         
         if sections.isEmpty { return [] }
         
@@ -97,13 +99,13 @@ public enum Template {
             .map(build)
     }
     
-    static func validate(documentBody: String, frame: [TemplateFrameNode]) -> String? {
+    func validate(documentBody: String, frame: [TemplateFrameNode]) -> String? {
         let documentTree = parseTree(documentBody, withGuides: false)
         
         return matchLevel(frame: frame, doc: documentTree, pathPrefix: "")
     }
     
-    static func scaffold(_ frame: [TemplateFrameNode]) -> String {
+    func scaffold(_ frame: [TemplateFrameNode]) -> String {
         var lines: [String] = []
         
         func emit(_ nodes: [TemplateFrameNode]) {
@@ -122,11 +124,11 @@ public enum Template {
     }
     
     // MARK: - Private
-    private static func headingLabel(_ node: TemplateFrameNode) -> String {
+    private func headingLabel(_ node: TemplateFrameNode) -> String {
         "\(String(repeating: "#", count: node.level)) \(node.title)"
     }
     
-    private static func matchLevel(
+    private func matchLevel(
         frame: [TemplateFrameNode],
         doc: [TemplateFrameNode],
         pathPrefix: String

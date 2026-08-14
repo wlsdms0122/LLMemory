@@ -17,6 +17,8 @@ struct CandidatesTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let detectors = Candidates()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -60,7 +62,7 @@ struct CandidatesTests {
         
         // When
         let hits = try home.readScope { scope in
-            try Candidates.neighbors(scope, noteId: "nbr-seed", k: 10)
+            try detectors.neighbors(scope, noteId: "nbr-seed", k: 10)
         }
         
         // Then
@@ -84,7 +86,7 @@ struct CandidatesTests {
         
         // When
         let duplicates = try home.readScope { scope in
-            try Candidates.nearDuplicates(scope, limit: 50)
+            try detectors.nearDuplicates(scope, limit: 50)
         }
         
         // Then
@@ -111,7 +113,7 @@ struct CandidatesTests {
         
         // When
         let edges = try home.readScope { scope in
-            try Candidates.missingEdges(scope, limit: 20, perNote: 3, ftsBm25: -0.1)
+            try detectors.missingEdges(scope, limit: 20, perNote: 3, ftsBm25: -0.1)
         }
         
         // Then

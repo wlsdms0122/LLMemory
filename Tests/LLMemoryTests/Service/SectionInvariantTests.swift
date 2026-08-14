@@ -11,6 +11,8 @@ import Testing
 @Suite("SectionInvariant Tests")
 struct SectionInvariantTests {
     // MARK: - Property
+    private let sectionEdit = SectionEdit()
+
     // MARK: - Initializer
     // MARK: - Test
     @Test("distinct section paths are no collision")
@@ -19,14 +21,14 @@ struct SectionInvariantTests {
         let body = "## A\nbody\n\n## B\nbody\n"
         
         // Then
-        #expect(SectionEdit.findPathCollisions(body).isEmpty)
+        #expect(sectionEdit.findPathCollisions(body).isEmpty)
     }
     
     @Test("two top-level sections with one title collide, and both lines are reported")
     func topLevelDupDetected() {
         // When
         let body = "## A\nfirst\n\n## A\nsecond\n"
-        let collisions = SectionEdit.findPathCollisions(body)
+        let collisions = sectionEdit.findPathCollisions(body)
         
         // Then
         #expect(collisions.count == 1)
@@ -38,7 +40,7 @@ struct SectionInvariantTests {
     func siblingDupUnderSameParentDetected() {
         // When
         let body = "## BKI-303\n\n### Compare\n### Compare\nbody\n"
-        let collisions = SectionEdit.findPathCollisions(body)
+        let collisions = sectionEdit.findPathCollisions(body)
         
         // Then
         #expect(collisions.count == 1)
@@ -52,14 +54,14 @@ struct SectionInvariantTests {
         let body = "## A\n### Status\nfoo\n\n## B\n### Status\nbar\n"
         
         // Then
-        #expect(SectionEdit.findPathCollisions(body).isEmpty)
+        #expect(sectionEdit.findPathCollisions(body).isEmpty)
     }
     
     @Test("every colliding path is reported, not just the first")
     func multipleCollisionsAllReported() {
         // When
         let body = "## A\nx\n## A\ny\n## B\n### C\n### C\nz\n"
-        let paths = SectionEdit.findPathCollisions(body).map { collision in collision.path.display() }.sorted()
+        let paths = sectionEdit.findPathCollisions(body).map { collision in collision.path.display() }.sorted()
         
         // Then
         #expect(paths == ["## A", "## B > ### C"])
@@ -69,7 +71,7 @@ struct SectionInvariantTests {
     func threeOccurrencesAllLinesRecorded() {
         // When
         let body = "## A\n## A\n## A\n"
-        let collisions = SectionEdit.findPathCollisions(body)
+        let collisions = sectionEdit.findPathCollisions(body)
         
         // Then
         #expect(collisions.count == 1)
@@ -82,12 +84,12 @@ struct SectionInvariantTests {
         let body = "## Real\n```\n## Not real\n## Not real\n```\n"
         
         // Then
-        #expect(SectionEdit.findPathCollisions(body).isEmpty)
+        #expect(sectionEdit.findPathCollisions(body).isEmpty)
     }
     
     @Test("a body whose sections are all addressable passes the assertion")
     func assertResolvableCleanBodyPasses() throws {
-        try SectionEdit.assertResolvable("## A\nbody\n## B\nbody\n")
+        try sectionEdit.assertResolvable("## A\nbody\n## B\nbody\n")
     }
     
     @Test("a body with a collision throws, naming the note it came from")
@@ -97,7 +99,7 @@ struct SectionInvariantTests {
         
         // Then
         #expect(throws: SectionError.self) {
-            try SectionEdit.assertResolvable(body, noteId: "test-note")
+            try sectionEdit.assertResolvable(body, noteId: "test-note")
         }
     }
     
@@ -105,11 +107,11 @@ struct SectionInvariantTests {
     func findSectionAmbiguousError() throws {
         // When
         let body = "## A\nfirst\n## A\nsecond\n"
-        let path = try SectionEdit.parsePath("## A")
+        let path = try sectionEdit.parsePath("## A")
         
         // Then
         #expect(throws: SectionError.self) {
-            _ = try SectionEdit.findSection(body, path: path)
+            _ = try sectionEdit.findSection(body, path: path)
         }
     }
 }

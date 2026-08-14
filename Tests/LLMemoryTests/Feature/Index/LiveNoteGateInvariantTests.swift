@@ -15,6 +15,8 @@ struct LiveNoteGateInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let indexer = Indexer()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -48,7 +50,7 @@ struct LiveNoteGateInvariantTests {
 
         // When
         let outcomes = try home.write { db in
-            try Indexer.reindexFiles(db, filePaths: [trashed.path])
+            try indexer.reindexFiles(db, filePaths: [trashed.path])
         }
         let failed = outcomes.contains { outcome in
             if case .failure = outcome.result { return true }

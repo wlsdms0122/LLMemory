@@ -23,6 +23,9 @@ public final class Session {
     public let storage: GRDBStorage
     let context: BrainContext
 
+    private let indexer = Indexer()
+
+
     // MARK: - Initializer
     public init(home: String) {
         // The context carries this brain's paths and parameter caches; the
@@ -85,14 +88,10 @@ public final class Session {
 
             try beforeIndexing(BootstrapScope(queue: queue, context: context))
 
-            let built = try Indexer.buildLocked(queue, rebuild: false)
+            let built = try indexer.buildLocked(queue, rebuild: false)
 
             return built
         }
-    }
-
-    public static func retrievalSession(cli: String?) -> String? {
-        Environment.retrievalSession(cli: cli)
     }
 
     // MARK: - Private

@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-enum Dismissals {
+struct Dismissals: Sendable {
     struct Dismissal {
         // MARK: - Property
         let kind: String
@@ -38,13 +38,13 @@ enum Dismissals {
     
     // MARK: - Initializer
     // MARK: - Public
-    static func lintKind(_ code: String, fingerprint: String? = nil) -> String {
-        guard let fingerprint else { return lintPrefix + code }
+    func lintKind(_ code: String, fingerprint: String? = nil) -> String {
+        guard let fingerprint else { return Self.lintPrefix + code }
         
-        return "\(lintPrefix)\(code)#\(digest(fingerprint))"
+        return "\(Self.lintPrefix)\(code)#\(digest(fingerprint))"
     }
     
-    static func digest(_ text: String) -> String {
+    func digest(_ text: String) -> String {
         var hash: UInt64 = 0xcbf2_9ce4_8422_2325
         
         for byte in text.utf8 {
@@ -55,22 +55,22 @@ enum Dismissals {
         return String(hash, radix: 36)
     }
     
-    static func isLintKind(_ kind: String) -> Bool { kind.hasPrefix(lintPrefix) }
+    func isLintKind(_ kind: String) -> Bool { kind.hasPrefix(Self.lintPrefix) }
     
-    static func lintFingerprint(of kind: String) -> String? {
+    func lintFingerprint(of kind: String) -> String? {
         guard isLintKind(kind) else { return nil }
         
-        let body = String(kind.dropFirst(lintPrefix.count))
+        let body = String(kind.dropFirst(Self.lintPrefix.count))
         
         guard let cut = body.firstIndex(of: "#") else { return nil }
         
         return String(body[body.index(after: cut)...])
     }
     
-    static func lintCode(of kind: String) -> String? {
+    func lintCode(of kind: String) -> String? {
         guard isLintKind(kind) else { return nil }
         
-        let body = String(kind.dropFirst(lintPrefix.count))
+        let body = String(kind.dropFirst(Self.lintPrefix.count))
         
         guard let cut = body.firstIndex(of: "#") else { return body }
         
@@ -85,7 +85,7 @@ enum Dismissals {
     
 
     
-    static func lintLookupKey(_ target: LintTarget, _ kind: String) -> String {
+    func lintLookupKey(_ target: LintTarget, _ kind: String) -> String {
         "\(target.storageKey)\u{0}\(kind)"
     }
     
@@ -93,7 +93,7 @@ enum Dismissals {
     
 
     
-    static func gate(
+    func gate(
         _ dismissal: Dismissal?,
         currentWords: Int,
         currentSections: Int,
@@ -132,7 +132,7 @@ enum Dismissals {
         return Verdict(surface: false, annotation: nil)
     }
     
-    static func corpusGate(_ dismissal: Dismissal?, globalGeneration: Int) -> Verdict {
+    func corpusGate(_ dismissal: Dismissal?, globalGeneration: Int) -> Verdict {
         guard let dismissal else { return Verdict(surface: true, annotation: nil) }
         
         if dismissal.generation < globalGeneration {

@@ -17,6 +17,10 @@ struct DismissalsTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let indexer = Indexer()
+
+    private let detectors = Candidates()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -88,7 +92,7 @@ struct DismissalsTests {
         #expect(!(try splitCandidateIds().contains("big-4")))
         
         // When
-        _ = try Indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), rebuild: true)
         
         // Then
         let survived = try home.read { database in
@@ -362,7 +366,7 @@ struct DismissalsTests {
     
     private func splitCandidateIds() throws -> [String] {
         try home.readScope { scope in
-            try Candidates.splitCandidates(scope, limit: 50).map(\.id)
+            try detectors.splitCandidates(scope, limit: 50).map(\.id)
         }
     }
     

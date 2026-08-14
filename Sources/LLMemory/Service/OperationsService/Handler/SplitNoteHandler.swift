@@ -23,6 +23,12 @@ struct SplitNoteHandler: OperationHandling {
     private let payload = OpPayloadCheck()
     private let sourceInput = NoteSourceInput()
 
+    private let sectionEdit = SectionEdit()
+
+    private let frontmatter = Frontmatter()
+
+    private let trash = Trash()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -101,7 +107,7 @@ struct SplitNoteHandler: OperationHandling {
 
                 let parsed: SectionEdit.SectionPath
                 do {
-                    parsed = try SectionEdit.parsePath(section)
+                    parsed = try sectionEdit.parsePath(section)
                 } catch {
                     return "into[\(index)] invalid section path '\(section)': \(error)"
                 }
@@ -115,10 +121,10 @@ struct SplitNoteHandler: OperationHandling {
 
         if let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
             let raw = try? String(contentsOf: srcPath, encoding: .utf8) {
-            let (_, srcBody) = try Frontmatter.parse(raw)
+            let (_, srcBody) = try frontmatter.parse(raw)
 
             do {
-                _ = try SectionEdit.resolveDisjoint(srcBody, paths: allPaths)
+                _ = try sectionEdit.resolveDisjoint(srcBody, paths: allPaths)
             } catch {
                 return "into sections do not form a valid split of '\(fromId)': \(error)"
             }
@@ -160,7 +166,7 @@ struct SplitNoteHandler: OperationHandling {
             ])
         }
 
-        let (srcDoc, srcBody) = try Frontmatter.parse(
+        let (srcDoc, srcBody) = try frontmatter.parse(
             try String(contentsOf: srcPath, encoding: .utf8)
         )
         let (outboundEdges, inboundEdges) = try scope.run(FetchLinkFanTransaction(fromId: fromId))
@@ -181,9 +187,9 @@ struct SplitNoteHandler: OperationHandling {
                 return (trimmed.hasPrefix("#") || trimmed.isEmpty) ? trimmed : "## \(trimmed)"
             }
             let sectionPaths = try normalizedSections.map { section in
-                try SectionEdit.parsePath(section)
+                try sectionEdit.parsePath(section)
             }
-            let (extracted, rest) = try SectionEdit.extract(remaining, paths: sectionPaths)
+            let (extracted, rest) = try sectionEdit.extract(remaining, paths: sectionPaths)
             remaining = rest
 
             let childId = child["id"] as! String
@@ -211,7 +217,7 @@ struct SplitNoteHandler: OperationHandling {
             } ?? ""
             let content = prefix + extracted
 
-            try (Frontmatter.dump(childDoc) + content).write(
+            try (frontmatter.dump(childDoc) + content).write(
                 to: childPath,
                 atomically: true,
                 encoding: .utf8
@@ -237,7 +243,7 @@ struct SplitNoteHandler: OperationHandling {
         }
 
         if sourceSurvives {
-            try (Frontmatter.dump(srcDoc) + remaining).write(
+            try (frontmatter.dump(srcDoc) + remaining).write(
                 to: srcPath,
                 atomically: true,
                 encoding: .utf8
@@ -251,7 +257,7 @@ struct SplitNoteHandler: OperationHandling {
                 now: now
             ))
             try scope.run(DeleteNoteRowTransaction(nid: fromId))
-            try Trash.file(
+            try trash.file(
                 srcPath,
                 reason: "split into \(newIds.joined(separator: ", "))",
                 now: now
@@ -407,7 +413,7 @@ struct SplitNoteHandler: OperationHandling {
         if let fromId = op["from_id"] as? String, let src = try scope.run(FetchNotePathTransaction(nid: fromId)) {
             paths.append(src)
 
-            if let trashPath = Trash.destination(of: src) { paths.append(trashPath) }
+            if let trashPath = trash.destination(of: src) { paths.append(trashPath) }
         }
 
         for child in (op["into"] as? [[String: Any]]) ?? [] {

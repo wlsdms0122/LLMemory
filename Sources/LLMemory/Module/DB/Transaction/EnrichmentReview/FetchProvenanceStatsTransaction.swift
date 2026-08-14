@@ -9,6 +9,8 @@ import Foundation
 import GRDB
 
 struct FetchProvenanceStatsTransaction: GRDBReadTransaction {
+    private let vectorMath = VectorMath()
+
     // MARK: - Initializer
     init() { }
 
@@ -35,7 +37,7 @@ struct FetchProvenanceStatsTransaction: GRDBReadTransaction {
 
             if let srcVector = vectors[src],
                 let dstVector = vectors[dst],
-                VectorMath.cosine(srcVector, dstVector) < floor {
+                vectorMath.cosine(srcVector, dstVector) < floor {
                 disagree[provenance, default: 0] += 1
             }
         }

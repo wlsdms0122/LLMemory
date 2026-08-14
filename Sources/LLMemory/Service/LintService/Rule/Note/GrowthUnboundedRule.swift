@@ -19,6 +19,8 @@ struct GrowthUnboundedRule: NoteLintRule {
         pattern: #"-\d{6}(-\d{2,6})?(-(am|pm))?$"#
     )
     
+    private let sectionEdit = SectionEdit()
+
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {
@@ -34,7 +36,7 @@ struct GrowthUnboundedRule: NoteLintRule {
         
         return [
             .init(
-                "\(dated.count) dated sections (\(SectionEdit.wordCount(note.body)) words) — "
+                "\(dated.count) dated sections (\(sectionEdit.wordCount(note.body)) words) — "
                     + "append-only buffer, so size tracks time not subject; roll to a new period note "
                     + "and keep an index of periods"
             )

@@ -36,7 +36,7 @@ public struct SplitCandidate: Sendable {
     public let tagCount: Int
     public let sections: [SectionSketch]
     public let reason: String
-    
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private
@@ -172,7 +172,13 @@ public enum CandidateBatch: Sendable {
     }
 }
 
-public enum Candidates {
+public struct Candidates: Sendable {
+    // MARK: - Property
+    private let sectionEdit = SectionEdit()
+    private let noteFiles = Notes()
+    private let vectorMath = VectorMath()
+    private let dismissalPolicy = Dismissals()
+
     // The closed candidate vocabulary — the compiler owns exhaustiveness;
     // strings exist only at the API boundary.
     public enum Kind: String, CaseIterable, Sendable {
@@ -198,7 +204,7 @@ public enum Candidates {
     
     // MARK: - Initializer
     // MARK: - Public
-    static func splitCandidates(_ scope: GRDBReadScope, limit: Int = 20) throws -> [SplitCandidate] {
+    func splitCandidates(_ scope: GRDBReadScope, limit: Int = 20) throws -> [SplitCandidate] {
         let minWords = Config.getInt("split.min_words", default: 400)
         let minSections = Config.getInt("split.min_sections", default: 4)
         let minTagDiversity = Config.getInt("split.min_tag_diversity", default: 3)
@@ -212,7 +218,7 @@ public enum Candidates {
         for row in rows {
             if row.tagCount < minTagDiversity { continue }
             
-            let verdict = Dismissals.gate(
+            let verdict = dismissalPolicy.gate(
                 dismissals[row.id],
                 currentWords: row.wordCount,
                 currentSections: row.sectionCount,
@@ -248,30 +254,30 @@ public enum Candidates {
         return candidates
     }
     
-    static func reconsolidateCandidates(
+    func reconsolidateCandidates(
         _ scope: GRDBReadScope,
         limit: Int = 20
     ) throws -> [FlaggedCandidate] {
         try flagged(scope, flag: "reconsolidate", limit: limit)
     }
     
-    static func rippleCandidates(_ scope: GRDBReadScope, limit: Int = 20) throws -> [FlaggedCandidate] {
+    func rippleCandidates(_ scope: GRDBReadScope, limit: Int = 20) throws -> [FlaggedCandidate] {
         try flagged(scope, flag: "stale_ref", limit: limit)
     }
     
-    static func enrichReviewCandidates(
+    func enrichReviewCandidates(
         _ scope: GRDBReadScope,
         limit: Int = 20
     ) throws -> [FlaggedCandidate] {
         try flagged(scope, flag: EnrichmentReview.flagKind, limit: limit)
     }
     
-    static func neighbors(_ scope: GRDBReadScope, noteId: String, k: Int = 10) throws -> [NeighborScore] {
+    func neighbors(_ scope: GRDBReadScope, noteId: String, k: Int = 10) throws -> [NeighborScore] {
         guard let anchor = try scope.run(FetchNoteAnchorTransaction(nid: noteId)) else {
             throw NotesError.unknownIds([noteId])
         }
         
-        let body = try Notes.requireNote(at: anchor.path).body
+        let body = try noteFiles.requireNote(at: anchor.path).body
         
         return try neighbors(scope, noteId: noteId, tokens: tokenize("\(anchor.title) \(body)"), k: k)
     }
@@ -279,7 +285,7 @@ public enum Candidates {
     // The scoring core — private, so every outside caller passes the anchor
     // existence gate above; a caller that already holds the body hands the
     // derived tokens, and nothing re-reads a file or keeps its text alive.
-    private static func neighbors(
+    private func neighbors(
         _ scope: GRDBReadScope,
         noteId: String,
         tokens: Set<String>,
@@ -375,7 +381,7 @@ public enum Candidates {
         return Array(ranked.prefix(k))
     }
     
-    static func clusters(
+    func clusters(
         _ scope: GRDBReadScope,
         minSize: Int = 2,
         maxSize: Int? = nil,
@@ -454,7 +460,7 @@ public enum Candidates {
         return Array(clusters.prefix(limit))
     }
     
-    static func missingEdges(
+    func missingEdges(
         _ scope: GRDBReadScope,
         limit: Int = 20,
         perNote: Int = 3,
@@ -528,7 +534,7 @@ public enum Candidates {
                 for other in connected where other != anchor {
                     guard let otherVector = vectors[other] else { continue }
                     
-                    let cosine = VectorMath.cosine(anchorVector, otherVector)
+                    let cosine = vectorMath.cosine(anchorVector, otherVector)
                     
                     if cosine >= cosineThreshold { scored.append((other, cosine)) }
                 }
@@ -584,7 +590,7 @@ public enum Candidates {
         }
     }
     
-    static func nearDuplicates(
+    func nearDuplicates(
         _ scope: GRDBReadScope,
         minFts: Double = 0.85,
         minJaccard: Double = 0.6,
@@ -600,7 +606,7 @@ public enum Candidates {
             let bodyPath = Paths.brainRoot.appendingPathComponent(row.path)
             let body: String
             do {
-                body = try Notes.requireNote(at: bodyPath).body
+                body = try noteFiles.requireNote(at: bodyPath).body
             } catch is NoteUnreadable {
                 continue
             }
@@ -679,18 +685,18 @@ public enum Candidates {
     }
     
     // MARK: - Private
-    private static func sectionSketch(_ scope: GRDBReadScope, nid: String) throws -> [SectionSketch] {
+    private func sectionSketch(_ scope: GRDBReadScope, nid: String) throws -> [SectionSketch] {
         guard let path = try scope.run(FetchNotePathTransaction(nid: nid)) else {
             return []
         }
-        let (_, body) = try Notes.requireNote(at: path)
-        let sections = SectionEdit.splitSections(body)
+        let (_, body) = try noteFiles.requireNote(at: path)
+        let sections = sectionEdit.splitSections(body)
         let lines = body.unicodeLines()
         var sketches: [SectionSketch] = []
         
         for section in sections where section.level == 2 {
             let bodyLines = Array(lines[(section.lineStart + 1)..<section.lineEnd])
-            let wordCount = SectionEdit.wordCount(bodyLines.joined(separator: "\n"))
+            let wordCount = sectionEdit.wordCount(bodyLines.joined(separator: "\n"))
             
             sketches.append(
                 SectionSketch(
@@ -704,7 +710,7 @@ public enum Candidates {
         return sketches
     }
     
-    private static func flagged(
+    private func flagged(
         _ scope: GRDBReadScope,
         flag: String,
         limit: Int
@@ -720,11 +726,11 @@ public enum Candidates {
         }
     }
     
-    private static func pairKey(_ left: String, _ right: String) -> String {
+    private func pairKey(_ left: String, _ right: String) -> String {
         left < right ? "\(left)|\(right)" : "\(right)|\(left)"
     }
     
-    private static func clusterEdges(
+    private func clusterEdges(
         _ scope: GRDBReadScope,
         memberIds: [String]
     ) throws -> [CandidateCluster.Edge] {
@@ -792,7 +798,7 @@ public enum Candidates {
         return edges
     }
     
-    private static func bm25Neighbors(
+    private func bm25Neighbors(
         _ scope: GRDBReadScope,
         noteId: String,
         limit: Int,
@@ -803,12 +809,12 @@ public enum Candidates {
         }
         
         let title = anchor.title
-        let body = try Notes.requireNote(at: anchor.path).body
+        let body = try noteFiles.requireNote(at: anchor.path).body
         let searchText = "\(title) \(body)"
         let nsSearchText = searchText as NSString
         var tokens = Set<String>()
         
-        wordRegex.enumerateMatches(
+        Self.wordRegex.enumerateMatches(
             in: searchText,
             range: NSRange(location: 0, length: nsSearchText.length)
         ) { match, _, _ in
@@ -834,11 +840,11 @@ public enum Candidates {
         return Array(hits.prefix(limit))
     }
     
-    private static func tokenize(_ text: String) -> Set<String> {
+    private func tokenize(_ text: String) -> Set<String> {
         let nsText = text as NSString
         var tokens = Set<String>()
         
-        wordRegex.enumerateMatches(
+        Self.wordRegex.enumerateMatches(
             in: text,
             range: NSRange(location: 0, length: nsText.length)
         ) { match, _, _ in

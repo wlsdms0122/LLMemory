@@ -21,6 +21,8 @@ struct DeleteNoteHandler: OperationHandling {
 
     private let payload = OpPayloadCheck()
 
+    private let trash = Trash()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -67,7 +69,7 @@ struct DeleteNoteHandler: OperationHandling {
 
         // Safe to move here: `touches` names both this file and its trash
         // destination, so a rollback of the surrounding batch restores them.
-        let trashPath = try Trash.file(src, reason: op["reason"] as? String ?? "", now: now)
+        let trashPath = try trash.file(src, reason: op["reason"] as? String ?? "", now: now)
 
         let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(80)
 
@@ -90,7 +92,7 @@ struct DeleteNoteHandler: OperationHandling {
             return []
         }
 
-        return Trash.destination(of: src).map { destination in [src, destination] } ?? [src]
+        return trash.destination(of: src).map { destination in [src, destination] } ?? [src]
     }
 
     // MARK: - Private

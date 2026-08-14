@@ -29,6 +29,14 @@ struct TemplateTests {
     Reference.
     """
     
+    private let sectionEdit = SectionEdit()
+
+    private let frontmatter = Frontmatter()
+
+    private let template = Template()
+
+    private let detectors = Candidates()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -40,7 +48,7 @@ struct TemplateTests {
     @Test("parsing a template separates the frame it declares from the guidance beside it")
     func parseFrameExtractsGuideAndTree() {
         // When
-        let frame = Template.parseFrame(Self.templateBody)
+        let frame = template.parseFrame(Self.templateBody)
         
         // Then
         #expect(frame.map(\.title) == ["Background", "Spec", "Reference"])
@@ -55,28 +63,28 @@ struct TemplateTests {
     @Test("a marker-looking character at the end of a heading is part of the title")
     func literalTrailingMarkerCharsAreHeadingText() {
         // When
-        let frame = Template.parseFrame("# Spec\n## Open?\nx\n")
+        let frame = template.parseFrame("# Spec\n## Open?\nx\n")
         
         // Then
         #expect(frame[0].children[0].title == "Open?")
-        #expect(Template.validate(documentBody: "# Spec\n## Open?\ny\n", frame: frame) == nil)
-        #expect(Template.validate(documentBody: "# Spec\n", frame: frame) != nil)
+        #expect(template.validate(documentBody: "# Spec\n## Open?\ny\n", frame: frame) == nil)
+        #expect(template.validate(documentBody: "# Spec\n", frame: frame) != nil)
     }
     
     @Test("heading matching normalizes numbering, bullets and case, so cosmetics do not break a frame")
     func normalizeStripsNumberingBulletsAndCase() {
         // Then
-        #expect(Template.normalize("API") == "api")
-        #expect(Template.normalize("1. API") == "api")
-        #expect(Template.normalize("① 개요") == "개요")
-        #expect(Template.normalize("- 항목") == "항목")
-        #expect(Template.normalize("  Spec  ") == "spec")
+        #expect(template.normalize("API") == "api")
+        #expect(template.normalize("1. API") == "api")
+        #expect(template.normalize("① 개요") == "개요")
+        #expect(template.normalize("- 항목") == "항목")
+        #expect(template.normalize("  Spec  ") == "spec")
     }
     
     @Test("a document that follows the frame validates")
     func validateAcceptsConformingDoc() {
         // When
-        let frame = Template.parseFrame(Self.templateBody)
+        let frame = template.parseFrame(Self.templateBody)
         let document = """
         # Background
         filler
@@ -92,13 +100,13 @@ struct TemplateTests {
         """
         
         // Then
-        #expect(Template.validate(documentBody: document, frame: frame) == nil)
+        #expect(template.validate(documentBody: document, frame: frame) == nil)
     }
     
     @Test("a heading that only normalizes to the same thing is still a different heading")
     func validateRejectsNormalizedButInexactHeadings() {
         // When
-        let frame = Template.parseFrame(Self.templateBody)
+        let frame = template.parseFrame(Self.templateBody)
         let numbered = """
         # Background
         b
@@ -112,7 +120,7 @@ struct TemplateTests {
         # Reference
         z
         """
-        let numberedError = Template.validate(documentBody: numbered, frame: frame)
+        let numberedError = template.validate(documentBody: numbered, frame: frame)
         
         // Then
         #expect(numberedError != nil && numberedError!.contains("완전일치"),
@@ -132,7 +140,7 @@ struct TemplateTests {
         z
         """
         
-        #expect(Template.validate(documentBody: wrongLevel, frame: frame) != nil,
+        #expect(template.validate(documentBody: wrongLevel, frame: frame) != nil,
             "a heading at the wrong level must be refused")
         
         let document = """
@@ -149,9 +157,9 @@ struct TemplateTests {
         z
         """
         
-        #expect(Template.validate(documentBody: document, frame: frame) == nil)
+        #expect(template.validate(documentBody: document, frame: frame) == nil)
         
-        let sections = SectionEdit.splitSections(document)
+        let sections = sectionEdit.splitSections(document)
         let hit = sections.first { section in section.level == 2 && section.title == "Task" }
         
         #expect(hit != nil, "whatever the frame declares must stay addressable by (level, title)")
@@ -160,9 +168,9 @@ struct TemplateTests {
     @Test("a missing frame section is refused — every declared heading is required")
     func validateRejectsMissingSection() {
         // When
-        let frame = Template.parseFrame(Self.templateBody)
+        let frame = template.parseFrame(Self.templateBody)
         let document = "# Background\nx\n# Spec\n## Task\nt\n## API\na\n# Reference\nr\n"
-        let error = Template.validate(documentBody: document, frame: frame)
+        let error = template.validate(documentBody: document, frame: frame)
         
         // Then
         #expect(error != nil)
@@ -172,9 +180,9 @@ struct TemplateTests {
     @Test("a heading the frame does not declare is refused at frame level")
     func validateRejectsForeignFrameLevelHeading() {
         // When
-        let frame = Template.parseFrame(Self.templateBody)
+        let frame = template.parseFrame(Self.templateBody)
         let document = "# Background\nx\n# Spec\n## Task\nt\n## API\na\n## Test\nq\n# Chatter\nz\n# Reference\nr\n"
-        let error = Template.validate(documentBody: document, frame: frame)
+        let error = template.validate(documentBody: document, frame: frame)
         
         // Then
         #expect(error != nil)
@@ -184,28 +192,28 @@ struct TemplateTests {
     @Test("deeper headings and empty sections are the author's business, not the frame's")
     func validateAllowsDeeperHeadingsAndEmptySections() {
         // When
-        let frame = Template.parseFrame(Self.templateBody)
+        let frame = template.parseFrame(Self.templateBody)
         let document = "# Background\n# Spec\n## Task\n### free sub\nfree\n## API\n## Test\n# Reference\n"
         
         // Then
-        #expect(Template.validate(documentBody: document, frame: frame) == nil)
+        #expect(template.validate(documentBody: document, frame: frame) == nil)
     }
     
     @Test("the frame's order is part of the frame")
     func validateRejectsReorderedFrame() {
         // When
-        let frame = Template.parseFrame(Self.templateBody)
+        let frame = template.parseFrame(Self.templateBody)
         let document = "# Spec\n## Task\nt\n## API\na\n## Test\nq\n# Background\nb\n# Reference\nr\n"
         
         // Then
-        #expect(Template.validate(documentBody: document, frame: frame) != nil)
+        #expect(template.validate(documentBody: document, frame: frame) != nil)
     }
     
     @Test("a template whose own siblings collide is refused as a malformed frame")
     func duplicateSiblingNormRejectedAsMalformedFrame() {
         // When
-        let frame = Template.parseFrame("# Spec\n## 1. Step\n## 2. Step\n")
-        let error = Template.validate(documentBody: "# Spec\n## 1. Step\nx\n", frame: frame)
+        let frame = template.parseFrame("# Spec\n## 1. Step\n## 2. Step\n")
+        let error = template.validate(documentBody: "# Spec\n## 1. Step\nx\n", frame: frame)
         
         // Then
         #expect(error != nil)
@@ -215,15 +223,15 @@ struct TemplateTests {
     @Test("a scaffold emits every declared section and validates against the frame it came from")
     func scaffoldEmitsAllSectionsAndValidates() {
         // When
-        let frame = Template.parseFrame(Self.templateBody)
-        let body = Template.scaffold(frame)
+        let frame = template.parseFrame(Self.templateBody)
+        let body = template.scaffold(frame)
         
         // Then
         for heading in ["# Background", "# Spec", "## Task", "## API", "## Test", "# Reference"] {
             #expect(body.contains(heading))
         }
         
-        #expect(Template.validate(documentBody: body + "\n", frame: frame) == nil)
+        #expect(template.validate(documentBody: body + "\n", frame: frame) == nil)
     }
     
     // ops integration
@@ -242,7 +250,7 @@ struct TemplateTests {
         }
         let text = try String(contentsOf: home.url.appendingPathComponent(relative!), encoding: .utf8)
         
-        return try Frontmatter.parse(text).1
+        return try frontmatter.parse(text).1
     }
     
     @Test("creating a document with a template and no content scaffolds the whole frame")
@@ -432,7 +440,7 @@ struct TemplateTests {
         ]], "rationale": "t"]).status == "ok")
         
         let queue = try home.storage.connect()
-        let members = Set(try queue.read { db in try Candidates.clusters(GRDBReadScope(db)) }.flatMap { cluster in cluster.members.map(\.id) })
+        let members = Set(try queue.read { db in try detectors.clusters(GRDBReadScope(db)) }.flatMap { cluster in cluster.members.map(\.id) })
         
         #expect(members.contains("cl-n1"))
         #expect(members.contains("cl-n2"))

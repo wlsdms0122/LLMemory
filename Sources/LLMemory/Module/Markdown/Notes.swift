@@ -10,7 +10,7 @@ import CryptoKit
 
 // File-level note mechanics — parsing, hashing, path mapping. Row and FTS
 // projections are note transactions.
-enum Notes {
+struct Notes: Sendable {
     // MARK: - Property
     // Markers carry dots now that an id does. Widening only adds marker rows —
     // an edge still needs an exact match against a real id, so a config key
@@ -22,15 +22,17 @@ enum Notes {
         pattern: #"`([a-z][a-z0-9-]{2,}(?:\.[a-z0-9][a-z0-9-]*)*)`"#
     )
     
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Public
-    static func contentHash(_ text: String) -> String {
+    func contentHash(_ text: String) -> String {
         let digest = SHA256.hash(data: text.data(using: .utf8) ?? Data())
         
         return String(digest.map { byte in String(format: "%02x", byte) }.joined().prefix(16))
     }
     
-    static func requireNote(at url: URL) throws -> (doc: FrontmatterDoc, body: String) {
+    func requireNote(at url: URL) throws -> (doc: FrontmatterDoc, body: String) {
         guard let read = try readNoteIfPresent(at: url) else {
             throw NoteUnreadable(path: url.path, reason: "file does not exist")
         }
@@ -38,17 +40,17 @@ enum Notes {
         return read
     }
     
-    static func readNoteIfPresent(at url: URL) throws -> (doc: FrontmatterDoc, body: String)? {
+    func readNoteIfPresent(at url: URL) throws -> (doc: FrontmatterDoc, body: String)? {
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         
         do {
-            return try Frontmatter.parse(try String(contentsOf: url, encoding: .utf8))
+            return try frontmatter.parse(try String(contentsOf: url, encoding: .utf8))
         } catch {
             throw NoteUnreadable(path: url.path, reason: "\(error)")
         }
     }
     
-    static func relativeToBrainRoot(_ file: URL) throws -> String {
+    func relativeToBrainRoot(_ file: URL) throws -> String {
         guard let relativePath = Paths.relative(of: file) else {
             throw NotesError.notUnderBrainRoot(file.path)
         }

@@ -12,6 +12,8 @@ struct FlagEnrichmentDisagreementsTransaction: GRDBTransaction {
     // MARK: - Property
     let now: Int
 
+    private let vectorMath = VectorMath()
+
     // MARK: - Initializer
     init(now: Int) {
         self.now = now
@@ -37,7 +39,7 @@ struct FlagEnrichmentDisagreementsTransaction: GRDBTransaction {
 
             guard let srcVector = vectors[src], let dstVector = vectors[dst] else { continue }
 
-            let similarity = VectorMath.cosine(srcVector, dstVector)
+            let similarity = vectorMath.cosine(srcVector, dstVector)
 
             if similarity < floor {
                 for noteId in [src, dst] {

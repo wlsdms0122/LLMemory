@@ -15,6 +15,8 @@ struct StrengthenLinksTransaction: GRDBTransaction {
     let step: Double?
     let cap: Double?
 
+    private let links = Links()
+
     // MARK: - Initializer
     init(
         pairs: [(String, String)],
@@ -38,7 +40,7 @@ struct StrengthenLinksTransaction: GRDBTransaction {
         var strengthened = 0
 
         for (src, dst) in pairs {
-            guard let (source, destination) = Links.normalize(
+            guard let (source, destination) = links.normalize(
                 src: src,
                 dst: dst,
                 kind: kind

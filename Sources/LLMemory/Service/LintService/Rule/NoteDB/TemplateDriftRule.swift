@@ -12,6 +12,8 @@ struct TemplateDriftRule: NoteDBLintRule {
     let code = "template-drift"
     let severity = LintSeverity.warn
     
+    private let template = Template()
+
     // MARK: - Initializer
     // MARK: - Public
     func check(_ scope: GRDBReadScope, note: NoteLintInput) throws -> [LintFinding] {
@@ -21,7 +23,7 @@ struct TemplateDriftRule: NoteDBLintRule {
             return [.init("template note '\(templateId)' not found — cannot validate frame")]
         }
         
-        if let violation = Template.validate(documentBody: note.body, frame: frame) {
+        if let violation = template.validate(documentBody: note.body, frame: frame) {
             return [.init("body diverges from template '\(templateId)' frame: \(violation)")]
         }
         

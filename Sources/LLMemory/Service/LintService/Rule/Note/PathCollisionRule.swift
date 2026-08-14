@@ -12,10 +12,12 @@ struct PathCollisionRule: NoteLintRule {
     let code = "path-collision"
     let severity = LintSeverity.error
     
+    private let sectionEdit = SectionEdit()
+
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {
-        SectionEdit.findPathCollisions(note.body).map { collision in
+        sectionEdit.findPathCollisions(note.body).map { collision in
             .init(
                 "section path collision: \(collision.display())",
                 key: "path:\(collision.path.display())"

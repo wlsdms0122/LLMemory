@@ -9,6 +9,8 @@ import Foundation
 import GRDB
 
 struct EnrichmentStatusTransaction: GRDBReadTransaction {
+    private let policy = Policy()
+
     // MARK: - Initializer
     init() { }
 
@@ -40,7 +42,7 @@ struct EnrichmentStatusTransaction: GRDBReadTransaction {
         )
         let noteCount = try Int.fetchOne(
             db,
-            sql: "SELECT COUNT(*) FROM notes n WHERE \(Policy.surface())"
+            sql: "SELECT COUNT(*) FROM notes n WHERE \(policy.surface())"
         ) ?? 0
         let vectorCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM note_vectors") ?? 0
         let reviewFlagged = try Int.fetchOne(db, sql: """

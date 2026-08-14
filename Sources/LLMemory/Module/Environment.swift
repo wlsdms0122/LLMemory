@@ -7,8 +7,8 @@
 
 import Foundation
 
-enum Environment {
-    static func retrievalSession(cli: String? = nil) -> String? {
+struct Environment: Sendable {
+    func retrievalSession(cli: String? = nil) -> String? {
         if let cli, !cli.isEmpty {
             return cli
         }

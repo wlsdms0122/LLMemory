@@ -14,6 +14,8 @@ struct CandidateDiscoveryTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let detectors = Candidates()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -27,7 +29,7 @@ struct CandidateDiscoveryTests {
         
         // When
         let clusters = try home.readScope { scope in
-            try Candidates.clusters(scope, minSize: 2, maxSize: 50, limit: 20)
+            try detectors.clusters(scope, minSize: 2, maxSize: 50, limit: 20)
         }
         
         // Then
@@ -43,7 +45,7 @@ struct CandidateDiscoveryTests {
         
         // When
         let capped = try home.readScope { scope in
-            try Candidates.clusters(scope, maxSize: 3, limit: 20)
+            try detectors.clusters(scope, maxSize: 3, limit: 20)
         }
         
         // Then
@@ -63,7 +65,7 @@ struct CandidateDiscoveryTests {
         
         // When
         let duplicates = try home.readScope { scope in
-            try Candidates.nearDuplicates(scope, limit: 20)
+            try detectors.nearDuplicates(scope, limit: 20)
         }
         
         // Then
@@ -101,7 +103,7 @@ struct CandidateDiscoveryTests {
     @Test("neighbors refuses an anchor that does not exist rather than returning nothing")
     func neighborsRefusesAnUnknownAnchor() throws {
         #expect(throws: (any Error).self) {
-            try home.readScope { scope in try Candidates.neighbors(scope, noteId: "nonexistent-xyz", k: 5) }
+            try home.readScope { scope in try detectors.neighbors(scope, noteId: "nonexistent-xyz", k: 5) }
         }
     }
     
@@ -132,7 +134,7 @@ struct CandidateDiscoveryTests {
     
     private func missingEdgeHoldsTheSeededPair() throws -> Bool {
         try home.readScope { scope in
-            let edges = try Candidates.missingEdges(scope, limit: 20, ftsBm25: 0.0)
+            let edges = try detectors.missingEdges(scope, limit: 20, ftsBm25: 0.0)
             
             return edges.contains { edge in Set([edge.a.id, edge.b.id]) == ["me-a", "me-b"] }
         }

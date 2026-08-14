@@ -9,6 +9,8 @@ import Foundation
 import GRDB
 
 struct CheckCorpusIntegrityL1Transaction: GRDBReadTransaction {
+    private let noteFiles = Notes()
+
     // MARK: - Initializer
     init() { }
 
@@ -20,7 +22,7 @@ struct CheckCorpusIntegrityL1Transaction: GRDBReadTransaction {
             let relative = Paths.relative(of: path) ?? path.path
             
             do {
-                guard try Notes.readNoteIfPresent(at: path) != nil else {
+                guard try noteFiles.readNoteIfPresent(at: path) != nil else {
                     return "missing: \(id) → \(relative)"
                 }
                 

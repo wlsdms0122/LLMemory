@@ -16,6 +16,16 @@ public struct NotesService: NotesServiceable {
     let storage: GRDBStorage
     let retrieval: any RetrievalServiceable
 
+    private let sectionEdit = SectionEdit()
+
+    private let frontmatter = Frontmatter()
+
+    private let template = Template()
+
+    private let events = Events()
+
+    private let environment = Environment()
+
     // MARK: - Initializer
     init(storage: GRDBStorage, retrieval: any RetrievalServiceable) {
         self.storage = storage
@@ -27,7 +37,7 @@ public struct NotesService: NotesServiceable {
         ids: [String],
         cliSessionId: String
     ) async throws -> (found: [NoteView], missing: [String]) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
+        let sessionId = environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try get(scope, ids: ids, sessionId: sessionId)
         }
@@ -42,7 +52,7 @@ public struct NotesService: NotesServiceable {
         sections: [String],
         cliSessionId: String
     ) async throws -> (note: NoteView, slices: [SectionSlice]) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
+        let sessionId = environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try getSections(scope, id: id, sections: sections, sessionId: sessionId)
         }
@@ -57,7 +67,7 @@ public struct NotesService: NotesServiceable {
         budget: Int,
         cliSessionId: String
     ) async throws -> (note: NoteView, cut: BudgetCut) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
+        let sessionId = environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try getBudget(scope, id: id, budget: budget, sessionId: sessionId)
         }
@@ -71,7 +81,7 @@ public struct NotesService: NotesServiceable {
         id: String,
         cliSessionId: String
     ) async throws -> (note: NoteView, entries: [TocEntry]) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
+        let sessionId = environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in try toc(scope, id: id, sessionId: sessionId) }
 
         try await retrieval.applyRecord(outcome.record)
@@ -83,7 +93,7 @@ public struct NotesService: NotesServiceable {
         id: String,
         cliSessionId: String
     ) async throws -> (note: NoteView, frame: [TemplateFrameNode]) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
+        let sessionId = environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in try template(scope, id: id, sessionId: sessionId) }
 
         try await retrieval.applyRecord(outcome.record)
@@ -150,7 +160,7 @@ public struct NotesService: NotesServiceable {
 
             let path = Paths.file(forId: id)
             let text = try String(contentsOf: path, encoding: .utf8)
-            let (doc, body) = try Frontmatter.parse(text)
+            let (doc, body) = try frontmatter.parse(text)
 
             found.append(
                 NoteView(
@@ -168,7 +178,7 @@ public struct NotesService: NotesServiceable {
 
         let record: RetrievalRecord? = found.isEmpty ? nil : .init(
             sessionId: sessionId,
-            payloadJSON: Events.retrievalPayloadJSON(cmd: "get", payload: [
+            payloadJSON: events.retrievalPayloadJSON(cmd: "get", payload: [
                 ("hit_ids", found.map { note in note.id })
             ])
         )
@@ -191,8 +201,8 @@ public struct NotesService: NotesServiceable {
         var slices: [SectionSlice] = []
 
         for raw in sections {
-            let path = try SectionEdit.parsePath(raw)
-            let text = try SectionEdit.subtreeText(note.body, path: path)
+            let path = try sectionEdit.parsePath(raw)
+            let text = try sectionEdit.subtreeText(note.body, path: path)
 
             slices.append(SectionSlice(path: path.display(), text: text))
         }
@@ -226,9 +236,9 @@ public struct NotesService: NotesServiceable {
             throw NotesError.unknownIds(missing)
         }
 
-        let (_, rows) = SectionEdit.sectionRows(note.body)
+        let (_, rows) = sectionEdit.sectionRows(note.body)
         let entries = rows.map { row in
-            TocEntry(path: row.path, words: SectionEdit.wordCount(row.text))
+            TocEntry(path: row.path, words: sectionEdit.wordCount(row.text))
         }
 
         return (note, entries, record)
@@ -245,7 +255,7 @@ public struct NotesService: NotesServiceable {
             throw NotesError.unknownIds(missing)
         }
 
-        return (note, Template.parseFrame(note.body), record)
+        return (note, template.parseFrame(note.body), record)
     }
 
     func structure(_ scope: GRDBReadScope, prefix: String?) throws -> StructureResult {
@@ -265,8 +275,8 @@ public struct NotesService: NotesServiceable {
     // is stated, never silent.
     private func budgetCut(of body: String, budget: Int) -> BudgetCut {
         let lines = body.unicodeLines()
-        let all = SectionEdit.splitSections(body)
-        let totalWords = SectionEdit.wordCount(body)
+        let all = sectionEdit.splitSections(body)
+        let totalWords = sectionEdit.wordCount(body)
 
         func maximal(in range: Range<Int>) -> [SectionEdit.Section] {
             var sections: [SectionEdit.Section] = []
@@ -309,7 +319,7 @@ public struct NotesService: NotesServiceable {
             var end = range.lowerBound
 
             for index in range {
-                let lineWords = SectionEdit.wordCount(lines[index])
+                let lineWords = sectionEdit.wordCount(lines[index])
 
                 if end > range.lowerBound && words + lineWords > cap { break }
 
@@ -321,7 +331,7 @@ public struct NotesService: NotesServiceable {
         }
 
         let headEnd = tops.first?.start ?? lines.count
-        let headWords = SectionEdit.wordCount(lines[..<headEnd].joined(separator: "\n"))
+        let headWords = sectionEdit.wordCount(lines[..<headEnd].joined(separator: "\n"))
 
         if headWords > budget {
             let cut = linePrefix(of: 0..<headEnd, cap: budget)
@@ -334,13 +344,13 @@ public struct NotesService: NotesServiceable {
                 omitted: tops.map { top in
                     TocEntry(
                         path: top.path,
-                        words: SectionEdit.wordCount(
+                        words: sectionEdit.wordCount(
                             lines[top.start..<top.end].joined(separator: "\n")
                         )
                     )
                 },
                 truncatedWithin: name,
-                shownWords: SectionEdit.wordCount(shown),
+                shownWords: sectionEdit.wordCount(shown),
                 totalWords: totalWords
             )
         }
@@ -351,7 +361,7 @@ public struct NotesService: NotesServiceable {
         var cutAt: Int? = nil
 
         for top in tops {
-            let words = SectionEdit.wordCount(lines[top.start..<top.end].joined(separator: "\n"))
+            let words = sectionEdit.wordCount(lines[top.start..<top.end].joined(separator: "\n"))
 
             if cutAt == nil && running + words <= budget {
                 running += words
@@ -383,7 +393,7 @@ public struct NotesService: NotesServiceable {
                 shownSections: [],
                 omitted: Array(omitted.dropFirst()),
                 truncatedWithin: first.path,
-                shownWords: SectionEdit.wordCount(shown),
+                shownWords: sectionEdit.wordCount(shown),
                 totalWords: totalWords
             )
         }

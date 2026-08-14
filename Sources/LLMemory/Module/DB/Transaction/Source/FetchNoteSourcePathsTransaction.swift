@@ -12,6 +12,8 @@ struct FetchNoteSourcePathsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
 
+    private let noteFiles = Notes()
+
     // MARK: - Initializer
     init(noteId: String) {
         self.noteId = noteId
@@ -21,7 +23,7 @@ struct FetchNoteSourcePathsTransaction: GRDBReadTransaction {
     func perform(_ db: Database) throws -> [String] {
         guard try NoteExistsTransaction(nid: noteId).perform(db) else { return [] }
 
-        return try Notes.requireNote(at: Paths.file(forId: noteId)).doc.source
+        return try noteFiles.requireNote(at: Paths.file(forId: noteId)).doc.source
     }
 
     // MARK: - Private

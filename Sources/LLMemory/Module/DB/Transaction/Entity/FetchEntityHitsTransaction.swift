@@ -13,6 +13,8 @@ struct FetchEntityHitsTransaction: GRDBReadTransaction {
     let entities: [String]
     let limitPerEntity: Int
 
+    private let policy = Policy()
+
     // MARK: - Initializer
     init(entities: [String], limitPerEntity: Int = 5) {
         self.entities = entities
@@ -31,7 +33,7 @@ struct FetchEntityHitsTransaction: GRDBReadTransaction {
                 FROM entity_index ei
                 JOIN notes n ON n.id = ei.note_id
                 WHERE ei.entity = ?
-                AND \(Policy.fresh())
+                AND \(policy.fresh())
                 """
             sql += " ORDER BY ei.last_seen_at DESC, ei.note_id ASC LIMIT ?"
 

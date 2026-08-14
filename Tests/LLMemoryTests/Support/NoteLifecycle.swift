@@ -15,6 +15,8 @@ struct NoteLifecycle {
     // MARK: - Property
     private let home: any BrainHome
     
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     init(_ home: any BrainHome) {
         self.home = home
@@ -80,7 +82,7 @@ struct NoteLifecycle {
     
     func frontmatterTags(of noteId: String) throws -> [String] {
         let text = try home.bodyText(of: noteId)
-        let (fields, _) = try Frontmatter.parse(text)
+        let (fields, _) = try frontmatter.parse(text)
         
         return fields.tags
     }

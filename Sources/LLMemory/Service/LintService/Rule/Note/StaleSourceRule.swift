@@ -12,12 +12,14 @@ struct StaleSourceRule: NoteLintRule {
     let code = "stale-source"
     let severity = LintSeverity.warn
     
+    private let sourceFingerprint = SourceFingerprint()
+
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {
         note.doc.source
             .filter { source in
-                SourceFingerprint.isDriftCheckable(source)
+                sourceFingerprint.isDriftCheckable(source)
                     && !FileManager.default.fileExists(
                         atPath: (source as NSString).expandingTildeInPath
                     )

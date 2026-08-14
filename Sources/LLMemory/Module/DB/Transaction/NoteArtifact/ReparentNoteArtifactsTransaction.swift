@@ -13,6 +13,8 @@ struct ReparentNoteArtifactsTransaction: GRDBTransaction {
     let from: String
     let to: String
 
+    private let noteArtifacts = NoteArtifacts()
+
     // MARK: - Initializer
     init(from: String, to: String) {
         self.from = from
@@ -31,7 +33,7 @@ struct ReparentNoteArtifactsTransaction: GRDBTransaction {
             )
         }
         
-        try NoteArtifacts.moveAuthoredLinks(db, from: self.from, to: to)
+        try noteArtifacts.moveAuthoredLinks(db, from: self.from, to: to)
     }
 
     // MARK: - Private

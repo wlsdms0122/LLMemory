@@ -19,6 +19,10 @@ struct UpsertNoteTransaction: GRDBTransaction {
     let raw: String?
     let now: Int
 
+    private let sectionEdit = SectionEdit()
+
+    private let noteFiles = Notes()
+
     // MARK: - Initializer
     init(file: URL, fields: FrontmatterDoc, body: String, raw: String? = nil, now: Int) {
         self.file = file
@@ -56,9 +60,9 @@ struct UpsertNoteTransaction: GRDBTransaction {
         let templateValue = fields.template.flatMap { value in value.isEmpty ? nil : value }
         let lockedFlag = fields.locked ? 1 : 0
         let seedFlag = fields.seed ? 1 : 0
-        let wordCount = SectionEdit.wordCount(body)
-        let sectionCount = SectionEdit.sectionCount(body)
-        let contentHash = Notes.contentHash(
+        let wordCount = sectionEdit.wordCount(body)
+        let sectionCount = sectionEdit.sectionCount(body)
+        let contentHash = noteFiles.contentHash(
             try raw ?? String(contentsOf: file, encoding: .utf8)
         )
 

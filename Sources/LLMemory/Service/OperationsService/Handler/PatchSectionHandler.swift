@@ -24,6 +24,10 @@ struct PatchSectionHandler: OperationHandling {
     private let payload = OpPayloadCheck()
     private let writeEffects = NoteWriteEffects()
 
+    private let sectionEdit = SectionEdit()
+
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -51,7 +55,7 @@ struct PatchSectionHandler: OperationHandling {
 
         let sectionPath: SectionEdit.SectionPath
         do {
-            sectionPath = try SectionEdit.parsePath(op["section"] as? String ?? "")
+            sectionPath = try sectionEdit.parsePath(op["section"] as? String ?? "")
         } catch {
             return "invalid section path: \(error)"
         }
@@ -102,12 +106,12 @@ struct PatchSectionHandler: OperationHandling {
         }
 
         let raw = try String(contentsOf: path, encoding: .utf8)
-        let (doc, body) = try Frontmatter.parse(raw)
+        let (doc, body) = try frontmatter.parse(raw)
         let section = op["section"] as! String
         let action = op["action"] as! String
         let content = op["content"] as? String ?? ""
         let subtree = op["subtree"] as? Bool ?? false
-        let newBody = try SectionEdit.applyPatch(
+        let newBody = try sectionEdit.applyPatch(
             body,
             section: section,
             action: action,
@@ -115,7 +119,7 @@ struct PatchSectionHandler: OperationHandling {
             subtree: subtree
         )
 
-        try (Frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
+        try (frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
         try scope.run(ReindexNoteFileTransaction(path: path))
 
         let now = context.now

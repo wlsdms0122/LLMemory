@@ -36,6 +36,8 @@ struct LintRuleRegistry: Sendable {
         Set(allRules.filter { rule in rule.severity == .error }.map { rule in rule.code })
     }
 
+    private let sectionEdit = SectionEdit()
+
     // MARK: - Initializer
     // Every catalog defaults to what this build ships. They are parameters so a
     // caller can hand the scanner a different catalog — the alternative was a
@@ -90,9 +92,9 @@ struct LintRuleRegistry: Sendable {
     // MARK: - Public
     func document(nid: String, body: String) -> LintDocument {
         let lines = body.unicodeLines()
-        let fences = SectionEdit.scanFences(lines)
+        let fences = sectionEdit.scanFences(lines)
         var ancestors: [(level: Int, marker: String)] = []
-        let sections = SectionEdit.splitSections(body).map { section -> LintSection in
+        let sections = sectionEdit.splitSections(body).map { section -> LintSection in
             while let last = ancestors.last, last.level >= section.level {
                 ancestors.removeLast()
             }

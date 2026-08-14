@@ -26,6 +26,8 @@ struct PolicyEnforcementTests {
     
     private let source = PackageSource()
     
+    private let policy = Policy()
+
     // MARK: - Initializer
     // MARK: - Test
     @Test("gate predicates are written once in Policy and composed everywhere else")
@@ -44,7 +46,7 @@ struct PolicyEnforcementTests {
         // Then
         #expect(violations.isEmpty, """
             Raw gate predicate outside Policy.swift — compose Policy atoms instead \
-            (Policy.surface / decayCandidate / live / fresh / forgetExempt / …):
+            (policy.surface / decayCandidate / live / fresh / forgetExempt / …):
             \(violations.joined(separator: "\n"))
             """)
     }

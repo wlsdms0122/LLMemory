@@ -14,6 +14,8 @@ struct VectorsTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let vectorMath = VectorMath()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -118,7 +120,7 @@ struct VectorsTests {
             2, 0, 3,
             1, 3, 0
         ]
-        let ppmi = VectorMath.computePPMI(matrix, n: 3)
+        let ppmi = vectorMath.computePPMI(matrix, n: 3)
         
         // Then
         #expect(ppmi.allSatisfy { value in value >= 0 })
@@ -134,7 +136,7 @@ struct VectorsTests {
             0.1, 0.2, 1.0, 0.6,
             0.0, 0.1, 0.6, 1.0
         ]
-        let decomposed = try VectorMath.truncatedSVD(matrix, n: dimension, k: rank)
+        let decomposed = try vectorMath.truncatedSVD(matrix, n: dimension, k: rank)
         
         // Then
         #expect(decomposed.count == dimension * rank)

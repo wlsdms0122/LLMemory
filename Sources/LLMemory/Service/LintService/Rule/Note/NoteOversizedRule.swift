@@ -12,17 +12,19 @@ struct NoteOversizedRule: NoteLintRule {
     let code = "note-oversized"
     let severity = LintSeverity.warn
     
+    private let sectionEdit = SectionEdit()
+
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {
         guard note.doc.template == nil, !note.doc.locked else { return [] }
         
         let threshold = Config.getInt("lint.oversized_words", default: 2000)
-        let words = SectionEdit.wordCount(note.body)
+        let words = sectionEdit.wordCount(note.body)
         
         guard words >= threshold else { return [] }
         
-        let sections = SectionEdit.sectionCount(note.body)
+        let sections = sectionEdit.sectionCount(note.body)
         
         return [
             .init(

@@ -19,6 +19,8 @@ struct RenameTagHandler: OperationHandling {
         example: ##"{"op":"rename_tag","from_tag":"oldtag","to_tag":"newtag","add_alias":true}"##
     )
 
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -74,7 +76,7 @@ struct RenameTagHandler: OperationHandling {
                 ])
             }
 
-            var (doc, body) = try Frontmatter.parse(
+            var (doc, body) = try frontmatter.parse(
                 try String(contentsOf: path, encoding: .utf8)
             )
             var newTags: [String] = []
@@ -93,7 +95,7 @@ struct RenameTagHandler: OperationHandling {
 
             doc.tags = newTags
 
-            try (Frontmatter.dump(doc) + body).write(
+            try (frontmatter.dump(doc) + body).write(
                 to: path,
                 atomically: true,
                 encoding: .utf8

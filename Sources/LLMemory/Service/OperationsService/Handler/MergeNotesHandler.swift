@@ -27,6 +27,10 @@ struct MergeNotesHandler: OperationHandling {
     private let payload = OpPayloadCheck()
     private let sourceInput = NoteSourceInput()
 
+    private let frontmatter = Frontmatter()
+
+    private let trash = Trash()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -81,7 +85,7 @@ struct MergeNotesHandler: OperationHandling {
             ])
         }
 
-        var (intoDoc, _) = try Frontmatter.parse(
+        var (intoDoc, _) = try frontmatter.parse(
             try String(contentsOf: intoPath, encoding: .utf8)
         )
         intoDoc.title = (op["title"] as? String)
@@ -112,7 +116,7 @@ struct MergeNotesHandler: OperationHandling {
 
         let now = context.now
 
-        try (Frontmatter.dump(intoDoc) + body).write(
+        try (frontmatter.dump(intoDoc) + body).write(
             to: intoPath,
             atomically: true,
             encoding: .utf8
@@ -134,7 +138,7 @@ struct MergeNotesHandler: OperationHandling {
         try scope.run(SyncNoteEnrichTransaction(noteId: intoId))
 
         for path in fromPaths {
-            try Trash.file(path, reason: "merged into \(intoId)", now: now)
+            try trash.file(path, reason: "merged into \(intoId)", now: now)
         }
 
         return [
@@ -164,7 +168,7 @@ struct MergeNotesHandler: OperationHandling {
             if let path = try scope.run(FetchNotePathTransaction(nid: fromId)) {
                 paths.append(path)
 
-                if let trashPath = Trash.destination(of: path) { paths.append(trashPath) }
+                if let trashPath = trash.destination(of: path) { paths.append(trashPath) }
             }
         }
 

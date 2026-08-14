@@ -15,6 +15,8 @@ struct EnrichmentReviewTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let detectors = Candidates()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -296,7 +298,7 @@ struct EnrichmentReviewTests {
         }
         
         // When
-        let candidates = try queue.read { db in try Candidates.enrichReviewCandidates(GRDBReadScope(db)) }
+        let candidates = try queue.read { db in try detectors.enrichReviewCandidates(GRDBReadScope(db)) }
         
         // Then
         #expect(Set(candidates.map { candidate in candidate.id }) == ["rev-j1", "rev-j2"])

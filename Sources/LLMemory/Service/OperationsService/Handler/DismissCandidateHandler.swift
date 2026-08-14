@@ -34,6 +34,8 @@ struct DismissCandidateHandler: OperationHandling {
 
     private let payload = OpPayloadCheck()
 
+    private let dismissalPolicy = Dismissals()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -49,7 +51,7 @@ struct DismissCandidateHandler: OperationHandling {
                 return "pass `id` (note-scope) or `target` (corpus-scope), not both — a finding has one target"
             }
 
-            if let code = Dismissals.lintCode(of: kind) {
+            if let code = dismissalPolicy.lintCode(of: kind) {
                 if !lint.dismissibleCodes.contains(code) {
                     let known = lint.dismissibleCodes.sorted().joined(separator: ", ")
 
@@ -118,8 +120,8 @@ struct DismissCandidateHandler: OperationHandling {
                 .map { subject in LintTarget.corpus(subject) } ?? .note(op["id"] as! String)
             var kind = op["kind"] as! String
 
-            if let code = Dismissals.lintCode(of: kind),
-                Dismissals.lintFingerprint(of: kind) == nil {
+            if let code = dismissalPolicy.lintCode(of: kind),
+                dismissalPolicy.lintFingerprint(of: kind) == nil {
                 let liveFindings = try lint.scan(
                     scope.readOnly,
                     id: nil,
@@ -143,7 +145,7 @@ struct DismissCandidateHandler: OperationHandling {
                     ])
                 }
 
-                kind = Dismissals.lintKind(code, fingerprint: matched.dismissalKey)
+                kind = dismissalPolicy.lintKind(code, fingerprint: matched.dismissalKey)
             }
 
             try scope.run(RecordDismissalTransaction(target: target,

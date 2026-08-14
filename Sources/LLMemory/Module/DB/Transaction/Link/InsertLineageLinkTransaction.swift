@@ -15,6 +15,8 @@ struct InsertLineageLinkTransaction: GRDBTransaction {
     let kind: String
     let now: Int
 
+    private let links = Links()
+
     // MARK: - Initializer
     init(src: String, dst: String, kind: String, now: Int) {
         self.src = src
@@ -25,7 +27,7 @@ struct InsertLineageLinkTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws {
-        guard let (source, destination) = Links.normalize(src: src, dst: dst, kind: kind) else { return }
+        guard let (source, destination) = links.normalize(src: src, dst: dst, kind: kind) else { return }
 
         try db.execute(sql: """
             INSERT OR IGNORE INTO note_links

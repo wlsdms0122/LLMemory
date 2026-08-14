@@ -16,6 +16,8 @@ struct RebaseNoteSourceTransaction: GRDBTransaction {
     let fingerprint: String?
     let declHash: String?
 
+    private let sourceFingerprint = SourceFingerprint()
+
     // MARK: - Initializer
     init(
         noteId: String,
@@ -33,8 +35,8 @@ struct RebaseNoteSourceTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws {
-        guard let fingerprint = fingerprint ?? SourceFingerprint.computeFingerprint(paths),
-            let declHash = declHash ?? SourceFingerprint.computeDeclHash(paths)
+        guard let fingerprint = fingerprint ?? sourceFingerprint.computeFingerprint(paths),
+            let declHash = declHash ?? sourceFingerprint.computeDeclHash(paths)
         else {
             try db.execute(
                 sql: "DELETE FROM note_source WHERE note_id = ?",

@@ -22,6 +22,8 @@ public struct BootstrapScope {
     // necessarily this one.
     private let context: BrainContext
 
+    private let trash = Trash()
+
     // MARK: - Initializer
     init(queue: any DatabaseWriter, context: BrainContext) {
         self.queue = queue
@@ -55,7 +57,7 @@ public struct BootstrapScope {
             }
         }
 
-        return try Trash.file(file, reason: trashReason, now: now)
+        return try trash.file(file, reason: trashReason, now: now)
     }
 
     // MARK: - Private

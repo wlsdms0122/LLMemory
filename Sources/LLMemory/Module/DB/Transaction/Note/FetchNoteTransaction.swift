@@ -12,6 +12,8 @@ struct FetchNoteTransaction: GRDBReadTransaction {
     // MARK: - Property
     let nid: String
 
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     init(nid: String) {
         self.nid = nid
@@ -23,7 +25,7 @@ struct FetchNoteTransaction: GRDBReadTransaction {
 
         let path = Paths.file(forId: nid)
         let text = try String(contentsOf: path, encoding: .utf8)
-        let (fields, body) = try Frontmatter.parse(text)
+        let (fields, body) = try frontmatter.parse(text)
 
         return (path, fields, body)
     }

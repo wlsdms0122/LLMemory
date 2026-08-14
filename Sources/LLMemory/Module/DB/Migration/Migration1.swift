@@ -377,7 +377,7 @@ CREATE INDEX IF NOT EXISTS idx_candidate_dismissals_kind ON candidate_dismissals
 -- 카탈로그는 dismissible 이라 광고하는데 문은 닫혀 있는 상태가 된다.
 --   target_key — 스코프 안정 식별자. 사실 자체가 identity 다 (개수·순서 아님).
 --   재개방 게이트는 generation(sensitization) 뿐 — 노트 shape 는 코퍼스 사실의
---   증거가 아니므로 탈습관화 축이 없다 (Dismissals.corpusGate).
+--   증거가 아니므로 탈습관화 축이 없다 (dismissalPolicy.corpusGate).
 -- notes 에 FK 가 없으므로 rebuild 의 DELETE FROM notes cascade 를 그대로 생존한다.
 -- ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS corpus_dismissals (
@@ -391,6 +391,8 @@ CREATE TABLE IF NOT EXISTS corpus_dismissals (
 );
 CREATE INDEX IF NOT EXISTS idx_corpus_dismissals_kind ON corpus_dismissals(kind);
 """#
+
+    private let dismissalPolicy = Dismissals()
 
     // MARK: - Initializer
     public init() { }

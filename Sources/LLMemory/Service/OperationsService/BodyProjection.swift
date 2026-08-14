@@ -11,6 +11,10 @@ struct BodyProjection {
     // MARK: - Property
     private let composer = NoteComposer()
 
+    private let sectionEdit = SectionEdit()
+
+    private let noteFiles = Notes()
+
     // MARK: - Initializer
     // MARK: - Public
     func advance(
@@ -42,7 +46,7 @@ struct BodyProjection {
             
             let newBody: String
             do {
-                newBody = try SectionEdit.applyPatch(
+                newBody = try sectionEdit.applyPatch(
                     body,
                     section: op["section"] as? String ?? "",
                     action: op["action"] as? String ?? "",
@@ -53,10 +57,10 @@ struct BodyProjection {
                 return "\(error)"
             }
             
-            let collisions = SectionEdit.findPathCollisions(newBody)
+            let collisions = sectionEdit.findPathCollisions(newBody)
             if !collisions.isEmpty {
                 let existingPaths = Set(
-                    SectionEdit.findPathCollisions(body).map { collision in
+                    sectionEdit.findPathCollisions(body).map { collision in
                         collision.path.display()
                     }
                 )
@@ -99,6 +103,6 @@ struct BodyProjection {
         
         guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)) else { return nil }
         
-        return (try? Notes.readNoteIfPresent(at: path))??.body
+        return (try? noteFiles.readNoteIfPresent(at: path))??.body
     }
 }

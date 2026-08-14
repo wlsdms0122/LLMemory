@@ -45,6 +45,8 @@ public struct Index {
     let session: Session
     let service: any IndexServiceable
 
+    private let seeding = Seeding()
+
     // MARK: - Initializer
     init(session: Session, service: any IndexServiceable) {
         self.session = session
@@ -147,7 +149,7 @@ public struct Index {
 
     // MARK: - Private
     private func plantBound(force: Bool, scope: BootstrapScope) throws -> Seeding.Result {
-        Seeding.plant(
+        seeding.plant(
             force: force,
             seeded: try scope.seededNoteIds(),
             now: Int(Date().timeIntervalSince1970),

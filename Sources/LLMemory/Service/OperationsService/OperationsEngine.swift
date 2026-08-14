@@ -18,6 +18,14 @@ public struct OperationsEngine: Sendable {
 
     private let trashLookup = TrashedNoteLookup()
 
+    private let sectionEdit = SectionEdit()
+
+    private let frontmatter = Frontmatter()
+
+    private let noteFiles = Notes()
+
+    private let template = Template()
+
     // MARK: - Initializer
     // The collaborators are parameters, not fields: they belong to the two
     // handlers that use them, and the engine is the wiring that hands them
@@ -373,7 +381,7 @@ public struct OperationsEngine: Sendable {
             let noteId = trashLookup.trashStemId(path)
             let body: String
             do {
-                guard let read = try Notes.readNoteIfPresent(at: path) else { continue }
+                guard let read = try noteFiles.readNoteIfPresent(at: path) else { continue }
                 
                 body = read.body
             } catch {
@@ -383,16 +391,16 @@ public struct OperationsEngine: Sendable {
                 continue
             }
             
-            let collisions = SectionEdit.findPathCollisions(body)
+            let collisions = sectionEdit.findPathCollisions(body)
             
             if collisions.isEmpty { continue }
             
             var existingPaths = Set<String>()
             
             if let preText = preImage(path, nid: noteId, backups: backups),
-                let (_, preBody) = try? Frontmatter.parse(preText) {
+                let (_, preBody) = try? frontmatter.parse(preText) {
                 existingPaths = Set(
-                    SectionEdit.findPathCollisions(preBody).map { collision in
+                    sectionEdit.findPathCollisions(preBody).map { collision in
                         collision.path.display()
                     }
                 )
@@ -648,7 +656,7 @@ public struct OperationsEngine: Sendable {
             let doc: FrontmatterDoc
             let body: String
             do {
-                guard let read = try Notes.readNoteIfPresent(at: path) else { continue }
+                guard let read = try noteFiles.readNoteIfPresent(at: path) else { continue }
                 
                 (doc, body) = read
             } catch {
@@ -666,7 +674,7 @@ public struct OperationsEngine: Sendable {
                 continue
             }
             
-            if let violation = Template.validate(documentBody: body, frame: frame) {
+            if let violation = template.validate(documentBody: body, frame: frame) {
                 violations.append("\(noteId) [template \(templateId)]: \(violation)")
             }
         }

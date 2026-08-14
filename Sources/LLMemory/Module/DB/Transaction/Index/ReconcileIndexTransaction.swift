@@ -16,6 +16,8 @@ struct ReconcileIndexTransaction: GRDBTransaction {
     let rebuild: Bool
     let now: Int
 
+    private let indexer = Indexer()
+
     // MARK: - Initializer
     init(scan: Indexer.Scan, rebuild: Bool = false, now: Int) {
         self.scan = scan
@@ -25,7 +27,7 @@ struct ReconcileIndexTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> Indexer.BuildResult {
-        try Indexer.reconcile(
+        try indexer.reconcile(
             db,
             pending: scan.pending,
             scannedRels: scan.scannedRels,

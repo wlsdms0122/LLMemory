@@ -15,6 +15,8 @@ struct EnrichmentTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let indexer = Indexer()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -188,7 +190,7 @@ struct EnrichmentTests {
             "provenance": "test:capture"
         ]]).status == "ok")
         
-        _ = try Indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), rebuild: true)
         
         let queue = try home.storage.connect()
         let (status, hit) = try home.read { db -> (String?, Bool) in
@@ -357,7 +359,7 @@ struct EnrichmentTests {
         #expect(home.apply([["op": "flag", "id": "rbm-note",
             "kind": "reconsolidate", "reason": "preserved"]]).status == "ok")
         
-        _ = try Indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), rebuild: true)
         
         let value = try home.read { db in
             try String.fetchOne(db, sql: "SELECT reason FROM ripple_flags WHERE note_id='rbm-note' AND flag='reconsolidate'")
@@ -377,7 +379,7 @@ struct EnrichmentTests {
             try db.execute(sql: "UPDATE note_usage SET hit_count=7, last_retrieved_at=1700000000 WHERE note_id='usage-note'")
         }
         
-        _ = try Indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), rebuild: true)
         
         // When
         let (hitCount, lastRetrieved) = try home.read { db -> (Int, Int) in
@@ -432,7 +434,7 @@ struct EnrichmentTests {
             try db.execute(sql: "UPDATE entity_index SET hit_count=5 WHERE note_id='rc-note' AND entity='BAR-9'")
         }
         
-        _ = try home.database().write { db in try Indexer.reindexFiles(db, filePaths: [path]) }
+        _ = try home.database().write { db in try indexer.reindexFiles(db, filePaths: [path]) }
         
         let hitCount = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT hit_count FROM entity_index WHERE note_id='rc-note' AND entity='BAR-9'") ?? -1
@@ -454,7 +456,7 @@ struct EnrichmentTests {
             try db.execute(sql: "UPDATE entity_index SET hit_count=9 WHERE note_id='eh-note' AND entity='FOO-1'")
         }
         
-        _ = try Indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), rebuild: true)
         
         let hitCount = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT hit_count FROM entity_index WHERE note_id='eh-note' AND entity='FOO-1'") ?? -1
@@ -477,7 +479,7 @@ struct EnrichmentTests {
         
         #expect(before == 2)
         
-        _ = try Indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), rebuild: true)
         
         let after = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM entity_index WHERE note_id='ent-note'") ?? 0
@@ -501,7 +503,7 @@ struct EnrichmentTests {
                 """)
         }
         
-        _ = try Indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), rebuild: true)
         
         // When
         let survived = try home.read { db in

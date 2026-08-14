@@ -19,6 +19,8 @@ struct StructuralLossInvariantTests {
     
     private let trashLookup = TrashedNoteLookup()
 
+    private let trash = Trash()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -72,12 +74,12 @@ struct StructuralLossInvariantTests {
         // When
         let source = try home.read { database in try FetchNotePathTransaction(nid: "trsh-snap").perform(database) }
         
-        guard let source, let predicted = Trash.destination(of: source) else {
+        guard let source, let predicted = trash.destination(of: source) else {
             throw TestFailure("setup: no trash destination for the live note")
         }
         
         // Then
-        #expect(predicted.path != (try Trash.pathFor("cortex/trsh-snap.md")).path,
+        #expect(predicted.path != (try trash.pathFor("cortex/trsh-snap.md")).path,
             "a collision must resolve to a suffixed path, not the occupied base")
         #expect(home.apply(["op": "delete_note", "id": "trsh-snap", "reason": "second"]).status == "ok")
         #expect(FileManager.default.fileExists(atPath: predicted.path),

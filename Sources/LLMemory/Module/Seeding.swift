@@ -36,7 +36,7 @@ import Foundation
 // one directory is what made this surface need a --check flag to explain itself.
 // A brain that does not want the seeds says so per invocation, and a local fork
 // of a seeded note lives at its own id.
-public enum Seeding {
+public struct Seeding: Sendable {
     public struct Result: Sendable {
         // MARK: - Property
         public var planted: [String] = []
@@ -58,6 +58,10 @@ public enum Seeding {
         // MARK: - Private
     }
 
+    private let frontmatter = Frontmatter()
+
+    private let trash = Trash()
+
     // MARK: - Initializer
     // MARK: - Public
     // `seeded` is what the brain records as holding a seeded copy — the catalog
@@ -69,7 +73,7 @@ public enum Seeding {
     // that are easy to forget, and forgetting them is silent — the retirement
     // simply stops happening, and a zero clock writes a false timestamp onto a
     // trashed note.
-    public static func plant(force: Bool, seeded: [String], now: Int, scope: BootstrapScope) -> Result {
+    public func plant(force: Bool, seeded: [String], now: Int, scope: BootstrapScope) -> Result {
         var result = Result()
 
         // Every seed's address is read once, and every branch below decides from
@@ -121,7 +125,7 @@ public enum Seeding {
                 // not flagged. A ripple says "what you cite is gone", and here it
                 // is the occupant that changed, not the address.
                 if case .foreign = claimant {
-                    try Trash.file(
+                    try trash.file(
                         canonical,
                         reason: "replaced by the shipped seed at this id",
                         now: now
@@ -160,7 +164,7 @@ public enum Seeding {
             // Confirmed against the file, not taken from the row: what is there
             // now may no longer be the copy the catalog remembers.
             guard let text = try? String(contentsOf: file, encoding: .utf8),
-                let (fields, _) = try? Frontmatter.parse(text), fields.seed
+                let (fields, _) = try? frontmatter.parse(text), fields.seed
             else {
                 continue
             }
@@ -193,7 +197,7 @@ public enum Seeding {
         case unreadable(String)
     }
 
-    private static func claimant(of seed: Seed.Note) -> Claimant {
+    private func claimant(of seed: Seed.Note) -> Claimant {
         let canonical = Paths.file(forId: seed.id)
 
         guard FileManager.default.fileExists(atPath: canonical.path) else { return .absent }
@@ -209,7 +213,7 @@ public enum Seeding {
 
         // An unparseable file cannot show the mark, and a file that cannot show
         // the mark is not one this release may overwrite.
-        guard let (fields, _) = try? Frontmatter.parse(text) else { return .foreign }
+        guard let (fields, _) = try? frontmatter.parse(text) else { return .foreign }
 
         return fields.seed ? .ours : .foreign
     }

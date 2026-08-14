@@ -22,6 +22,10 @@ struct RenameSectionHandler: OperationHandling {
     private let payload = OpPayloadCheck()
     private let writeEffects = NoteWriteEffects()
 
+    private let sectionEdit = SectionEdit()
+
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -36,7 +40,7 @@ struct RenameSectionHandler: OperationHandling {
         }
 
         do {
-            _ = try SectionEdit.parsePath(op["section"] as? String ?? "")
+            _ = try sectionEdit.parsePath(op["section"] as? String ?? "")
         } catch {
             return "invalid section path: \(error)"
         }
@@ -60,12 +64,12 @@ struct RenameSectionHandler: OperationHandling {
         }
 
         let raw = try String(contentsOf: path, encoding: .utf8)
-        let (doc, body) = try Frontmatter.parse(raw)
-        let sectionPath = try SectionEdit.parsePath(op["section"] as! String)
+        let (doc, body) = try frontmatter.parse(raw)
+        let sectionPath = try sectionEdit.parsePath(op["section"] as! String)
         let newTitle = op["new_title"] as! String
-        let newBody = try SectionEdit.rename(body, path: sectionPath, newTitle: newTitle)
+        let newBody = try sectionEdit.rename(body, path: sectionPath, newTitle: newTitle)
 
-        try (Frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
+        try (frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
         try scope.run(ReindexNoteFileTransaction(path: path))
 
         let now = context.now

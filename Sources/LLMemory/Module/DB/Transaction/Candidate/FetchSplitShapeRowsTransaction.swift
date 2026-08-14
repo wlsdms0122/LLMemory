@@ -29,6 +29,8 @@ struct FetchSplitShapeRowsTransaction: GRDBReadTransaction {
     let minWords: Int
     let minSections: Int
 
+    private let policy = Policy()
+
     // MARK: - Initializer
     init(minWords: Int, minSections: Int) {
         self.minWords = minWords
@@ -41,7 +43,7 @@ struct FetchSplitShapeRowsTransaction: GRDBReadTransaction {
             SELECT n.id, n.title, n.word_count, n.section_count,
                    (SELECT COUNT(DISTINCT tag) FROM tags WHERE note_id = n.id) AS tag_count
             FROM notes n
-            WHERE \(Policy.decayCandidate())
+            WHERE \(policy.decayCandidate())
               AND n.word_count >= ?
               AND n.section_count >= ?
             ORDER BY n.word_count DESC, n.id ASC

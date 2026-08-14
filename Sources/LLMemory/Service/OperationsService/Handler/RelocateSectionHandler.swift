@@ -23,6 +23,10 @@ struct RelocateSectionHandler: OperationHandling {
     private let payload = OpPayloadCheck()
     private let writeEffects = NoteWriteEffects()
 
+    private let sectionEdit = SectionEdit()
+
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -44,7 +48,7 @@ struct RelocateSectionHandler: OperationHandling {
         }
 
         do {
-            _ = try SectionEdit.parsePath(op["section"] as? String ?? "")
+            _ = try sectionEdit.parsePath(op["section"] as? String ?? "")
         } catch {
             return "invalid section path: \(error)"
         }
@@ -82,19 +86,19 @@ struct RelocateSectionHandler: OperationHandling {
             ])
         }
 
-        let (srcDoc, srcBody) = try Frontmatter.parse(
+        let (srcDoc, srcBody) = try frontmatter.parse(
             try String(contentsOf: srcPath, encoding: .utf8)
         )
-        let (dstDoc, dstBody) = try Frontmatter.parse(
+        let (dstDoc, dstBody) = try frontmatter.parse(
             try String(contentsOf: dstPath, encoding: .utf8)
         )
-        let sectionPath = try SectionEdit.parsePath(op["section"] as! String)
-        let (extracted, srcRemaining) = try SectionEdit.extract(srcBody, paths: [sectionPath])
+        let sectionPath = try sectionEdit.parsePath(op["section"] as! String)
+        let (extracted, srcRemaining) = try sectionEdit.extract(srcBody, paths: [sectionPath])
         let position = op["position"] ?? "end"
         let newDst: String
 
         if let anchor = position as? String, anchor == "end" {
-            newDst = try SectionEdit.insert(
+            newDst = try sectionEdit.insert(
                 dstBody,
                 newSectionText: extracted,
                 anchor: .atEnd
@@ -103,28 +107,28 @@ struct RelocateSectionHandler: OperationHandling {
             newDst = extracted + (extracted.hasSuffix("\n") ? "" : "\n") + dstBody
         } else if let anchor = position as? [String: Any],
             let after = anchor["after"] as? String {
-            newDst = try SectionEdit.insert(
+            newDst = try sectionEdit.insert(
                 dstBody,
                 newSectionText: extracted,
-                anchor: .after(try SectionEdit.parsePath(after))
+                anchor: .after(try sectionEdit.parsePath(after))
             )
         } else if let anchor = position as? [String: Any],
             let before = anchor["before"] as? String {
-            newDst = try SectionEdit.insert(
+            newDst = try sectionEdit.insert(
                 dstBody,
                 newSectionText: extracted,
-                anchor: .before(try SectionEdit.parsePath(before))
+                anchor: .before(try sectionEdit.parsePath(before))
             )
         } else {
             throw NSError(domain: "Handlers", code: 2)
         }
 
-        try (Frontmatter.dump(srcDoc) + srcRemaining).write(
+        try (frontmatter.dump(srcDoc) + srcRemaining).write(
             to: srcPath,
             atomically: true,
             encoding: .utf8
         )
-        try (Frontmatter.dump(dstDoc) + newDst).write(
+        try (frontmatter.dump(dstDoc) + newDst).write(
             to: dstPath,
             atomically: true,
             encoding: .utf8

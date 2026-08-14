@@ -17,6 +17,8 @@ struct FragmentationLintTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let indexer = Indexer()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -268,7 +270,7 @@ struct FragmentationLintTests {
         #expect(try siblingEdgeCount() == 1)
         
         // When
-        _ = try Indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), rebuild: true)
         
         // Then
         #expect(try siblingEdgeCount() == 1, "a rebuild must not erase sibling edges")

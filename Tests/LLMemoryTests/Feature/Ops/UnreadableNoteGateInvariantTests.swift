@@ -19,6 +19,10 @@ struct UnreadableNoteGateInvariantTests {
     
     private let trashLookup = TrashedNoteLookup()
 
+    private let noteFiles = Notes()
+
+    private let detectors = Candidates()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -38,10 +42,10 @@ struct UnreadableNoteGateInvariantTests {
         try "no frontmatter at all\n".write(to: unreadable, atomically: true, encoding: .utf8)
         
         // Then
-        #expect(try Notes.readNoteIfPresent(at: absent) == nil, "absence is an answer, not an error")
-        #expect(throws: (any Error).self) { try Notes.requireNote(at: absent) }
-        #expect(throws: (any Error).self) { try Notes.readNoteIfPresent(at: unreadable) }
-        #expect(throws: (any Error).self) { try Notes.requireNote(at: unreadable) }
+        #expect(try noteFiles.readNoteIfPresent(at: absent) == nil, "absence is an answer, not an error")
+        #expect(throws: (any Error).self) { try noteFiles.requireNote(at: absent) }
+        #expect(throws: (any Error).self) { try noteFiles.readNoteIfPresent(at: unreadable) }
+        #expect(throws: (any Error).self) { try noteFiles.requireNote(at: unreadable) }
     }
     
     @Test("a template edit is refused when a document it governs cannot be read")
@@ -224,7 +228,7 @@ struct UnreadableNoteGateInvariantTests {
         
         // Then
         #expect(throws: (any Error).self) {
-            try home.readScope { scope in try Candidates.neighbors(scope, noteId: "an-note", k: 3) }
+            try home.readScope { scope in try detectors.neighbors(scope, noteId: "an-note", k: 3) }
         }
     }
     
@@ -241,7 +245,7 @@ struct UnreadableNoteGateInvariantTests {
         
         // When
         try home.readScope { scope in
-            let split = try Candidates.splitCandidates(scope)
+            let split = try detectors.splitCandidates(scope)
             
             // Then
             #expect(split.contains { candidate in candidate.id == "sw-ok" },
@@ -249,9 +253,9 @@ struct UnreadableNoteGateInvariantTests {
             #expect(!split.contains { candidate in candidate.id == "sw-bad" },
                 "an unreadable note was sketched anyway")
             
-            _ = try Candidates.clusters(scope)
-            _ = try Candidates.missingEdges(scope)
-            _ = try Candidates.nearDuplicates(scope)
+            _ = try detectors.clusters(scope)
+            _ = try detectors.missingEdges(scope)
+            _ = try detectors.nearDuplicates(scope)
         }
     }
     

@@ -15,6 +15,8 @@ struct SearchTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let search = Search()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -23,18 +25,18 @@ struct SearchTests {
     // MARK: - Test
     @Test("a plain query becomes an OR over its tokens, so any one of them can match")
     func matchExprTokenizesToOR() {
-        #expect(Search.ftsMatchExpr("alpha beta", raw: false) == "\"alpha\" OR \"beta\"")
+        #expect(search.ftsMatchExpr("alpha beta", raw: false) == "\"alpha\" OR \"beta\"")
     }
     
     @Test("a raw query is handed to FTS5 verbatim, operators and all")
     func matchExprRawPassesVerbatim() {
-        #expect(Search.ftsMatchExpr("transfer NOT giro", raw: true) == "transfer NOT giro")
+        #expect(search.ftsMatchExpr("transfer NOT giro", raw: true) == "transfer NOT giro")
     }
     
     @Test("a query with no tokens is nil rather than an expression that matches everything")
     func matchExprEmptyIsNil() {
-        #expect(Search.ftsMatchExpr("   ", raw: false) == nil)
-        #expect(Search.ftsMatchExpr("", raw: true) == nil)
+        #expect(search.ftsMatchExpr("   ", raw: false) == nil)
+        #expect(search.ftsMatchExpr("", raw: true) == nil)
     }
     
     @Test("a multi-keyword query matches a note carrying any keyword, not the phrase")
@@ -91,9 +93,9 @@ struct SearchTests {
     
     @Test("the fetch pool is wide enough to rerank, and exactly the limit when there is nothing to rerank")
     func fetchPoolSizeFollowsTheRerankNeed() {
-        #expect(Search.fetchPoolSize(limit: 40, needsRerank: true) >= 40)
-        #expect(Search.fetchPoolSize(limit: 5, needsRerank: true) == 15)
-        #expect(Search.fetchPoolSize(limit: 40, needsRerank: false) == 40)
+        #expect(search.fetchPoolSize(limit: 40, needsRerank: true) >= 40)
+        #expect(search.fetchPoolSize(limit: 5, needsRerank: true) == 15)
+        #expect(search.fetchPoolSize(limit: 40, needsRerank: false) == 40)
     }
     
     @Test("a malformed raw query throws a named error instead of leaking the SQLite one")

@@ -13,6 +13,8 @@ public struct IndexService: IndexServiceable {
     // MARK: - Property
     let storage: GRDBStorage
 
+    private let indexer = Indexer()
+
     // MARK: - Initializer
     init(storage: GRDBStorage) {
         self.storage = storage
@@ -27,7 +29,7 @@ public struct IndexService: IndexServiceable {
         // lock could mark a concurrently committed note as an orphan and
         // delete it. Atomicity beats lock duration here.
         try await storage.run { scope in
-            let scan = Indexer.scanPending()
+            let scan = indexer.scanPending()
 
             return try scope.run(
                 ReconcileIndexTransaction(

@@ -9,6 +9,8 @@ import Foundation
 import GRDB
 
 struct FetchLintDismissalsTransaction: GRDBReadTransaction {
+    private let dismissalPolicy = Dismissals()
+
     // MARK: - Initializer
     init() { }
 
@@ -23,9 +25,9 @@ struct FetchLintDismissalsTransaction: GRDBReadTransaction {
         for row in noteRows {
             let kind: String = row["kind"]
             
-            guard Dismissals.lintCode(of: kind) != nil else { continue }
+            guard dismissalPolicy.lintCode(of: kind) != nil else { continue }
             
-            dismissals[Dismissals.lintLookupKey(.note(row["note_id"]), kind)] = Dismissals.Dismissal(
+            dismissals[dismissalPolicy.lintLookupKey(.note(row["note_id"]), kind)] = Dismissals.Dismissal(
                 kind: kind,
                 dismissCount: row["dismiss_count"] as Int? ?? 1,
                 wordCount: row["word_count"] as Int? ?? 0,
@@ -42,9 +44,9 @@ struct FetchLintDismissalsTransaction: GRDBReadTransaction {
         for row in corpusRows {
             let kind: String = row["kind"]
             
-            guard Dismissals.lintCode(of: kind) != nil else { continue }
+            guard dismissalPolicy.lintCode(of: kind) != nil else { continue }
             
-            dismissals[Dismissals.lintLookupKey(.corpus(row["target_key"]), kind)] = Dismissals.Dismissal(
+            dismissals[dismissalPolicy.lintLookupKey(.corpus(row["target_key"]), kind)] = Dismissals.Dismissal(
                 kind: kind,
                 dismissCount: row["dismiss_count"] as Int? ?? 1,
                 wordCount: 0,

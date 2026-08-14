@@ -9,6 +9,8 @@ import Foundation
 import GRDB
 
 struct FetchSurfaceMetaRowsTransaction: GRDBReadTransaction {
+    private let policy = Policy()
+
     // MARK: - Initializer
     init() { }
 
@@ -16,7 +18,7 @@ struct FetchSurfaceMetaRowsTransaction: GRDBReadTransaction {
     func perform(_ db: Database) throws -> [MetaRow] {
         try Row.fetchAll(
             db,
-            sql: "SELECT id, title, summary FROM notes WHERE \(Policy.all(Policy.surface(""), Policy.notEager("")))"
+            sql: "SELECT id, title, summary FROM notes WHERE \(policy.all(policy.surface(""), policy.notEager("")))"
         ).map { row in
             MetaRow(
                 id: row["id"],

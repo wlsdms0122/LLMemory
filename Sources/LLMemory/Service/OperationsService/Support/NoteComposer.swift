@@ -12,6 +12,10 @@ import Foundation
 // frontmatter fields an op carries that the note, not the op, is meant to keep.
 struct NoteComposer {
     // MARK: - Property
+    private let frontmatter = Frontmatter()
+
+    private let template = Template()
+
     // MARK: - Initializer
     // MARK: - Public
     func composeCreateBody(_ op: [String: Any], _ scope: GRDBReadScope) throws -> String {
@@ -21,7 +25,7 @@ struct NoteComposer {
         
         if let templateId, content.isEmpty,
             let frame = try scope.run(LoadTemplateFrameTransaction(templateId: templateId)) {
-            content = Template.scaffold(frame)
+            content = template.scaffold(frame)
         }
         
         return content + "\n"
@@ -98,7 +102,7 @@ struct NoteComposer {
                 doc.priority = try string(key, value)
 
             case "source":
-                doc.source = try Frontmatter.decodeSource(value)
+                doc.source = try frontmatter.decodeSource(value)
 
             case "promoted_from":
                 let promotedFrom = try list(key, value)

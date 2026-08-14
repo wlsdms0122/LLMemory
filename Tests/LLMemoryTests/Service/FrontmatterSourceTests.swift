@@ -12,12 +12,14 @@ import GRDB
 @Suite("FrontmatterSource Tests", .serialized)
 struct FrontmatterSourceTests {
     // MARK: - Property
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Test
     @Test("a single source may be written bare, without brackets")
     func bareStringSourceIsParsed() throws {
         // When
-        let (document, _) = try Frontmatter.parse(Self.note("/abs/kernel/x.swift"))
+        let (document, _) = try frontmatter.parse(Self.note("/abs/kernel/x.swift"))
         
         // Then
         #expect(document.source == ["/abs/kernel/x.swift"], "bare-string source must be honored, not dropped — got \(document.source as Any)")
@@ -26,7 +28,7 @@ struct FrontmatterSourceTests {
     @Test("the bracketed list form still parses")
     func bracketedSourceStillParsed() throws {
         // When
-        let (document, _) = try Frontmatter.parse(Self.note("[\"/abs/a.swift\", \"/abs/b.swift\"]"))
+        let (document, _) = try frontmatter.parse(Self.note("[\"/abs/a.swift\", \"/abs/b.swift\"]"))
         
         // Then
         #expect(document.source == ["/abs/a.swift", "/abs/b.swift"], "bracketed list must still parse — got \(document.source as Any)")
@@ -35,9 +37,9 @@ struct FrontmatterSourceTests {
     @Test("a bare source survives a dump and reparse")
     func bareSourceSurvivesRoundTrip() throws {
         // When
-        let (original, _) = try Frontmatter.parse(Self.note("/abs/only.swift"))
-        let dumped = Frontmatter.dump(original)
-        let (reparsed, _) = try Frontmatter.parse(dumped + "\n# body\n")
+        let (original, _) = try frontmatter.parse(Self.note("/abs/only.swift"))
+        let dumped = frontmatter.dump(original)
+        let (reparsed, _) = try frontmatter.parse(dumped + "\n# body\n")
         
         // Then
         #expect(reparsed.source == ["/abs/only.swift"], "bare source lost across round-trip — got \(reparsed.source as Any)")
@@ -46,7 +48,7 @@ struct FrontmatterSourceTests {
     @Test("a duplicated key resolves to the last occurrence, like every other field")
     func duplicateSourceKeepsLastOccurrence() throws {
         // When
-        let (document, _) = try Frontmatter.parse(Self.note("[\"/abs/first.swift\"]\nsource: [\"/abs/second.swift\"]"))
+        let (document, _) = try frontmatter.parse(Self.note("[\"/abs/first.swift\"]\nsource: [\"/abs/second.swift\"]"))
         
         // Then
         #expect(document.source == ["/abs/second.swift"], "duplicate source must keep the last occurrence — got \(document.source as Any)")
@@ -55,12 +57,12 @@ struct FrontmatterSourceTests {
     @Test("that holds whichever of the two forms comes last")
     func duplicateSourceMixedFormsKeepLastOccurrence() throws {
         // When
-        let (bareLast, _) = try Frontmatter.parse(Self.note("[\"/abs/first.swift\"]\nsource: /abs/second.swift"))
+        let (bareLast, _) = try frontmatter.parse(Self.note("[\"/abs/first.swift\"]\nsource: /abs/second.swift"))
         
         // Then
         #expect(bareLast.source == ["/abs/second.swift"], "bare last occurrence lost to a bracketed sibling — got \(bareLast.source as Any)")
         
-        let bracketLast = try Frontmatter.parse(Self.note("/abs/first.swift\nsource: [\"/abs/second.swift\"]")).0
+        let bracketLast = try frontmatter.parse(Self.note("/abs/first.swift\nsource: [\"/abs/second.swift\"]")).0
         
         #expect(bracketLast.source == ["/abs/second.swift"], "bracketed last occurrence lost — got \(bracketLast.source as Any)")
     }
@@ -69,13 +71,13 @@ struct FrontmatterSourceTests {
     func bracketedNonJSONFailsLoud() throws {
         // Then
         #expect(throws: FrontmatterError.malformedSource(value: "[/abs/a.swift]")) {
-            _ = try Frontmatter.parse(Self.note("[/abs/a.swift]"))
+            _ = try frontmatter.parse(Self.note("[/abs/a.swift]"))
         }
         #expect(throws: FrontmatterError.self) {
-            _ = try Frontmatter.parse(Self.note("[\"/abs/a.swift\""))
+            _ = try frontmatter.parse(Self.note("[\"/abs/a.swift\""))
         }
         #expect(throws: FrontmatterError.self) {
-            _ = try Frontmatter.parse(Self.note("[\"/abs/a.swift\", /abs/b.swift]"))
+            _ = try frontmatter.parse(Self.note("[\"/abs/a.swift\", /abs/b.swift]"))
         }
     }
     
@@ -83,10 +85,10 @@ struct FrontmatterSourceTests {
     func bracketIsReservedForTheListFormAndQuotingIsTheEscapeHatch() throws {
         // Then
         #expect(throws: FrontmatterError.malformedSource(value: "[RFC-123]")) {
-            _ = try Frontmatter.parse(Self.note("[RFC-123]"))
+            _ = try frontmatter.parse(Self.note("[RFC-123]"))
         }
         
-        let (document, _) = try Frontmatter.parse(Self.note("[\"[RFC-123]\"]"))
+        let (document, _) = try frontmatter.parse(Self.note("[\"[RFC-123]\"]"))
         
         #expect(document.source == ["[RFC-123]"])
     }
@@ -95,10 +97,10 @@ struct FrontmatterSourceTests {
     func bracketedNonJSONFailsLoudDespiteWellFormedSibling() throws {
         // Then
         #expect(throws: FrontmatterError.malformedSource(value: "[/abs/bad.swift]")) {
-            _ = try Frontmatter.parse(Self.note("[\"/abs/ok.swift\"]\nsource: [/abs/bad.swift]"))
+            _ = try frontmatter.parse(Self.note("[\"/abs/ok.swift\"]\nsource: [/abs/bad.swift]"))
         }
         #expect(throws: FrontmatterError.malformedSource(value: "[/abs/bad.swift]")) {
-            _ = try Frontmatter.parse(Self.note("[/abs/bad.swift]\nsource: [\"/abs/ok.swift\"]"))
+            _ = try frontmatter.parse(Self.note("[/abs/bad.swift]\nsource: [\"/abs/ok.swift\"]"))
         }
     }
     
@@ -108,7 +110,7 @@ struct FrontmatterSourceTests {
         for bad in ["[123]", "[null]", "[\"\"]", "[{\"foo\": \"bar\"}]", "[[\"/abs/a.swift\"]]",
             "[\"/abs/a.swift\", 123]", "[{\"path\": \"\"}]"] {
             #expect(throws: FrontmatterError.self, "unmappable element must fail loud, not normalize away: \(bad)") {
-                _ = try Frontmatter.parse(Self.note(bad))
+                _ = try frontmatter.parse(Self.note(bad))
             }
         }
     }
@@ -117,14 +119,14 @@ struct FrontmatterSourceTests {
     func bracketedNonArrayJSONFailsLoud() throws {
         // Then
         #expect(throws: FrontmatterError.self) {
-            _ = try Frontmatter.parse(Self.note("[\"/abs/a.swift\"] extra"))
+            _ = try frontmatter.parse(Self.note("[\"/abs/a.swift\"] extra"))
         }
     }
     
     @Test("an object element collapses to its path")
     func jsonDictEntriesCollapseToTheirPath() throws {
         // When
-        let (document, _) = try Frontmatter.parse(Self.note("[{\"path\": \"/abs/a.swift\"}, \"/abs/b.swift\"]"))
+        let (document, _) = try frontmatter.parse(Self.note("[{\"path\": \"/abs/a.swift\"}, \"/abs/b.swift\"]"))
         
         // Then
         #expect(document.source == ["/abs/a.swift", "/abs/b.swift"])
@@ -136,12 +138,12 @@ struct FrontmatterSourceTests {
         for (input, expected) in [("/abs/a.swift", ["/abs/a.swift"]),
             ("[{\"path\": \"/abs/a.swift\"}]", ["/abs/a.swift"]),
             ("[]", [])] {
-            let (parsed, _) = try Frontmatter.parse(Self.note(input))
+            let (parsed, _) = try frontmatter.parse(Self.note(input))
         
         // Then
             #expect(parsed.source == expected, "\(input) normalized to \(parsed.source as Any)")
             
-            let (reparsed, _) = try Frontmatter.parse(Frontmatter.dump(parsed) + "# body\n")
+            let (reparsed, _) = try frontmatter.parse(frontmatter.dump(parsed) + "# body\n")
             
             #expect(reparsed.source ?? [] == parsed.source ?? [],
                 "\(input) lost meaning across dump → parse — got \(reparsed.source as Any)")
@@ -151,7 +153,7 @@ struct FrontmatterSourceTests {
     @Test("an empty list is valid and means no source")
     func canonicalEmptySourceIsValid() throws {
         // When
-        let (document, _) = try Frontmatter.parse(Self.note("[]"))
+        let (document, _) = try frontmatter.parse(Self.note("[]"))
         
         // Then
         #expect(document.source == [])

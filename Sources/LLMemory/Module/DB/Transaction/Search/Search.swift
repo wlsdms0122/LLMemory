@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-public enum Search {
+public struct Search: Sendable {
     enum SearchError: LocalizedError {
         case invalidRawQuery(String)
         
@@ -30,13 +30,17 @@ public enum Search {
                f.section AS section, MIN(rank) AS best_rank
         """
     
+    private let framing = Framing()
+
+    private let policy = Policy()
+
     // MARK: - Initializer
     // MARK: - Public
     // The one place that decides what "this note carries this tag" means in SQL.
     // Aliases exist so a caller may spell a tag either way, and only the canonical
     // spelling is stored on the note — so the resolution belongs here, with the
     // clause it guards, rather than at each call site.
-    static func tagClause(
+    func tagClause(
         _ db: Database,
         tags: [String],
         negated: Bool = false
@@ -64,18 +68,18 @@ public enum Search {
         return (clauses.joined(separator: " AND "), canonical)
     }
 
-    static func fetchPoolSize(limit: Int, needsRerank: Bool) -> Int {
+    func fetchPoolSize(limit: Int, needsRerank: Bool) -> Int {
         needsRerank ? limit + min(limit * 2, 30) : limit
     }
     
-    static func ftsMatchExpr(_ query: String, raw: Bool) -> String? {
+    func ftsMatchExpr(_ query: String, raw: Bool) -> String? {
         if raw {
             let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
             
             return trimmed.isEmpty ? nil : trimmed
         }
         
-        let parts = Framing.extractKeywords(query)
+        let parts = framing.extractKeywords(query)
             .map { keyword in "\"\(keyword.replacingOccurrences(of: "\"", with: ""))\"" }
         
         return parts.isEmpty ? nil : parts.joined(separator: " OR ")
@@ -86,7 +90,7 @@ public enum Search {
     // The boost takes the item's *strongest* reinstated tag rather than the sum:
     // a note that carries five tags is not five times more primed, and summing
     // would make tag count itself a ranking signal.
-    static func rerank<T>(
+    func rerank<T>(
         _ pool: [T],
         prior: [String: Double],
         limit: Int,
@@ -114,11 +118,11 @@ public enum Search {
     }
     
     // MARK: - Private
-    static func staleClause(_ includeStale: Bool) -> String {
-        includeStale ? "" : " AND \(Policy.fresh())"
+    func staleClause(_ includeStale: Bool) -> String {
+        includeStale ? "" : " AND \(policy.fresh())"
     }
     
-    static func fetchRows(
+    func fetchRows(
         _ db: Database,
         sql: String,
         arguments: [DatabaseValueConvertible?]
@@ -128,7 +132,7 @@ public enum Search {
         return rows.map { row in rowToSearchRow(row, hasExtra: false) }
     }
     
-    private static func rowToSearchRow(_ row: Row, hasExtra: Bool) -> SearchRow {
+    private func rowToSearchRow(_ row: Row, hasExtra: Bool) -> SearchRow {
         let section = (row["section"] as String?).flatMap { value in value.isEmpty ? nil : value }
         
         return SearchRow(

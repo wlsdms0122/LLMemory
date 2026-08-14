@@ -12,6 +12,8 @@ import GRDB
 @Suite("SectionRows Tests")
 struct SectionRowsTests {
     // MARK: - Property
+    private let sectionEdit = SectionEdit()
+
     // MARK: - Initializer
     // MARK: - Test
     @Test("text before the first heading is preamble, and each section owns only its own lines")
@@ -27,7 +29,7 @@ struct SectionRowsTests {
         ## B
         b-body
         """
-        let (preamble, rows) = SectionEdit.sectionRows(body)
+        let (preamble, rows) = sectionEdit.sectionRows(body)
         
         // Then
         #expect(preamble == "intro line\n")
@@ -42,7 +44,7 @@ struct SectionRowsTests {
     func everyLineLandsInExactlyOneRow() {
         // When
         let body = "pre\n## A\nx\n### B\ny\n#### C\nz\n## D\nw\n"
-        let (preamble, rows) = SectionEdit.sectionRows(body)
+        let (preamble, rows) = sectionEdit.sectionRows(body)
         let reassembled = ([preamble] + rows.map { row in row.text })
             .filter { text in !text.isEmpty }
             .joined(separator: "\n") + "\n"
@@ -54,7 +56,7 @@ struct SectionRowsTests {
     @Test("a body with no heading is all preamble and no rows")
     func headingFreeBodyIsAllPreamble() {
         // When
-        let (preamble, rows) = SectionEdit.sectionRows("just text\nno headings\n")
+        let (preamble, rows) = sectionEdit.sectionRows("just text\nno headings\n")
         
         // Then
         #expect(preamble == "just text\nno headings")
@@ -65,7 +67,7 @@ struct SectionRowsTests {
     func fencedHeadingsStayInOwnerSection() {
         // When
         let body = "## A\n```\n## not-a-heading\n```\n## B\nb\n"
-        let (_, rows) = SectionEdit.sectionRows(body)
+        let (_, rows) = sectionEdit.sectionRows(body)
         
         // Then
         #expect(rows.map { row in row.path } == ["## A", "## B"])

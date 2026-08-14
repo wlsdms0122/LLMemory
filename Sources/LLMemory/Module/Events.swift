@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-enum Events {
+struct Events: Sendable {
     // MARK: - Property
     static let kindCapture = "capture"
     static let kindConsolidation = "consolidation"
@@ -17,7 +17,7 @@ enum Events {
 
     // MARK: - Initializer
     // MARK: - Public
-    static func record(
+    func record(
         _ db: Database,
         kind: String,
         payload: [String: Any?],
@@ -34,7 +34,7 @@ enum Events {
     
     // A lone event INSERT is a single atomic statement — it needs no cross-process
     // write lock, so callers outside a locked section pass the queue directly.
-    static func record(
+    func record(
         _ queue: any DatabaseWriter,
         kind: String,
         payload: [String: Any?],
@@ -46,7 +46,7 @@ enum Events {
         }
     }
     
-    static func record(
+    func record(
         _ db: Database,
         kind: String,
         payloadJSON: String,
@@ -59,7 +59,7 @@ enum Events {
         try? record.insert(db)
     }
 
-    static func record(
+    func record(
         _ queue: any DatabaseWriter,
         kind: String,
         payloadJSON: String,
@@ -76,7 +76,7 @@ enum Events {
     
     // Pre-serialization for retrieval side effects derived on the read path and
     // applied later by a write transaction.
-    static func retrievalPayloadJSON(cmd: String, payload: [(String, Any?)]) -> String {
+    func retrievalPayloadJSON(cmd: String, payload: [(String, Any?)]) -> String {
         var fields: [String: Any?] = ["cmd": cmd]
         
         for (key, value) in payload { fields[key] = value }
@@ -86,7 +86,7 @@ enum Events {
     
     
     // MARK: - Private
-    static func serializePayload(_ payload: [String: Any?]) -> String {
+    func serializePayload(_ payload: [String: Any?]) -> String {
         let cleaned = payload.compactMapValues { value in value }
         
         if let data = try? JSONSerialization.data(withJSONObject: cleaned, options: []),

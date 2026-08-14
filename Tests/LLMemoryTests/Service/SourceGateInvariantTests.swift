@@ -15,6 +15,8 @@ struct SourceGateInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -194,7 +196,7 @@ struct SourceGateInvariantTests {
         // Then
         #expect(result.status != "ok", "malformed set_frontmatter source applied with status=\(result.status)")
         
-        let (document, _) = try Frontmatter.parse(try String(contentsOf: path, encoding: .utf8))
+        let (document, _) = try frontmatter.parse(try String(contentsOf: path, encoding: .utf8))
         
         #expect(document.source == [grounding.path], "declaration was overwritten — got \(document.source as Any)")
         
@@ -226,7 +228,7 @@ struct SourceGateInvariantTests {
         // Then
         #expect(result.status == "ok", "explicit clear was rejected: \(result.error)")
         
-        let (document, _) = try Frontmatter.parse(try String(contentsOf: path, encoding: .utf8))
+        let (document, _) = try frontmatter.parse(try String(contentsOf: path, encoding: .utf8))
         
         #expect(document.source ?? [] == [], "explicit [] did not clear the declaration")
         
@@ -253,7 +255,7 @@ struct SourceGateInvariantTests {
         #expect(result.status == "ok", "valid mixed shapes rejected: \(result.error)")
         
         let path = Paths.notes.appendingPathComponent("gate-5.md")
-        let (document, _) = try Frontmatter.parse(try String(contentsOf: path, encoding: .utf8))
+        let (document, _) = try frontmatter.parse(try String(contentsOf: path, encoding: .utf8))
         
         #expect(document.source == ["/abs/a.swift", "/abs/b.swift"])
     }

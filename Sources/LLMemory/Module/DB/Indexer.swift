@@ -10,7 +10,7 @@ import GRDB
 
 // Index reconciliation mechanics — scanning cortex/, parsing notes and
 // reconciling the projection into the database.
-public enum Indexer {
+public struct Indexer: Sendable {
     public struct BuildResult: Sendable {
         // MARK: - Property
         public let count: Int
@@ -78,12 +78,16 @@ public enum Indexer {
     }
 
     // MARK: - Property
+    private let frontmatter = Frontmatter()
+
+    private let noteFiles = Notes()
+
     // MARK: - Initializer
     // MARK: - Public
     // Caller holds the write lock (run's write marker or an explicit writeLock).
     // Scanning and parsing stay outside the transaction — only the reconcile
     // holds the lock.
-    static func buildLocked(_ queue: any DatabaseWriter, rebuild: Bool = false) throws -> BuildResult {
+    func buildLocked(_ queue: any DatabaseWriter, rebuild: Bool = false) throws -> BuildResult {
         let scanned = scanPending()
 
         return try queue.write { db in
@@ -99,7 +103,7 @@ public enum Indexer {
     }
 
     // The corpus scan — file I/O and parsing, no connection involved.
-    static func scanPending() -> Scan {
+    func scanPending() -> Scan {
         let files = Paths.scanNotes()
         var scannedRels = Set<String>()
         var pending: [PendingNote] = []
@@ -108,7 +112,7 @@ public enum Indexer {
         for file in files {
             let relativePath: String
             do {
-                relativePath = try Notes.relativeToBrainRoot(file)
+                relativePath = try noteFiles.relativeToBrainRoot(file)
             } catch {
                 fileErrors.append("\(file.path): \(error)")
                 continue
@@ -123,14 +127,14 @@ public enum Indexer {
 
             do {
                 let text = try String(contentsOf: file, encoding: .utf8)
-                let (fields, body) = try Frontmatter.parse(text)
+                let (fields, body) = try frontmatter.parse(text)
 
                 pending.append(
                     PendingNote(
                         file: file,
                         rel: relativePath,
                         raw: text,
-                        contentHash: Notes.contentHash(text),
+                        contentHash: noteFiles.contentHash(text),
                         fields: fields,
                         body: body
                     )
@@ -143,14 +147,14 @@ public enum Indexer {
         return Scan(pending: pending, scannedRels: scannedRels, errors: fileErrors)
     }
 
-    static func check(_ queue: any DatabaseReader, level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
+    func check(_ queue: any DatabaseReader, level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
         try check(queue, rawLevel: level.rawValue)
     }
 
     // Applies each file as its own savepoint (one file = one rollback unit)
     // and reports outcomes as data — printing and exit codes are the CLI
     // surface's business, decided after the enclosing transaction commits.
-    static func reindexFiles(_ db: Database, filePaths: [String]) throws -> [ReindexOutcome] {
+    func reindexFiles(_ db: Database, filePaths: [String]) throws -> [ReindexOutcome] {
         var outcomes: [ReindexOutcome] = []
 
         for filePath in filePaths {
@@ -214,7 +218,7 @@ public enum Indexer {
     }
 
     // MARK: - Private
-    static func reconcile(
+    func reconcile(
         _ db: Database,
         pending: [PendingNote],
         scannedRels: Set<String>,
@@ -307,11 +311,11 @@ public enum Indexer {
     }
 
     // MARK: - Private
-    static func check(_ queue: any DatabaseReader, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
+    func check(_ queue: any DatabaseReader, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
         try queue.read { db in try check(db, rawLevel: level) }
     }
 
-    static func check(_ db: Database, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
+    func check(_ db: Database, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
         let eagerCap = Config.getInt("eager.max_count", default: 20)
         var messages: [String] = []
         var ok = true
@@ -407,7 +411,7 @@ public enum Indexer {
             let text: String
             do {
                 text = try String(contentsOf: file, encoding: .utf8)
-                (fields, _) = try Frontmatter.parse(text)
+                (fields, _) = try frontmatter.parse(text)
             } catch {
                 messages.append("L2\tfrontmatter-parse\t\(addressId)\t\(error)")
                 ok = false
@@ -478,7 +482,7 @@ public enum Indexer {
                 ok = false
             }
 
-            if Notes.contentHash(text) != row.contentHash {
+            if noteFiles.contentHash(text) != row.contentHash {
                 messages.append(
                     "L2\tstale-content\t\(row.id)\t(file text differs from indexed projection — reindex needed)"
                 )

@@ -19,6 +19,10 @@ struct SeedTests {
     private let source = PackageSource()
     private let home: MemoryHome
 
+    private let frontmatter = Frontmatter()
+
+    private let seeding = Seeding()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -88,7 +92,7 @@ struct SeedTests {
     func seedDeclaresNoId() throws {
         for seed in Seed.notes {
             // When
-            _ = try Frontmatter.parse(seed.markdown)
+            _ = try frontmatter.parse(seed.markdown)
 
             // Then
             #expect(!seed.markdown.contains("\nid:"),
@@ -178,7 +182,7 @@ struct SeedTests {
     @Test("the seed mark is projected onto the note row")
     func theSeedMarkIsProjected() throws {
         // Given
-        _ = Seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
+        _ = seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
 
         #expect(home.createNote(id: "tech.mine", content: "## A\nmine\n").status == "ok")
 
@@ -203,7 +207,7 @@ struct SeedTests {
     func everySeedDeclaresSeed() throws {
         for seed in Seed.notes {
             // When
-            let (fields, _) = try Frontmatter.parse(seed.markdown)
+            let (fields, _) = try frontmatter.parse(seed.markdown)
 
             // Then
             #expect(fields.seed, "\(seed.id) must declare seed: true")
@@ -523,7 +527,7 @@ struct SeedTests {
     @Test("locked is a bot-mutation gate, not ownership — planting restates the note either way")
     func plantRestatesSeedRegardlessOfLocked() throws {
         // Given
-        _ = Seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
+        _ = seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
 
         let seed = try firstSeed()
         let file = Paths.file(forId: seed.id)
@@ -533,7 +537,7 @@ struct SeedTests {
         try forked.write(to: file, atomically: true, encoding: .utf8)
 
         // When
-        let result = Seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
+        let result = seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
 
         // Then
         #expect(result.refreshed.contains(seed.id),

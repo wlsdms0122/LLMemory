@@ -13,6 +13,8 @@ struct VerifyNoteSourceTransaction: GRDBTransaction {
     let noteId: String
     let now: Int?
 
+    private let sourceFingerprint = SourceFingerprint()
+
     // MARK: - Initializer
     init(noteId: String, now: Int? = nil) {
         self.noteId = noteId
@@ -35,8 +37,8 @@ struct VerifyNoteSourceTransaction: GRDBTransaction {
 
         let paths = try FetchNoteSourcePathsTransaction(noteId: noteId).perform(db)
 
-        guard let currentDecl = SourceFingerprint.computeDeclHash(paths),
-            let current = SourceFingerprint.computeFingerprint(paths)
+        guard let currentDecl = sourceFingerprint.computeDeclHash(paths),
+            let current = sourceFingerprint.computeFingerprint(paths)
         else {
             try db.execute(
                 sql: "DELETE FROM note_source WHERE note_id = ?",

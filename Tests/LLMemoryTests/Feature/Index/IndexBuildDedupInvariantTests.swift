@@ -15,6 +15,12 @@ struct IndexBuildDedupInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
+    private let frontmatter = Frontmatter()
+
+    private let noteFiles = Notes()
+
+    private let indexer = Indexer()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -39,7 +45,7 @@ struct IndexBuildDedupInvariantTests {
         try FileManager.default.copyItem(at: original, to: copyURL)
         
         // When
-        let result = try Indexer.buildLocked(home.database(), rebuild: false)
+        let result = try indexer.buildLocked(home.database(), rebuild: false)
         
         // Then
         let ids = try home.read { database in
@@ -61,7 +67,7 @@ struct IndexBuildDedupInvariantTests {
         
         // When
         _ = try home.database().write { database in
-            try Indexer.reconcile(
+            try indexer.reconcile(
                 database,
                 pending: [source, destination],
                 scannedRels: [source.rel, destination.rel],
@@ -97,7 +103,7 @@ struct IndexBuildDedupInvariantTests {
             .write(to: file, atomically: true, encoding: .utf8)
         try fileManager.setAttributes([.modificationDate: frozen as Any], ofItemAtPath: file.path)
         
-        let result = try Indexer.buildLocked(home.database(), rebuild: false)
+        let result = try indexer.buildLocked(home.database(), rebuild: false)
         
         // Then
         let indexedRows = try home.read { database in
@@ -126,7 +132,7 @@ struct IndexBuildDedupInvariantTests {
             .write(to: file, atomically: true, encoding: .utf8)
         try fileManager.setAttributes([.modificationDate: frozen as Any], ofItemAtPath: file.path)
         
-        let (passed, messages) = try Indexer.check(home.database(), level: .l2)
+        let (passed, messages) = try indexer.check(home.database(), level: .l2)
         
         // Then
         #expect(!passed)
@@ -141,13 +147,13 @@ struct IndexBuildDedupInvariantTests {
         let resolved = url.resolvingSymlinksInPath().standardizedFileURL
         let relativePath = resolved.path.replacingOccurrences(of: Paths.brainRoot.path + "/", with: "")
         let text = try String(contentsOf: resolved, encoding: .utf8)
-        let (fields, body) = try Frontmatter.parse(text)
+        let (fields, body) = try frontmatter.parse(text)
         
         return Indexer.PendingNote(
             file: resolved,
             rel: relativePath,
             raw: text,
-            contentHash: Notes.contentHash(text),
+            contentHash: noteFiles.contentHash(text),
             fields: fields,
             body: body
         )

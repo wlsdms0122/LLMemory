@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-public enum NoteArtifacts {
+public struct NoteArtifacts: Sendable {
     enum Disposition {
         case reconstructable
         case preserved
@@ -71,11 +71,11 @@ public enum NoteArtifacts {
     ]
     
     static let reconstructableLinkKinds: Set<String> = Set(
-        linkKindSplitPolicy.filter { entry in entry.value == .rebuild }.map { entry in entry.key }
+        Self.linkKindSplitPolicy.filter { entry in entry.value == .rebuild }.map { entry in entry.key }
     )
     
     static let routeLinkKinds: Set<String> = Set(
-        linkKindSplitPolicy
+        Self.linkKindSplitPolicy
             .filter { entry in entry.value == .route || entry.value == .routeRevalidate }
             .map { entry in entry.key }
     )
@@ -95,18 +95,18 @@ public enum NoteArtifacts {
 
     
     // MARK: - Private
-    static func stage(_ table: String) -> String { "_rb_saved_\(table)" }
+    func stage(_ table: String) -> String { "_rb_saved_\(table)" }
     
-    static func notReconstructableClause(
+    func notReconstructableClause(
         _ column: String
     ) -> (clause: String, args: [String]) {
-        let kinds = Array(reconstructableLinkKinds)
+        let kinds = Array(Self.reconstructableLinkKinds)
         let placeholders = kinds.map { _ in "?" }.joined(separator: ", ")
         
         return ("\(column) NOT IN (\(placeholders))", kinds)
     }
     
-    static func moveAuthoredLinks(_ db: Database, from: String, to: String) throws {
+    func moveAuthoredLinks(_ db: Database, from: String, to: String) throws {
         let (notReconstructable, kinds) = notReconstructableClause("kind")
         
         try db.execute(

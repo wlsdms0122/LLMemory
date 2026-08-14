@@ -13,6 +13,8 @@ struct LinkSiblingsTransaction: GRDBTransaction {
     let ids: [String]
     let now: Int
 
+    private let links = Links()
+
     // MARK: - Initializer
     init(ids: [String], now: Int) {
         self.ids = ids
@@ -27,7 +29,7 @@ struct LinkSiblingsTransaction: GRDBTransaction {
 
         for (index, left) in sorted.enumerated() {
             for right in sorted.dropFirst(index + 1) {
-                guard let (src, dst) = Links.normalize(
+                guard let (src, dst) = links.normalize(
                     src: left,
                     dst: right,
                     kind: Links.kindSibling

@@ -18,6 +18,8 @@ struct NoteExtraProjectionTests {
     // MARK: - Property
     private let home: MemoryHome
 
+    private let indexer = Indexer()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -68,7 +70,7 @@ struct NoteExtraProjectionTests {
 
         #expect(try extras(of: "nx-b").isEmpty)
 
-        _ = try Indexer.buildLocked(try home.storage.connect(), rebuild: true)
+        _ = try indexer.buildLocked(try home.storage.connect(), rebuild: true)
 
         // Then
         #expect(try extras(of: "nx-b") == ["affect": "normal"])

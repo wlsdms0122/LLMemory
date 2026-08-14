@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-public enum Framing {
+public struct Framing: Sendable {
     // MARK: - Property
     static let stopwords: Set<String> = [
         "그리고", "하지만", "그런데", "그래서", "그러면", "이게", "저게", "이거",
@@ -24,11 +24,11 @@ public enum Framing {
 
     // MARK: - Initializer
     // MARK: - Public
-    static func extractKeywords(_ text: String, limit: Int = 15) -> [String] {
+    func extractKeywords(_ text: String, limit: Int = 15) -> [String] {
         var frequency: [String: Int] = [:]
         let nsText = text as NSString
 
-        wordRegex.enumerateMatches(
+        Self.wordRegex.enumerateMatches(
             in: text,
             range: NSRange(location: 0, length: nsText.length)
         ) { match, _, _ in
@@ -36,7 +36,7 @@ public enum Framing {
 
             let word = nsText.substring(with: match.range).lowercased()
 
-            if stopwords.contains(word) { return }
+            if Self.stopwords.contains(word) { return }
 
             frequency[word, default: 0] += 1
         }
@@ -51,7 +51,7 @@ public enum Framing {
     }
 
     // MARK: - Private
-    static func ftsQuery(_ keywords: [String]) -> String {
+    func ftsQuery(_ keywords: [String]) -> String {
         let parts = keywords
             .filter { keyword in !keyword.isEmpty }
             .map { keyword in "\"\(keyword)\"" }

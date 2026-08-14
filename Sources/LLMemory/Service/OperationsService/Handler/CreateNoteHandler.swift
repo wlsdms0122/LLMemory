@@ -32,6 +32,8 @@ struct CreateNoteHandler: OperationHandling {
     private let sourceInput = NoteSourceInput()
     private let writeEffects = NoteWriteEffects()
 
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -137,7 +139,7 @@ struct CreateNoteHandler: OperationHandling {
         if !entities.isEmpty { doc.entities = entities }
 
         try composer.mergeFields(&doc, payload.customFields(of: op, declaredBy: schema))
-        try (Frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
+        try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
 
         try scope.run(ReindexNoteFileTransaction(path: path))
         try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: true))

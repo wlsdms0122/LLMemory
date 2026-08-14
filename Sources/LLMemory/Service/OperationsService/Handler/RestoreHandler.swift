@@ -21,6 +21,8 @@ struct RestoreHandler: OperationHandling {
     private let payload = OpPayloadCheck()
     private let trashLookup = TrashedNoteLookup()
 
+    private let frontmatter = Frontmatter()
+
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -71,7 +73,7 @@ struct RestoreHandler: OperationHandling {
             at: destination.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        try (Frontmatter.dump(doc) + body).write(
+        try (frontmatter.dump(doc) + body).write(
             to: destination,
             atomically: true,
             encoding: .utf8

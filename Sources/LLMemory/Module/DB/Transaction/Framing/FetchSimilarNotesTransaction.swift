@@ -15,6 +15,12 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
     let includeStale: Bool
     let sessionId: String?
 
+    private let search = Search()
+
+    private let framing = Framing()
+
+    private let policy = Policy()
+
     // MARK: - Initializer
     init(keywords: [String], limit: Int, includeStale: Bool = false, sessionId: String? = nil) {
         self.keywords = keywords
@@ -25,7 +31,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [SimilarNote] {
-        let matchExpr = Framing.ftsQuery(keywords)
+        let matchExpr = framing.ftsQuery(keywords)
 
         if matchExpr.isEmpty { return [] }
 
@@ -39,7 +45,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
         var arguments: [DatabaseValueConvertible?] = [matchExpr]
 
         if !includeStale {
-            sql += " AND \(Policy.fresh())"
+            sql += " AND \(policy.fresh())"
         }
 
         let now = Int(Date().timeIntervalSince1970)
@@ -58,7 +64,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
         }
 
         let needsRerank = !prior.isEmpty
-        let fetchLimit = Search.fetchPoolSize(limit: limit, needsRerank: needsRerank)
+        let fetchLimit = search.fetchPoolSize(limit: limit, needsRerank: needsRerank)
         sql += Search.noteAggregationSQL
         arguments.append(fetchLimit)
 
@@ -82,7 +88,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
 
         if !needsRerank { return pool }
 
-        return Search.rerank(pool, prior: prior, limit: limit) { note in note.tags }
+        return search.rerank(pool, prior: prior, limit: limit) { note in note.tags }
     }
 
     // MARK: - Private

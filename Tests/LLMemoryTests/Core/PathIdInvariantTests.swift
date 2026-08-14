@@ -18,6 +18,8 @@ struct PathIdInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
 
+    private let indexer = Indexer()
+
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
@@ -70,7 +72,7 @@ struct PathIdInvariantTests {
         #expect(Paths.id(ofFile: proper) == "a.b.c")
         #expect(Paths.id(ofFile: dotted) == nil, "two files resolved to one address")
 
-        let result = try Indexer.buildLocked(home.database(), rebuild: false)
+        let result = try indexer.buildLocked(home.database(), rebuild: false)
         let ids = try home.read { database in
             try String.fetchAll(database, sql: "SELECT id FROM notes ORDER BY id")
         }
@@ -110,7 +112,7 @@ struct PathIdInvariantTests {
         #expect(FileManager.default.fileExists(atPath: parent.path))
         #expect(FileManager.default.fileExists(atPath: child.path))
 
-        let (ok, messages) = try Indexer.check(home.database(), level: .l2)
+        let (ok, messages) = try indexer.check(home.database(), level: .l2)
 
         #expect(ok, "\(messages)")
     }

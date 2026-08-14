@@ -123,9 +123,9 @@ extension BrainHome {
     // living with such a note has to be able to produce one.
     func overwriteBody(of id: String, with body: String) throws {
         let file = try indexedPath(of: id)
-        let (fields, _) = try Frontmatter.parse(try String(contentsOf: file, encoding: .utf8))
+        let (fields, _) = try Frontmatter().parse(try String(contentsOf: file, encoding: .utf8))
 
-        try (Frontmatter.dump(fields) + body).write(to: file, atomically: true, encoding: .utf8)
+        try (Frontmatter().dump(fields) + body).write(to: file, atomically: true, encoding: .utf8)
     }
 
     // Writes a whole note file directly, then leaves indexing to the caller. Reference markers and

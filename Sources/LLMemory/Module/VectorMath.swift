@@ -11,11 +11,11 @@ import Accelerate
 // Pure numerics behind the algorithmic vectors — PPMI weighting, truncated
 // SVD (LAPACK), and cosine similarity. Rows in and out are the vector
 // transactions' business.
-enum VectorMath {
+struct VectorMath: Sendable {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    static func computePPMI(_ matrix: [Double], n: Int) -> [Double] {
+    func computePPMI(_ matrix: [Double], n: Int) -> [Double] {
         var rowSum = [Double](repeating: 0, count: n)
         var total = 0.0
 
@@ -48,7 +48,7 @@ enum VectorMath {
         return ppmi
     }
 
-    static func truncatedSVD(_ matrix: [Double], n: Int, k: Int) throws -> [Double] {
+    func truncatedSVD(_ matrix: [Double], n: Int, k: Int) throws -> [Double] {
         var columnMajor = matrix
         var rowCount = __CLPK_integer(n)
         var columnCount = __CLPK_integer(n)
@@ -96,7 +96,7 @@ enum VectorMath {
         return projection
     }
 
-    static func cosine(_ lhs: [Float], _ rhs: [Float]) -> Double {
+    func cosine(_ lhs: [Float], _ rhs: [Float]) -> Double {
         guard lhs.count == rhs.count, !lhs.isEmpty else { return 0 }
 
         var dot = 0.0

@@ -9,6 +9,8 @@ import Foundation
 import GRDB
 
 struct FetchFragmentationRowsTransaction: GRDBReadTransaction {
+    private let policy = Policy()
+
     // MARK: - Initializer
     init() { }
 
@@ -22,7 +24,7 @@ struct FetchFragmentationRowsTransaction: GRDBReadTransaction {
                    (SELECT COUNT(*) FROM entity_index WHERE note_id = n.id) AS ent_n,
                    (SELECT COUNT(*) FROM tags WHERE note_id = n.id) AS tag_n
             FROM notes n
-            WHERE \(Policy.notEager())
+            WHERE \(policy.notEager())
             """).map { row in
             FragmentationRow(
                 nid: row["id"],

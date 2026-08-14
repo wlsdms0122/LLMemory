@@ -15,6 +15,8 @@ struct ReindexNoteFTSTransaction: GRDBTransaction {
     let summary: String?
     let body: String
 
+    private let sectionEdit = SectionEdit()
+
     // MARK: - Initializer
     init(noteId: String, title: String, summary: String?, body: String) {
         self.noteId = noteId
@@ -26,7 +28,7 @@ struct ReindexNoteFTSTransaction: GRDBTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws {
         let enrich = try FetchNoteEnrichTextTransaction(noteId: noteId).perform(db)
-        let (_, rows) = SectionEdit.sectionRows(body)
+        let (_, rows) = sectionEdit.sectionRows(body)
 
         try db.execute(sql: "DELETE FROM notes_fts WHERE id = ?", arguments: [noteId])
         try db.execute(sql: """

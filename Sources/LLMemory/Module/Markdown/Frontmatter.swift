@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum Frontmatter {
+struct Frontmatter: Sendable {
     // MARK: - Property
     // The keys parse() recognises. Everything else is a custom field — this list
     // exists so a near-miss ('summry') can be told apart from an intended one.
@@ -29,10 +29,10 @@ enum Frontmatter {
     
     // MARK: - Initializer
     // MARK: - Public
-    static func parse(_ text: String) throws -> (FrontmatterDoc, String) {
+    func parse(_ text: String) throws -> (FrontmatterDoc, String) {
         let nsText = text as NSString
         
-        guard let match = frontmatterRegex.firstMatch(
+        guard let match = Self.frontmatterRegex.firstMatch(
             in: text,
             range: NSRange(location: 0, length: nsText.length)
         ) else {
@@ -46,7 +46,7 @@ enum Frontmatter {
         for line in frontmatterText.unicodeLines() {
             let nsLine = line as NSString
             
-            guard let fieldMatch = fieldRegex.firstMatch(
+            guard let fieldMatch = Self.fieldRegex.firstMatch(
                 in: line,
                 range: NSRange(location: 0, length: nsLine.length)
             ) else {
@@ -138,7 +138,7 @@ enum Frontmatter {
         return (doc, body)
     }
     
-    static func dump(_ doc: FrontmatterDoc) -> String {
+    func dump(_ doc: FrontmatterDoc) -> String {
         var lines: [String] = []
         
         lines.append("---")
@@ -205,7 +205,7 @@ enum Frontmatter {
         return lines.joined(separator: "\n")
     }
     
-    static func decodeSource(_ raw: Any) throws -> [String] {
+    func decodeSource(_ raw: Any) throws -> [String] {
         if let array = raw as? [Any] {
             return try array.map { element in try decodeSourceRef(element, in: raw) }
         }
@@ -214,7 +214,7 @@ enum Frontmatter {
     }
     
     // MARK: - Private
-    private static func decodeSourceRef(_ element: Any, in whole: Any) throws -> String {
+    private func decodeSourceRef(_ element: Any, in whole: Any) throws -> String {
         if let path = element as? String, !path.isEmpty { return path }
         
         if let dictionary = element as? [String: Any],
@@ -229,19 +229,19 @@ enum Frontmatter {
         )
     }
     
-    private static func splitList(_ inner: String) -> [String] {
+    private func splitList(_ inner: String) -> [String] {
         inner.split(separator: ",")
             .map { item in item.trimmingCharacters(in: .whitespaces) }
             .filter { item in !item.isEmpty }
     }
     
-    private static func coerceBool(_ value: String) -> Bool {
+    private func coerceBool(_ value: String) -> Bool {
         let normalized = value.trimmingCharacters(in: .whitespaces).lowercased()
         
         return normalized == "true" || normalized == "1" || normalized == "yes"
     }
     
-    private static func coerceInt(_ value: String) -> Int? {
+    private func coerceInt(_ value: String) -> Int? {
         let trimmed = value.trimmingCharacters(in: .whitespaces)
         
         return trimmed.isEmpty ? nil : Int(trimmed)
