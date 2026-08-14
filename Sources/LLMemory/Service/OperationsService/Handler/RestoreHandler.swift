@@ -31,9 +31,7 @@ struct RestoreHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
-        let state = try noteExistence.state(scope)
-        
-        if state.ids.contains(noteId) || context.inFlightIds.contains(noteId) {
+        if try noteExistence.isTaken(noteId, context: context, scope: scope) {
             return "id collision: '\(noteId)' is already a live note — restoring would overwrite it"
         }
         

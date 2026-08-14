@@ -71,7 +71,7 @@ struct RenameTagHandler: OperationHandling {
             guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
                 FileManager.default.fileExists(atPath: path.path)
             else {
-                throw OperationError.noteFileMissing("note file missing during rename_tag: \(noteId)")
+                throw OperationError.noteFileMissing(op: "rename_tag", id: noteId)
             }
             
             var (doc, body) = try frontmatter.parse(

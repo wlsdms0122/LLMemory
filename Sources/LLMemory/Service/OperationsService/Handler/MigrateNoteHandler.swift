@@ -35,7 +35,6 @@ struct MigrateNoteHandler: OperationHandling {
             return rejection
         }
         
-        let state = try noteExistence.state(scope)
         let newId = (op["new_id"] as? String) ?? noteId
         let nsNewId = newId as NSString
         
@@ -46,7 +45,9 @@ struct MigrateNoteHandler: OperationHandling {
             return "invalid new_id format: \(newId)"
         }
         
-        if newId != noteId && state.ids.contains(newId) { return "new_id collision: \(newId)" }
+        if newId != noteId, try noteExistence.isTaken(newId, context: context, scope: scope) {
+            return "new_id collision: \(newId)"
+        }
         
         return nil
     }
@@ -63,7 +64,7 @@ struct MigrateNoteHandler: OperationHandling {
         guard let srcPath = try scope.run(FetchNotePathTransaction(nid: targetId)),
             FileManager.default.fileExists(atPath: srcPath.path)
         else {
-            throw OperationError.noteFileMissing("migrate source missing: \(targetId)")
+            throw OperationError.noteFileMissing(op: "migrate_note", id: targetId)
         }
         
         let (doc, body) = try frontmatter.parse(try String(contentsOf: srcPath, encoding: .utf8))

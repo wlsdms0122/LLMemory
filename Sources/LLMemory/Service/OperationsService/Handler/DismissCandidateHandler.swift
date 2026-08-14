@@ -138,10 +138,7 @@ struct DismissCandidateHandler: OperationHandling {
                 : (liveFindings.count == 1 ? liveFindings.first : nil)
             
             guard let matched else {
-                throw OperationError.findingVanished(
-                    "dismiss_candidate: '\(code)' finding on \(target.subject) is no longer present at write "
-                    + "time — another op in this batch changed the note; dismiss it in a separate call"
-                )
+                throw OperationError.findingVanished(code: code, subject: target.subject)
             }
             
             kind = dismissalPolicy.lintKind(code, fingerprint: matched.dismissalKey)

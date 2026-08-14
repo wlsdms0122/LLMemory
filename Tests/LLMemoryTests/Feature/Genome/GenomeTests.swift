@@ -88,6 +88,20 @@ struct GenomeTests {
         #expect(fraction.status != "ok")
         #expect(boolean.status != "ok")
     }
+
+    // Refusing a bool by asking `raw is Bool` refuses the integers 0 and 1 with
+    // it — that question is answered by value, not by type, and an integer gene
+    // whose bound is 0 or 1 would become unsettable.
+    @Test("an integer gene takes an integer value, including one at its bound")
+    func writeDoorTakesIntegers() {
+        // When
+        let one = home.apply(["op": "set_gene", "gene": "related.expand_hops", "value": 1])
+        let zero = home.apply(["op": "set_gene", "gene": "rebirth.search_boost", "value": 0])
+
+        // Then
+        #expect(one.status == "ok", "unexpected: \(one.error)")
+        #expect(zero.status == "ok", "unexpected: \(zero.error)")
+    }
     
     @Test("the homeostatic tick cannot move a gene that is not mutable")
     func lockedGeneGuard() throws {

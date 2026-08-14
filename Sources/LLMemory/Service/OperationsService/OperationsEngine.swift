@@ -567,9 +567,7 @@ public struct OperationsEngine: Sendable {
                 let text = try String(contentsOf: path, encoding: .utf8)
                 snapshot.append((path, text))
             } catch {
-                throw NSError(domain: "Transaction", code: 1, userInfo: [
-                    NSLocalizedDescriptionKey: "snapshot read failed: \(path.path): \(error)"
-                ])
+                throw OperationError.snapshotUnreadable(path: path.path, reason: "\(error)")
             }
         }
         

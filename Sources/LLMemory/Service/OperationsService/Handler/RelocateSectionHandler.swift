@@ -93,7 +93,7 @@ struct RelocateSectionHandler: OperationHandling {
             let dstPath = try scope.run(FetchNotePathTransaction(nid: toId)),
             FileManager.default.fileExists(atPath: dstPath.path)
         else {
-            throw OperationError.noteFileMissing("relocate_section: source or destination file missing")
+            throw OperationError.noteFileMissing(op: "relocate_section", id: "\(fromId) or \(toId)")
         }
         
         let (srcDoc, srcBody) = try frontmatter.parse(
@@ -130,7 +130,7 @@ struct RelocateSectionHandler: OperationHandling {
                 anchor: .before(try sectionEdit.parsePath(before))
             )
         } else {
-            throw OperationError.unreadablePosition(position)
+            throw OperationError.unreadablePosition(String(describing: position))
         }
         
         try (frontmatter.dump(srcDoc) + srcRemaining).write(

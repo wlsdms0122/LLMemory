@@ -80,7 +80,7 @@ struct MergeNotesHandler: OperationHandling {
         guard let intoPath = try scope.run(FetchNotePathTransaction(nid: intoId)),
             FileManager.default.fileExists(atPath: intoPath.path)
         else {
-            throw OperationError.noteFileMissing("merge target missing: \(intoId)")
+            throw OperationError.noteFileMissing(op: "merge_notes", id: intoId)
         }
         
         var (intoDoc, _) = try frontmatter.parse(

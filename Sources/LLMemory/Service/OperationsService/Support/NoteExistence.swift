@@ -14,10 +14,17 @@ struct NoteExistence {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    func state(_ scope: GRDBReadScope) throws -> ExistingState {
-        ExistingState(ids: try scope.run(FetchNoteIdsTransaction()))
-    }
     
+    // Whether an id is already taken — by the catalog, or by an op earlier in
+    // this batch. Asking `state.ids` alone is the shape that let `migrate_note`
+    // move a note onto an id another op had just created, with no file and no
+    // row left to say the second note ever existed.
+    func isTaken(_ nid: String, context: HandlerContext, scope: GRDBReadScope) throws -> Bool {
+        if context.inFlightIds.contains(nid) { return true }
+
+        return try scope.run(NoteExistsTransaction(nid: nid))
+    }
+
     func rejectionForUnknown(
         _ nid: String,
         context: HandlerContext,

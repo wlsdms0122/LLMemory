@@ -47,7 +47,6 @@ struct SplitNoteHandler: OperationHandling {
         }
         
         var newIds = Set<String>()
-        let state = try noteExistence.state(scope)
         var normalized: [[String: Any]] = into
         var allPaths: [SectionEdit.SectionPath] = []
         
@@ -74,8 +73,8 @@ struct SplitNoteHandler: OperationHandling {
                 return "into[\(index)] invalid id: \(childId)"
             }
             
-            if (state.ids.contains(childId) || context.inFlightIds.contains(childId))
-                && childId != fromId {
+            if childId != fromId,
+                try noteExistence.isTaken(childId, context: context, scope: scope) {
                 return "into[\(index)] id collision: \(childId)"
             }
             
@@ -161,7 +160,7 @@ struct SplitNoteHandler: OperationHandling {
         guard let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
             FileManager.default.fileExists(atPath: srcPath.path)
         else {
-            throw OperationError.noteFileMissing("split source missing: \(fromId)")
+            throw OperationError.noteFileMissing(op: "split_note", id: fromId)
         }
         
         let (srcDoc, srcBody) = try frontmatter.parse(

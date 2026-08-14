@@ -42,14 +42,23 @@ struct TierDirectionInvariantTests {
         #expect(!serviceTypes.isEmpty, "no service types found — check the paths")
 
         // When
+        // Each line is split into identifiers once and intersected with the
+        // service names. Matching each name against each line by regex instead
+        // costs lines × types and recompiles the pattern every time — a guard
+        // that grows superlinearly with the corpus is a guard someone
+        // eventually deletes from CI.
         let violations = sources
             .filter { file in file.url.path.contains("/LLMemory/Module/") }
             .flatMap { file in
                 file.codeLines().flatMap { number, text -> [String] in
-                    serviceTypes
-                        .filter { name in
-                            text.range(of: "\\b\(name)\\b", options: .regularExpression) != nil
-                        }
+                    let identifiers = Set(
+                        text.split(whereSeparator: { character in
+                            !character.isLetter && !character.isNumber && character != "_"
+                        })
+                        .map(String.init)
+                    )
+
+                    return identifiers.intersection(serviceTypes)
                         .map { name in "\(file.location(number))  [\(name)]" }
                 }
             }

@@ -151,6 +151,27 @@ struct StructuralLossInvariantTests {
         #expect(try edges(touching: "bbb-src") == 0, "an edge still points at the deleted source")
     }
     
+    // A batch is one transaction, so an id an earlier op created is taken. Asking
+    // the catalog alone let migrate move a note onto that id: the note created
+    // moments earlier lost its file and its row with nothing reported.
+    @Test("migrate refuses an id another op in the same batch just created")
+    func migrateRefusesInFlightDestination() throws {
+        // Given
+        home.createNote(id: "mig-batch-src", content: "## A\nsource body\n")
+
+        // When
+        let result = home.apply([
+            ["op": "create_note", "id": "mig-batch-dst", "title": "Fresh",
+             "tags": ["tech"], "summary": "a note this batch creates",
+             "content": "# Fresh\n\nthe body that must survive\n"],
+            ["op": "migrate_note", "id": "mig-batch-src", "new_id": "mig-batch-dst"]
+        ])
+
+        // Then
+        #expect(result.status != "ok", "migrating onto an in-flight id must be refused")
+        #expect(result.error.contains("collision"), "unexpected: \(result.error)")
+    }
+
     @Test("migrate's predicted destination is where it writes — the id alone decides it")
     func migrateTouchesMatchesWriteDestination() throws {
         // Given

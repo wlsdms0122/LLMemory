@@ -84,9 +84,7 @@ struct CreateNoteHandler: OperationHandling {
             return "\(error)"
         }
         
-        let state = try noteExistence.state(scope)
-        
-        if state.ids.contains(noteId) || context.inFlightIds.contains(noteId) {
+        if try noteExistence.isTaken(noteId, context: context, scope: scope) {
             return "id collision: \(noteId) (use patch_section to update)"
         }
         

@@ -53,7 +53,7 @@ struct InvalidateHandler: OperationHandling {
         guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
             FileManager.default.fileExists(atPath: path.path)
         else {
-            throw OperationError.noteFileMissing("invalidate target missing: \(noteId)")
+            throw OperationError.noteFileMissing(op: "invalidate", id: noteId)
         }
         
         var (doc, body) = try frontmatter.parse(try String(contentsOf: path, encoding: .utf8))

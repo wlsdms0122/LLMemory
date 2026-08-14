@@ -694,6 +694,32 @@ struct EnrichmentTests {
         #expect(count == 0, "a refused op must leave no edge behind")
     }
 
+    // The refusal above must not reach past bools. `raw is Bool` answers by
+    // value, so an NSNumber holding 1 satisfies it — and 1 is exactly the
+    // upper bound the schema states.
+    @Test("the integer 1 is a confidence — the bool refusal does not reach it")
+    func proposeLinkAcceptsIntegerConfidence() throws {
+        // Given
+        home.createNote(id: "enr-pl-int-a")
+        home.createNote(id: "enr-pl-int-b")
+
+        // When
+        let result = home.apply([[
+            "op": "propose_link", "src": "enr-pl-int-a", "dst": "enr-pl-int-b",
+            "confidence": 1, "provenance": "test:capture"
+        ]])
+
+        // Then
+        #expect(result.status == "ok", "unexpected: \(result.error)")
+
+        let queue = try home.storage.connect()
+        let weight = try queue.read { db in
+            try Double.fetchOne(db, sql: "SELECT weight FROM note_links WHERE kind = 'assoc'") ?? 0
+        }
+
+        #expect(weight > 0.45, "confidence 1 must position the edge at the top of the dormant band")
+    }
+
     @Test("a proposed edge enters dormant, so the decay loop is its validator")
     func proposeLinkInsertsDormantAssocEdge() throws {
         // Given

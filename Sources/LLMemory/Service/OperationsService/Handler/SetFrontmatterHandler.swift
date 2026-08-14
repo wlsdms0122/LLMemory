@@ -80,7 +80,7 @@ struct SetFrontmatterHandler: OperationHandling {
         guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
             FileManager.default.fileExists(atPath: path.path)
         else {
-            throw OperationError.noteFileMissing("note file missing: \(noteId)")
+            throw OperationError.noteFileMissing(op: "set_frontmatter", id: noteId)
         }
         
         let raw = try String(contentsOf: path, encoding: .utf8)
