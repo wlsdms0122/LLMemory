@@ -16,7 +16,7 @@
 tool/set-up.sh
 ```
 
-`document/` 의 markdown 을 `Sources/LLMemory/Resource/{Guide,Innate}.swift` 로
+`document/` 의 markdown 을 `Sources/LLMemory/Resource/{Guide,Base}.swift` 로
 임베드한다. `Resource/` 는 gitignore 된 로컬 산출물(`.build` 와 같은 성격)이라
 **setup 없이는 컴파일되지 않는다.** `document/` 를 수정했으면 다시 실행한다 —
 markdown 과 임베드 사본의 drift 는 byte-equality 테스트가 fail-loud 로 잡는다.
@@ -26,7 +26,7 @@ markdown 과 임베드 사본의 drift 는 byte-equality 테스트가 fail-loud 
 ```
 Sources/
   LLMemory/           — 코어 라이브러리 (Feature: Query/Ops/Index/Consolidate/…, Service, Module)
-    Resource/         — set-up.sh 생성물 (gitignored): Guide.swift, Innate.swift
+    Resource/         — set-up.sh 생성물 (gitignored): Guide.swift, Base.swift
   LLMemoryCLI/        — CLI (swift-argument-parser), 실행 파일 llmemory
 Tests/
   LLMemoryTests/      — 유닛 + 실바이너리 CLI 통합 테스트
@@ -65,9 +65,10 @@ setup 을 먼저 돌려 임베드를 최신으로 만든 뒤 release 빌드한�
 - **Anchor-free**: 상태 위치는 `--home` 으로만. 바이너리 위치·외부 경로 가정 없음.
 - **SSoT**: cortex/ markdown 이 진실, DB 는 파생 — `data/memory.db` 를 지우고
   `init` 하면 재구성된다.
-- **탈 하드코딩**: llmemory 는 자기 자신에 대한 것만 갖는다. 갓 init 한 brain 은
-  태그 0개에서 시작해 ops 로 자란다. 배포본이 싣고 오는 것은
-  `document/cortex/` 의 기본 지식뿐이고, 그것도 전용 공간 없이 평범한 주소에 앉는다.
+- **탈 하드코딩**: llmemory 는 자기 자신에 대한 것만 갖는다. 미리 정해둔 태그 어휘가 없어
+  brain 의 분류는 전부 ops 로 자란다 — 갓 init 한 brain 의 태그는 기본 지식 노트가 달고 온
+  것뿐이다. 배포본이 싣고 오는 것은 `document/cortex/` 의 기본 지식뿐이고, 그것도 전용 공간
+  없이 평범한 주소에 앉는다.
 - **LLM 0**: 모든 query/consolidate 는 알고리즘. LLM artifact(enrichment)는
   외부 client 가 생성하고 llmemory 가 검증한다.
 

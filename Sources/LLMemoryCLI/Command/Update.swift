@@ -13,6 +13,9 @@ struct UpdateCommand: ParsableCommand {
     struct UpdateOutput: Encodable {
         // MARK: - Property
         let home: String
+        // Whether the base knowledge was attempted at all — three empty lists
+        // read the same whether nothing needed doing or nothing was tried.
+        let base: Bool
         let planted, refreshed, unchanged: [String]
         let indexed, changed: Int
         let errors: [String]
@@ -56,9 +59,10 @@ struct UpdateCommand: ParsableCommand {
         let result = try Brain(home: global.home).index.update(base: base)
         let output = UpdateOutput(
             home: result.homePath,
-            planted: result.seeding.planted,
-            refreshed: result.seeding.refreshed,
-            unchanged: result.seeding.unchanged,
+            base: result.seeding != nil,
+            planted: result.seeding?.planted ?? [],
+            refreshed: result.seeding?.refreshed ?? [],
+            unchanged: result.seeding?.unchanged ?? [],
             indexed: result.indexed,
             changed: result.changed,
             errors: result.errors
@@ -68,6 +72,7 @@ struct UpdateCommand: ParsableCommand {
             [
                 .keyValue([
                     ("home", output.home),
+                    ("base", output.base ? "restated" : "skipped (--no-base)"),
                     ("planted", output.planted.isEmpty ? "-" : output.planted.joined(separator: ", ")),
                     ("refreshed", output.refreshed.isEmpty ? "-" : output.refreshed.joined(separator: ", ")),
                     ("unchanged", output.unchanged.isEmpty ? "-" : output.unchanged.joined(separator: ", "))

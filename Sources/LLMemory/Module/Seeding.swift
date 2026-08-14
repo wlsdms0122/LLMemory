@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import GRDB
 
 // The base knowledge a release ships. It is planted at the addresses
 // document/cortex/ gives it — anywhere in the space, in any shape — so there is
@@ -42,9 +41,20 @@ public enum Seeding {
             let canonical = Paths.file(forId: seed.id)
             let exists = fileManager.fileExists(atPath: canonical.path)
 
-            if exists, (try? String(contentsOf: canonical, encoding: .utf8)) == seed.markdown {
-                result.unchanged.append(seed.id)
-                continue
+            if exists {
+                // A file that is there but cannot be read is not a file that
+                // differs. `try?` made those two the same value and sent the
+                // unreadable one down the overwrite path, which is where whatever
+                // it held stopped existing.
+                do {
+                    if try String(contentsOf: canonical, encoding: .utf8) == seed.markdown {
+                        result.unchanged.append(seed.id)
+                        continue
+                    }
+                } catch {
+                    result.errors.append("\(seed.id): present but unreadable, left alone (\(error))")
+                    continue
+                }
             }
 
             do {

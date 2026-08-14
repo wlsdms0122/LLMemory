@@ -58,13 +58,22 @@ public final class Session {
     // The init/update bootstrap — the one lifecycle boundary allowed to touch
     // storage directly, because it runs *before* the migration gate can pass:
     // migrate, re-warm the caches, then bring the index up under the write lock.
-    public func bootstrap() throws -> Indexer.BuildResult {
+    //
+    // `beforeIndexing` is where init/update write to the cortex. Taking it as a
+    // closure rather than letting the caller sequence the two is what puts those
+    // writes on the far side of the migration — a failed migration must not leave
+    // a brain whose files moved forward and whose schema did not — and on the near
+    // side of the build, so what it writes is indexed by the same pass.
+    @discardableResult
+    public func bootstrap(beforeIndexing: () throws -> Void = {}) throws -> Indexer.BuildResult {
         try storage.writeLock {
             try storage.initialize()
 
             // The constructor may have warmed against a database that was not
             // there yet — re-warm before anything below reads the caches.
             rewarm()
+
+            try beforeIndexing()
 
             let queue = try storage.connect()
             let built = try Indexer.buildLocked(queue, rebuild: false)

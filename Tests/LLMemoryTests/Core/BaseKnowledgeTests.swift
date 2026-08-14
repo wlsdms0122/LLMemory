@@ -42,9 +42,12 @@ struct BaseKnowledgeTests {
 
     // Every other test here iterates Base.seeds, so a document added without
     // rerunning tool/set-up.sh is a document nothing looks at. This walks the
-    // other way — from the tree — and compares both directions, which is also
-    // where a dotted file name actually gets caught: `a.b.md` derives the id
-    // `a.b`, which no seed carries.
+    // other way — from the tree.
+    //
+    // The comparison is by *path*, through Paths, rather than by an id this test
+    // derives for itself: re-spelling the generator's split-on-dots here would
+    // put two copies of one rule on either side of the assertion, and two copies
+    // that are wrong together still agree.
     @Test("the embedded set is exactly the document tree — nothing missing, nothing extra")
     func embeddedSeedsAreExactlyTheDocumentTree() throws {
         // Given
@@ -55,21 +58,19 @@ struct BaseKnowledgeTests {
             throw TestFailure("document/cortex is not readable at \(root.path)")
         }
 
-        // When — the id is the location, derived here the way the generator derives it.
         for case let relative as String in walk where relative.hasSuffix(".md") {
-            onDisk.insert(
-                String(relative.dropLast(3)).replacingOccurrences(of: "/", with: ".")
-            )
+            onDisk.insert(root.appendingPathComponent(relative).standardized.path)
         }
 
-        // Then
-        let embedded = Set(Base.seeds.map(\.id))
+        // When — where the brain would put each embedded seed, by its own mapping.
+        let embedded = Set(Base.seeds.map { seed in seedFile(seed.id).standardized.path })
 
+        // Then
         #expect(!onDisk.isEmpty, "no documents found under \(root.path)")
         #expect(onDisk.subtracting(embedded).isEmpty,
-            "documents with no embedded seed — run tool/set-up.sh: \(onDisk.subtracting(embedded).sorted())")
+            "documents no embedded seed addresses — run tool/set-up.sh: \(onDisk.subtracting(embedded).sorted())")
         #expect(embedded.subtracting(onDisk).isEmpty,
-            "embedded seeds with no document: \(embedded.subtracting(onDisk).sorted())")
+            "embedded seeds whose address holds no document: \(embedded.subtracting(onDisk).sorted())")
     }
 
     @Test("every seed declares locked: true, so ops cannot rewrite the shipped copy")

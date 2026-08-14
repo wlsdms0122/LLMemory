@@ -12,14 +12,14 @@ import LLMemory
 struct InitCommand: ParsableCommand {
     struct InitOutput: Encodable {
         enum CodingKeys: String, CodingKey {
-            case homePath = "home", indexed, changed, errors
-            case seedsPlanted = "seeds_planted"
+            case homePath = "home", indexed, changed, errors, base
+            case planted, refreshed, unchanged
             case alreadyInitialized = "already_initialized"
             case dataExisted = "data_existed"
             case cortexExisted = "cortex_existed"
             case dbExisted = "db_existed"
         }
-        
+
         // MARK: - Property
         let alreadyInitialized: Bool
         let homePath: String
@@ -27,7 +27,10 @@ struct InitCommand: ParsableCommand {
         let indexed: Int
         let changed: Int
         let errors: [String]
-        let seedsPlanted: [String]
+        // Whether the base knowledge was attempted at all — three empty lists
+        // read the same whether nothing needed doing or nothing was tried.
+        let base: Bool
+        let planted, refreshed, unchanged: [String]
         
         // MARK: - Initializer
         // MARK: - Public
@@ -75,7 +78,10 @@ struct InitCommand: ParsableCommand {
             indexed: result.indexed,
             changed: result.changed,
             errors: result.errors,
-            seedsPlanted: result.seeding.planted + result.seeding.refreshed
+            base: result.seeding != nil,
+            planted: result.seeding?.planted ?? [],
+            refreshed: result.seeding?.refreshed ?? [],
+            unchanged: result.seeding?.unchanged ?? []
         )
         
         render(output, json: format.json) { output in
@@ -85,11 +91,12 @@ struct InitCommand: ParsableCommand {
                         + "(data=\(output.dataExisted), cortex=\(output.cortexExisted), db=\(output.dbExisted))"
                     : "initialized at \(output.homePath)"),
                 .text("indexed \(output.indexed) notes (changed=\(output.changed), errors=\(output.errors.count))"),
-                .text(!base
+                .text(!output.base
                     ? "base knowledge: skipped (--no-base)"
-                    : output.seedsPlanted.isEmpty
+                    : output.planted.isEmpty && output.refreshed.isEmpty
                         ? "base knowledge: already current"
-                        : "base knowledge planted: \(output.seedsPlanted.joined(separator: ", "))")
+                        : "base knowledge — planted: \(output.planted.isEmpty ? "-" : output.planted.joined(separator: ", "))"
+                            + ", refreshed: \(output.refreshed.isEmpty ? "-" : output.refreshed.joined(separator: ", "))")
             ]
         }
         

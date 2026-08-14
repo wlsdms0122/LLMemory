@@ -14,8 +14,11 @@ public struct Index {
         public let dataExisted, cortexExisted, dbExisted: Bool
         public let indexed, changed: Int
         public let errors: [String]
-        public let seeding: Seeding.Result
-        
+        // nil when the base knowledge was not attempted (--no-base). An empty
+        // result means it was attempted and there was nothing to do, and those
+        // are different things to report.
+        public let seeding: Seeding.Result?
+
         public var alreadyInitialized: Bool { dataExisted || cortexExisted || dbExisted }
         
         // MARK: - Initializer
@@ -26,7 +29,8 @@ public struct Index {
     public struct UpdateResult {
         // MARK: - Property
         public let homePath: String
-        public let seeding: Seeding.Result
+        // nil when the base knowledge was not attempted (--no-base).
+        public let seeding: Seeding.Result?
         public let indexed, changed: Int
         public let errors: [String]
 
@@ -88,9 +92,10 @@ public struct Index {
         try fileManager.createDirectory(at: Paths.dataDirectory, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: Paths.cortexRoot, withIntermediateDirectories: true)
         
-        let seeding = base ? Seeding.plant() : Seeding.Result()
-        let result = try session.bootstrap()
-        
+        // Planted inside the bootstrap: after the migration, before the build.
+        var seeding: Seeding.Result?
+        let result = try session.bootstrap { if base { seeding = Seeding.plant() } }
+
         try Guide.markdown.write(
             to: Paths.brainRoot.appendingPathComponent("README.md"),
             atomically: true,
@@ -104,7 +109,7 @@ public struct Index {
             dbExisted: dbExisted,
             indexed: result.count,
             changed: result.changed,
-            errors: result.errors + seeding.errors,
+            errors: result.errors + (seeding?.errors ?? []),
             seeding: seeding
         )
     }
@@ -114,12 +119,12 @@ public struct Index {
     }
 
     private func updateBound(base: Bool) throws -> UpdateResult {
-        let seeding = base ? Seeding.plant() : Seeding.Result()
-
         // update is the migration surface: a brain left behind by a binary upgrade
         // is carried forward by the bootstrap, before anything else touches the
-        // connection.
-        let result = try session.bootstrap()
+        // connection — and before the base knowledge is restated, so a brain whose
+        // schema did not move forward does not get files that did.
+        var seeding: Seeding.Result?
+        let result = try session.bootstrap { if base { seeding = Seeding.plant() } }
 
         try Guide.markdown.write(
             to: Paths.brainRoot.appendingPathComponent("README.md"),
@@ -132,7 +137,7 @@ public struct Index {
             seeding: seeding,
             indexed: result.count,
             changed: result.changed,
-            errors: result.errors + seeding.errors
+            errors: result.errors + (seeding?.errors ?? [])
         )
     }
     

@@ -15,6 +15,13 @@ cd "$(dirname "$0")/.."
 
 mkdir -p Sources/LLMemory/Resource
 
+# Generated into a temporary file and moved into place only on success. `>`
+# truncates the target the moment it opens, so any failure inside a generation
+# block — a document that vanished mid-run, an unreadable file — would otherwise
+# leave a half-written source behind and destroy the working one.
+scratch=$(mktemp)
+trap 'rm -f "$scratch"' EXIT
+
 {
   echo "// Generated from document/GUIDE.md by tool/set-up.sh — do not edit by hand."
   echo "// Drift against the markdown is caught by the Guide byte-equality test."
@@ -27,7 +34,8 @@ mkdir -p Sources/LLMemory/Resource
   echo ""
   echo "\"\"\"#"
   echo "}"
-} > Sources/LLMemory/Resource/Guide.swift
+} > "$scratch"
+mv "$scratch" Sources/LLMemory/Resource/Guide.swift
 echo "generated Sources/LLMemory/Resource/Guide.swift"
 
 # document/cortex/ is the shipped subtree of a brain's cortex/, laid out exactly
@@ -37,9 +45,6 @@ echo "generated Sources/LLMemory/Resource/Guide.swift"
 # python. Checking only for a dot would let `Knowledge_Fragmentation.md` through
 # and ship a seed that the brain's own lint calls an invalid id.
 #
-# The check runs before the generated file is opened for writing. `>` truncates
-# on open, so a failure inside the block below leaves a half-written Base.swift
-# behind — a working artifact destroyed by the run that was meant to refresh it.
 LABEL='^[a-z0-9][a-z0-9-]*$'
 seeds=()
 
@@ -94,5 +99,6 @@ fi
   done
   echo "    ]"
   echo "}"
-} > Sources/LLMemory/Resource/Base.swift
+} > "$scratch"
+mv "$scratch" Sources/LLMemory/Resource/Base.swift
 echo "generated Sources/LLMemory/Resource/Base.swift"
