@@ -41,7 +41,7 @@ struct UpdateCommand: ParsableCommand {
         abstract: "Refresh the shipped innate notes + manual in an existing brain.",
         discussion: """
             Rewrites <home>/README.md from the embedded guide and reindexes. The
-            innate space (cortex/.innate/, `locked: true` seed notes) is handled by
+            innate space (cortex/innate/, `locked: true` seed notes) is handled by
             comparison with the shipped copy:
 
             - matches exactly  → nothing to do.
@@ -54,7 +54,7 @@ struct UpdateCommand: ParsableCommand {
             edited seeds, replants missing ones, and removes foreign files. `--check` reports the same classification
             without writing anything (exit 1 on drift).
 
-            Authored notes outside cortex/.innate/ are never in scope.
+            Authored notes outside cortex/innate/ are never in scope.
 
             EXAMPLES
                 llmemory update --home brain
@@ -66,7 +66,7 @@ struct UpdateCommand: ParsableCommand {
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
 
-    @Flag(name: .long, help: "Restate cortex/.innate/ to exactly the shipped set (removes foreign files).")
+    @Flag(name: .long, help: "Restate cortex/innate/ to exactly the shipped set (removes foreign files).")
     var override = false
 
     @Flag(name: .long, help: "Report what update would do without writing anything. Exit 1 on drift.")

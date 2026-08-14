@@ -20,9 +20,9 @@ public enum Seeding {
         public var refreshed: [String] = []
         public var unchanged: [String] = []
         // Seeds not planted because the brain opted out of the innate space
-        // (cortex/.innate/ deleted, or init --bare). `--override` re-adopts.
+        // (cortex/innate/ deleted, or init --bare). `--override` re-adopts.
         public var skipped: [String] = []
-        // Files inside cortex/.innate/ the release does not ship. Humans own their
+        // Files inside cortex/innate/ the release does not ship. Humans own their
         // content, so plant reports them and leaves them alone.
         public var foreign: [String] = []
         public var errors: [String] = []

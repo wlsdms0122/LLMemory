@@ -92,7 +92,7 @@ public struct Index {
         try fileManager.createDirectory(at: Paths.dataDirectory, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: Paths.cortexRoot, withIntermediateDirectories: true)
         
-        // init is deliberate setup — presence of .innate/ is not consulted, only --bare is.
+        // init is deliberate setup — presence of innate/ is not consulted, only --bare is.
         let seeding = bare ? Seeding.Result() : Seeding.plant(mode: .missingOnly, force: true)
         let result = try session.bootstrap()
         

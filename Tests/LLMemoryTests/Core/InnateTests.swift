@@ -32,7 +32,7 @@ struct InnateTests {
 
             // Then
             #expect(onDisk == seed.markdown,
-                "document/innate/\(seed.id).md and Innate.swift diverged — run tool/set-up.sh")
+                "\(seedFile(seed.id).path) and Innate.swift diverged — run tool/set-up.sh")
         }
     }
 
@@ -58,6 +58,12 @@ struct InnateTests {
                 "\(seed.id): the markdown still declares an id line")
             #expect(seed.id.hasPrefix("innate."),
                 "\(seed.id): an innate seed is addressed under innate")
+
+            // The generator reads the id off the document's location, so a dot in
+            // any path component would be read as a separator and plant the seed
+            // somewhere its own document is not. The round trip is what forbids it.
+            #expect(Paths.id(ofFile: Paths.file(forId: seed.id)) == seed.id,
+                "\(seed.id): the seed's address does not survive a round trip")
         }
     }
 
@@ -414,8 +420,11 @@ struct InnateTests {
     }
 
     // MARK: - Private
+    // A seed's document lives where its address says it does, so the test reads
+    // it back the same way the generator wrote it — by turning the id into a path
+    // rather than by trusting a name.
     private func seedFile(_ id: String) -> URL {
-        source.file("document/innate/\(id).md")
+        source.file("document/innate/\(id.replacingOccurrences(of: ".", with: "/")).md")
     }
 
     private func firstSeed() throws -> Innate.Seed {
