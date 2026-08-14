@@ -199,14 +199,19 @@ LABEL = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 proposed = {}
 
 for note_id, axis, path in rows:
-    branch = "innate" if axis in ("innate", ".innate") else axis
+    # The legacy `.innate` axis was a system space, and there is no such space
+    # any more — base knowledge sits at whatever address the release gives it,
+    # which is the bare stem. Dropping the branch is what makes `update` restate
+    # these notes in place instead of leaving an orphaned copy beside them.
+    branch = None if axis in ("innate", ".innate") else axis
+    prefix = [] if branch is None else [branch]
     tail = DATE_TAIL.match(note_id)
 
     if tail:
         stem, year, month = tail.group(1), "20" + tail.group(2), tail.group(3)
-        proposed[note_id] = ([branch, year, month, stem], [branch, year, month, note_id])
+        proposed[note_id] = (prefix + [year, month, stem], prefix + [year, month, note_id])
     else:
-        proposed[note_id] = ([branch, note_id], None)
+        proposed[note_id] = (prefix + [note_id], None)
 
 taken = {}
 
@@ -441,13 +446,12 @@ COMMIT;
 DETACH DATABASE old;
 SQL
 
-# 5. Vectors are accepted-loss (derived) — rebuild, then reseed + verify.
-#    `update` exits 1 when the innate space differs from the shipped copy, and
-#    after this migration it always does: re-addressing rewrote the seed files
-#    too. That is a warning to act on, not a reason to abandon the run before
-#    step 6 proves the carry-over — so it is reported and the run continues.
+# 5. Vectors are accepted-loss (derived) — rebuild, then restate + verify.
+#    Re-addressing rewrote the base notes along with everything else; `update`
+#    puts the shipped copy back at those ids, which needs no special handling
+#    because a base id always carries the shipped copy.
 "$LLMEMORY" index vector --home "$ROOT"
-"$LLMEMORY" update --home "$ROOT" || INNATE_DIVERGED=1
+"$LLMEMORY" update --home "$ROOT"
 
 # 6. Prove the carry-over — old/new row counts side by side. A shortfall is
 #    legitimate only for note_id-guarded tables whose notes no longer project.
@@ -460,14 +464,5 @@ for t in note_usage note_source note_lifecycle_events note_links note_retrieval_
   flag=""; [ "$o" != "$n" ] && flag="  <- CHECK"
   printf '  %-24s %6s -> %-6s%s\n' "$t" "$o" "$n" "$flag"
 done
-
-if [ "${INNATE_DIVERGED:-}" = "1" ]; then
-  echo
-  echo "innate: the shipped seeds no longer match the files — expected, since"
-  echo "  re-addressing rewrote them. Restate them with:"
-  echo "    $LLMEMORY update --override --home $ROOT"
-  echo "  (--override makes cortex/innate/ exactly the shipped set: check for"
-  echo "   authored notes under it first, as they would be removed.)"
-fi
 
 echo "migrated. old DB kept at $LEGACY"

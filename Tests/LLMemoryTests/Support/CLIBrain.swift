@@ -19,15 +19,15 @@ final class CLIBrain {
     var path: String { url.path }
     
     // MARK: - Initializer
-    init(prefix: String = "llmemory-cli-test", seeded: Bool = true, bare: Bool = false) throws {
+    init(prefix: String = "llmemory-cli-test", seeded: Bool = true, base: Bool = true) throws {
         url = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(prefix)-\(UUID().uuidString)")
 
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
 
-        let initialized = runner.run(bare
-            ? ["init", "--bare", "--home", url.path]
-            : ["init", "--home", url.path])
+        let initialized = runner.run(base
+            ? ["init", "--home", url.path]
+            : ["init", "--no-base", "--home", url.path])
 
         guard initialized.succeeded else {
             throw TestFailure("init failed (\(initialized.exitCode)): \(initialized.standardError)")

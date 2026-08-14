@@ -32,8 +32,8 @@ Tests/
   LLMemoryTests/      — 유닛 + 실바이너리 CLI 통합 테스트
 document/
   GUIDE.md         — 에이전트용 사용 가이드 (SSoT)
-  cortex/**/*.md      — 선천 지식 (SSoT) — 심길 cortex/ 를 그대로 펼친 트리,
-                        위치가 곧 id (cortex/innate/x.md → innate.x)
+  cortex/**/*.md      — 기본 지식 (SSoT) — 심길 cortex/ 를 그대로 펼친 트리,
+                        위치가 곧 id (cortex/a/b.md → a.b)
 tool/
   set-up.sh            — document/ → Sources/LLMemory/Resource/ 임베드 생성
   deploy.sh           — setup → release 빌드 → build/llmemory
@@ -66,8 +66,8 @@ setup 을 먼저 돌려 임베드를 최신으로 만든 뒤 release 빌드한�
 - **SSoT**: cortex/ markdown 이 진실, DB 는 파생 — `data/memory.db` 를 지우고
   `init` 하면 재구성된다.
 - **탈 하드코딩**: llmemory 는 자기 자신에 대한 것만 갖는다. 갓 init 한 brain 은
-  태그 0개에서 시작해 ops 로 자란다. 선천적인 것은 `cortex/innate/` 의
-  선천 지식뿐.
+  태그 0개에서 시작해 ops 로 자란다. 배포본이 싣고 오는 것은
+  `document/cortex/` 의 기본 지식뿐이고, 그것도 전용 공간 없이 평범한 주소에 앉는다.
 - **LLM 0**: 모든 query/consolidate 는 알고리즘. LLM artifact(enrichment)는
   외부 client 가 생성하고 llmemory 가 검증한다.
 

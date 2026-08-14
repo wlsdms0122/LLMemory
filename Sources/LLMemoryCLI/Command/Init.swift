@@ -45,27 +45,27 @@ struct InitCommand: ParsableCommand {
 
             Also writes <home>/README.md from the embedded agent guide
             (document/GUIDE.md) — a derived copy, refreshed on every init — and
-            plants the innate notes (document/cortex/**/*.md) as `locked: true`
-            notes under cortex/innate/. Existing seed files are left alone here;
-            use `llmemory update` to restate them from the binary. `--bare` skips
-            the innate space entirely — a brain born with nothing at all.
+            plants the base knowledge (document/cortex/**/*.md) as `locked: true`
+            notes at the addresses that tree gives them. A base id always carries
+            the shipped copy, so an existing one is restated. `--no-base` skips
+            them — a brain born with nothing at all.
 
             EXAMPLES
                 llmemory init --home brain
-                llmemory init --bare --home brain
+                llmemory init --no-base --home brain
             """
     )
 
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
 
-    @Flag(name: .long, help: "Do not plant the innate notes — start completely empty.")
-    var bare = false
+    @Flag(name: .long, inversion: .prefixedNo, help: "Plant the shipped base knowledge.")
+    var base = true
 
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {
-        let result = try Brain(home: global.home).index.initialize(bare: bare)
+        let result = try Brain(home: global.home).index.initialize(base: base)
         let output = InitOutput(
             alreadyInitialized: result.alreadyInitialized,
             homePath: result.homePath,
@@ -75,7 +75,7 @@ struct InitCommand: ParsableCommand {
             indexed: result.indexed,
             changed: result.changed,
             errors: result.errors,
-            seedsPlanted: result.seeding.planted
+            seedsPlanted: result.seeding.planted + result.seeding.refreshed
         )
         
         render(output, json: format.json) { output in
@@ -85,11 +85,11 @@ struct InitCommand: ParsableCommand {
                         + "(data=\(output.dataExisted), cortex=\(output.cortexExisted), db=\(output.dbExisted))"
                     : "initialized at \(output.homePath)"),
                 .text("indexed \(output.indexed) notes (changed=\(output.changed), errors=\(output.errors.count))"),
-                .text(bare
-                    ? "innate seeds: skipped (--bare)"
+                .text(!base
+                    ? "base knowledge: skipped (--no-base)"
                     : output.seedsPlanted.isEmpty
-                        ? "innate seeds: already present"
-                        : "innate seeds planted: \(output.seedsPlanted.joined(separator: ", "))")
+                        ? "base knowledge: already current"
+                        : "base knowledge planted: \(output.seedsPlanted.joined(separator: ", "))")
             ]
         }
         

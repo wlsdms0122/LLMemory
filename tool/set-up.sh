@@ -2,7 +2,7 @@
 # One-time setup after clone (rerun after editing document/) — like tuist generate.
 #
 #   document/GUIDE.md  → Sources/LLMemory/Resource/Guide.swift   (agent usage guide)
-#   document/cortex/**/*.md  → Sources/LLMemory/Resource/Innate.swift  (innate brain notes)
+#   document/cortex/**/*.md  → Sources/LLMemory/Resource/Base.swift  (shipped brain notes)
 #
 # Resource/ is gitignored — a persistent local artifact like .build. The package does
 # not compile without it, so a fresh clone runs this first:
@@ -38,7 +38,7 @@ echo "generated Sources/LLMemory/Resource/Guide.swift"
 # and ship a seed that the brain's own lint calls an invalid id.
 #
 # The check runs before the generated file is opened for writing. `>` truncates
-# on open, so a failure inside the block below leaves a half-written Innate.swift
+# on open, so a failure inside the block below leaves a half-written Base.swift
 # behind — a working artifact destroyed by the run that was meant to refresh it.
 LABEL='^[a-z0-9][a-z0-9-]*$'
 seeds=()
@@ -67,15 +67,15 @@ fi
 
 {
   echo "// Generated from document/cortex/**/*.md by tool/set-up.sh — do not edit by hand."
-  echo "// Drift against the markdown is caught by the Innate byte-equality test."
+  echo "// Drift against the markdown is caught by the Base byte-equality test."
   echo ""
-  echo "/// The knowledge llmemory is born with — what an agent needs to run a memory well"
-  echo "/// (how to fragment, how fragments stay reachable). Unlike \`Guide\`, which lands"
-  echo "/// outside the cortex as \`<home>/README.md\`, these are planted under"
-  echo "/// \`cortex/innate/\` as ordinary notes so the normal retrieval descent finds them."
-  echo "/// They carry \`locked: true\` — the bot cannot mutate them via ops; a human edits"
-  echo "/// or deletes the file, and \`update\` refreshes it from this embedded copy."
-  echo "public enum Innate {"
+  echo "/// The knowledge llmemory ships with — what an agent needs to run a memory"
+  echo "/// well (how to fragment, how fragments stay reachable). Unlike \`Guide\`, which"
+  echo "/// lands outside the cortex as \`<home>/README.md\`, these are planted into the"
+  echo "/// cortex as ordinary notes so the normal retrieval descent finds them, at"
+  echo "/// whatever addresses document/cortex/ gives them. They carry \`locked: true\`,"
+  echo "/// so ops cannot rewrite them; \`init\` and \`update\` restate them from here."
+  echo "public enum Base {"
   echo "    public struct Seed: Sendable {"
   echo "        public let id: String"
   echo "        public let markdown: String"
@@ -94,5 +94,5 @@ fi
   done
   echo "    ]"
   echo "}"
-} > Sources/LLMemory/Resource/Innate.swift
-echo "generated Sources/LLMemory/Resource/Innate.swift"
+} > Sources/LLMemory/Resource/Base.swift
+echo "generated Sources/LLMemory/Resource/Base.swift"

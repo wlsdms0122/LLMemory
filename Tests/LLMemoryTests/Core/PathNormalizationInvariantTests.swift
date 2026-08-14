@@ -53,6 +53,6 @@ struct PathNormalizationInvariantTests {
         
         #expect(result.succeeded, "init under /private/tmp failed: \(result.standardError)")
         #expect(errors.isEmpty, "init reported errors: \(errors)")
-        #expect(indexed >= Innate.seeds.count, "seeded notes were not indexed (indexed=\(indexed))")
+        #expect(indexed >= Base.seeds.count, "seeded notes were not indexed (indexed=\(indexed))")
     }
 }

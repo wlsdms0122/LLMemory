@@ -19,12 +19,6 @@ enum Paths {
     static var cortexRoot: URL { root().appendingPathComponent("cortex") }
     static var notes: URL { cortexRoot }
     static var trash: URL { cortexRoot.appendingPathComponent(".trash") }
-    // Where the shipped innate seeds live. An ordinary branch of the address
-    // space — being shipped is a fact about where a note came from, not about
-    // where it sits, so nothing here is special-cased.
-    static let innateBranch = "innate"
-    static var innate: URL { cortexRoot.appendingPathComponent(innateBranch) }
-
     // An id is labels joined by dots, and the dots are directory separators.
     static let idRegex = try! NSRegularExpression(pattern: #"^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)*$"#)
 

@@ -16,19 +16,22 @@ llmemory init --home <state-root>
 
 함께 두 가지가 심긴다:
 - `<state-root>/README.md` — 이 문서의 파생 카피(뇌 *바깥*의 매뉴얼). 매 init 갱신.
-- **운용 정책 노트** — `cortex/` 아래에 `locked: true` 노트로(뇌 *안*의 지식).
-  일반 노트라서 연상 하강으로 인출된다. 이미 있는 씨드 파일은 init 이 건드리지 않는다.
+- **기본 지식(base)** — 배포본이 싣고 오는 `locked: true` 노트(뇌 *안*의 지식).
+  특별한 자리가 없다 — 배포본이 주는 주소에 그냥 앉고, 일반 노트라서 연상 하강으로 인출된다.
 
-바이너리를 올린 뒤 기존 brain 에 이 둘을 다시 심으려면:
+바이너리를 올린 뒤 기존 brain 에 이 둘을 다시 적용하려면:
 
 ```
 llmemory update --home <state-root>
 ```
 
-씨드 노트를 바이너리의 사본으로 덮고 README 를 갱신하고 재색인한다. **범위는 씨드 id 뿐** —
-저작한 노트는 절대 안 건드린다. 사람이 지운 씨드는 되살린다(운용 정책 없는 brain 이
-이 명령이 막으려는 실패다). **씨드 id 는 항상 출고본이다** — 로컬 분기가 필요하면 내용을
-새 id 노트로 복제하라. `locked` 는 "operations 수정 차단" 그 이상을 의미하지 않는다(소유권 아님).
+스키마 마이그레이션을 적용하고, README 를 갱신하고, 기본 지식을 배포본으로 다시 쓰고, 재색인한다.
+**범위는 기본 지식의 id 뿐** — 저작한 노트는 절대 안 건드리고, 무엇도 삭제하지 않는다.
+
+**기본 지식의 id 는 항상 출고본이다** — 고쳐놨어도 다시 덮이고(`refreshed` 로 보고된다),
+사람이 지웠어도 되살아난다. 로컬 분기가 필요하면 내용을 **새 id 노트로 복제하라**.
+기본 지식을 원하지 않는 brain 은 매 호출에 `--no-base` 를 준다 (brain 이 기억하는 설정이 아니다).
+`locked` 는 "operations 수정 차단" 그 이상을 의미하지 않는다(소유권 아님).
 
 ## 호출 패턴
 
@@ -56,8 +59,8 @@ llmemory operations describe <op> --home <state-root>   # op 별 field schema + 
 
 | 그룹 | 역할 |
 |------|------|
-| `init` | 최초 setup (idempotent) — 스키마 + README + 운용 정책 씨드 |
-| `update` | 기존 brain 에 씨드·README 재적용 (저작 노트 불침범) |
+| `init` | 최초 setup (idempotent) — 스키마 + README + 기본 지식 |
+| `update` | 기존 brain 을 이 바이너리로 이행 — 스키마·README·기본 지식 (저작 노트 불침범) |
 | `query` | 읽기 — search / get / related / neighbors / entity / structure / stats / list / tree / history / lint / enrichment / template |
 | `operations` | 쓰기 — apply / dry-run (atomic transaction) / vocab / describe |
 | `index` | DB 유지보수 — build / verify (integrity/sources/terms) / vector |
@@ -360,8 +363,7 @@ DB 안의 migration 원장에 남는다. brain 이 binary 보다 뒤처져 있�
   cortex/
     a/b/c.md          — id `a.b.c` 의 노트. 경로는 id 의 함수이고, 그 아래에
                         `a/b/c/d.md`(id `a.b.c.d`)가 나란히 앉을 수 있다
-    innate/           — 선천 지식 (id `innate.*`, locked). 배포본과 다르면(내용 변경·
-                        파일 없음·외부 파일) update 가 경고만 하고 안 건드림 — `--override` 만이
-                        배포본 그대로 되돌린다. 디렉터리째 지우면 손뗀 것(스킵). `--check` 로 확인.
+                        기본 지식(base)도 여기 섞여 앉는다 — 전용 디렉터리가 없다.
+                        그 id 들은 init/update 가 배포본으로 다시 쓴다 (`--no-base` 로 생략).
     .trash/           — soft-deleted (사람 검토 대기)
 ```

@@ -40,8 +40,10 @@ split routing 의 `type:"meta"` 가 함께 사라졌다.
   `index build` 는 파일 위치에서 id 를 복원한다. 중복 id 검사도 사라졌다 — 두 파일은 두 위치이고
   두 위치는 두 주소라, 남의 id 를 주장할 방법이 없다. lint `invalid-id` 는 점 표기를 허용하도록
   넓어졌고, 이제 "이 경로가 id 가 될 수 있는 이름인가" 를 본다.
-- **`cortex/.innate/` → `cortex/innate/`** — 씨드 id 는 `innate.knowledge-fragmentation`.
-  배포본이냐는 *어디 있냐*가 아니라 *어디서 왔냐*의 문제라 점 디렉터리 예외를 없앴다.
+- **선천 지식(`.innate` 축) → 기본 지식(base), 전용 공간 없음** — 배포본이 싣고 오는 노트는
+  이제 시스템 구역이 아니라 평범한 주소에 앉는다(`knowledge-fragmentation`). 배포본이냐는
+  *어디 있냐*가 아니라 *어디서 왔냐*의 문제라, 자리로 표시하지 않는다. 옛 `.innate` 축의
+  노트는 축 라벨 없이 그 이름 그대로 옮겨지고, `update` 가 같은 id 에 배포본을 다시 쓴다.
 - **예약 파일명 없음** — `README.md`·`INDEX.md`·`GUIDE.md`·`_` 접두를 스캔에서 건너뛰던
   분기가 사라졌다. cortex 아래는 전부 지식이다. **대신 아무 메모나 떨어뜨려 두면 안 된다** —
   frontmatter 없는 파일은 인덱싱 에러가 되고, `index build --rebuild` 는 에러가 하나라도
@@ -122,9 +124,8 @@ tool/migrate-legacy.sh <state-root> [path-to-llmemory]
    `note_extra` 는 옮기지 않는다 — frontmatter 파생이라 재투영이 만든다.
    `retrieval_hits` 만 예외로 전 행을 남긴다 — 사라진 노트에 대한 hit 도 hit 이다.
 5. **재파생** — `llmemory index vector` 로 벡터 재빌드(accepted-loss), `llmemory update` 로
-   씨드 재적용 + shape 게이트 통과 확인. **`update` 는 여기서 항상 innate 불일치를 경고한다** —
-   재주소화가 씨드 파일도 고쳤기 때문이다. 스크립트는 그걸 중단 사유로 보지 않고 마지막에
-   `update --override` 명령을 찍어준다(그 디렉터리에 저작 노트가 있으면 지워지므로 먼저 확인).
+   기본 지식 재적용 + shape 게이트 통과 확인. 재주소화가 기본 지식 파일도 고쳤지만 따로 할 일은
+   없다 — 기본 지식의 id 는 항상 배포본이라 `update` 가 그냥 다시 쓴다.
 
 ## 확인
 

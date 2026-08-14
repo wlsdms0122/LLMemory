@@ -27,13 +27,9 @@ public struct Index {
         // MARK: - Property
         public let homePath: String
         public let seeding: Seeding.Result
-        // Drift was found and --override was not given — the innate space was left alone.
-        public let blocked: Bool
-        // Foreign files --override removed to match the shipped set.
-        public let removed: [String]
         public let indexed, changed: Int
         public let errors: [String]
-        
+
         // MARK: - Initializer
         // MARK: - Public
         // MARK: - Private
@@ -79,11 +75,11 @@ public struct Index {
     // Lifecycle work touches the filesystem outside any scope — the session's
     // context is bound explicitly so a second live brain cannot steal these
     // writes through the ambient fallback.
-    public func initialize(bare: Bool = false) throws -> InitResult {
-        try session.context.bind { try initializeBound(bare: bare) }
+    public func initialize(base: Bool = true) throws -> InitResult {
+        try session.context.bind { try initializeBound(base: base) }
     }
 
-    private func initializeBound(bare: Bool) throws -> InitResult {
+    private func initializeBound(base: Bool) throws -> InitResult {
         let fileManager = FileManager.default
         let dataExisted = fileManager.fileExists(atPath: Paths.dataDirectory.path)
         let cortexExisted = fileManager.fileExists(atPath: Paths.cortexRoot.path)
@@ -92,8 +88,7 @@ public struct Index {
         try fileManager.createDirectory(at: Paths.dataDirectory, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: Paths.cortexRoot, withIntermediateDirectories: true)
         
-        // init is deliberate setup — presence of innate/ is not consulted, only --bare is.
-        let seeding = bare ? Seeding.Result() : Seeding.plant(mode: .missingOnly, force: true)
+        let seeding = base ? Seeding.plant() : Seeding.Result()
         let result = try session.bootstrap()
         
         try Guide.markdown.write(
@@ -114,37 +109,12 @@ public struct Index {
         )
     }
     
-    // Report-only classification of the innate space against the shipped copy — what
-    // update would plant/refresh/relocate/skip — without touching a single file.
-    public func checkSeeds(force: Bool = false) -> Seeding.Result {
-        session.context.bind { Seeding.plant(mode: .overwrite, force: force, dryRun: true) }
+    public func update(base: Bool = true) throws -> UpdateResult {
+        try session.context.bind { try updateBound(base: base) }
     }
 
-    public func update(override: Bool = false) throws -> UpdateResult {
-        try session.context.bind { try updateBound(override: override) }
-    }
-
-    private func updateBound(override: Bool) throws -> UpdateResult {
-        // Classify first without writing. Any drift means human state is in the way —
-        // update warns and leaves the innate space alone; only --override restates it
-        // to exactly the shipped set (removing foreign files too). An absent space
-        // (opted out) is not drift — it is skipped quietly.
-        var seeding = Seeding.plant(mode: .overwrite, force: override, dryRun: true)
-        var blocked = false
-        var removed: [String] = []
-
-        if override {
-            seeding = Seeding.plant(mode: .overwrite, force: true)
-            
-            let sweep = Seeding.removeForeign()
-            removed = sweep.removed
-            // A file that would not go is drift that survived the override, so it
-            // stays reported rather than being cleared along with the rest.
-            seeding.foreign = sweep.errors
-            seeding.errors.append(contentsOf: sweep.errors)
-        } else if seeding.drift {
-            blocked = true
-        }
+    private func updateBound(base: Bool) throws -> UpdateResult {
+        let seeding = base ? Seeding.plant() : Seeding.Result()
 
         // update is the migration surface: a brain left behind by a binary upgrade
         // is carried forward by the bootstrap, before anything else touches the
@@ -160,8 +130,6 @@ public struct Index {
         return UpdateResult(
             homePath: Paths.brainRoot.path,
             seeding: seeding,
-            blocked: blocked,
-            removed: removed,
             indexed: result.count,
             changed: result.changed,
             errors: result.errors + seeding.errors
