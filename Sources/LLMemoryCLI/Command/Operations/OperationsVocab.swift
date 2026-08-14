@@ -46,11 +46,11 @@ struct OperationsVocab: ParsableCommand {
         discussion: """
             Authoritative catalog of op handlers. Use --verbose for each op's
             summary and required fields.
-
+            
             EXAMPLES
                 llmemory operations vocab --home brain
                 llmemory operations vocab --verbose --home brain
-
+            
             SEE ALSO
                 operations describe
             """

@@ -39,18 +39,18 @@ struct IndexVerifySources: AsyncParsableCommand {
             Reads each note's frontmatter `source:` paths, hashes their
             current contents, and compares with the stored baseline. Notes
             whose sources changed get source_stale=1.
-
+            
             Drift signals review — it does not auto-invalidate content. Run
             periodically or before consolidate.
-
+            
             EXIT STATUS
                 0  every note with a baseline was checked
                 1  one or more notes could not be read, so their sources were
                    not checked
-
+            
             became_stale is NOT a failure: drift is the signal this command
             exists to raise, and raising it is success.
-
+            
             EXAMPLES
                 llmemory index verify sources --home brain
             """

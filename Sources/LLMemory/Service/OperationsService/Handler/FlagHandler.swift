@@ -18,9 +18,9 @@ struct FlagHandler: OperationHandling {
         ],
         example: ##"{"op":"flag","id":"my-note","kind":"reconsolidate","reason":"two near-duplicate notes detected"}"##
     )
-
-    private let payload = OpPayloadCheck()
-
+    
+    private let noteExistence = NoteExistence()
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -29,28 +29,28 @@ struct FlagHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let kind = op["kind"] as? String ?? ""
-
+        
         if !OpVocabulary.creatableFlagKinds.contains(kind) { return "invalid flag kind: \(kind)" }
-
-        return try payload.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
+        
+        return try noteExistence.rejectionForUnknown(op["id"] as? String ?? "", context: context, scope: scope)
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
         _ scope: GRDBScope
     ) throws -> [String: Any] {
         let now = context.now
-
+        
         try scope.run(AddRippleFlagTransaction(
             noteId: op["id"] as! String,
             kind: op["kind"] as! String,
             reason: op["reason"] as? String ?? "",
             now: now
         ))
-
+        
         return ["status": "ok", "ids": [op["id"]!], "note": "flagged \(op["kind"]!)"]
     }
-
+    
     // MARK: - Private
 }

@@ -80,7 +80,7 @@ struct QueryStructure: AsyncParsableCommand {
         discussion: """
             Useful before running consolidation. Pass --prefix for the stats of
             one branch of the address space.
-
+            
             EXAMPLES
                 llmemory query structure --home brain
                 llmemory query structure --prefix flow --home brain

@@ -42,33 +42,33 @@ struct EnrichThinRule: NoteDBLintRule {
     
     // MARK: - Private
     private static let hangulRegex = try! NSRegularExpression(pattern: #"[가-힣]"#)
-
+    
     // Korean text is what the alias/cue vocabulary is thin against — the
     // particle-agglutinating half of the corpus is where a lexical index
     // misses most, so the rule only speaks where that half is present.
     private func hasHangul(_ text: String) -> Bool {
         let nsText = text as NSString
-
+        
         return Self.hangulRegex.firstMatch(
             in: text,
             range: NSRange(location: 0, length: nsText.length)
         ) != nil
     }
-
+    
     private func hiddenCompounds(_ text: String) -> [String] {
         let nsText = text as NSString
         var found: [String] = []
         var seen = Set<String>()
-
+        
         Self.longIdentRegex.enumerateMatches(
             in: text,
             range: NSRange(location: 0, length: nsText.length)
         ) { match, _, _ in
             guard let match else { return }
-
+            
             let token = nsText.substring(with: match.range)
             let nsToken = token as NSString
-
+            
             if Self.camelHumpRegex.firstMatch(
                 in: token,
                 range: NSRange(location: 0, length: nsToken.length)
@@ -76,7 +76,7 @@ struct EnrichThinRule: NoteDBLintRule {
                 found.append(token)
             }
         }
-
+        
         return found
     }
 }

@@ -14,21 +14,21 @@ extension Unicode.Scalar {
         switch value {
         case 0x200B...0x200F, 0x2060, 0xFE00...0xFE0F, 0xE0100...0xE01EF:
             return true
-    
+        
         case 0x1160...0x11FF, 0xD7B0...0xD7FF:
             return true
-    
+        
         default:
             switch properties.generalCategory {
             case .nonspacingMark, .enclosingMark, .format:
                 return true
-        
+            
             default:
                 return false
             }
         }
     }
-
+    
     var isWide: Bool {
         switch value {
         case 0x1100...0x115F,
@@ -57,7 +57,7 @@ extension Unicode.Scalar {
             0x1FA00...0x1FAFF,
             0x20000...0x3FFFD:
             return true
-    
+        
         default:
             return false
         }

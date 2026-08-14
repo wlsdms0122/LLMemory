@@ -20,13 +20,13 @@ protocol OperationsServiceable: Sendable {
         payloadJSON: String,
         cliSessionId: String
     ) async -> OperationsResult
-
+    
     func dryRun(
         payloadJSON: String,
         cliSessionId: String
     ) async -> OperationsDryRunResult
-
+    
     func operationNames() -> [String]
-
+    
     func operationSchema(_ name: String) -> OperationSchema?
 }

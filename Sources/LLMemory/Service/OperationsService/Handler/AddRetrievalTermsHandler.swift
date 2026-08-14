@@ -19,9 +19,9 @@ struct AddRetrievalTermsHandler: OperationHandling {
         ],
         example: ##"{"op":"add_retrieval_terms","id":"my-note","kind":"alias","terms":["검색 동의어","retrieval synonym"],"provenance":"forge:capture:claude-sonnet-4-6"}"##
     )
-
-    private let payload = OpPayloadCheck()
-
+    
+    private let noteExistence = NoteExistence()
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -30,36 +30,36 @@ struct AddRetrievalTermsHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
-
-        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
             return rejection
         }
-
+        
         let kind = op["kind"] as? String ?? ""
-
+        
         if kind != "alias" && kind != "cue" {
             return "invalid kind: \(kind) (expected 'alias' or 'cue')"
         }
-
+        
         guard let terms = op["terms"] as? [Any], !terms.isEmpty else {
             return "terms must be non-empty list"
         }
-
+        
         let phrases = terms
             .compactMap { term in term as? String }
             .filter { term in !term.trimmingCharacters(in: .whitespaces).isEmpty }
-
+        
         if phrases.isEmpty { return "terms must contain at least one non-empty string" }
-
+        
         let capacity = Config.getInt("enrich.max_terms_per_op", default: 12)
-
+        
         if phrases.count > capacity {
             return "too many terms: \(phrases.count) (cap \(capacity) — see config enrich.max_terms_per_op)"
         }
-
+        
         return nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -75,7 +75,7 @@ struct AddRetrievalTermsHandler: OperationHandling {
             .map { term in term.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { term in !term.isEmpty } ?? []
         var inserted = 0
-
+        
         for term in terms {
             inserted += try scope.run(UpsertPendingTermTransaction(
                 noteId: noteId,
@@ -85,13 +85,13 @@ struct AddRetrievalTermsHandler: OperationHandling {
                 now: now
             ))
         }
-
+        
         return [
             "status": "ok",
             "ids": [noteId],
             "note": "added \(inserted) \(kind) term(s) (pending validation)"
         ]
     }
-
+    
     // MARK: - Private
 }

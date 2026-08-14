@@ -19,16 +19,16 @@ struct SplitNoteHandler: OperationHandling {
         ],
         example: ###"{"op":"split_note","from_id":"persona.big-note","into":[{"id":"persona.big-note.a","title":"A","tags":["persona"],"summary":"...","sections":["## A"]},{"id":"persona.big-note.b","title":"B","tags":["persona"],"summary":"...","sections":["## B"]}]}"###
     )
-
-    private let payload = OpPayloadCheck()
+    
+    private let noteExistence = NoteExistence()
     private let sourceInput = NoteSourceInput()
-
+    
     private let sectionEdit = SectionEdit()
-
+    
     private let frontmatter = Frontmatter()
-
+    
     private let trash = Trash()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -37,135 +37,133 @@ struct SplitNoteHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let fromId = op["from_id"] as? String ?? ""
-
-        if let rejection = try payload.checkIDKnown(fromId, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(fromId, context: context, scope: scope) {
             return rejection
         }
-
+        
         guard let into = op["into"] as? [[String: Any]], into.count >= 2 else {
             return "into must be a list of at least 2 child specs"
         }
-
+        
         var newIds = Set<String>()
-        let state = try payload.existingState(scope)
+        let state = try noteExistence.state(scope)
         var normalized: [[String: Any]] = into
         var allPaths: [SectionEdit.SectionPath] = []
-
+        
         for index in 0..<into.count {
             let child = into[index]
-
+            
             for field in ["id", "title", "tags", "summary", "sections"] {
                 if child[field] == nil {
                     return "into[\(index)] missing/empty field: \(field)"
                 }
-
+                
                 if let value = child[field] as? String, value.isEmpty {
                     return "into[\(index)] missing/empty field: \(field)"
                 }
             }
-
+            
             let childId = child["id"] as! String
             let nsChildId = childId as NSString
-
+            
             if Paths.idRegex.firstMatch(
                 in: childId,
                 range: NSRange(location: 0, length: nsChildId.length)
             ) == nil {
                 return "into[\(index)] invalid id: \(childId)"
             }
-
+            
             if (state.ids.contains(childId) || context.inFlightIds.contains(childId))
                 && childId != fromId {
                 return "into[\(index)] id collision: \(childId)"
             }
-
+            
             if newIds.contains(childId) { return "into[\(index)] duplicate id: \(childId)" }
-
+            
             newIds.insert(childId)
-
+            
             guard let tags = child["tags"] as? [Any], !tags.isEmpty else {
                 return "into[\(index)] tags must be non-empty list"
             }
-
+            
             guard let sections = child["sections"] as? [Any], !sections.isEmpty else {
                 return "into[\(index)] sections must be non-empty list"
             }
-
+            
             if let rejection = sourceInput.sourceInputError(child["source"]) {
                 return "into[\(index)] \(rejection)"
             }
-
+            
             var normalizedSections: [String] = []
-
+            
             for rawSection in sections {
                 var section = (rawSection as? String ?? "")
                     .trimmingCharacters(in: .whitespaces)
-
+                
                 if !section.isEmpty && !section.hasPrefix("#") {
                     section = "## \(section)"
                 }
-
+                
                 let parsed: SectionEdit.SectionPath
                 do {
                     parsed = try sectionEdit.parsePath(section)
                 } catch {
                     return "into[\(index)] invalid section path '\(section)': \(error)"
                 }
-
+                
                 allPaths.append(parsed)
                 normalizedSections.append(section)
             }
-
+            
             normalized[index]["sections"] = normalizedSections
         }
-
+        
         if let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
             let raw = try? String(contentsOf: srcPath, encoding: .utf8) {
             let (_, srcBody) = try frontmatter.parse(raw)
-
+            
             do {
                 _ = try sectionEdit.resolveDisjoint(srcBody, paths: allPaths)
             } catch {
                 return "into sections do not form a valid split of '\(fromId)': \(error)"
             }
         }
-
+        
         let routing = parseRouting(op)
-
+        
         for (_, targets) in routing {
             for target in targets where !newIds.contains(target) {
                 return "routing target '\(target)' is not one of the new children"
             }
         }
-
+        
         let keepSrc = (op["remainder"] as? [String: Any])?["keep"] as? Bool ?? false
-
+        
         if !keepSrc {
             let uncovered = try uncoveredRouteArtifacts(scope, fromId: fromId, routing: routing)
-
+            
             if !uncovered.isEmpty {
                 throw SplitConflict(fromId: fromId, unresolved: uncovered)
             }
         }
-
+        
         return nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
         _ scope: GRDBScope
     ) throws -> [String: Any] {
         let fromId = op["from_id"] as! String
-
+        
         guard let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
             FileManager.default.fileExists(atPath: srcPath.path)
         else {
-            throw NSError(domain: "Handlers", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "split source missing: \(fromId)"
-            ])
+            throw OperationError.noteFileMissing("split source missing: \(fromId)")
         }
-
+        
         let (srcDoc, srcBody) = try frontmatter.parse(
             try String(contentsOf: srcPath, encoding: .utf8)
         )
@@ -177,13 +175,13 @@ struct SplitNoteHandler: OperationHandling {
         let now = context.now
         var remaining = srcBody
         let intoChildren = (op["into"] as? [[String: Any]]) ?? []
-
+        
         for child in intoChildren {
             let rawSections = (child["sections"] as? [Any])?
                 .compactMap { section in section as? String } ?? []
             let normalizedSections = rawSections.map { section -> String in
                 let trimmed = section.trimmingCharacters(in: .whitespaces)
-
+                
                 return (trimmed.hasPrefix("#") || trimmed.isEmpty) ? trimmed : "## \(trimmed)"
             }
             let sectionPaths = try normalizedSections.map { section in
@@ -191,15 +189,15 @@ struct SplitNoteHandler: OperationHandling {
             }
             let (extracted, rest) = try sectionEdit.extract(remaining, paths: sectionPaths)
             remaining = rest
-
+            
             let childId = child["id"] as! String
             let childPath = Paths.file(forId: childId)
-
+            
             try FileManager.default.createDirectory(
                 at: childPath.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-
+            
             var childDoc = FrontmatterDoc(
                 title: child["title"] as? String ?? "",
                 priority: child["priority"] as? String ?? "lazy",
@@ -209,14 +207,14 @@ struct SplitNoteHandler: OperationHandling {
             childDoc.source = child["source"] != nil
                 ? try sourceInput.finalizeSource(child["source"])
                 : srcDoc.source
-
+            
             let prefix = (child["content_prefix"] as? String).map { text in
                 String(
                     text.reversed().drop(while: { character in character.isWhitespace }).reversed()
                 ) + "\n\n"
             } ?? ""
             let content = prefix + extracted
-
+            
             try (frontmatter.dump(childDoc) + content).write(
                 to: childPath,
                 atomically: true,
@@ -225,23 +223,23 @@ struct SplitNoteHandler: OperationHandling {
             try scope.run(ReindexNoteFileTransaction(path: childPath))
             try scope.run(InheritSourceObservationTransaction(from: fromId, to: childId))
             try scope.run(StampNoteLifecycleTransaction(nid: childId, now: now, isNew: true))
-
+            
             written.append(childPath)
             newIds.append(childId)
         }
-
+        
         let keepRemainder = ((op["remainder"] as? [String: Any])?["keep"] as? Bool) ?? false
         let sourceSurvives = keepRemainder
             && !remaining.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-
+        
         if keepRemainder && !sourceSurvives {
             let uncovered = try uncoveredRouteArtifacts(scope.readOnly, fromId: fromId, routing: routing)
-
+            
             if !uncovered.isEmpty {
                 throw SplitConflict(fromId: fromId, unresolved: uncovered)
             }
         }
-
+        
         if sourceSurvives {
             try (frontmatter.dump(srcDoc) + remaining).write(
                 to: srcPath,
@@ -263,9 +261,9 @@ struct SplitNoteHandler: OperationHandling {
                 now: now
             )
         }
-
+        
         let share = Double(max(1, newIds.count))
-
+        
         func insertEdge(
             child: String,
             other: String,
@@ -275,7 +273,7 @@ struct SplitNoteHandler: OperationHandling {
         ) throws {
             let src = outbound ? child : other
             let dst = outbound ? other : child
-
+            
             try scope.run(AddLinkTransaction(
                 src: src,
                 dst: dst,
@@ -286,13 +284,13 @@ struct SplitNoteHandler: OperationHandling {
                 provenance: edge.provenance
             ))
         }
-
+        
         func redistribute(_ edges: [LinkEdge], outbound: Bool) throws {
             for edge in edges where edge.other != fromId {
                 switch NoteArtifacts.linkKindSplitPolicy[edge.kind] ?? .autoRedistribute {
                 case .rebuild, .drop:
                     continue
-
+                
                 case .route, .routeRevalidate:
                     if let targets = routing[routingKey(
                         type: "link",
@@ -320,7 +318,7 @@ struct SplitNoteHandler: OperationHandling {
                             )
                         }
                     }
-
+                
                 case .autoRedistribute:
                     for noteId in newIds {
                         try insertEdge(
@@ -331,7 +329,7 @@ struct SplitNoteHandler: OperationHandling {
                             weight: edge.weight / share
                         )
                     }
-
+                
                 case .autoCopy:
                     for noteId in newIds {
                         try insertEdge(
@@ -345,23 +343,23 @@ struct SplitNoteHandler: OperationHandling {
                 }
             }
         }
-
+        
         try redistribute(outboundEdges, outbound: true)
         try redistribute(inboundEdges, outbound: false)
-
+        
         for noteId in newIds { try scope.run(NormalizeUndirectedLinksTransaction(nodeId: noteId)) }
-
+        
         try scope.run(LinkSiblingsTransaction(
             ids: sourceSurvives ? newIds + [fromId] : newIds,
             now: now
         ))
-
+        
         if !sourceSurvives {
             for row in srcTerms {
                 let kind = row.kind
                 let term = row.term
                 let provenance = row.provenance
-
+                
                 guard let targets = routing[routingKey(
                     type: "term",
                     kind: nil,
@@ -370,7 +368,7 @@ struct SplitNoteHandler: OperationHandling {
                 )] else {
                     continue
                 }
-
+                
                 for noteId in targets {
                     try scope.run(InsertPendingTermIfAbsentTransaction(
                         noteId: noteId,
@@ -381,10 +379,10 @@ struct SplitNoteHandler: OperationHandling {
                     ))
                 }
             }
-
+            
             try scope.run(DeleteNoteLinksTransaction(noteId: fromId))
         }
-
+        
         return [
             "status": "ok",
             "paths": written.map { path in path.path },
@@ -392,39 +390,39 @@ struct SplitNoteHandler: OperationHandling {
             "note": "split \(fromId) -> \(newIds.count) children"
         ]
     }
-
+    
     func effect(_ op: [String: Any]) -> [String: [String]] {
         let into = (op["into"] as? [[String: Any]]) ?? []
         let newIds = into.compactMap { child in child["id"] as? String }
         let keep = ((op["remainder"] as? [String: Any])?["keep"] as? Bool) ?? false
         let fromId = op["from_id"] as? String ?? ""
         var effects: [String: [String]] = ["creates": newIds]
-
+        
         if !keep && !newIds.contains(fromId) {
             effects["removes"] = [fromId]
         }
-
+        
         return effects
     }
-
+    
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
         var paths: [URL] = []
-
+        
         if let fromId = op["from_id"] as? String, let src = try scope.run(FetchNotePathTransaction(nid: fromId)) {
             paths.append(src)
-
+            
             if let trashPath = trash.destination(of: src) { paths.append(trashPath) }
         }
-
+        
         for child in (op["into"] as? [[String: Any]]) ?? [] {
             if let childId = child["id"] as? String {
                 paths.append(Paths.file(forId: childId))
             }
         }
-
+        
         return paths
     }
-
+    
     // MARK: - Private
     private func routingKey(
         type: String,

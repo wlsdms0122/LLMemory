@@ -13,9 +13,9 @@ import Foundation
 struct NoteComposer {
     // MARK: - Property
     private let frontmatter = Frontmatter()
-
+    
     private let template = Template()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func composeCreateBody(_ op: [String: Any], _ scope: GRDBReadScope) throws -> String {
@@ -30,7 +30,7 @@ struct NoteComposer {
         
         return content + "\n"
     }
-
+    
     func mergeFields(_ doc: inout FrontmatterDoc, _ fields: [String: Any]) throws {
         func string(_ key: String, _ value: Any) throws -> String {
             guard let string = value as? String else {
@@ -51,31 +51,31 @@ struct NoteComposer {
             
             return array.compactMap { element in element as? String }
         }
-
+        
         // A custom field is one frontmatter line, so its value must be a scalar that
         // survives the `key: value` round trip — no newlines, no nesting.
         func scalar(_ key: String, _ value: Any) throws -> String {
             let text: String
-
+            
             switch value {
             case let bool as Bool:
                 text = bool ? "true" : "false"
-
+            
             case let int as Int:
                 text = String(int)
-
+            
             case let double as Double:
                 text = String(double)
-
+            
             case let string as String:
                 text = string
-
+            
             default:
                 throw FieldTypeError(field: key, expected: "string, number or bool", got: value)
             }
-
+            
             let trimmed = text.trimmingCharacters(in: .whitespaces)
-
+            
             guard !trimmed.isEmpty, !trimmed.contains(where: \.isNewline) else {
                 throw FieldTypeError(
                     field: key,
@@ -83,40 +83,40 @@ struct NoteComposer {
                     got: value
                 )
             }
-
+            
             return trimmed
         }
-
+        
         for (key, value) in fields {
             switch key {
             case "title":
                 doc.title = try string(key, value)
-
+            
             case "summary":
                 doc.summary = try string(key, value)
-
+            
             case "tags":
                 doc.tags = try list(key, value)
-
+            
             case "priority":
                 doc.priority = try string(key, value)
-
+            
             case "source":
                 doc.source = try frontmatter.decodeSource(value)
-
+            
             case "promoted_from":
                 let promotedFrom = try list(key, value)
                 doc.promotedFrom = promotedFrom.isEmpty ? nil : promotedFrom
-
+            
             case "entities":
                 let entities = try list(key, value)
                 doc.entities = entities.isEmpty ? nil : entities
-
+            
             default:
                 guard OpVocabulary.frontmatterReserved.contains(key) == false else {
                     throw ReservedFieldError(field: key)
                 }
-
+                
                 guard OpVocabulary.extraKeyRegex.firstMatch(
                     in: key,
                     range: NSRange(location: 0, length: (key as NSString).length)
@@ -127,7 +127,7 @@ struct NoteComposer {
                         got: value
                     )
                 }
-
+                
                 if value is NSNull {
                     doc.extra.removeValue(forKey: key)
                 } else {
@@ -136,6 +136,6 @@ struct NoteComposer {
             }
         }
     }
-
+    
     // MARK: - Private
 }

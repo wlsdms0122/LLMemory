@@ -21,26 +21,26 @@ import Foundation
 // than one that does not answer.
 protocol OperationHandling: Sendable {
     var schema: OperationSchema { get }
-
+    
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
         _ scope: GRDBReadScope
     ) throws -> String?
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
         _ scope: GRDBScope
     ) throws -> [String: Any]
-
+    
     func effect(_ op: [String: Any]) -> [String: [String]]
-
+    
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL]
 }
 
 extension OperationHandling {
     func effect(_ op: [String: Any]) -> [String: [String]] { [:] }
-
+    
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] { [] }
 }

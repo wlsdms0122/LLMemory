@@ -19,7 +19,7 @@ struct InitCommand: ParsableCommand {
             case cortexExisted = "cortex_existed"
             case dbExisted = "db_existed"
         }
-
+        
         // MARK: - Property
         let alreadyInitialized: Bool
         let homePath: String
@@ -45,7 +45,7 @@ struct InitCommand: ParsableCommand {
             Idempotent — existing state is preserved and only missing pieces are
             created. A fresh brain starts with no notes and no tag vocabulary —
             everything grows through ops.
-
+            
             Also writes <home>/README.md from the embedded agent guide
             (document/GUIDE.md) — a derived copy, refreshed on every init — and
             plants the seed notes (document/cortex/**/*.md) as `locked: true`
@@ -55,22 +55,22 @@ struct InitCommand: ParsableCommand {
             seeded copy is a conflict: nothing is planted, the ids are listed, and
             init exits 1 unless `--force` is given. `--no-seed` skips them
             entirely — a brain born with nothing at all.
-
+            
             EXAMPLES
                 llmemory init --home brain
                 llmemory init --no-seed --home brain
             """
     )
-
+    
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
-
+    
     @Flag(name: .long, inversion: .prefixedNo, help: "Plant the shipped seed notes.")
     var seed = true
-
+    
     @Flag(name: .long, help: "Replace notes holding a seed address even when they do not claim to hold a seeded copy.")
     var force = false
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func run() throws {

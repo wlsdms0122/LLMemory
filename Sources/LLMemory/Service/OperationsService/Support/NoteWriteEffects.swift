@@ -23,10 +23,10 @@ struct NoteWriteEffects {
     ) throws {
         try scope.run(RecordNoteLifecycleEventTransaction(nid: nid, kind: "edited", reason: opLabel, now: now))
     }
-
+    
     func seedInitialLinks(_ scope: GRDBScope, nid: String, tags: [String]) throws {
         try scope.run(SeedInitialLinksTransaction(nid: nid, tags: tags))
     }
-
+    
     // MARK: - Private
 }

@@ -38,11 +38,11 @@ struct QueryList: AsyncParsableCommand {
             Pure enumeration — no ranking. Each flag is one AND-composed
             predicate; absent flags don't constrain. For ranked retrieval
             use `search` or `related`.
-
+            
             Plain output is a table (id, title, summary). For scripted
             id extraction use --json (adds lifecycle fields) and parse.
-
-
+            
+            
             EXAMPLES
                 llmemory query list --priority eager --home brain
                 llmemory query list --stale --tag persona --home brain
@@ -50,19 +50,19 @@ struct QueryList: AsyncParsableCommand {
                 llmemory query list --tag journal --field affect=high --home brain
             """
     )
-
+    
     @OptionGroup var global: GlobalHomeOptions
     @OptionGroup var format: OutputFormat
-
+    
     @Option(name: .long, help: "Match a priority (e.g. eager).")
     var priority: String?
-
+    
     @Option(name: .long, help: "Match a tag. Repeatable — all must be present.")
     var tag: [String] = []
-
+    
     @Option(name: .long, help: "Match a custom frontmatter field: 'key' (present) or 'key=value'. Repeatable.")
     var field: [String] = []
-
+    
     @Flag(name: .long, help: "Match content-stale notes (stale = 1).")
     var stale: Bool = false
     
@@ -136,24 +136,24 @@ struct QueryList: AsyncParsableCommand {
             ]
         }
     }
-
+    
     // MARK: - Private
     private static func parseField(_ spec: String) throws -> NoteFieldFilter {
         guard let separator = spec.firstIndex(of: "=") else {
             guard !spec.isEmpty else {
                 throw ValidationError("--field needs a key: 'key' or 'key=value'")
             }
-
+            
             return NoteFieldFilter(key: spec, value: nil)
         }
-
+        
         let key = String(spec[spec.startIndex..<separator])
         let value = String(spec[spec.index(after: separator)...])
-
+        
         guard !key.isEmpty, !value.isEmpty else {
             throw ValidationError("--field '\(spec)' must be 'key' or 'key=value'")
         }
-
+        
         return NoteFieldFilter(key: key, value: value)
     }
 }

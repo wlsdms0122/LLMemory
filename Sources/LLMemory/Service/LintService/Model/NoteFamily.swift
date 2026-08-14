@@ -17,7 +17,7 @@ struct NoteFamily {
     let members: [String]
     let hasIndex: Bool
     let key: String
-
+    
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private

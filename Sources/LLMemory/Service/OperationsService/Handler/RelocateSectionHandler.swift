@@ -19,14 +19,14 @@ struct RelocateSectionHandler: OperationHandling {
         ],
         example: ###"{"op":"relocate_section","from_id":"src-note","to_id":"dst-note","section":"## 부록","position":"end"}"###
     )
-
-    private let payload = OpPayloadCheck()
+    
+    private let noteExistence = NoteExistence()
     private let writeEffects = NoteWriteEffects()
-
+    
     private let sectionEdit = SectionEdit()
-
+    
     private let frontmatter = Frontmatter()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -36,38 +36,50 @@ struct RelocateSectionHandler: OperationHandling {
     ) throws -> String? {
         let fromId = op["from_id"] as? String ?? ""
         let toId = op["to_id"] as? String ?? ""
-
+        
         if fromId == toId { return "from_id and to_id must differ" }
-
-        if let rejection = try payload.checkIDKnown(fromId, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(fromId, context: context, scope: scope) {
             return rejection
         }
-
-        if let rejection = try payload.checkIDKnown(toId, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(toId, context: context, scope: scope) {
             return rejection
         }
-
+        
         do {
             _ = try sectionEdit.parsePath(op["section"] as? String ?? "")
         } catch {
             return "invalid section path: \(error)"
         }
-
+        
         let position = op["position"] ?? "end"
-
+        
         if let anchor = position as? String, anchor == "end" || anchor == "start" {
             return nil
         }
-
+        
         if let anchor = position as? [String: Any] {
-            if anchor["after"] != nil || anchor["before"] != nil { return nil }
-
-            return "position dict requires after or before"
+            guard let raw = anchor["after"] ?? anchor["before"] else {
+                return "position dict requires after or before"
+            }
+            
+            guard let path = raw as? String, !path.isEmpty else {
+                return "position anchor must be a section path string"
+            }
+            
+            do {
+                _ = try sectionEdit.parsePath(path)
+            } catch {
+                return "invalid position anchor path: \(error)"
+            }
+            
+            return nil
         }
-
+        
         return "position must be 'end'/'start' or {after|before: <path>}"
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -75,17 +87,15 @@ struct RelocateSectionHandler: OperationHandling {
     ) throws -> [String: Any] {
         let fromId = op["from_id"] as! String
         let toId = op["to_id"] as! String
-
+        
         guard let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
             FileManager.default.fileExists(atPath: srcPath.path),
             let dstPath = try scope.run(FetchNotePathTransaction(nid: toId)),
             FileManager.default.fileExists(atPath: dstPath.path)
         else {
-            throw NSError(domain: "Handlers", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "note missing"
-            ])
+            throw OperationError.noteFileMissing("relocate_section: source or destination file missing")
         }
-
+        
         let (srcDoc, srcBody) = try frontmatter.parse(
             try String(contentsOf: srcPath, encoding: .utf8)
         )
@@ -96,7 +106,7 @@ struct RelocateSectionHandler: OperationHandling {
         let (extracted, srcRemaining) = try sectionEdit.extract(srcBody, paths: [sectionPath])
         let position = op["position"] ?? "end"
         let newDst: String
-
+        
         if let anchor = position as? String, anchor == "end" {
             newDst = try sectionEdit.insert(
                 dstBody,
@@ -120,9 +130,9 @@ struct RelocateSectionHandler: OperationHandling {
                 anchor: .before(try sectionEdit.parsePath(before))
             )
         } else {
-            throw NSError(domain: "Handlers", code: 2)
+            throw OperationError.unreadablePosition(position)
         }
-
+        
         try (frontmatter.dump(srcDoc) + srcRemaining).write(
             to: srcPath,
             atomically: true,
@@ -135,9 +145,9 @@ struct RelocateSectionHandler: OperationHandling {
         )
         try scope.run(ReindexNoteFileTransaction(path: srcPath))
         try scope.run(ReindexNoteFileTransaction(path: dstPath))
-
+        
         let now = context.now
-
+        
         try scope.run(StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false))
         try scope.run(StampNoteLifecycleTransaction(nid: toId, now: now, isNew: false))
         try writeEffects.recordEdit(
@@ -152,7 +162,7 @@ struct RelocateSectionHandler: OperationHandling {
             opLabel: "relocate_section/from←\(fromId)",
             now: now
         )
-
+        
         return [
             "status": "ok",
             "paths": [srcPath.path, dstPath.path],
@@ -160,21 +170,21 @@ struct RelocateSectionHandler: OperationHandling {
             "note": "relocated section to \(toId)"
         ]
     }
-
+    
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
         var paths: [URL] = []
-
+        
         if let fromId = op["from_id"] as? String,
             let path = try scope.run(FetchNotePathTransaction(nid: fromId)) {
             paths.append(path)
         }
-
+        
         if let toId = op["to_id"] as? String, let path = try scope.run(FetchNotePathTransaction(nid: toId)) {
             paths.append(path)
         }
-
+        
         return paths
     }
-
+    
     // MARK: - Private
 }

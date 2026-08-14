@@ -19,11 +19,11 @@ struct QueryTree: AsyncParsableCommand {
             hierarchy is read off the ids themselves, not stored anywhere. This
             shows one level at a time: what branches exist and how much lives
             under each. Descend by passing the branch back as --prefix.
-
+            
             It answers "where is there anything, and how much", nothing else.
             What a branch is *about* is the tags' answer, and whether a split
             family kept its parent is the lint's.
-
+            
             EXAMPLES
                 llmemory query tree --home brain
                 llmemory query tree --prefix journal --home brain

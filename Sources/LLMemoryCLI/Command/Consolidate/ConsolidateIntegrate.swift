@@ -18,7 +18,7 @@ struct ConsolidateIntegrate: AsyncParsableCommand {
             LLM-free, idempotent. Safe to run frequently (e.g. hourly) and for
             recovery — never decays links.
             Default output is plain text; --json emits the typed summary.
-
+            
             EXAMPLES
                 llmemory consolidate integrate --home brain
                 llmemory consolidate integrate --json --home brain

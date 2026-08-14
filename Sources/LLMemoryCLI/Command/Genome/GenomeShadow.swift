@@ -25,7 +25,7 @@ struct GenomeShadow: AsyncParsableCommand {
               · search + related's read-only core — related replays skip the
                 rebirth write half (dryRun), so introspection never rehearses
                 edges.
-
+            
             EXAMPLES
                 llmemory genome shadow --gene links.sibling_rank_weight --value 0.15 --home brain
                 llmemory genome shadow --gene priming.alpha --value 1.0 --limit 100 --json --home brain

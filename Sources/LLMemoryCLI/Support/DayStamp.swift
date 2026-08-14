@@ -15,15 +15,15 @@ struct DayStamp {
     // MARK: - Public
     func dayString(_ epoch: Int) -> String {
         guard epoch > 0 else { return "-" }
-    
+        
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone.current
-    
+        
         let components = calendar.dateComponents(
             [.year, .month, .day],
             from: Date(timeIntervalSince1970: TimeInterval(epoch))
         )
-    
+        
         return String(
             format: "%04d-%02d-%02d",
             components.year ?? 0,
@@ -31,6 +31,6 @@ struct DayStamp {
             components.day ?? 0
         )
     }
-
+    
     // MARK: - Private
 }

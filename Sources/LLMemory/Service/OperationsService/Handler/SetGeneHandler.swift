@@ -20,11 +20,11 @@ struct SetGeneHandler: OperationHandling {
         ],
         example: ##"{"op":"set_gene","gene":"links.sibling_rank_weight","value":0.2,"reason":"형제 도배 실측 완화"}"##
     )
-
+    
     let genome: any GenomeServiceable
-
-    private let payload = OpPayloadCheck()
-
+    
+    private let noteExistence = NoteExistence()
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -33,22 +33,22 @@ struct SetGeneHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let id = op["gene"] as? String ?? ""
-
+        
         guard let definition = Genes.gene(id) else {
             return "unknown gene: '\(id)' — see `genome list` for the catalog"
         }
-
+        
         if let raw = op["value"], !(raw is NSNull) {
-            guard let value = payload.asDouble(raw) else { return "value must be numeric" }
-
+            guard let value = doubleValue(raw) else { return "value must be numeric" }
+            
             if value < definition.min || value > definition.max {
                 return "value \(value) is outside gene '\(id)' bounds [\(definition.min), \(definition.max)]"
             }
         }
-
+        
         return nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -57,8 +57,8 @@ struct SetGeneHandler: OperationHandling {
         let now = context.now
         let id = op["gene"] as! String
         let reason = op["reason"] as? String
-
-        if let raw = op["value"], !(raw is NSNull), let value = payload.asDouble(raw) {
+        
+        if let raw = op["value"], !(raw is NSNull), let value = doubleValue(raw) {
             let result = try genome.setGene(
                 scope,
                 id: id,
@@ -68,18 +68,30 @@ struct SetGeneHandler: OperationHandling {
                 requireMutable: false,
                 now: now
             )
-
+            
             return [
                 "status": "ok",
                 "ids": [id],
                 "note": "gene \(id): \(result.old) → \(result.new)"
             ]
         }
-
+        
         let old = try genome.resetGene(scope, id: id, cause: "set_gene", now: now)
-
+        
         return ["status": "ok", "ids": [id], "note": "gene \(id): \(old) → wild-type"]
     }
-
+    
     // MARK: - Private
+    // A gene value arrives as whatever JSON made of it. A bool is refused
+    // outright — `true` bridging to 1 would set a gene to 1 without anyone
+    // saying so.
+    private func doubleValue(_ raw: Any) -> Double? {
+        if raw is Bool { return nil }
+        if let double = raw as? Double { return double }
+        if let int = raw as? Int { return Double(int) }
+        if let number = raw as? NSNumber { return number.doubleValue }
+        
+        return nil
+    }
+    
 }

@@ -26,14 +26,14 @@ struct CreateNoteHandler: OperationHandling {
         ],
         example: ##"{"op":"create_note","id":"persona.my-note","title":"...","tags":["persona"],"summary":"...","content":"# body"}"##
     )
-
+    
     private let composer = NoteComposer()
-    private let payload = OpPayloadCheck()
+    private let noteExistence = NoteExistence()
     private let sourceInput = NoteSourceInput()
     private let writeEffects = NoteWriteEffects()
-
+    
     private let frontmatter = Frontmatter()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -42,65 +42,65 @@ struct CreateNoteHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let hasTemplate = (op["template"] as? String).map { value in !value.isEmpty } ?? false
-
+        
         if let rawLocked = op["locked"], !(rawLocked is Bool) { return "locked must be bool" }
-
+        
         if hasTemplate {
             let templateId = op["template"] as! String
-
+            
             if !(try scope.run(NoteExistsTransaction(nid: templateId)))
                 && !context.inFlightIds.contains(templateId) {
                 return "unknown template note: \(templateId)"
             }
         }
-
+        
         let noteId = op["id"] as? String ?? ""
         let nsNoteId = noteId as NSString
-
+        
         if Paths.idRegex.firstMatch(
             in: noteId,
             range: NSRange(location: 0, length: nsNoteId.length)
         ) == nil {
             return "invalid id format: \(noteId)"
         }
-
+        
         guard let tags = op["tags"] as? [Any], !tags.isEmpty else {
             return "tags must be non-empty list"
         }
-
+        
         let priority = op["priority"] as? String ?? "lazy"
-
+        
         if !OpVocabulary.validPriority.contains(priority) { return "invalid priority: \(priority)" }
-
+        
         if let entities = op["entities"], !(entities is [Any]) { return "entities must be list" }
-
+        
         if let rejection = sourceInput.sourceInputError(op["source"]) { return rejection }
-
+        
         do {
             var probe = FrontmatterDoc()
-
-            try composer.mergeFields(&probe, payload.customFields(of: op, declaredBy: schema))
+            
+            try composer.mergeFields(&probe, schema.undeclaredFields(in: op))
         } catch {
             return "\(error)"
         }
-
-        let state = try payload.existingState(scope)
-
+        
+        let state = try noteExistence.state(scope)
+        
         if state.ids.contains(noteId) || context.inFlightIds.contains(noteId) {
             return "id collision: \(noteId) (use patch_section to update)"
         }
-
+        
         let path = Paths.file(forId: noteId)
-
+        
         if FileManager.default.fileExists(atPath: path.path) {
             let relativePath = Paths.relative(of: path) ?? path.path
-
+            
             return "path already exists: \(relativePath) (use patch_section)"
         }
-
+        
         return nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -109,12 +109,12 @@ struct CreateNoteHandler: OperationHandling {
         let now = context.now
         let noteId = op["id"] as! String
         let path = Paths.file(forId: noteId)
-
+        
         try FileManager.default.createDirectory(
             at: path.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-
+        
         let body = try composer.composeCreateBody(op, scope.readOnly)
         var doc = FrontmatterDoc(
             title: op["title"] as? String ?? "",
@@ -125,22 +125,22 @@ struct CreateNoteHandler: OperationHandling {
         doc.template = (op["template"] as? String).flatMap { value in
             value.isEmpty ? nil : value
         }
-
+        
         if (op["locked"] as? Bool) == true { doc.locked = true }
-
+        
         if op["source"] != nil {
             doc.source = try sourceInput.finalizeSource(op["source"])
         }
-
+        
         let entities = (op["entities"] as? [Any])?
             .compactMap { entity in entity as? String }
             .filter { entity in !entity.trimmingCharacters(in: .whitespaces).isEmpty } ?? []
-
+        
         if !entities.isEmpty { doc.entities = entities }
-
-        try composer.mergeFields(&doc, payload.customFields(of: op, declaredBy: schema))
+        
+        try composer.mergeFields(&doc, schema.undeclaredFields(in: op))
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-
+        
         try scope.run(ReindexNoteFileTransaction(path: path))
         try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: true))
         try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
@@ -149,7 +149,7 @@ struct CreateNoteHandler: OperationHandling {
             now: now
         ))
         try writeEffects.seedInitialLinks(scope, nid: noteId, tags: doc.tags)
-
+        
         return [
             "status": "ok",
             "path": path.path,
@@ -157,14 +157,14 @@ struct CreateNoteHandler: OperationHandling {
             "note": "created at \(Paths.relativeFile(forId: noteId))"
         ]
     }
-
+    
     func effect(_ op: [String: Any]) -> [String: [String]] {
         ["creates": [op["id"] as? String ?? ""]]
     }
-
+    
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
         (op["id"] as? String).map { id in [Paths.file(forId: id)] } ?? []
     }
-
+    
     // MARK: - Private
 }

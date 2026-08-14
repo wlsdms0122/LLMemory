@@ -200,12 +200,12 @@ struct ConsolidateCandidates: AsyncParsableCommand {
             Feeds the upkeep flows: maintain reads `missing_edge` to enrich
             (assoc/terms), the consolidator reads the rest to plan structural
             mutations (merge/split/archive). LLM-free — the agent decides.
-
+            
             KINDS
                 retrieval     clusters, missing_edge, near_duplicate
                 structural    split, reconsolidate, ripple, enrich_review
                 aggregates    all, retrieval, structural
-
+            
             EXAMPLES
                 llmemory consolidate candidates --kind split --home brain
                 llmemory consolidate candidates --kind all --limit 30 --home brain

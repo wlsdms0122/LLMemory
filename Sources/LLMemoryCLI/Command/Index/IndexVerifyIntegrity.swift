@@ -27,18 +27,18 @@ struct IndexVerifyIntegrity: AsyncParsableCommand {
         abstract: "Multi-level integrity check.",
         discussion: """
             Each level includes the lower ones.
-
+            
             LEVELS
                 0   schema shape (tables/columns/indexes match code)
                 1   row presence (frontmatter ↔ DB row parity)
                 2   FTS5 in sync with notes
                 3   semantic checks (tag vocab, id format)
                 4   (no L4 checks — derived caches removed)
-
+            
             EXIT STATUS
                 0   OK
                 1   FAIL
-
+            
             EXAMPLES
                 llmemory index verify integrity --level 2 --home brain
             """

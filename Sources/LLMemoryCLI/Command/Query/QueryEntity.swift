@@ -19,19 +19,19 @@ struct QueryEntity: AsyncParsableCommand {
             case lastSeenAt = "last_seen_at"
             case hitCount = "hit_count"
         }
-
+        
         // MARK: - Property
         let entity: String
         let noteId: String
         let summary: String?
         let lastSeenAt: Int
         let hitCount: Int
-
+        
         // MARK: - Initializer
         // MARK: - Public
         // MARK: - Private
     }
-
+    
     // MARK: - Property
     static let configuration = CommandConfiguration(
         commandName: "entity",
@@ -40,7 +40,7 @@ struct QueryEntity: AsyncParsableCommand {
             Notes mentioning an entity in body, ordered by last_seen_at. Used
             by retrieval to surface notes sharing named entities when keyword
             overlap is low.
-
+            
             EXAMPLES
                 llmemory query entity TossDI --home brain
             """
@@ -70,7 +70,7 @@ struct QueryEntity: AsyncParsableCommand {
                 hitCount: hit.hitCount
             )
         }
-
+        
         CommandOutput().render(rows, json: format.json) { rows in
             [
                 .table(

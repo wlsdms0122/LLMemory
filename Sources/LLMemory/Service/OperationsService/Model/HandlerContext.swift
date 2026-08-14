@@ -14,7 +14,7 @@ public struct HandlerContext {
     // requires them: an unseeded context does not compile.
     public let sessionId: String?
     public let now: Int
-
+    
     public var inFlightIds: Set<String> = []
     public var invalidatedIds: Set<String> = []
     public var removedIds: Set<String> = []
@@ -27,7 +27,7 @@ public struct HandlerContext {
         self.sessionId = sessionId
         self.now = now
     }
-
+    
     // MARK: - Public
     // MARK: - Private
 }

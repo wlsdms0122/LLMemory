@@ -24,9 +24,9 @@ struct LinkLineageHandler: OperationHandling {
         ],
         example: ##"{"op":"link_lineage","src":"bk-5262-rc1-260524","dst":"deploy-approval-policy","kind":"promoted_to","reason":"회차 반복 패턴을 원리로 추출"}"##
     )
-
-    private let payload = OpPayloadCheck()
-
+    
+    private let noteExistence = NoteExistence()
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -35,23 +35,23 @@ struct LinkLineageHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let kind = op["kind"] as? String ?? ""
-
+        
         guard Links.lineageKinds.contains(kind) else {
             return "invalid lineage kind: \(kind) (expected \(Links.lineageKinds.sorted().joined(separator: " | ")))"
         }
-
+        
         let src = op["src"] as? String ?? ""
         let dst = op["dst"] as? String ?? ""
-
+        
         if src == dst { return "src and dst must differ: \(src)" }
-
-        if let rejection = try payload.checkIDKnown(src, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(src, context: context, scope: scope) {
             return rejection
         }
-
-        return try payload.checkIDKnown(dst, context: context, scope: scope)
+        
+        return try noteExistence.rejectionForUnknown(dst, context: context, scope: scope)
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -61,19 +61,19 @@ struct LinkLineageHandler: OperationHandling {
         let src = op["src"] as! String
         let dst = op["dst"] as! String
         let kind = op["kind"] as! String
-
+        
         try scope.run(InsertLineageLinkTransaction(src: src, dst: dst, kind: kind, now: now))
-
+        
         let reason = op["reason"] as? String
-
+        
         try scope.run(RecordNoteLifecycleEventTransaction(nid: src, kind: kind, reason: reason, now: now))
-
+        
         return [
             "status": "ok",
             "ids": [src, dst],
             "note": "recorded \(kind): \(src) → \(dst)"
         ]
     }
-
+    
     // MARK: - Private
 }

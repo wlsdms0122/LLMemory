@@ -16,7 +16,7 @@ struct QueryHistory: AsyncParsableCommand {
         abstract: "Lifecycle events for a note.",
         discussion: """
             Reads note_lifecycle_events newest first. Use for auditing changes.
-
+            
             EXAMPLES
                 llmemory query history --id principles --limit 20 --home brain
             """

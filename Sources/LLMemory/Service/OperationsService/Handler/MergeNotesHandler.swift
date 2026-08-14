@@ -23,14 +23,14 @@ struct MergeNotesHandler: OperationHandling {
         ],
         example: ##"{"op":"merge_notes","into_id":"umbrella","from_ids":["a","b"],"merged_content":"...","summary":"...","tags":["persona"]}"##
     )
-
-    private let payload = OpPayloadCheck()
+    
+    private let noteExistence = NoteExistence()
     private let sourceInput = NoteSourceInput()
-
+    
     private let frontmatter = Frontmatter()
-
+    
     private let trash = Trash()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -39,36 +39,36 @@ struct MergeNotesHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let intoId = op["into_id"] as? String ?? ""
-
-        if let rejection = try payload.checkIDKnown(intoId, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(intoId, context: context, scope: scope) {
             return "merge_notes.into_id must be an *existing* note id (or one created earlier in this transaction): '\(intoId)'. To merge into a fresh umbrella note, prepend a `create_note` op with the same id, then merge. (\(rejection))"
         }
-
+        
         guard let fromIds = op["from_ids"] as? [Any], !fromIds.isEmpty else {
             return "from_ids must be non-empty list"
         }
-
+        
         let fromStrings = fromIds.compactMap { id in id as? String }
-
+        
         if fromStrings.contains(intoId) {
             return "into_id cannot also be in from_ids: \(intoId)"
         }
-
+        
         for fromId in fromStrings {
-            if let rejection = try payload.checkIDKnown(fromId, context: context, scope: scope) {
+            if let rejection = try noteExistence.rejectionForUnknown(fromId, context: context, scope: scope) {
                 return "from_ids: \(rejection)"
             }
         }
-
+        
         guard let tags = op["tags"] as? [Any], !tags.isEmpty else {
             return "tags must be non-empty list"
         }
-
+        
         if let rejection = sourceInput.sourceInputError(op["source"]) { return rejection }
-
+        
         return nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -76,15 +76,13 @@ struct MergeNotesHandler: OperationHandling {
     ) throws -> [String: Any] {
         let intoId = op["into_id"] as! String
         let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
-
+        
         guard let intoPath = try scope.run(FetchNotePathTransaction(nid: intoId)),
             FileManager.default.fileExists(atPath: intoPath.path)
         else {
-            throw NSError(domain: "Handlers", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "merge target missing: \(intoId)"
-            ])
+            throw OperationError.noteFileMissing("merge target missing: \(intoId)")
         }
-
+        
         var (intoDoc, _) = try frontmatter.parse(
             try String(contentsOf: intoPath, encoding: .utf8)
         )
@@ -93,29 +91,29 @@ struct MergeNotesHandler: OperationHandling {
         intoDoc.tags = (op["tags"] as? [Any])?.compactMap { tag in tag as? String }
             ?? intoDoc.tags
         intoDoc.summary = (op["summary"] as? String) ?? intoDoc.summary
-
+        
         if let priority = op["priority"] as? String { intoDoc.priority = priority }
-
+        
         if op["source"] != nil {
             intoDoc.source = try sourceInput.finalizeSource(op["source"])
         }
-
+        
         let rawMerged = op["merged_content"] as? String ?? ""
         let merged = String(
             rawMerged.reversed().drop(while: { character in character.isWhitespace }).reversed()
         )
         let body = merged + "\n"
         var fromPaths: [URL] = []
-
+        
         for fromId in fromIds {
             if let path = try scope.run(FetchNotePathTransaction(nid: fromId)),
                 FileManager.default.fileExists(atPath: path.path) {
                 fromPaths.append(path)
             }
         }
-
+        
         let now = context.now
-
+        
         try (frontmatter.dump(intoDoc) + body).write(
             to: intoPath,
             atomically: true,
@@ -123,7 +121,7 @@ struct MergeNotesHandler: OperationHandling {
         )
         try scope.run(ReindexNoteFileTransaction(path: intoPath))
         try scope.run(StampNoteLifecycleTransaction(nid: intoId, now: now, isNew: false))
-
+        
         for fromId in fromIds {
             _ = try scope.run(FlagInboundReferrersTransaction(
                 targetId: fromId,
@@ -134,13 +132,13 @@ struct MergeNotesHandler: OperationHandling {
             try scope.run(AbsorbNoteArtifactsForMergeTransaction(from: fromId, into: intoId))
             try scope.run(DeleteNoteRowTransaction(nid: fromId))
         }
-
+        
         try scope.run(SyncNoteEnrichTransaction(noteId: intoId))
-
+        
         for path in fromPaths {
             try trash.file(path, reason: "merged into \(intoId)", now: now)
         }
-
+        
         return [
             "status": "ok",
             "path": intoPath.path,
@@ -148,32 +146,32 @@ struct MergeNotesHandler: OperationHandling {
             "note": "merged \(fromIds.count) into \(intoId)"
         ]
     }
-
+    
     func effect(_ op: [String: Any]) -> [String: [String]] {
         let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
-
+        
         return ["removes": fromIds]
     }
-
+    
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
         var paths: [URL] = []
-
+        
         if let intoId = op["into_id"] as? String, let path = try scope.run(FetchNotePathTransaction(nid: intoId)) {
             paths.append(path)
         }
-
+        
         let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
-
+        
         for fromId in fromIds {
             if let path = try scope.run(FetchNotePathTransaction(nid: fromId)) {
                 paths.append(path)
-
+                
                 if let trashPath = trash.destination(of: path) { paths.append(trashPath) }
             }
         }
-
+        
         return paths
     }
-
+    
     // MARK: - Private
 }

@@ -21,15 +21,15 @@ struct ConsolidateHomeostasis: AsyncParsableCommand {
             bounds — never past wild-type. Locked (write-path) genes are out of
             reach by construction; move those with the `set_gene` op, with a
             reason, when there is one.
-
+            
             v1 rule: expansion landing — expand-surfaced notes that are never
             opened (`get`) in their window are dead weight; a persistently ~0
             landing rate narrows `related.expand_hops`, a healthy rate restores
             it toward wild-type.
-
+            
             Safe at any call frequency: windows are consumed exactly once and
             evidence accumulates across calls until min_sample is reached.
-
+            
             EXAMPLES
                 llmemory consolidate homeostasis --home brain
                 llmemory consolidate homeostasis --json --home brain

@@ -19,21 +19,21 @@ struct QueryLint: AsyncParsableCommand {
             `error` = invariant violations (integrity gate), `warn` = quality facts
             (improvement queue). Slice by --severity / --code / --limit so each consumer
             pulls only its rows.
-
+            
             A warn is a judgment request. Once reviewed and kept, close it with
             `dismiss_candidate kind="lint:<code>"` and it stops re-surfacing until the note's
             shape diverges or a corpus reorg reopens it — otherwise the same finding is
             re-litigated every cycle. `--include-dismissed` shows the suppressed ones.
             Errors are never dismissible or suppressed.
-
+            
             `subject` is what the finding is about, and `target_scope` (json) says which kind:
             `note` = a note id (dismiss with `id`), `corpus` = a fact no note owns, such as
             a tag pair (dismiss with `target`, and only a corpus reorg reopens it).
-
+            
             EXIT STATUS
                 0   no errors in the returned set
                 1   one or more errors in the returned set
-
+            
             EXAMPLES
                 llmemory query lint --home brain
                 llmemory query lint --severity error --home brain        # integrity gate

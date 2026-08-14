@@ -142,7 +142,7 @@ struct QueryRelated: AsyncParsableCommand {
         discussion: """
             Primary entry point for capture and retrieval agents. Reads JSON
             from --json or stdin.
-
+            
             INPUT
                 text                  free-form input (preferred)
                 user_input            concatenated when `text` is empty
@@ -151,7 +151,7 @@ struct QueryRelated: AsyncParsableCommand {
                 include_bodies        bool; inline note body for each similar
                 include_candidates    bool; include local merge candidates
                 candidates_limit      int
-
+            
             EXAMPLES
                 echo '{"text":"slack auth issue"}' \\
                     | llmemory query related --home brain

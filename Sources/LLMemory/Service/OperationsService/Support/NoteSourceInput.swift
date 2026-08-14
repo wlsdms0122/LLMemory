@@ -13,7 +13,7 @@ import Foundation
 struct NoteSourceInput {
     // MARK: - Property
     private let frontmatter = Frontmatter()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func finalizeSource(_ items: Any?) throws -> [String] {
@@ -21,7 +21,7 @@ struct NoteSourceInput {
         
         return try frontmatter.decodeSource(items)
     }
-
+    
     func sourceInputError(_ items: Any?) -> String? {
         guard let items else { return nil }
         
@@ -33,6 +33,6 @@ struct NoteSourceInput {
             return "\(error)"
         }
     }
-
+    
     // MARK: - Private
 }

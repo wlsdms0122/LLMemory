@@ -14,13 +14,13 @@ public struct LintService: LintServiceable {
     // MARK: - Property
     let storage: GRDBStorage
     let scanner: any LintScanning
-
+    
     // MARK: - Initializer
     init(storage: GRDBStorage, scanner: any LintScanning) {
         self.storage = storage
         self.scanner = scanner
     }
-
+    
     // MARK: - Public
     public func lint(
         id: String?,
@@ -40,10 +40,10 @@ public struct LintService: LintServiceable {
             )
         }
     }
-
+    
     public func ruleCatalog() -> [LintRuleInfo] {
         scanner.ruleCatalog()
     }
-
+    
     // MARK: - Private
 }

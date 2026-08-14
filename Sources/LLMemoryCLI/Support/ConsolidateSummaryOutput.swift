@@ -16,6 +16,6 @@ struct ConsolidateSummaryOutput {
     func emit<T: Encodable>(_ summary: T, json: Bool) {
         CommandOutput().renderReflected(summary, json: json)
     }
-
+    
     // MARK: - Private
 }

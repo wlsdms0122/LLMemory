@@ -17,7 +17,7 @@ struct FieldTypoRule: NoteLintRule {
     let severity = LintSeverity.warn
     
     private let distance = EditDistance()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {

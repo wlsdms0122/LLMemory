@@ -37,7 +37,7 @@ struct IndexVectors: AsyncParsableCommand {
             note_vectors are derived — no external embedding model. The same
             thing word2vec/GloVe do (factor a co-occurrence matrix), run over
             llmemory's own graph:
-
+              
               1. note×note matrix — note_links weights symmetrized across kinds
                  (assoc + cooccur + reference). Notes with no links get a tag
                  Jaccard floor so no row is empty.
@@ -46,7 +46,7 @@ struct IndexVectors: AsyncParsableCommand {
                  is the weighting the algorithm itself produces.
               3. truncated SVD (LAPACK dgesvd via Accelerate) → a dim-D vector
                  per note (config vectors.dim, default 48).
-
+            
             Because the LLM's `assoc` edges are already in the graph, the matrix
             being factored already carries meaning — the derived vectors go
             beyond plain co-occurrence. Retrieval uses them via pseudo-relevance
@@ -54,11 +54,11 @@ struct IndexVectors: AsyncParsableCommand {
             hits becomes a query vector, expanded by cosine to semantically near
             notes that share no keywords. If vectors are unbuilt, retrieval
             silently skips this step (graceful degradation).
-
+            
             Always rebuilds when called — no skip-gate (rebuilding ~330 notes is
             microseconds, and a wall-clock/note-count gate misses link-only
             enrichment changes). Also runs as a `consolidate integrate` hook.
-
+            
             EXAMPLES
                 llmemory index vector --home brain
             """

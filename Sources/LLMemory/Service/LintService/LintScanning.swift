@@ -18,9 +18,9 @@ import Foundation
 protocol LintScanning: Sendable {
     var dismissibleCodes: Set<String> { get }
     var errorCodes: Set<String> { get }
-
+    
     func ruleCatalog() -> [LintRuleInfo]
-
+    
     func scan(
         _ scope: GRDBReadScope,
         id: String?,

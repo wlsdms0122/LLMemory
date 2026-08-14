@@ -20,12 +20,12 @@ struct GenomeCommand: ParsableCommand {
             code — species-level and versioned with the binary. The *per-brain
             current value* (epigenome) lives in the genome table; a gene without
             a row runs at wild-type.
-
+            
             Two write doors only:
               · set_gene op (`operations apply`) — direct value set, all genes.
               · consolidate homeostasis — deterministic loop, mutable
                 (read-path) genes only.
-
+            
             SEE ALSO
                 genome list, genome history, genome shadow
                 consolidate homeostasis, operations describe set_gene

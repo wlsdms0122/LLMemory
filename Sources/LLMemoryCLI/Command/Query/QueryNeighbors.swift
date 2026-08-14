@@ -32,7 +32,7 @@ struct QueryNeighbors: AsyncParsableCommand {
         discussion: """
             Score = round(fts + entity + link, 4). Ties broken by id ascending.
             Use when you have a known anchor; for free-form text use `related`.
-
+            
             EXAMPLES
                 llmemory query neighbors --id principles --k 8 --home brain
             """

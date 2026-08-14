@@ -17,12 +17,12 @@ struct JSONOutput {
         do {
             var data = try JSONEncoder.plain.encode(value)
             data.append(0x0A)
-        
+            
             FileHandle.standardOutput.write(data)
         } catch {
             FileHandle.standardError.write("emit failed: \(error)\n".data(using: .utf8) ?? Data())
         }
     }
-
+    
     // MARK: - Private
 }

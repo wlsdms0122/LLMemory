@@ -18,9 +18,9 @@ struct ResolveFlagHandler: OperationHandling {
         ],
         example: ##"{"op":"resolve_flag","id":"my-note","kind":"reconsolidate","reason":"merged with sibling"}"##
     )
-
-    private let payload = OpPayloadCheck()
-
+    
+    private let noteExistence = NoteExistence()
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -29,12 +29,12 @@ struct ResolveFlagHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let kind = op["kind"] as? String ?? ""
-
+        
         if !OpVocabulary.resolvableFlagKinds.contains(kind) { return "invalid flag kind: \(kind)" }
-
-        return try payload.checkIDKnown(op["id"] as? String ?? "", context: context, scope: scope)
+        
+        return try noteExistence.rejectionForUnknown(op["id"] as? String ?? "", context: context, scope: scope)
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -47,7 +47,7 @@ struct ResolveFlagHandler: OperationHandling {
             reason: op["reason"] as? String,
             now: now
         ))
-
+        
         return [
             "status": "ok",
             "ids": [op["id"]!],
@@ -56,6 +56,6 @@ struct ResolveFlagHandler: OperationHandling {
                 : "no unresolved flag of kind \(op["kind"]!)"
         ]
     }
-
+    
     // MARK: - Private
 }

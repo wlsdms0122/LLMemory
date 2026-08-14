@@ -18,9 +18,9 @@ import Foundation
 struct HandlerRegistry: Sendable {
     // MARK: - Property
     let handlers: [String: any OperationHandling]
-
+    
     var names: [String] { handlers.keys.sorted() }
-
+    
     // MARK: - Initializer
     init(genome: any GenomeServiceable, lint: any LintScanning) {
         handlers = [
@@ -49,9 +49,9 @@ struct HandlerRegistry: Sendable {
             "purge_enrichment": PurgeEnrichmentHandler()
         ]
     }
-
+    
     // MARK: - Public
     subscript(name: String) -> (any OperationHandling)? { handlers[name] }
-
+    
     // MARK: - Private
 }

@@ -57,14 +57,14 @@ struct QuerySearch: AsyncParsableCommand {
             multi-keyword queries — wrapping the whole string as one phrase (the
             old behavior) only matched notes containing those tokens contiguously,
             so multi-word queries almost always returned nothing.
-
+            
             Pass --raw to send the string verbatim as an FTS5 expression
             (AND/OR/NOT/"phrase"/prefix*). Note `-` is the NOT operator, so quote
             hyphenated terms (e.g. '"foo-bar"').
-
+            
             Tags are not in the FTS index — use `query related` for tag/entity-aware
             retrieval.
-
+            
             EXAMPLES
                 llmemory query search "ios log masking transformer" --home brain
                 llmemory query search "transfer" --tag tech --limit 10 --home brain

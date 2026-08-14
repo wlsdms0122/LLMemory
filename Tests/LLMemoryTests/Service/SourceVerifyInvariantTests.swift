@@ -568,46 +568,66 @@ struct SourceVerifyInvariantTests {
     @Test("only an ops handler may rebaseline — no read path is allowed to")
     func rebaseAuthorityIsConfinedToOpsHandlers() throws {
         // When
-        // Two permissions. The handler tier, because rebaselining is an op —
-        // every op handler is a file under Handler/. And the source
-        // transactions' own area, because a transaction composing a sibling
-        // transaction is how the DB module is built (the layering guard blesses
-        // the same shape for `.perform`), and re-baselining is what
-        // verify/project do when they find a declaration has moved.
-        let allowedTiers = [
-            "Module/DB/Transaction/Source/",
-            "Service/OperationsService/Handler/"
+        // Who may re-baseline is named, not inferred from where a file sits.
+        // A directory prefix alone would hand the permission to any file
+        // dropped into it — the guard would stay green and say nothing.
+        let callers: Set<String> = [
+            "Module/DB/Transaction/Source/ProjectNoteRefsTransaction.swift",
+            "Module/DB/Transaction/Source/VerifySourcesTransaction.swift",
+            "Module/DB/Transaction/Source/VerifyNoteSourceTransaction.swift",
+            "Service/OperationsService/Handler/RebaseSourceHandler.swift",
+            "Service/OperationsService/Handler/SplitNoteHandler.swift"
         ]
         let root = PackageSource().file("Sources/LLMemory")
         let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)?
             .compactMap { element in element as? URL }
             .filter { url in url.pathExtension == "swift" } ?? []
-        
+
         // Then
         #expect(!files.isEmpty)
-        
+
         var violations: [String] = []
-        
+        var seen: Set<String> = []
+
         let rootPath = root.path + "/"
-        
+
         for file in files {
             let relativePath = file.path.replacingOccurrences(of: rootPath, with: "")
-
-            guard !allowedTiers.contains(where: relativePath.hasPrefix) else { continue }
-
             let text = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
-            
+
             for (offset, rawLine) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
                 var line = String(rawLine)
-                
+
                 if let comment = line.range(of: "//") { line = String(line[..<comment.lowerBound]) }
-                
-                if line.contains("RebaseNoteSourceTransaction(") || line.contains("InheritSourceObservationTransaction(") {
+
+                guard line.contains("RebaseNoteSourceTransaction(")
+                    || line.contains("InheritSourceObservationTransaction(")
+                else {
+                    continue
+                }
+
+                seen.insert(relativePath)
+
+                if relativePath == "Module/DB/Transaction/Source/RebaseNoteSourceTransaction.swift" {
+                    continue
+                }
+
+                if !callers.contains(relativePath) {
                     violations.append("\(file.lastPathComponent):\(offset + 1)  \(line.trimmingCharacters(in: .whitespaces))")
                 }
             }
         }
-        
+
+        // A caller that stops calling is as much a drift as one that starts:
+        // the list is the claim about who holds the authority, and a stale
+        // entry makes the next addition look like it was always allowed.
+        let stale = callers.subtracting(seen)
+
+        #expect(stale.isEmpty, """
+            listed re-baseliner that no longer re-baselines — the list is the \
+            claim about who holds this authority, so drop it:
+            \(stale.sorted().joined(separator: "\n"))
+            """)
         #expect(violations.isEmpty, """
             re-baselining authority outside the ops handlers — the index pass may only project \
             (ProjectNoteRefsTransaction):

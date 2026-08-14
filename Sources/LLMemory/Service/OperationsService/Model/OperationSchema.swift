@@ -62,5 +62,31 @@ public struct OperationSchema: Sendable, Encodable {
         }.map(\.name)
     }
     
+    // Whatever an op carries that this schema does not name. For the ops that
+    // author a note that is a custom frontmatter field — the caller means it
+    // for the note, not for the op, and the note is where it belongs.
+    public func undeclaredFields(in op: [String: Any]) -> [String: Any] {
+        let declared = Set(fields.map(\.name)).union(["op", "rationale"])
+        
+        return op.filter { entry in !declared.contains(entry.key) }
+    }
+    
+    // Whether the payload carries what this schema says it must. The list of
+    // required names is the schema's own answer to the same payload, so asking
+    // and answering stay in one place.
+    public func missingRequiredField(in op: [String: Any]) -> String? {
+        for field in requiredNames(given: op) {
+            if op[field] == nil { return "missing/empty field: \(field)" }
+            
+            if let value = op[field] as? String, value.isEmpty {
+                return "missing/empty field: \(field)"
+            }
+            
+            if op[field] is NSNull { return "missing/empty field: \(field)" }
+        }
+        
+        return nil
+    }
+    
     // MARK: - Private
 }

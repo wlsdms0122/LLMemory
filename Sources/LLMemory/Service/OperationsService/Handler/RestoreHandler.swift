@@ -17,12 +17,12 @@ struct RestoreHandler: OperationHandling {
         ],
         example: ##"{"op":"restore","id":"deleted-note","reason":"deleted by mistake"}"##
     )
-
-    private let payload = OpPayloadCheck()
+    
+    private let noteExistence = NoteExistence()
     private let trashLookup = TrashedNoteLookup()
-
+    
     private let frontmatter = Frontmatter()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -31,21 +31,21 @@ struct RestoreHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
-        let state = try payload.existingState(scope)
-
+        let state = try noteExistence.state(scope)
+        
         if state.ids.contains(noteId) || context.inFlightIds.contains(noteId) {
             return "id collision: '\(noteId)' is already a live note — restoring would overwrite it"
         }
-
+        
         do {
             if try trashLookup.findTrashedFile(noteId) != nil { return nil }
         } catch {
             return "\(error)"
         }
-
+        
         return "not in trash: \(noteId)"
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -53,22 +53,20 @@ struct RestoreHandler: OperationHandling {
     ) throws -> [String: Any] {
         let noteId = op["id"] as! String
         let now = context.now
-
+        
         guard let found = try trashLookup.findTrashedFile(noteId) else {
-            throw NSError(domain: "Handlers", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "not in trash: \(noteId)"
-            ])
+            throw OperationError.notInTrash(noteId)
         }
-
+        
         let trashFile = found.url
         var doc = found.doc
         let body = found.body
-
+        
         doc.trashedAt = nil
         doc.trashedReason = nil
-
+        
         let destination = Paths.file(forId: noteId)
-
+        
         try FileManager.default.createDirectory(
             at: destination.deletingLastPathComponent(),
             withIntermediateDirectories: true
@@ -86,7 +84,7 @@ struct RestoreHandler: OperationHandling {
             reason: op["reason"] as? String,
             now: now
         ))
-
+        
         return [
             "status": "ok",
             "path": destination.path,
@@ -94,18 +92,18 @@ struct RestoreHandler: OperationHandling {
             "note": "restored from trash (fresh DB row)"
         ]
     }
-
+    
     func effect(_ op: [String: Any]) -> [String: [String]] {
         ["creates": [op["id"] as? String ?? ""]]
     }
-
+    
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
         let noteId = op["id"] as? String ?? ""
-
+        
         guard let found = try trashLookup.findTrashedFile(noteId) else { return [] }
-
+        
         return [found.url, Paths.file(forId: noteId)]
     }
-
+    
     // MARK: - Private
 }

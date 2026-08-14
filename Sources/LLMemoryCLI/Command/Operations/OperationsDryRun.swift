@@ -16,15 +16,15 @@ struct OperationsDryRun: AsyncParsableCommand {
         abstract: "Validate a transaction without persisting.",
         discussion: """
             Runs the same validation as `apply` but commits nothing.
-
+            
             EXIT STATUS
                 0   validation passed
                 1   validation failed
                 2   missing or invalid JSON
-
+            
             EXAMPLES
                 llmemory operations dry-run --home brain --json '<payload>'
-
+            
             SEE ALSO
                 operations apply
             """

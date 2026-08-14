@@ -43,7 +43,7 @@ struct ConsolidateReport: AsyncParsableCommand {
             Surfaces rare tags (<=1 use) and unused vocab tags. What the id
             hierarchy looks like is `query tree`'s question, not this one — a
             branch holding one note is normal now, not a finding.
-
+            
             EXAMPLES
                 llmemory consolidate report --home brain
             """

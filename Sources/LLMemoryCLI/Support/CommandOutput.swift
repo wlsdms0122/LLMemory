@@ -14,32 +14,32 @@ import LLMemory
 struct CommandOutput {
     // MARK: - Property
     private let output = PlainOutput()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func render<T: Encodable>(_ value: T, json: Bool, plain: (T) -> [PlainBlock]) {
         if json {
             JSONOutput().emit(value)
-        
+            
             return
         }
-    
+        
         output.render(plain(value))
     }
-
+    
     func renderReflected<T: Encodable>(_ value: T, json: Bool) {
         render(value, json: json) { value in [.keyValue(reflectedPairs(value))] }
     }
-
+    
     private func reflectedPairs<T: Encodable>(_ value: T) -> [(String, String)] {
         guard let data = try? JSONEncoder.plain.encode(value),
             let dictionary = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else {
             return []
         }
-    
+        
         return dictionary.keys.sorted().map { key in (key, DisplayString().displayString(dictionary[key] as Any)) }
     }
-
+    
     // MARK: - Private
 }

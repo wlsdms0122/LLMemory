@@ -27,7 +27,7 @@ struct GenomeHistory: AsyncParsableCommand {
             Every genome write (set_gene / homeostasis) lands one event row.
             cause is the door it came through; detail carries the reason or the
             rule's evidence (rate, sample size).
-
+            
             EXAMPLES
                 llmemory genome history --home brain
                 llmemory genome history --gene related.expand_hops --home brain

@@ -16,7 +16,7 @@ struct PurgeEnrichmentHandler: OperationHandling {
         ],
         example: ##"{"op":"purge_enrichment","provenance":"forge:capture:claude-sonnet-4-6"}"##
     )
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -26,7 +26,7 @@ struct PurgeEnrichmentHandler: OperationHandling {
     ) throws -> String? {
         nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -38,13 +38,13 @@ struct PurgeEnrichmentHandler: OperationHandling {
             provenance: provenance,
             now: now
         ))
-
+        
         return [
             "status": "ok",
             "ids": affected,
             "note": "purged \(termsPurged) term(s) + \(edgesPurged) edge(s) from provenance '\(provenance)'"
         ]
     }
-
+    
     // MARK: - Private
 }

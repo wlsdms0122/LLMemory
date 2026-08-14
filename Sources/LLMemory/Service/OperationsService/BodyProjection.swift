@@ -10,11 +10,11 @@ import Foundation
 struct BodyProjection {
     // MARK: - Property
     private let composer = NoteComposer()
-
+    
     private let sectionEdit = SectionEdit()
-
+    
     private let noteFiles = Notes()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func advance(

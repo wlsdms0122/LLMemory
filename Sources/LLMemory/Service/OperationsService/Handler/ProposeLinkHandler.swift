@@ -20,11 +20,11 @@ struct ProposeLinkHandler: OperationHandling {
         ],
         example: ##"{"op":"propose_link","src":"note-a","dst":"note-b","kind":"assoc","confidence":0.8,"provenance":"forge:capture:claude-sonnet-4-6"}"##
     )
-
-    private let payload = OpPayloadCheck()
-
+    
+    private let noteExistence = NoteExistence()
+    
     private let links = Links()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -34,25 +34,25 @@ struct ProposeLinkHandler: OperationHandling {
     ) throws -> String? {
         let src = op["src"] as? String ?? ""
         let dst = op["dst"] as? String ?? ""
-
+        
         if src == dst { return "src and dst must differ" }
-
+        
         if let rawKind = op["kind"] {
             let kind = rawKind as? String ?? ""
-
+            
             if kind != Links.kindAssoc {
                 return "invalid kind: \(kind) (propose_link only supports 'assoc')"
             }
         }
-
-        if let rejection = try payload.checkIDKnown(src, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(src, context: context, scope: scope) {
             return "src: \(rejection)"
         }
-
-        if let rejection = try payload.checkIDKnown(dst, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(dst, context: context, scope: scope) {
             return "dst: \(rejection)"
         }
-
+        
         if let rawConfidence = op["confidence"] {
             guard let confidence = (rawConfidence as? Double)
                 ?? (rawConfidence as? Int).map(Double.init),
@@ -61,10 +61,10 @@ struct ProposeLinkHandler: OperationHandling {
                 return "confidence must be a number in (0, 1]"
             }
         }
-
+        
         return nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -80,18 +80,18 @@ struct ProposeLinkHandler: OperationHandling {
         let confidence: Double = {
             if let double = op["confidence"] as? Double { return double }
             if let int = op["confidence"] as? Int { return Double(int) }
-
+            
             return 1.0
         }()
         let base = Genes.double("links.proposed_initial_weight")
         let neighborFloor = Genes.double("links.neighbor_floor")
         let ceiling = neighborFloor - 0.02
         let weight = min(ceiling, base + max(0, ceiling - base) * confidence)
-
+        
         guard let (source, destination) = links.normalize(src: src, dst: dst, kind: kind) else {
             return ["status": "ok", "ids": [], "note": "skipped self-loop \(src)"]
         }
-
+        
         try scope.run(UpsertAssocLinkTransaction(
             src: source,
             dst: destination,
@@ -100,13 +100,13 @@ struct ProposeLinkHandler: OperationHandling {
             now: now,
             provenance: provenance
         ))
-
+        
         return [
             "status": "ok",
             "ids": [source, destination],
             "note": "proposed \(kind) edge \(source)→\(destination) (weight \(String(format: "%.2f", weight)), dormant)"
         ]
     }
-
+    
     // MARK: - Private
 }

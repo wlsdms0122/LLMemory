@@ -17,9 +17,9 @@ struct RebaseSourceHandler: OperationHandling {
         ],
         example: ##"{"op":"rebase_source","id":"my-note","reason":"note updated to reflect the reworked source file"}"##
     )
-
-    private let payload = OpPayloadCheck()
-
+    
+    private let noteExistence = NoteExistence()
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -28,18 +28,18 @@ struct RebaseSourceHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
-
-        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
             return rejection
         }
-
+        
         if !(try scope.run(NoteSourceTrackedTransaction(nid: noteId))) {
             return "note has no drift-tracked source: \(noteId)"
         }
-
+        
         return nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -47,7 +47,7 @@ struct RebaseSourceHandler: OperationHandling {
     ) throws -> [String: Any] {
         let now = context.now
         let noteId = op["id"] as! String
-
+        
         try scope.run(RebaseNoteSourceTransaction(
             noteId: noteId,
             paths: try scope.run(FetchNoteSourcePathsTransaction(noteId: noteId)),
@@ -58,9 +58,9 @@ struct RebaseSourceHandler: OperationHandling {
             reason: op["reason"] as? String,
             now: now
         ))
-
+        
         return ["status": "ok", "ids": [noteId], "note": "source re-baselined"]
     }
-
+    
     // MARK: - Private
 }

@@ -17,11 +17,11 @@ struct InvalidateHandler: OperationHandling {
         ],
         example: ##"{"op":"invalidate","id":"my-note","reason":"superseded by newer source"}"##
     )
-
-    private let payload = OpPayloadCheck()
-
+    
+    private let noteExistence = NoteExistence()
+    
     private let frontmatter = Frontmatter()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -30,18 +30,18 @@ struct InvalidateHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
-
-        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
             return rejection
         }
-
+        
         let priority = try scope.run(FetchNotePriorityTransaction(nid: noteId))
-
+        
         if priority == "eager" { return "cannot invalidate eager note: \(noteId)" }
-
+        
         return nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -49,23 +49,21 @@ struct InvalidateHandler: OperationHandling {
     ) throws -> [String: Any] {
         let now = context.now
         let noteId = op["id"] as! String
-
+        
         guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
             FileManager.default.fileExists(atPath: path.path)
         else {
-            throw NSError(domain: "Handlers", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "invalidate target missing: \(noteId)"
-            ])
+            throw OperationError.noteFileMissing("invalidate target missing: \(noteId)")
         }
-
+        
         var (doc, body) = try frontmatter.parse(try String(contentsOf: path, encoding: .utf8))
         doc.stale = true
         doc.invalidatedAt = now
-
+        
         if let reason = op["reason"] as? String, !reason.isEmpty {
             doc.invalidatedReason = reason.unicodeScalarPrefix(200)
         }
-
+        
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
         try scope.run(ReindexNoteFileTransaction(path: path))
         try scope.run(SetNoteStaleTransaction(nid: noteId, stale: true))
@@ -74,31 +72,31 @@ struct InvalidateHandler: OperationHandling {
             reason: op["reason"] as? String,
             now: now
         ))
-
+        
         let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(100)
-
+        
         _ = try scope.run(FlagInboundReferrersTransaction(
             targetId: noteId,
             reason: "invalidated: \(reasonShort)",
             now: now
         ))
-
+        
         return ["status": "ok", "path": path.path, "ids": [noteId], "note": "invalidated"]
     }
-
+    
     func effect(_ op: [String: Any]) -> [String: [String]] {
         ["invalidates": [op["id"] as? String ?? ""]]
     }
-
+    
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
         guard let noteId = op["id"] as? String,
             let path = try scope.run(FetchNotePathTransaction(nid: noteId))
         else {
             return []
         }
-
+        
         return [path]
     }
-
+    
     // MARK: - Private
 }

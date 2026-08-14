@@ -22,7 +22,7 @@ struct MarkUsedHandler: OperationHandling {
         ],
         example: ##"{"op":"mark_used","ids":["transfer-flow","apigw-routing"],"response":"...최종 응답 본문..."}"##
     )
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -33,40 +33,40 @@ struct MarkUsedHandler: OperationHandling {
         guard let raw = op["ids"] as? [Any], !raw.isEmpty else {
             return "ids must be a non-empty array of note ids"
         }
-
+        
         let ids = raw.compactMap { value in value as? String }
-
+        
         if ids.count != raw.count { return "ids must all be strings" }
-
+        
         let cutoff = context.now - Activation.usedLookbackSec
         let label = context.sessionId
         let surfaced = try scope.run(
             NotesSurfacedRecentlyTransaction(noteIds: ids, cutoff: cutoff, label: label)
         )
-
+        
         if let missing = ids.first(where: { id in !surfaced.contains(id) }) {
             return "note '\(missing)' was not surfaced in any recent activity window"
                 + ((label?.isEmpty == false) ? " of session '\(label!)'" : "")
                 + " (lookback \(Activation.usedLookbackSec)s) — cannot mark unobserved usage"
         }
-
+        
         return nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
         _ scope: GRDBScope
     ) throws -> [String: Any] {
         let ids = (op["ids"] as! [Any]).compactMap { value in value as? String }
-
+        
         // Fresh retrieval events may not be succeeded into hits yet —
         // derive first so validation's union judgement (hits ∪ pending
         // events) and the marking below see the same universe. The
         // notSurfaced throw inside is a backstop, not a second gate: it
         // shares the context's now/session with validation.
         _ = try scope.run(DeriveActivityWindowsTransaction(now: context.now))
-
+        
         let outcomes = try scope.run(MarkNotesUsedTransaction(
             ids: ids,
             response: op["response"] as? String,
@@ -76,16 +76,16 @@ struct MarkUsedHandler: OperationHandling {
         let marked = outcomes.filter { outcome in outcome.matched }
         let failed = outcomes.filter { outcome in !outcome.matched }
         var note = "marked \(marked.count) note(s) used"
-
+        
         if let first = marked.first { note += " (signal: \(first.signal))" }
-
+        
         if !failed.isEmpty {
             let names = failed.map { outcome in outcome.noteId }.joined(separator: ", ")
             note += "; overlap check failed for: \(names)"
         }
-
+        
         return ["status": "ok", "ids": marked.map { outcome in outcome.noteId }, "note": note]
     }
-
+    
     // MARK: - Private
 }

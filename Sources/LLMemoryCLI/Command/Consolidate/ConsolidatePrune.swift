@@ -19,7 +19,7 @@ struct ConsolidatePrune: AsyncParsableCommand {
             cadence is the clock (this bot only runs when used, so invocation
             count, not wall time, is the right axis). Run sparingly (e.g. with
             the replay flow), not on every integrate pass.
-
+            
             EXAMPLES
                 llmemory consolidate prune --home brain
                 llmemory consolidate prune --json --home brain

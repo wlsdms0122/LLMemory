@@ -13,23 +13,23 @@ import Foundation
 extension String {
     var displayWidth: Int {
         var width = 0
-    
+        
         for cluster in self {
             var clusterWidth = 0
             var emojiPresentation = false
-        
+            
             for scalar in cluster.unicodeScalars {
                 if scalar.value == 0xFE0F { emojiPresentation = true }
                 if scalar.isZeroWidth { continue }
-            
+                
                 clusterWidth = max(clusterWidth, scalar.isWide ? 2 : 1)
             }
-        
+            
             if emojiPresentation && clusterWidth > 0 { clusterWidth = 2 }
-        
+            
             width += clusterWidth
         }
-    
+        
         return width
     }
 }

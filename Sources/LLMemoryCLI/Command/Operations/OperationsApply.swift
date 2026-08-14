@@ -17,24 +17,24 @@ struct OperationsApply: AsyncParsableCommand {
         discussion: """
             Reads a transaction from --input or stdin, validates and applies
             inside a single SAVEPOINT, rolls back DB and file snapshots on failure.
-
+            
             PAYLOAD
                 {"ops": [<op>, ...], "rationale": "..."}
-
+                
                 Each <op> is a dict whose `op` field names a handler.
                 Run `operations vocab` for handlers; `operations describe <op>` for fields.
-
+            
             EXIT STATUS
                 0   status == "ok"
                 1   status != "ok"
                 2   missing or invalid JSON
-
+            
             EXAMPLES
                 echo '{"ops":[{"op":"invalidate","id":"old","reason":"superseded"}],"rationale":"stale"}' \\
                     | llmemory operations apply --home brain
-
+                
                 llmemory operations apply --home brain --input "$(cat plan.json)"
-
+            
             SEE ALSO
                 operations dry-run, operations vocab, operations describe
             """

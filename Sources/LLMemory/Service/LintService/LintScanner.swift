@@ -13,22 +13,22 @@ import Foundation
 struct LintScanner: LintScanning {
     // MARK: - Property
     let rules: LintRuleRegistry
-
+    
     private let engine = LintEngine()
-
+    
     var dismissibleCodes: Set<String> { rules.dismissibleCodes }
-
+    
     var errorCodes: Set<String> { rules.errorCodes }
-
+    
     private let frontmatter = Frontmatter()
-
+    
     private let dismissalPolicy = Dismissals()
-
+    
     // MARK: - Initializer
     init(rules: LintRuleRegistry) {
         self.rules = rules
     }
-
+    
     // MARK: - Public
     func ruleCatalog() -> [LintRuleInfo] {
         var catalog: [LintRuleInfo] = []
@@ -48,7 +48,7 @@ struct LintScanner: LintScanning {
         
         return catalog.sorted { lhs, rhs in (lhs.severity, lhs.code) < (rhs.severity, rhs.code) }
     }
-
+    
     // The inspector core — runs the rule catalog, suppresses habituated
     // findings, and sorts for stable output.
     func scan(
@@ -62,36 +62,36 @@ struct LintScanner: LintScanning {
         var issues = try id != nil
             ? lintNote(scope, nid: id!)
             : lintAll(scope)
-
+        
         if !includeDismissed {
             issues = try suppressDismissed(scope, issues)
         }
-
+        
         if let code { issues = issues.filter { issue in issue.code == code } }
-
+        
         if let severity { issues = issues.filter { issue in issue.severity == severity } }
-
+        
         issues.sort { lhs, rhs in
             if lhs.severity != rhs.severity { return lhs.severity == "error" }
-
+            
             if lhs.target != rhs.target {
                 if lhs.target.scope != rhs.target.scope {
                     return lhs.target.scope < rhs.target.scope
                 }
-
+                
                 return lhs.target.subject < rhs.target.subject
             }
-
+            
             if lhs.code != rhs.code { return lhs.code < rhs.code }
-
+            
             return lhs.message < rhs.message
         }
-
+        
         if let limit, issues.count > limit { issues = Array(issues.prefix(limit)) }
-
+        
         return issues
     }
-
+    
     func lintNote(_ scope: GRDBReadScope, nid: String) throws -> [LintIssue] {
         checked(try lintNote(scope, nid: nid, index: scope.run(FetchLintCorpusIndexTransaction())))
     }
@@ -209,25 +209,25 @@ struct LintScanner: LintScanning {
     // The frontmatter block only — an "id:" further down is prose.
     private func declaredId(in text: String) -> String? {
         var seenOpen = false
-
+        
         for line in text.unicodeLines() {
             if line == "---" {
                 if seenOpen { return nil }
-
+                
                 seenOpen = true
                 continue
             }
-
+            
             guard seenOpen else { return nil }
-
+            
             if line.hasPrefix("id:") {
                 return String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
             }
         }
-
+        
         return nil
     }
-
+    
     private func lintNote(
         _ scope: GRDBReadScope,
         nid: String,

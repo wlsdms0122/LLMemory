@@ -13,7 +13,7 @@ struct PathCollisionRule: NoteLintRule {
     let severity = LintSeverity.error
     
     private let sectionEdit = SectionEdit()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {

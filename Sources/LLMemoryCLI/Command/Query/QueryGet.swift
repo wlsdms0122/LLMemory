@@ -99,11 +99,11 @@ struct QueryGet: AsyncParsableCommand {
         discussion: """
             The sanctioned way to read a note body — do not read cortex/
             files directly.
-
+            
             Accepts multiple ids; notes are emitted in the order given.
             Unknown ids are reported on stderr and cause a non-zero exit,
             but the known notes are still emitted.
-
+            
             SECTION-GRANULAR READS (single id only)
                 --toc          list the note's section paths + word counts
                                without printing the body. The paths are what
@@ -118,7 +118,7 @@ struct QueryGet: AsyncParsableCommand {
                                marker names every omitted section (with word
                                counts) and the exact command to read it. Never
                                cuts mid-section; a heading-free body ships whole.
-
+            
             EXAMPLES
                 llmemory query get principles --home brain
                 llmemory query get identity principles tone --home brain

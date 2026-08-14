@@ -14,7 +14,7 @@ extension JSONEncoder {
     static let plain: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.withoutEscapingSlashes]
-
+        
         return encoder
     }()
 }

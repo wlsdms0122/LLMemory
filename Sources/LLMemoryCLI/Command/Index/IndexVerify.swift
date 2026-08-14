@@ -16,11 +16,11 @@ struct IndexVerify: ParsableCommand {
         abstract: "Verify the derived index — integrity, source drift, enrichment terms.",
         discussion: """
             Three facets of one question — is the index still valid?
-
+                
                 integrity   schema/row/FTS/semantic invariants (read-only)
                 sources     source-file drift → source_stale (a write)
                 terms       promote/reject pending retrieval terms (a write)
-
+            
             SEE ALSO
                 index verify integrity, index verify sources, index verify terms
             """,

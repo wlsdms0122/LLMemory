@@ -21,36 +21,36 @@ struct OperationsResultBlocks {
                 ? "ok  (\(result.opResults.count) ops)"
                 : "\(result.status)\(result.error.isEmpty ? "" : ": \(result.error)")")
         ]
-    
+        
         if let rejectedIndex = result.rejectedIndex {
             blocks.append(.text("rejected_index: \(rejectedIndex)"))
         }
-    
+        
         if !result.recoveryFailed.isEmpty {
             blocks.append(
                 .text("recovery_failed: \(result.recoveryFailed.joined(separator: ", "))")
             )
         }
-    
+        
         return blocks
     }
-
+    
     func blocks(of result: OperationsDryRunResult) -> [PlainBlock] {
         let suffix = result.opCount.map { count in "  (\(count) ops)" } ?? ""
         var blocks: [PlainBlock] = []
-    
+        
         if let error = result.error, !error.isEmpty {
             blocks.append(.text("\(result.status): \(error)\(suffix)"))
         } else {
             blocks.append(.text("\(result.status)\(suffix)"))
         }
-    
+        
         if let rejectedIndex = result.rejectedIndex {
             blocks.append(.text("rejected_index: \(rejectedIndex)"))
         }
-    
+        
         return blocks
     }
-
+    
     // MARK: - Private
 }

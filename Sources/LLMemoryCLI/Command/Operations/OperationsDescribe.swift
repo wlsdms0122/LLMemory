@@ -31,11 +31,11 @@ struct OperationsDescribe: ParsableCommand {
             an apply-ready payload. Use --json for machine-readable output;
             in that mode `example` is the bare op (wrap as
             {"ops":[<example>]} before passing to `apply`).
-
+            
             EXAMPLES
                 llmemory operations describe patch_section --home brain
                 llmemory operations describe patch_section --json --home brain
-
+            
             SEE ALSO
                 operations apply, operations vocab
             """

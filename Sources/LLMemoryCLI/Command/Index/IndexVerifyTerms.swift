@@ -38,7 +38,7 @@ struct IndexVerifyTerms: AsyncParsableCommand {
             Retrieval terms (alias/cue) emitted by `operations apply add_retrieval_terms`
             land as status=pending. This pass is the gate that promotes them —
             llmemory decides, never the LLM:
-
+              
               form         all-stopword / malformed terms → rejected.
               IDF (alias)  tokens whose document-frequency exceeds
                            enrich.idf_df_ceiling are too common to discriminate
@@ -53,18 +53,18 @@ struct IndexVerifyTerms: AsyncParsableCommand {
                            enrich.roundtrip_topk). Provisional indexing is what
                            lets a genuine synonym — one absent from the note
                            body — still activate.
-
+            
             Outcomes: pass → active (indexed into notes_fts.enrich, searchable
             with zero read-time LLM cost); idf_common / malformed → rejected;
             unverifiable (quarantined) or round-trip fail → kept pending and
             retried — `--reject-stale` finalizes terms stuck pending past the
             age cutoff as rejected (aging is how an unsubstantiated quarantine
             resolves).
-
+            
             `operations apply` already runs this immediately for terms it just inserted;
             `consolidate integrate` runs it periodically. Use this command to
             force a pass (e.g. after a bulk reindex changed the corpus).
-
+            
             EXAMPLES
                 llmemory index verify terms --home brain
                 llmemory index verify terms --reject-stale --home brain

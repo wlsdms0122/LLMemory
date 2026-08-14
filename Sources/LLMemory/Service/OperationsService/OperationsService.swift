@@ -18,15 +18,15 @@ public struct OperationsService: OperationsServiceable {
     // MARK: - Property
     let storage: GRDBStorage
     let engine: OperationsEngine
-
+    
     private let environment = Environment()
-
+    
     // MARK: - Initializer
     init(storage: GRDBStorage, engine: OperationsEngine) {
         self.storage = storage
         self.engine = engine
     }
-
+    
     // MARK: - Public
     public func apply(
         payloadJSON: String,
@@ -37,7 +37,7 @@ public struct OperationsService: OperationsServiceable {
         // environment is the fallback — so the observation policy never
         // silently loses its session filter.
         let sessionId = environment.retrievalSession(cli: cliSessionId)
-
+        
         // Shape rejection happens before any lock — a malformed payload must
         // not open the write scope. The string is decoded again inside the
         // scope because [String: Any] cannot cross the Sendable wall.
@@ -51,7 +51,7 @@ public struct OperationsService: OperationsServiceable {
                 recoveryFailed: []
             )
         }
-
+        
         do {
             let result = try await storage.run { scope in
                 guard let payload = engine.decodePayload(payloadJSON) else {
@@ -64,10 +64,10 @@ public struct OperationsService: OperationsServiceable {
                         recoveryFailed: []
                     )
                 }
-
+                
                 return engine.apply(scope, payload, sessionId: sessionId)
             }
-
+            
             return result
         } catch {
             // Nothing ran (connect/lock failure) — the cache was never primed.
@@ -81,13 +81,13 @@ public struct OperationsService: OperationsServiceable {
             )
         }
     }
-
+    
     public func dryRun(
         payloadJSON: String,
         cliSessionId: String
     ) async -> OperationsDryRunResult {
         let sessionId = environment.retrievalSession(cli: cliSessionId)
-
+        
         do {
             return try await storage.read { scope in
                 guard let payload = engine.decodePayload(payloadJSON) else {
@@ -98,7 +98,7 @@ public struct OperationsService: OperationsServiceable {
                         rejectedIndex: nil
                     )
                 }
-
+                
                 return engine.dryRun(scope, payload, sessionId: sessionId)
             }
         } catch {
@@ -110,16 +110,16 @@ public struct OperationsService: OperationsServiceable {
             )
         }
     }
-
+    
     // Code-owned catalog — no connection, no session. Callable directly by any
     // surface (the CLI included).
     public func operationNames() -> [String] {
         engine.operationNames()
     }
-
+    
     public func operationSchema(_ name: String) -> OperationSchema? {
         engine.operationSchema(name)
     }
-
+    
     // MARK: - Private
 }

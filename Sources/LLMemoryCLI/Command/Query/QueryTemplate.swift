@@ -30,13 +30,13 @@ struct QueryTemplate: AsyncParsableCommand {
             frame; operations apply rejects any mutation that breaks it. This command shows
             the frame the bot fills in — each node carries the guidance prose authored
             under that heading, so the author knows what each section is for.
-
+            
             Every declared heading is required: it must be present, under its parent,
             in order (a section may be empty — content is free). No section outside the
             frame is allowed at a frame level. Headings *deeper* than a frame leaf, and
             all section content, are free. Heading matching is normalized
             (NFC, lowercase, leading numbering/bullets stripped).
-
+            
             EXAMPLES
                 llmemory query template tpl-tech-spec --home brain
                 llmemory query template tpl-tech-spec --json --home brain

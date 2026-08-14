@@ -20,7 +20,7 @@ struct GrowthUnboundedRule: NoteLintRule {
     )
     
     private let sectionEdit = SectionEdit()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {

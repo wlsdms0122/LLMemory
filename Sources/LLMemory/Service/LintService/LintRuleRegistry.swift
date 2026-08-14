@@ -14,30 +14,30 @@ import Foundation
 struct LintRuleRegistry: Sendable {
     // MARK: - Property
     let documentRules: [any LintDocumentRule]
-
+    
     let noteRules: [any NoteLintRule]
-
+    
     let noteDBRules: [any NoteDBLintRule]
-
+    
     let corpusDBRules: [any CorpusDBLintRule]
-
+    
     var allRules: [(code: String, severity: LintSeverity)] {
         documentRules.map { rule in (rule.code, rule.severity) }
             + noteRules.map { rule in (rule.code, rule.severity) }
             + noteDBRules.map { rule in (rule.code, rule.severity) }
             + corpusDBRules.map { rule in (rule.code, rule.severity) }
     }
-
+    
     var dismissibleCodes: Set<String> {
         Set(allRules.filter { rule in rule.severity == .warn }.map { rule in rule.code })
     }
-
+    
     var errorCodes: Set<String> {
         Set(allRules.filter { rule in rule.severity == .error }.map { rule in rule.code })
     }
-
+    
     private let sectionEdit = SectionEdit()
-
+    
     // MARK: - Initializer
     // Every catalog defaults to what this build ships. They are parameters so a
     // caller can hand the scanner a different catalog — the alternative was a
@@ -88,7 +88,7 @@ struct LintRuleRegistry: Sendable {
         self.noteDBRules = noteDBRules
         self.corpusDBRules = corpusDBRules
     }
-
+    
     // MARK: - Public
     func document(nid: String, body: String) -> LintDocument {
         let lines = body.unicodeLines()
@@ -120,6 +120,6 @@ struct LintRuleRegistry: Sendable {
             unclosedFence: fences.unclosedOpen
         )
     }
-
+    
     // MARK: - Private
 }

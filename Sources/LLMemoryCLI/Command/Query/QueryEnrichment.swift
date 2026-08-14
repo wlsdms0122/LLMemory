@@ -80,7 +80,7 @@ struct QueryEnrichment: AsyncParsableCommand {
         discussion: """
             Makes the enrichment design observable, not just declared — so a
             port to another system can verify it is alive at a glance.
-
+            
             REPORTS
                 retrieval terms   alias/cue counts by status. pending = awaiting
                                   validation; active = passed round-trip + IDF
@@ -97,7 +97,7 @@ struct QueryEnrichment: AsyncParsableCommand {
                                   space). A rate above enrich.model_alarm_rate
                                   flags a possibly-noisy model — catches
                                   regressions when the capture model changes.
-
+            
             EXAMPLES
                 llmemory query enrichment --home brain
                 llmemory query enrichment --json --home brain

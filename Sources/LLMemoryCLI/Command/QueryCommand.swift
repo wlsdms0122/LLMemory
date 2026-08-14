@@ -18,7 +18,7 @@ struct QueryCommand: ParsableCommand {
             All queries are LLM-free (algorithmic). For free-form text input,
             prefer `related` — it returns a rich snapshot suitable for capture
             and retrieval agents.
-
+            
             SEE ALSO
                 query related, query search, query get
             """,

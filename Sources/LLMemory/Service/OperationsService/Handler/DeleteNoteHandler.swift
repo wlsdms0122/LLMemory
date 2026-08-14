@@ -18,11 +18,11 @@ struct DeleteNoteHandler: OperationHandling {
         ],
         example: ##"{"op":"delete_note","id":"obsolete","reason":"merged into newer-note"}"##
     )
-
-    private let payload = OpPayloadCheck()
-
+    
+    private let noteExistence = NoteExistence()
+    
     private let trash = Trash()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -31,22 +31,22 @@ struct DeleteNoteHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
-
-        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
             return rejection
         }
-
+        
         if (op["force"] as? Bool) == true { return nil }
-
+        
         let inbound = try scope.run(FetchInboundBlockersTransaction(noteId: noteId))
-
+        
         if !inbound.isEmpty {
             return "inbound links exist (src: \(inbound.joined(separator: ", "))) — resolve them or set force=true"
         }
-
+        
         return nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
@@ -54,25 +54,23 @@ struct DeleteNoteHandler: OperationHandling {
     ) throws -> [String: Any] {
         let noteId = op["id"] as! String
         let now = context.now
-
+        
         guard let src = try scope.run(FetchNotePathTransaction(nid: noteId)) else {
-            throw NSError(domain: "Handlers", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "unknown id: \(noteId)"
-            ])
+            throw OperationError.unknownNote(noteId)
         }
-
+        
         try scope.run(RemoveNoteRowsTransaction(
             nid: noteId,
             flagReason: "deleted \(noteId)",
             now: now
         ))
-
+        
         // Safe to move here: `touches` names both this file and its trash
         // destination, so a rollback of the surrounding batch restores them.
         let trashPath = try trash.file(src, reason: op["reason"] as? String ?? "", now: now)
-
+        
         let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(80)
-
+        
         return [
             "status": "ok",
             "ids": [noteId],
@@ -80,20 +78,20 @@ struct DeleteNoteHandler: OperationHandling {
             "note": "deleted (backup at .trash/, reason: \(reasonShort))"
         ]
     }
-
+    
     func effect(_ op: [String: Any]) -> [String: [String]] {
         ["removes": [op["id"] as? String ?? ""]]
     }
-
+    
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
         guard let noteId = op["id"] as? String,
             let src = try scope.run(FetchNotePathTransaction(nid: noteId))
         else {
             return []
         }
-
+        
         return trash.destination(of: src).map { destination in [src, destination] } ?? [src]
     }
-
+    
     // MARK: - Private
 }

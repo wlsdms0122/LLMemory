@@ -25,7 +25,7 @@ struct SeedingSummary: Sendable {
         conflicts: [String]
     ) -> [PlainBlock] {
         guard attempted else { return [.text("seed notes: skipped (--no-seed)")] }
-
+        
         if !conflicts.isEmpty {
             return [
                 .text(
@@ -36,13 +36,13 @@ struct SeedingSummary: Sendable {
                 )
             ]
         }
-
+        
         let moved = planted + refreshed + retired + replaced
-
+        
         guard !moved.isEmpty else {
             return [.text("seed notes: already current (\(unchanged.count) unchanged)")]
         }
-
+        
         return [
             .keyValue([
                 ("planted", list(planted)),
@@ -53,7 +53,7 @@ struct SeedingSummary: Sendable {
             ])
         ]
     }
-
+    
     // MARK: - Private
     private func list(_ ids: [String]) -> String {
         ids.isEmpty ? "-" : ids.joined(separator: ", ")

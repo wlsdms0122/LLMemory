@@ -49,8 +49,6 @@ public struct RetrievalRecord: Sendable {
     public let rebirthRanked: [Ranked]
     public let payloadJSON: String
 
-    private let payload = OpPayloadCheck()
-
     // MARK: - Initializer
     init(
         sessionId: String?,

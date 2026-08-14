@@ -12,20 +12,20 @@ public struct OperationsEngine: Sendable {
     // Assembled with the engine — handlers needing a collaborator captured
     // it at wiring time, so the registry is per-engine, not process-global.
     let registry: HandlerRegistry
-
+    
     private let bodyProjection = BodyProjection()
-    private let payload = OpPayloadCheck()
-
+    private let noteExistence = NoteExistence()
+    
     private let trashLookup = TrashedNoteLookup()
-
+    
     private let sectionEdit = SectionEdit()
-
+    
     private let frontmatter = Frontmatter()
-
+    
     private let noteFiles = Notes()
-
+    
     private let template = Template()
-
+    
     // MARK: - Initializer
     // The collaborators are parameters, not fields: they belong to the two
     // handlers that use them, and the engine is the wiring that hands them
@@ -34,7 +34,7 @@ public struct OperationsEngine: Sendable {
     init(genome: any GenomeServiceable, lint: any LintScanning) {
         self.registry = HandlerRegistry(genome: genome, lint: lint)
     }
-
+    
     // MARK: - Public
     // The one place the raw payload string re-enters the [String: Any] world —
     // both ops transactions decode through here.
@@ -44,19 +44,19 @@ public struct OperationsEngine: Sendable {
             let object = try? JSONSerialization.jsonObject(with: data),
             let payload = object as? [String: Any]
         else { return nil }
-
+        
         return payload
     }
-
+    
     // Catalog reads — the schema vocabulary the registry carries.
     func operationNames() -> [String] {
         registry.names
     }
-
+    
     func operationSchema(_ name: String) -> OperationSchema? {
         registry[name]?.schema
     }
-
+    
     // Runs inside the caller's write scope — OperationsService provides the
     // cross-process write lock via `storage.run`.
     public func apply(
@@ -65,7 +65,7 @@ public struct OperationsEngine: Sendable {
         sessionId: String? = nil
     ) -> OperationsResult {
         let rationale = payload["rationale"] as? String ?? ""
-
+        
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return OperationsResult(
                 status: "rejected",
@@ -76,9 +76,9 @@ public struct OperationsEngine: Sendable {
                 recoveryFailed: []
             )
         }
-
+        
         let result: OperationsResult
-
+        
         do {
             result = try applySequence(
                 scope,
@@ -106,14 +106,14 @@ public struct OperationsEngine: Sendable {
                 recoveryFailed: []
             )
         }
-
+        
         // A rolled-back savepoint (op failure, split conflict, or a thrown
         // sequence) may have primed the in-process gene cache. All genome
         // writes live inside the savepoint, so the state read here equals
         // committed state; the engine owns this repair at its single exit,
         // and every caller — the fixture included — gets it.
         if result.status != "ok" { rewarmGenes(scope) }
-
+        
         return result
     }
     
@@ -127,7 +127,7 @@ public struct OperationsEngine: Sendable {
     ) throws -> OperationsResult {
         let now = Int(Date().timeIntervalSince1970)
         let applyContext = HandlerContext(sessionId: sessionId, now: now)
-
+        
         if let (message, index) = try validate(
             opsRaw,
             scope: scope.readOnly,
@@ -277,7 +277,7 @@ public struct OperationsEngine: Sendable {
         let opsSummary: [[String: Any]] = results.map { result in
             ["op": result.op, "status": result.status, "ids": result.ids]
         }
-
+        
         try? scope.run(RecordEventTransaction(
                                 kind: Events.kindCapture,
             payload: [
@@ -287,10 +287,10 @@ public struct OperationsEngine: Sendable {
             ],
             sessionId: sessionId
         ))
-
+        
         var degradedPasses: [String] = []
         let touched = enrichmentTouchedNotes(opsRaw)
-
+        
         if !touched.isEmpty {
             // Best-effort, but atomically so — a failed validation pass
             // rolls back whole. The pass name rides the result; the error
@@ -298,7 +298,7 @@ public struct OperationsEngine: Sendable {
             if case .failure(let error)? =
                 try? scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: touched)) }) {
                 degradedPasses.append("term_validation")
-
+                
                 try? scope.run(
                     RecordEventTransaction(
                         kind: Events.kindCapture,
@@ -312,7 +312,7 @@ public struct OperationsEngine: Sendable {
                 )
             }
         }
-
+        
         return OperationsResult(
             status: "ok",
             opResults: results,
@@ -323,7 +323,7 @@ public struct OperationsEngine: Sendable {
             degradedPasses: degradedPasses
         )
 }
-
+    
     public func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], sessionId: String? = nil) -> OperationsDryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return OperationsDryRunResult(
@@ -333,7 +333,7 @@ public struct OperationsEngine: Sendable {
                 rejectedIndex: nil
             )
         }
-
+        
         do {
             let result: (String?, Int?)? = try validate(opsRaw, scope: scope, sessionId: sessionId)
             
@@ -456,14 +456,14 @@ public struct OperationsEngine: Sendable {
         now: Int = Int(Date().timeIntervalSince1970)
     ) throws -> (String, Int?)? {
         var context = HandlerContext(sessionId: sessionId, now: now)
-
+        
         for (index, op) in ops.enumerated() {
             guard let name = op["op"] as? String,
                 let handler = registry[name]
             else {
                 return ("op[\(index)] unknown: \(op["op"] ?? "nil")", index)
             }
-
+            
             if let message = try lockedGate(
                 op: op,
                 name: name,
@@ -474,10 +474,7 @@ public struct OperationsEngine: Sendable {
                 return ("op[\(index)] \(name): \(message)", index)
             }
             
-            if let message = payload.checkRequired(
-                op,
-                fields: handler.schema.requiredNames(given: op)
-            ) {
+            if let message = handler.schema.missingRequiredField(in: op) {
                 return ("op[\(index)] \(name): \(message)", index)
             }
             
@@ -727,7 +724,7 @@ private extension OperationsEngine {
     // Repairs the in-process gene cache from (effectively) committed state.
     func rewarmGenes(_ scope: GRDBScope) {
         guard let values = try? scope.run(FetchGenomeValuesTransaction()) else { return }
-
+        
         Genes.warm(values)
     }
 }

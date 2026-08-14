@@ -13,7 +13,7 @@ struct HeadingSkipRule: LintDocumentRule {
     let severity = LintSeverity.warn
     
     private let repeated = RepeatedFinding()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func check(_ doc: LintDocument) -> [LintFinding] {

@@ -13,7 +13,7 @@ struct StaleSourceRule: NoteLintRule {
     let severity = LintSeverity.warn
     
     private let sourceFingerprint = SourceFingerprint()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {

@@ -18,10 +18,10 @@ struct OperationsCommand: ParsableCommand {
             All file and DB writes go through `apply`. Each transaction validates
             every op, snapshots affected files, applies inside a single SAVEPOINT,
             and rolls back DB and files on any failure. No direct file or row edits.
-
+            
             The canonical spelling is `operations`; `ops` reaches the same
             group as an alias.
-
+            
             SEE ALSO
                 operations apply, operations vocab, operations describe
             """,

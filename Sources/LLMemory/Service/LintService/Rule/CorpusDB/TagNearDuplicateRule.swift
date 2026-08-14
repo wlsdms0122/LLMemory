@@ -13,7 +13,7 @@ struct TagNearDuplicateRule: CorpusDBLintRule {
     let severity = LintSeverity.warn
     
     private let distance = EditDistance()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func check(_ scope: GRDBReadScope) throws -> [LintFinding] {

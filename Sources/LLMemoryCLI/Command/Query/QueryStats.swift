@@ -96,12 +96,12 @@ struct QueryStats: AsyncParsableCommand {
         abstract: "Note / prefix / overall counters and rates.",
         discussion: """
             Three modes determined by which option is set.
-
+            
             MODES
                 --id <note>     Per-note stats (age, hits, sections, tags, links).
                 --prefix <p>    Aggregates over everything at or under that id.
                 (neither)       Overall stats.
-
+            
             EXAMPLES
                 llmemory query stats --home brain
                 llmemory query stats --id principles --home brain

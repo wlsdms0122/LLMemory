@@ -13,7 +13,7 @@ struct RequiredFieldLiteralTests {
     // MARK: - Property
     // Dispatch already enforces the schema's requiredNames(given:). A handler that checks again holds
     // a second copy of the rule, and second copies drift.
-    private static let owners = ["OpPayloadCheck.swift", "OperationsEngine.swift"]
+    private static let owners = ["OperationSchema.swift", "OperationsEngine.swift"]
     
     private let source = PackageSource()
     
@@ -31,7 +31,7 @@ struct RequiredFieldLiteralTests {
             .filter { file in !Self.owners.contains(file.name) }
             .flatMap { file in
                 file.codeLines()
-                    .filter { _, text in text.contains("checkRequired(") }
+                    .filter { _, text in text.contains("missingRequiredField(") }
                     .map { number, _ in file.location(number) }
             }
         

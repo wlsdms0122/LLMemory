@@ -17,6 +17,6 @@ protocol LintServiceable: Sendable {
         limit: Int?,
         includeDismissed: Bool
     ) async throws -> [LintIssue]
-
+    
     func ruleCatalog() -> [LintRuleInfo]
 }

@@ -20,14 +20,14 @@ struct PatchSectionHandler: OperationHandling {
         ],
         example: ###"{"op":"patch_section","id":"my-note","section":"## 관련","action":"append","content":"- 새 항목"}"###
     )
-
-    private let payload = OpPayloadCheck()
+    
+    private let noteExistence = NoteExistence()
     private let writeEffects = NoteWriteEffects()
-
+    
     private let sectionEdit = SectionEdit()
-
+    
     private let frontmatter = Frontmatter()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -36,75 +36,73 @@ struct PatchSectionHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let action = op["action"] as? String ?? ""
-
+        
         if !OpVocabulary.validPatchActions.contains(action) {
             return "invalid action: \(action) (expected \(OpVocabulary.validPatchActions.sorted()))"
         }
-
+        
         if action != "remove" && (op["content"] as? String ?? "").isEmpty {
             return "content required for action=\(action)"
         }
-
+        
         let noteId = op["id"] as? String ?? ""
-
-        if let rejection = try payload.checkIDKnown(noteId, context: context, scope: scope) {
+        
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
             return rejection
         }
-
+        
         if (op["section"] as? String) == SectionEdit.preambleToken { return nil }
-
+        
         let sectionPath: SectionEdit.SectionPath
         do {
             sectionPath = try sectionEdit.parsePath(op["section"] as? String ?? "")
         } catch {
             return "invalid section path: \(error)"
         }
-
+        
         if action == "replace" {
             let leafLevel = sectionPath.parts.last?.level ?? 1
             let content = op["content"] as? String ?? ""
-
+            
             for line in content.components(separatedBy: "\n") {
                 if line.trimmingCharacters(in: .whitespaces).isEmpty { continue }
-
+                
                 let nsLine = line as NSString
-
+                
                 if let match = OpVocabulary.headingMarkerRegex.firstMatch(
                     in: line,
                     range: NSRange(location: 0, length: nsLine.length)
                 ) {
                     let hashes = nsLine.substring(with: match.range(at: 1))
                     let title = nsLine.substring(with: match.range(at: 2))
-
+                    
                     if hashes.count <= leafLevel {
                         let truncated = String(title.prefix(40))
-
+                        
                         return "replace preserves the existing heading; content must not start with a heading at level ≤ \(leafLevel). pass section body only (drop the leading '\(hashes) \(truncated)' line)"
                     }
                 }
-
+                
                 break
             }
         }
-
+        
         return nil
     }
-
+    
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
         _ scope: GRDBScope
     ) throws -> [String: Any] {
         let noteId = op["id"] as! String
-
+        
         guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
             FileManager.default.fileExists(atPath: path.path)
         else {
-            throw NSError(domain: "Handlers", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "note file missing: \(noteId)"
-            ])
+            throw OperationError.noteFileMissing("note file missing: \(noteId)")
         }
-
+        
         let raw = try String(contentsOf: path, encoding: .utf8)
         let (doc, body) = try frontmatter.parse(raw)
         let section = op["section"] as! String
@@ -118,12 +116,12 @@ struct PatchSectionHandler: OperationHandling {
             content: content,
             subtree: subtree
         )
-
+        
         try (frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
         try scope.run(ReindexNoteFileTransaction(path: path))
-
+        
         let now = context.now
-
+        
         try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
         try writeEffects.recordEdit(
             scope,
@@ -131,10 +129,10 @@ struct PatchSectionHandler: OperationHandling {
             opLabel: "patch_section/\(action)",
             now: now
         )
-
+        
         let isSubtreeAction = action == "replace" || action == "remove" || action == "append"
         let noteSuffix = (subtree && isSubtreeAction) ? " (subtree)" : ""
-
+        
         return [
             "status": "ok",
             "path": path.path,
@@ -142,16 +140,16 @@ struct PatchSectionHandler: OperationHandling {
             "note": "patch_section action=\(action)\(noteSuffix)"
         ]
     }
-
+    
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
         guard let noteId = op["id"] as? String,
             let path = try scope.run(FetchNotePathTransaction(nid: noteId))
         else {
             return []
         }
-
+        
         return [path]
     }
-
+    
     // MARK: - Private
 }

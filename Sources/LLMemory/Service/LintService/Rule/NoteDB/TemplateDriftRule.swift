@@ -13,7 +13,7 @@ struct TemplateDriftRule: NoteDBLintRule {
     let severity = LintSeverity.warn
     
     private let template = Template()
-
+    
     // MARK: - Initializer
     // MARK: - Public
     func check(_ scope: GRDBReadScope, note: NoteLintInput) throws -> [LintFinding] {

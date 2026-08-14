@@ -30,7 +30,7 @@ struct GenomeList: AsyncParsableCommand {
             locked genes are write-path: their past effect is baked into
             persistent structure, so reverting the value does not revert the
             brain; only the direct set_gene op may move them.
-
+            
             EXAMPLES
                 llmemory genome list --home brain
                 llmemory genome list --json --home brain
