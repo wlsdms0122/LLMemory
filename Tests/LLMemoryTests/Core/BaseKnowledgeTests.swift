@@ -172,6 +172,33 @@ struct BaseKnowledgeTests {
         #expect(try String(contentsOf: file, encoding: .utf8) == seed.markdown)
     }
 
+    // The markdown is the source and the DB is its reflection, so a frontmatter
+    // field llmemory itself branches on belongs in the schema — otherwise the
+    // fact exists in the file and nowhere a query can reach it.
+    @Test("the base mark is projected onto the note row")
+    func theBaseMarkIsProjected() throws {
+        // Given
+        _ = Seeding.plant()
+
+        #expect(home.createNote(id: "tech.mine", content: "## A\nmine\n").status == "ok")
+
+        for seed in Base.seeds {
+            try home.reindexFile(at: Paths.file(forId: seed.id))
+        }
+
+        // When
+        let marked = try home.read { database in
+            try String.fetchAll(database, sql: "SELECT id FROM notes WHERE base = 1 ORDER BY id")
+        }
+        let unmarked = try home.read { database in
+            try String.fetchAll(database, sql: "SELECT id FROM notes WHERE base = 0 ORDER BY id")
+        }
+
+        // Then
+        #expect(marked == Base.seeds.map(\.id).sorted(), "\(marked)")
+        #expect(unmarked == ["tech.mine"], "an authored note must claim nothing: \(unmarked)")
+    }
+
     @Test("every shipped document declares base: true, or nothing could tell it from an authored note")
     func everySeedDeclaresBase() throws {
         for seed in Base.seeds {

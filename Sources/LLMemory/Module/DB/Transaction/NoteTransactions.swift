@@ -55,6 +55,7 @@ struct UpsertNoteTransaction: GRDBTransaction {
         let staleFlag = fields.stale ? 1 : 0
         let templateValue = fields.template.flatMap { value in value.isEmpty ? nil : value }
         let lockedFlag = fields.locked ? 1 : 0
+        let baseFlag = fields.base ? 1 : 0
         let wordCount = SectionEdit.wordCount(body)
         let sectionCount = SectionEdit.sectionCount(body)
         let contentHash = Notes.contentHash(
@@ -63,14 +64,15 @@ struct UpsertNoteTransaction: GRDBTransaction {
 
         try db.execute(sql: """
             INSERT INTO notes (id, title, summary, priority,
-                               stale, template, locked,
+                               stale, template, locked, base,
                                edited_at, word_count, section_count, content_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               title=excluded.title, summary=excluded.summary,
               priority=excluded.priority,
               stale=excluded.stale,
               template=excluded.template, locked=excluded.locked,
+              base=excluded.base,
               edited_at=excluded.edited_at,
               word_count=excluded.word_count,
               section_count=excluded.section_count,
@@ -79,7 +81,7 @@ struct UpsertNoteTransaction: GRDBTransaction {
                 noteId,
                 fields.title, fields.summary,
                 priority, staleFlag,
-                templateValue, lockedFlag,
+                templateValue, lockedFlag, baseFlag,
                 mtime, wordCount, sectionCount, contentHash
             ])
         try db.execute(
