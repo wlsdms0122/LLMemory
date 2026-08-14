@@ -11,11 +11,11 @@ import Foundation
 // `update` run the same reconciliation, and when each wrote its own summary they
 // drifted — one of them grew a `retired` line and the other went on calling a run
 // that moved files "already current".
-enum SeedingSummary {
+struct SeedingSummary: Sendable {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    static func blocks(
+    func blocks(
         attempted: Bool,
         planted: [String],
         refreshed: [String],
@@ -55,7 +55,7 @@ enum SeedingSummary {
     }
 
     // MARK: - Private
-    private static func list(_ ids: [String]) -> String {
+    private func list(_ ids: [String]) -> String {
         ids.isEmpty ? "-" : ids.joined(separator: ", ")
     }
 }

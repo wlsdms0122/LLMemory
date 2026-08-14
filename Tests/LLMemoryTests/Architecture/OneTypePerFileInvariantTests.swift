@@ -13,19 +13,13 @@ import Foundation
 // the diff of an unrelated change lands in the same file, and the file's name
 // stops predicting its contents.
 //
-// The rule is enforced per area rather than package-wide, because the areas
-// are converted one at a time. `converted` is a ratchet — an area joins the
-// list once it holds, and never leaves. What is absent from the list is not
-// exempt; it is not done yet.
+// `converted` is the areas the rule holds for. It began as a ratchet while the
+// package was converted one area at a time, and it is now the whole of
+// `Sources` — a new area is covered by being written, not by being listed.
 @Suite("OneTypePerFile Invariant Tests")
 struct OneTypePerFileInvariantTests {
     // MARK: - Property
-    private let converted = [
-        "Sources/LLMemory/Feature",
-        "Sources/LLMemory/Module",
-        "Sources/LLMemory/Service/LintService",
-        "Sources/LLMemory/Service/OperationsService"
-    ]
+    private let converted = ["Sources"]
 
     private let declaration = try! NSRegularExpression(
         pattern: #"^(?:public |internal |private |fileprivate |final |indirect )*(?:struct|enum|class|actor|protocol) +(\w+)"#
@@ -40,8 +34,8 @@ struct OneTypePerFileInvariantTests {
     }
 
     // MARK: - Test
-    @Test("a converted area holds one top-level type per file, named after the file")
-    func convertedAreasHoldOneTypePerFile() {
+    @Test("every file holds one top-level type, named after the file")
+    func everyFileHoldsOneTypeNamedAfterIt() {
         // Given
         #expect(!sources.isEmpty, "no sources found under \(source.root.path)")
 
@@ -55,6 +49,10 @@ struct OneTypePerFileInvariantTests {
         var violations: [String] = []
 
         for file in inScope {
+            // A file whose name carries a `+` is an extension file — it adds to
+            // a type it does not own, so there is no declaration to match.
+            if file.name.contains("+") { continue }
+
             let declared = file.codeLines().compactMap { _, text -> String? in
                 guard
                     let match = declaration.firstMatch(

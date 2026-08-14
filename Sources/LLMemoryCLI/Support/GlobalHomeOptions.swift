@@ -1,0 +1,50 @@
+//
+//  GlobalHomeOptions.swift
+//  LLMemoryCLI
+//
+//  Created by JSilver on 8/7/26.
+//
+
+import ArgumentParser
+import Foundation
+import LLMemory
+
+struct GlobalHomeOptions: ParsableArguments {
+    // MARK: - Property
+    @Option(
+        name: .long,
+        help: ArgumentHelp(
+            "Brain home path (must contain data/ and cortex/).",
+            discussion: """
+                Required. Place AFTER the leaf subcommand (e.g. \
+                `llmemory query stats --home brain`).
+                """,
+            valueName: "state-root"
+        )
+    )
+    var home: String = ""
+    
+    @Option(
+        name: .long,
+        help: ArgumentHelp(
+            "Session id for priming/event trace.",
+            discussion: """
+                Overrides MEMORY_SESSION_ID env. Stable across calls within \
+                the same conversation/thread. Owner is normally the runtime \
+                (ambient via env); use this flag for debug/override.
+                """,
+            valueName: "id"
+        )
+    )
+    var sessionId: String = ""
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    func validate() throws {
+        if home.isEmpty {
+            throw ValidationError("--home <path> required (place after the leaf subcommand)")
+        }
+    }
+    
+    // MARK: - Private
+}
