@@ -46,8 +46,8 @@ struct DeriveActivityWindowsTransaction: GRDBTransaction {
         let watermark = Int(Config.getStringTx(Activation.watermarkKey, default: "0", txDB: db)) ?? 0
         let rows = try Row.fetchAll(db, sql: """
             SELECT id, ts, session_id, payload FROM events
-            WHERE kind = 'retrieval' AND id > ? ORDER BY id
-            """, arguments: [watermark])
+            WHERE kind = ? AND id > ? ORDER BY id
+            """, arguments: [EventKind.retrieval.rawValue, watermark])
 
         guard !rows.isEmpty else { return result }
 

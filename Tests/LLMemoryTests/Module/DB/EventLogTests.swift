@@ -1,0 +1,109 @@
+//
+//  EventLogTests.swift
+//  LLMemoryTests
+//
+//  Created by JSilver on 8/16/26.
+//
+
+import Testing
+import Foundation
+import GRDB
+@testable import LLMemory
+
+// The event log is written by one side and read by another, and the two only
+// meet in the stored text. These close that loop: what a write puts in the
+// row has to be what a read looks for.
+@Suite("EventLog Tests")
+struct EventLogTests {
+    // MARK: - Property
+    private let home: MemoryHome
+
+    // MARK: - Initializer
+    init() throws {
+        home = try MemoryHome()
+    }
+
+    // MARK: - Test
+    @Test("a retrieval written through the transaction is one the log reader finds")
+    func writtenKindIsTheKindRead() throws {
+        try home.write { database in
+            try RecordEventTransaction(
+                kind: .retrieval,
+                payload: EventPayload(command: .search, [("query", "quokka"), ("hit_ids", ["n1"])]),
+                ts: 1_000
+            )
+                .perform(database)
+        }
+
+        let logged = try home.read { database in
+            try FetchLoggedRetrievalQueriesTransaction(limit: 10).perform(database)
+        }
+
+        #expect(logged.count == 1)
+        #expect(logged.first?.text == "quokka")
+    }
+
+    @Test("a command this binary does not know is skipped, not replayed as something else")
+    func unknownCommandIsSkipped() throws {
+        try home.write { database in
+            try database.execute(
+                sql: "INSERT INTO events (ts, kind, session_id, payload) VALUES (?, ?, NULL, ?)",
+                arguments: [1_000, EventKind.retrieval.rawValue,
+                    #"{"cmd":"telepathy","query":"quokka"}"#]
+            )
+        }
+
+        let logged = try home.read { database in
+            try FetchLoggedRetrievalQueriesTransaction(limit: 10).perform(database)
+        }
+
+        #expect(logged.isEmpty)
+    }
+
+    @Test("only search carries tags and a limit — related has none to carry")
+    func replayCarriesOnlyItsOwnInputs() throws {
+        try home.write { database in
+            try RecordEventTransaction(
+                kind: .retrieval,
+                payload: EventPayload(
+                    command: .search, [("query", "a"), ("tags", ["swift"]), ("limit", 3)]),
+                ts: 1_000
+            )
+                .perform(database)
+            try RecordEventTransaction(
+                kind: .retrieval,
+                payload: EventPayload(command: .related, [("text", "b")]),
+                ts: 1_001
+            )
+                .perform(database)
+        }
+
+        let logged = try home.read { database in
+            try FetchLoggedRetrievalQueriesTransaction(limit: 10).perform(database)
+        }
+        let replays = logged.map { query in query.replay }
+
+        #expect(replays.count == 2)
+        #expect(replays.contains { replay in
+            if case let .search(tags, limit) = replay { return tags == ["swift"] && limit == 3 }
+
+            return false
+        })
+        #expect(replays.contains { replay in
+            if case .related = replay { return true }
+
+            return false
+        })
+    }
+
+    @Test("a field with nothing in it is absent from the payload, not present as null")
+    func absentFieldsAreNotWritten() {
+        let payload = EventPayload(["kept": "yes", "dropped": nil])
+        let decoded = try? JSONSerialization.jsonObject(
+            with: Data(payload.json.utf8)) as? [String: Any]
+
+        #expect(decoded?.keys.sorted() == ["kept"])
+    }
+
+    // MARK: - Private
+}

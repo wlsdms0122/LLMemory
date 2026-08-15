@@ -115,13 +115,13 @@ public struct ConsolidateService: ConsolidateServiceable {
 
             try scope.run(
                 RecordEventTransaction(
-                    kind: Events.kindConsolidation,
-                    payload: [
+                    kind: .consolidation,
+                    payload: EventPayload([
                         "action": "homeostasis",
                         "windows_processed": report.windowsProcessed,
                         "adjusted_gene": report.adjustedGene as Any?,
                         "note": report.note
-                    ],
+                    ]),
                     ts: now
                 )
             )
@@ -150,12 +150,12 @@ public struct ConsolidateService: ConsolidateServiceable {
 
         try scope.run(
             RecordEventTransaction(
-                kind: Events.kindConsolidation,
-                payload: [
+                kind: .consolidation,
+                payload: EventPayload([
                     "action": "prune",
                     "links_decayed": decay.decayed,
                     "links_pruned": decay.pruned
-                ],
+                ]),
                 ts: now
             )
         )
@@ -263,7 +263,7 @@ public struct ConsolidateService: ConsolidateServiceable {
         }
 
         try scope.run(
-            RecordEventTransaction(kind: Events.kindConsolidation, payload: tracePayload, ts: now)
+            RecordEventTransaction(kind: .consolidation, payload: EventPayload(tracePayload), ts: now)
         )
 
         return IntegrateResult(

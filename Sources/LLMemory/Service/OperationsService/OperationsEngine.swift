@@ -126,13 +126,13 @@ public struct OperationsEngine: Sendable {
             now: now
         ) {
             try? scope.run(RecordEventTransaction(
-                                        kind: Events.kindCapture,
-                payload: [
+                kind: .capture,
+                payload: EventPayload([
                     "tx_status": "rejected",
                     "error": message,
                     "rejected_index": index,
                     "op_count": opsRaw.count
-                ],
+                ]),
                 sessionId: sessionId
             ))
             
@@ -154,12 +154,12 @@ public struct OperationsEngine: Sendable {
             let message = "snapshot failed: \(error)"
             
             try? scope.run(RecordEventTransaction(
-                                        kind: Events.kindCapture,
-                payload: [
+                kind: .capture,
+                payload: EventPayload([
                     "tx_status": "rejected",
                     "error": message,
                     "op_count": opsRaw.count
-                ],
+                ]),
                 sessionId: sessionId
             ))
             
@@ -250,8 +250,8 @@ public struct OperationsEngine: Sendable {
             if let index { payload["failed_index"] = index }
             
             try? scope.run(RecordEventTransaction(
-                                        kind: Events.kindCapture,
-                payload: payload,
+                kind: .capture,
+                payload: EventPayload(payload),
                 sessionId: sessionId
             ))
             
@@ -270,12 +270,12 @@ public struct OperationsEngine: Sendable {
         }
         
         try? scope.run(RecordEventTransaction(
-                                kind: Events.kindCapture,
-            payload: [
+            kind: .capture,
+            payload: EventPayload([
                 "tx_status": "ok",
                 "op_count": opsRaw.count,
                 "ops": opsSummary
-            ],
+            ]),
             sessionId: sessionId
         ))
         
@@ -292,12 +292,12 @@ public struct OperationsEngine: Sendable {
                 
                 try? scope.run(
                     RecordEventTransaction(
-                        kind: Events.kindCapture,
-                        payload: [
+                        kind: .capture,
+                        payload: EventPayload([
                             "tx_status": "degraded",
                             "pass": "term_validation",
                             "error": "\(error)"
-                        ],
+                        ]),
                         sessionId: sessionId
                     )
                 )

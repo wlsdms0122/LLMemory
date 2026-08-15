@@ -165,7 +165,7 @@ public struct RetrievalService: RetrievalServiceable {
             activateIds: hitIds,
             strengthenPairs: cooccurrencePairs(hitIds),
             rebirthRanked: searchRanked(rows: rows, extra: extra),
-            payloadJSON: Events.retrievalPayloadJSON(cmd: "search", payload: payload)
+            payload: EventPayload(command: .search, payload)
         )
 
         return (rows, extra, record)
@@ -203,7 +203,7 @@ public struct RetrievalService: RetrievalServiceable {
         let record = RetrievalRecord(
             sessionId: sessionId,
             rebirthRanked: relatedRanked(snapshot: snapshot),
-            payloadJSON: Events.retrievalPayloadJSON(cmd: "related", payload: [
+            payload: EventPayload(command: .related, [
                 ("text", String(text.prefix(200))),
                 ("hit_ids", snapshot.similar.map { note in note.id }),
                 ("expand_ids", snapshot.linked.map { note in note.id })
@@ -222,7 +222,7 @@ public struct RetrievalService: RetrievalServiceable {
         let scores = try detectors.neighbors(scope, noteId: id, k: k)
         let record: RetrievalRecord? = scores.isEmpty ? nil : .init(
             sessionId: sessionId,
-            payloadJSON: Events.retrievalPayloadJSON(cmd: "neighbors", payload: [
+            payload: EventPayload(command: .neighbors, [
                 ("anchor", id),
                 ("hit_ids", scores.map { score in score.id })
             ])

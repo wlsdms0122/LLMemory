@@ -64,12 +64,12 @@ struct NotesSurfacedRecentlyTransaction: GRDBReadTransaction {
         if let label {
             rows = try Row.fetchAll(db, sql: """
                 SELECT payload FROM events
-                WHERE kind = 'retrieval' AND ts >= ? AND session_id = ?
-                """, arguments: [cutoff, label.rawValue])
+                WHERE kind = ? AND ts >= ? AND session_id = ?
+                """, arguments: [EventKind.retrieval.rawValue, cutoff, label.rawValue])
         } else {
             rows = try Row.fetchAll(db, sql: """
-                SELECT payload FROM events WHERE kind = 'retrieval' AND ts >= ?
-                """, arguments: [cutoff])
+                SELECT payload FROM events WHERE kind = ? AND ts >= ?
+                """, arguments: [EventKind.retrieval.rawValue, cutoff])
         }
 
         for row in rows {

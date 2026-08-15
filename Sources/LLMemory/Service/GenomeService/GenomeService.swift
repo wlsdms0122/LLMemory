@@ -101,20 +101,20 @@ public struct GenomeService: GenomeServiceable {
         func replayIds(
             _ loggedQuery: FetchLoggedRetrievalQueriesTransaction.LoggedQuery
         ) throws -> [String] {
-            switch loggedQuery.command {
-            case "search":
+            switch loggedQuery.replay {
+            case let .search(tags, limit):
                 return try scope.run(
                     SearchNotesFTSTransaction(
                         query: loggedQuery.text,
-                        tags: loggedQuery.tags,
-                        limit: loggedQuery.limit,
+                        tags: tags,
+                        limit: limit,
                         sessionId: loggedQuery.sessionId,
                         keywords: keywords
                     )
                 )
                     .map { hit in hit.id }
 
-            default:
+            case .related:
                 let snapshot = try scope.run(
                     BuildFramingSnapshotTransaction(
                         text: loggedQuery.text,
@@ -146,7 +146,7 @@ public struct GenomeService: GenomeServiceable {
 
                     diffs.append(
                         GenomeShadowResult.QueryDiff(
-                            query: "\(loggedQuery.command): \(loggedQuery.text)",
+                            query: "\(loggedQuery.replay.command.rawValue): \(loggedQuery.text)",
                             baseline: baseline,
                             candidate: candidate,
                             entered: candidate.filter { id in !baselineIds.contains(id) },

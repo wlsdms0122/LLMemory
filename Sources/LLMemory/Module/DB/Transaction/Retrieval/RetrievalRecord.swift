@@ -10,7 +10,8 @@ import GRDB
 
 // The retrieval side effects, derived as data on the read path — usage
 // activation, co-occurrence pairs, rebirth ranking and the retrieval event
-// payload. RecordRetrievalTransaction applies it on the write path.
+// payload — already encoded, which is what lets the whole record cross to
+// the write path. RecordRetrievalTransaction applies it there.
 public struct RetrievalRecord: Sendable {
     public struct Pair: Sendable {
         // MARK: - Property
@@ -47,7 +48,7 @@ public struct RetrievalRecord: Sendable {
     public let activateIds: [String]
     public let strengthenPairs: [Pair]
     public let rebirthRanked: [Ranked]
-    public let payloadJSON: String
+    let payload: EventPayload
 
     // MARK: - Initializer
     init(
@@ -55,13 +56,13 @@ public struct RetrievalRecord: Sendable {
         activateIds: [String] = [],
         strengthenPairs: [Pair] = [],
         rebirthRanked: [Ranked] = [],
-        payloadJSON: String
+        payload: EventPayload
     ) {
         self.sessionId = sessionId
         self.activateIds = activateIds
         self.strengthenPairs = strengthenPairs
         self.rebirthRanked = rebirthRanked
-        self.payloadJSON = payloadJSON
+        self.payload = payload
     }
 
     // MARK: - Public

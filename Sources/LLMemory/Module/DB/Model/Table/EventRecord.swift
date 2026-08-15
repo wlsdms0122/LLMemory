@@ -19,14 +19,14 @@ struct EventRecord: Encodable {
     // MARK: - Property
     private(set) var id: Int64?
     let ts: Int
-    let kind: String
+    let kind: EventKind
     // The stored column, not the domain value — SessionId converts at this
     // boundary so nothing below can invent a second spelling of "no session".
     let sessionId: String?
     let payload: String
 
     // MARK: - Initializer
-    init(ts: Int, kind: String, sessionId: String?, payload: String) {
+    init(ts: Int, kind: EventKind, sessionId: String?, payload: String) {
         self.ts = ts
         self.kind = kind
         self.sessionId = sessionId

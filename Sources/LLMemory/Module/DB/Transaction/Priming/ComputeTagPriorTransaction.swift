@@ -32,11 +32,11 @@ struct ComputeTagPriorTransaction: GRDBReadTransaction {
             db,
             sql: """
                 SELECT payload FROM events
-                WHERE kind = 'retrieval' AND session_id = ? AND ts >= ?
+                WHERE kind = ? AND session_id = ? AND ts >= ?
                 ORDER BY ts DESC, id DESC
                 LIMIT 50
                 """,
-            arguments: [sessionId.rawValue, cutoff]
+            arguments: [EventKind.retrieval.rawValue, sessionId.rawValue, cutoff]
         )
 
         if rows.isEmpty { return [:] }
