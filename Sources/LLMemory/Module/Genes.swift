@@ -9,8 +9,12 @@ import Foundation
 
 // The plasticity-parameter substrate. The declaration (gene list, bounds,
 // wild types) is code-owned and species-level; the per-brain current values
-// live in the DB and reach this layer only through the warmed cache — the
-// DB touches themselves are transactions, run by GenomeService.
+// live in the DB and reach this layer through a cache that is loaded from
+// committed state — at boot and at the end of every write scope. Nothing
+// writes it from inside a transaction, so it is never ahead of the database.
+//
+// A caller that must read a value it is itself writing reads the row
+// (FetchGeneValueTransaction), not this.
 public enum Genes {
     public struct Gene: Sendable {
         // MARK: - Property
@@ -149,16 +153,6 @@ public enum Genes {
     }
 
     static func invalidateCache() { cache.removeAll() }
-
-    // Keeps the cache honest after a DB write without a full rewarm —
-    // nil evicts (reset to wild-type reads through Config again).
-    static func prime(_ id: String, _ value: Double?) {
-        cache[id] = value
-    }
-
-    static func cached(_ id: String) -> Double? {
-        cache[id]
-    }
 
     static func withOverride<T>(
         _ id: String,

@@ -323,9 +323,12 @@ public struct ConsolidateService: ConsolidateServiceable {
             rate = landingRate
 
             let gene = "related.expand_hops"
-            let current = Genes.double(gene)
-            let wildType = Genes.gene(gene)!.wildType
             let bounds = Genes.gene(gene)!
+            let wildType = bounds.wildType
+            // From the row, not the process cache — the tick reads the value
+            // it is about to move, and it moves it in this same scope.
+            let current = try scope.run(FetchGeneValueTransaction(geneId: gene))
+                ?? Config.getDouble(gene, default: wildType)
             var target = current
 
             if landingRate < homeostasisLowRate && current > bounds.min {

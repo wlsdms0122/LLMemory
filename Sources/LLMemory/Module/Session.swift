@@ -47,7 +47,7 @@ public final class Session {
         )
 
         Config.invalidateCache(storage)
-        Config.warmCache(storage)
+        Config.reloadCommitted(storage)
     }
 
     // MARK: - Public
@@ -56,7 +56,7 @@ public final class Session {
     // constructor may have warmed against a database that was not there yet.
     public func rewarm() {
         Config.invalidateCache(storage)
-        Config.warmCache(storage)
+        Config.reloadCommitted(storage)
     }
 
     // The init/update bootstrap — the one lifecycle boundary allowed to touch

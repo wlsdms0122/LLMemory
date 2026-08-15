@@ -62,25 +62,16 @@ enum Config {
         storage.context.bind { invalidateCache() }
     }
     
-    // Boot-time warm — best-effort by contract, and swap-only: a failed read
-    // leaves the existing caches untouched. At construction there is nothing
-    // to correct yet, so keeping stale-but-committed values beats emptying.
-    static func warmCache(_ storage: GRDBStorage) {
+    // Re-read the caches from committed state. Run at boot and at the end of
+    // every write scope, which is what keeps "the process holds what the
+    // database holds" true rather than aspirational.
+    //
+    // Swap-only: a failed read leaves the existing values in place. Nothing
+    // writes these caches inside a transaction, so they can only be behind
+    // committed state, never ahead of it — an unreadable database is a reason
+    // to keep the last committed values, not to drop to defaults.
+    static func reloadCommitted(_ storage: GRDBStorage) {
         storage.context.bind { try? loadCommitted(storage) }
-    }
-
-    // Rollback repair — the caches may hold values a rolled-back transaction
-    // primed before its commit failed. A repair that also fails must not
-    // leave those in place: an unknown committed state reads as empty (and
-    // falls to defaults), never as the rolled-back values.
-    static func repairCache(_ storage: GRDBStorage) {
-        storage.context.bind {
-            do {
-                try loadCommitted(storage)
-            } catch {
-                invalidateCache()
-            }
-        }
     }
 
     static func getStringTx(

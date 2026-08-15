@@ -37,7 +37,7 @@ struct GenomeTests {
         #expect(Genes.source("priming.alpha") == "config")
         
         // When — the genome itself carries a value.
-        try home.database().write { database in
+        try home.write { database in
             _ = try GRDBScope(database).run(
                 ApplyGeneValueTransaction(
                     geneId: "priming.alpha", value: 1.2, cause: "set_gene",
@@ -107,7 +107,7 @@ struct GenomeTests {
     
     @Test("the homeostatic tick cannot move a gene that is not mutable")
     func lockedGeneGuard() throws {
-        try home.database().write { database in
+        try home.write { database in
             #expect(throws: GenomeWriteError.self) {
                 try GRDBScope(database).run(
                     ApplyGeneValueTransaction(
@@ -129,7 +129,7 @@ struct GenomeTests {
         
         let base = home.now - 50_000
         
-        try home.database().write { database in
+        try home.write { database in
             // One get before the window, so the cohort is not blind to whether expansion lands.
             try recordRetrieval(database, timestamp: base - 7200, hitIds: ["seed"], command: "get")
             
@@ -154,7 +154,7 @@ struct GenomeTests {
         #expect(Genes.int("related.expand_hops") == 0)
         
         // When — a second tick over the same history.
-        try home.database().write { database in
+        try home.write { database in
             let again = try home.consolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
@@ -179,7 +179,7 @@ struct GenomeTests {
         
         let base = home.now - 50_000
         
-        try home.database().write { database in
+        try home.write { database in
             for index in 0 ..< 12 {
                 try recordRetrieval(
                     database, timestamp: base + index * 3600,
@@ -211,7 +211,7 @@ struct GenomeTests {
         
         let base = home.now - 50_000
         
-        try home.database().write { database in
+        try home.write { database in
             _ = try GRDBScope(database).run(
                 ApplyGeneValueTransaction(
                     geneId: "related.expand_hops", value: 0, cause: "set_gene",
@@ -238,7 +238,7 @@ struct GenomeTests {
         }
         
         // When — more healthy evidence arrives after the gene is already back at wild-type.
-        try home.database().write { database in
+        try home.write { database in
             for index in 12 ..< 24 {
                 let timestamp = base + index * 1800
                 
@@ -267,7 +267,7 @@ struct GenomeTests {
         
         let base = home.now - 50_000
         
-        try home.database().write { database in
+        try home.write { database in
             try recordRetrieval(database, timestamp: base - 7200, hitIds: ["seed"], command: "get")
             
             for index in 0 ..< 6 {
@@ -288,7 +288,7 @@ struct GenomeTests {
         }
         
         // When — the evidence accumulates past the minimum.
-        try home.database().write { database in
+        try home.write { database in
             for index in 6 ..< 11 {
                 try recordRetrieval(
                     database, timestamp: base + index * 3600,
@@ -309,7 +309,7 @@ struct GenomeTests {
         }
         
         // When — nothing new since.
-        try home.database().write { database in
+        try home.write { database in
             let third = try home.consolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
@@ -322,7 +322,7 @@ struct GenomeTests {
         // Given
         home.createNote(id: "n1")
         
-        try home.database().write { database in
+        try home.write { database in
             try recordRetrieval(database, timestamp: 3_000_000, hitIds: ["n1"])
             
             _ = try DeriveActivityWindowsTransaction(now: 3_000_100).perform(database)
@@ -331,7 +331,7 @@ struct GenomeTests {
         // When — the cache is rewound the way a second process would see it.
         Config.cacheOverrideForTesting("activation.derive_watermark", value: "0")
         
-        try home.database().write { database in
+        try home.write { database in
             let result = try DeriveActivityWindowsTransaction(now: 3_000_200).perform(database)
             
             // Then
@@ -357,7 +357,7 @@ struct GenomeTests {
             content: "## A\nbeta beta content\n"
         )
         
-        try home.database().write { database in
+        try home.write { database in
             try recordRetrieval(database, timestamp: home.now - 60, hitIds: ["alpha-note"], query: "alpha")
         }
         

@@ -106,13 +106,6 @@ public struct OperationsEngine: Sendable {
             )
         }
         
-        // A rolled-back savepoint (op failure, split conflict, or a thrown
-        // sequence) may have primed the in-process gene cache. All genome
-        // writes live inside the savepoint, so the state read here equals
-        // committed state; the engine owns this repair at its single exit,
-        // and every caller — the fixture included — gets it.
-        if result.status != "ok" { rewarmGenes(scope) }
-        
         return result
     }
     
@@ -714,14 +707,5 @@ public struct OperationsEngine: Sendable {
             paths: paths,
             ids: ids
         )
-    }
-}
-
-private extension OperationsEngine {
-    // Repairs the in-process gene cache from (effectively) committed state.
-    func rewarmGenes(_ scope: GRDBScope) {
-        guard let values = try? scope.run(FetchGenomeValuesTransaction()) else { return }
-        
-        Genes.warm(values)
     }
 }

@@ -200,22 +200,18 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         defer { releaseLock() }
 
-        do {
-            return try await connection.write { db in
-                try self.context.bind { try body(GRDBScope(db)) }
-            }
-        } catch {
-            // The scope threw — body failure or the commit step itself
-            // (disk/busy). Anything the body primed into the process-global
-            // caches may reflect uncommitted state; repair from committed
-            // state before surfacing the error. This is the one place that
-            // knows the commit fact, and the repair must run while the gate
-            // and flock are still held — outside them another writer's primes
-            // could be clobbered. The root fix — priming caches only after
-            // commit — is recorded debt.
-            Config.repairCache(self)
+        // The process-global caches (config values, gene values) follow
+        // committed state, and a write scope is where committed state changes.
+        // Reloading here rather than inside the body is what makes that true on
+        // both paths: a body that wrote and then threw rolls its rows back, and
+        // the caches never held the rolled-back values to begin with.
+        //
+        // It runs while the gate and flock are still held — outside them
+        // another writer's committed values could be clobbered by ours.
+        defer { Config.reloadCommitted(self) }
 
-            throw error
+        return try await connection.write { db in
+            try self.context.bind { try body(GRDBScope(db)) }
         }
     }
 
@@ -240,6 +236,10 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         try acquireLock(as: .section)
 
         defer { releaseLock() }
+
+        // The same reload as `run`: this is a write scope too, so the caches
+        // follow what it committed.
+        defer { Config.reloadCommitted(self) }
 
         return try context.bind(body)
     }

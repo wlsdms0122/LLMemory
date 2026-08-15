@@ -9,19 +9,13 @@ import Foundation
 import GRDB
 
 // The one write path for a gene value: the catalog decides whether the
-// value is admissible, the row and its provenance event are written, and
-// the process cache is primed with what was just written.
+// value is admissible, and the row and its provenance event are written.
 //
 // It is a transaction rather than a service call because every caller
-// already holds a scope and needs the *row* inside their unit of work — an
+// already holds a scope and needs the write inside their unit of work — an
 // ops batch that is rejected later must not leave a gene changed. A service
 // method taking a scope would say the same thing while pretending the work
 // belongs a tier up.
-//
-// The cache prime is the one part that does not roll back: later ops in the
-// same batch have to read what this one wrote, so the value is published
-// before the outcome is known, and whoever owns the unit of work repairs it
-// on failure (OperationsEngine rewarms at its single exit).
 struct ApplyGeneValueTransaction: GRDBTransaction {
     // MARK: - Property
     let geneId: String
@@ -57,7 +51,8 @@ struct ApplyGeneValueTransaction: GRDBTransaction {
 
         guard let gene = Genes.gene(geneId) else { throw GenomeWriteError.unknownGene(geneId) }
 
-        let old = Genes.cached(geneId) ?? Config.getDouble(geneId, default: gene.wildType)
+        let old = try FetchGeneValueTransaction(geneId: geneId).perform(db)
+            ?? Config.getDouble(geneId, default: gene.wildType)
 
         try SetGeneTransaction(
             geneId: geneId,
@@ -68,8 +63,6 @@ struct ApplyGeneValueTransaction: GRDBTransaction {
             ts: ts
         )
             .perform(db)
-
-        Genes.prime(geneId, value)
 
         return (old, value)
     }

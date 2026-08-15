@@ -31,7 +31,8 @@ struct RevertGeneValueTransaction: GRDBTransaction {
 
         guard let gene = Genes.gene(geneId) else { throw GenomeWriteError.unknownGene(geneId) }
 
-        let old = Genes.cached(geneId) ?? Config.getDouble(geneId, default: gene.wildType)
+        let old = try FetchGeneValueTransaction(geneId: geneId).perform(db)
+            ?? Config.getDouble(geneId, default: gene.wildType)
 
         try ResetGeneTransaction(
             geneId: geneId,
@@ -41,8 +42,6 @@ struct RevertGeneValueTransaction: GRDBTransaction {
             ts: ts
         )
             .perform(db)
-
-        Genes.prime(geneId, nil)
 
         return old
     }
