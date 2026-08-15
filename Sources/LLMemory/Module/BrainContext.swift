@@ -17,8 +17,8 @@ import Foundation
 // file work) wins; outside any binding the process fallback — the most
 // recently constructed, still-living Session — answers, which preserves
 // single-brain ambient flows. The fallback is weak: a dead brain does not
-// keep answering. Every state change (DB scope, cache warm/repair, lifecycle
-// file work) runs under an explicit binding.
+// keep answering. Every state change (DB scope, committed-state reload,
+// lifecycle file work) runs under an explicit binding.
 public final class BrainContext: @unchecked Sendable {
     // MARK: - Property
     @TaskLocal static var current: BrainContext?
