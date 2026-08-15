@@ -34,6 +34,10 @@
   concrete 타입을 직접 조립한다.
 - 프로토콜 요구사항은 기본 인자를 실을 수 없다 — 기본값은 파사드(`Query`/`Operations`/`Index`)에만.
 - 계약은 협력자 *객체* 를 반환하지 않는다(`var engine: OperationsEngine`). 행위를 준다.
+- **서비스 표면에 트랜잭션 스코프가 나타나지 않는다.** 서비스는 기능을 말하고 트랜잭션은
+  안에서 알아서 연다. 협력자가 *자기 스코프 안에서* 시켜야 하는 일이면 그건 서비스의 기능이
+  아니라 **트랜잭션**이다 — `Module/DB/Transaction/` 으로 내리고 호출부가 `scope.run` 한다.
+  스코프를 인자로 받는 서비스 메서드는 "이 일은 사실 한 층 아래 것"이라는 영수증이다.
 
 ## 3. 조립은 합성 루트에서
 
@@ -56,7 +60,9 @@
 
 - **게이트 술어**(`archived = 0`, `template IS NULL`, `priority = 'eager'`,
   `NOT EXISTS (SELECT 1 FROM candidate_dismissals …` 등)는 `Policy` 에만 쓰고 나머지는 조합한다.
-  쿼리마다 손으로 적으면 하나씩 어긋난다.
+  쿼리마다 손으로 적으면 하나씩 어긋난다. SQL 조각을 만드는 것들(`Policy`,
+  `Search.staleClause`, `Links.rankWeightSQL`, `Framing.ftsQuery`)은 전부 `Module/DB` 안에
+  산다 — DB 의 표현력은 DB 모듈 안에 있고, 위로 나가는 것은 매핑된 결과 타입뿐이다.
 - **필수 필드**는 `OperationSchema` 에만 선언한다. 핸들러가 다시 검사하면 규칙의 사본이 생기고,
   사본은 표류한다(`missingRequiredField(` 는 스키마/엔진의 것).
 - `notes_fts` 쓰기는 `ReindexNoteFTSTransaction` 한 곳. 두 번째 writer 는 인덱스 행이
