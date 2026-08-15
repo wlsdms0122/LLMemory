@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct NoteText: Sendable {
+public enum NoteText {
     // MARK: - Property
     private static let ticketRegex = try! NSRegularExpression(pattern: #"\b[A-Z][A-Z0-9]+-\d+\b"#)
     private static let titleCaseRegex = try! NSRegularExpression(
@@ -16,7 +16,7 @@ public struct NoteText: Sendable {
     
     // MARK: - Initializer
     // MARK: - Public
-    func extractEntityHints(_ text: String) -> [String] {
+    static func extractEntityHints(_ text: String) -> [String] {
         guard !text.isEmpty else { return [] }
         
         var seen = Set<String>()
@@ -24,7 +24,7 @@ public struct NoteText: Sendable {
         let nsText = text as NSString
         let range = NSRange(location: 0, length: nsText.length)
         
-        Self.ticketRegex.enumerateMatches(in: text, range: range) { match, _, _ in
+        ticketRegex.enumerateMatches(in: text, range: range) { match, _, _ in
             guard let match else { return }
             
             let hint = nsText.substring(with: match.range)
@@ -35,7 +35,7 @@ public struct NoteText: Sendable {
             }
         }
         
-        Self.titleCaseRegex.enumerateMatches(in: text, range: range) { match, _, _ in
+        titleCaseRegex.enumerateMatches(in: text, range: range) { match, _, _ in
             guard let match else { return }
             
             let hint = nsText.substring(with: match.range)

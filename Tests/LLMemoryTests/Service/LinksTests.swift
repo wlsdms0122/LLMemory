@@ -17,7 +17,6 @@ struct LinksTests {
     // MARK: - Property
     private let home: MemoryHome
     
-    private let links = Links()
 
     // MARK: - Initializer
     init() throws {
@@ -27,13 +26,13 @@ struct LinksTests {
     // MARK: - Test
     @Test("normalize is the one place endpoints are decided — self-loops drop, undirected kinds order")
     func normalizeIsTheSingleEndpointGate() {
-        #expect(links.normalize(src: "a", dst: "a", kind: Links.kindAssoc) == nil, "a self-loop must drop")
-        #expect(endpoints(of: links.normalize(src: "b", dst: "a", kind: Links.kindAssoc)) == ["a", "b"],
+        #expect(Links.normalize(src: "a", dst: "a", kind: Links.kindAssoc) == nil, "a self-loop must drop")
+        #expect(endpoints(of: Links.normalize(src: "b", dst: "a", kind: Links.kindAssoc)) == ["a", "b"],
             "an undirected assoc canonicalizes to src < dst")
-        #expect(endpoints(of: links.normalize(src: "b", dst: "a", kind: Links.kindCooccur)) == ["a", "b"])
-        #expect(endpoints(of: links.normalize(src: "a", dst: "b", kind: Links.kindCooccur)) == ["a", "b"],
+        #expect(endpoints(of: Links.normalize(src: "b", dst: "a", kind: Links.kindCooccur)) == ["a", "b"])
+        #expect(endpoints(of: Links.normalize(src: "a", dst: "b", kind: Links.kindCooccur)) == ["a", "b"],
             "an already-ordered pair is left alone")
-        #expect(endpoints(of: links.normalize(src: "b", dst: "a", kind: Links.kindReference)) == ["b", "a"],
+        #expect(endpoints(of: Links.normalize(src: "b", dst: "a", kind: Links.kindReference)) == ["b", "a"],
             "a directed reference keeps the direction it was given")
     }
     

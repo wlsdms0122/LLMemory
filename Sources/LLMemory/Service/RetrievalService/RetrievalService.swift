@@ -16,11 +16,7 @@ public struct RetrievalService: RetrievalServiceable {
     // MARK: - Property
     let storage: GRDBStorage
 
-    private let events = Events()
-
     private let detectors = Candidates()
-
-    private let environment = Environment()
 
     // MARK: - Initializer
     init(storage: GRDBStorage) {
@@ -38,7 +34,7 @@ public struct RetrievalService: RetrievalServiceable {
         excludeTags: [String],
         raw: Bool
     ) async throws -> (rows: [SearchRow], extra: [ExpandedNote]) {
-        let sessionId = environment.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try search(
                 scope,
@@ -64,7 +60,7 @@ public struct RetrievalService: RetrievalServiceable {
         cliSessionId: String,
         includeBodies: Bool
     ) async throws -> RelatedResult {
-        let sessionId = environment.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try related(
                 scope,
@@ -90,7 +86,7 @@ public struct RetrievalService: RetrievalServiceable {
         k: Int,
         cliSessionId: String
     ) async throws -> [NeighborScore] {
-        let sessionId = environment.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try neighbors(scope, id: id, k: k, sessionId: sessionId)
         }
@@ -163,7 +159,7 @@ public struct RetrievalService: RetrievalServiceable {
             activateIds: hitIds,
             strengthenPairs: cooccurrencePairs(hitIds),
             rebirthRanked: searchRanked(rows: rows, extra: extra),
-            payloadJSON: events.retrievalPayloadJSON(cmd: "search", payload: payload)
+            payloadJSON: Events.retrievalPayloadJSON(cmd: "search", payload: payload)
         )
 
         return (rows, extra, record)
@@ -195,7 +191,7 @@ public struct RetrievalService: RetrievalServiceable {
         let record = RetrievalRecord(
             sessionId: sessionId,
             rebirthRanked: relatedRanked(snapshot: snapshot),
-            payloadJSON: events.retrievalPayloadJSON(cmd: "related", payload: [
+            payloadJSON: Events.retrievalPayloadJSON(cmd: "related", payload: [
                 ("text", String(text.prefix(200))),
                 ("hit_ids", snapshot.similar.map { note in note.id }),
                 ("expand_ids", snapshot.linked.map { note in note.id })
@@ -214,7 +210,7 @@ public struct RetrievalService: RetrievalServiceable {
         let scores = try detectors.neighbors(scope, noteId: id, k: k)
         let record: RetrievalRecord? = scores.isEmpty ? nil : .init(
             sessionId: sessionId,
-            payloadJSON: events.retrievalPayloadJSON(cmd: "neighbors", payload: [
+            payloadJSON: Events.retrievalPayloadJSON(cmd: "neighbors", payload: [
                 ("anchor", id),
                 ("hit_ids", scores.map { score in score.id })
             ])

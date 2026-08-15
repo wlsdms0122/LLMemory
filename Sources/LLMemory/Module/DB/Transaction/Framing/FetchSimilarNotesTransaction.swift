@@ -17,8 +17,6 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
 
     private let search = Search()
 
-    private let framing = Framing()
-
     // MARK: - Initializer
     init(keywords: [String], limit: Int, includeStale: Bool = false, sessionId: String? = nil) {
         self.keywords = keywords
@@ -29,7 +27,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [SimilarNote] {
-        let matchExpr = framing.ftsQuery(keywords)
+        let matchExpr = Framing.ftsQuery(keywords)
 
         if matchExpr.isEmpty { return [] }
 

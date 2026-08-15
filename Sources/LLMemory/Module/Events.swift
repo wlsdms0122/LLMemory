@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct Events: Sendable {
+enum Events {
     // MARK: - Property
     static let kindCapture = "capture"
     static let kindConsolidation = "consolidation"
@@ -17,7 +17,7 @@ struct Events: Sendable {
 
     // MARK: - Initializer
     // MARK: - Public
-    func record(
+    static func record(
         _ db: Database,
         kind: String,
         payload: [String: Any?],
@@ -25,7 +25,7 @@ struct Events: Sendable {
         ts: Int? = nil
     ) {
         let timestamp = ts ?? Int(Date().timeIntervalSince1970)
-        let json = Self.serializePayload(payload)
+        let json = serializePayload(payload)
         
         var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId, payload: json)
         
@@ -34,7 +34,7 @@ struct Events: Sendable {
     
     // A lone event INSERT is a single atomic statement — it needs no cross-process
     // write lock, so callers outside a locked section pass the queue directly.
-    func record(
+    static func record(
         _ queue: any DatabaseWriter,
         kind: String,
         payload: [String: Any?],
@@ -46,7 +46,7 @@ struct Events: Sendable {
         }
     }
     
-    func record(
+    static func record(
         _ db: Database,
         kind: String,
         payloadJSON: String,
@@ -59,7 +59,7 @@ struct Events: Sendable {
         try? record.insert(db)
     }
 
-    func record(
+    static func record(
         _ queue: any DatabaseWriter,
         kind: String,
         payloadJSON: String,
@@ -76,12 +76,12 @@ struct Events: Sendable {
     
     // Pre-serialization for retrieval side effects derived on the read path and
     // applied later by a write transaction.
-    func retrievalPayloadJSON(cmd: String, payload: [(String, Any?)]) -> String {
+    static func retrievalPayloadJSON(cmd: String, payload: [(String, Any?)]) -> String {
         var fields: [String: Any?] = ["cmd": cmd]
         
         for (key, value) in payload { fields[key] = value }
         
-        return Self.serializePayload(fields)
+        return serializePayload(fields)
     }
     
     

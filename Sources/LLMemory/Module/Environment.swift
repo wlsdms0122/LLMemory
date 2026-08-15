@@ -7,8 +7,11 @@
 
 import Foundation
 
-struct Environment: Sendable {
-    func retrievalSession(cli: String? = nil) -> String? {
+enum Environment {
+    // MARK: - Property
+    // MARK: - Initializer
+    // MARK: - Public
+    static func retrievalSession(cli: String? = nil) -> String? {
         if let cli, !cli.isEmpty {
             return cli
         }
@@ -19,4 +22,6 @@ struct Environment: Sendable {
         
         return sessionID
     }
+
+    // MARK: - Private
 }

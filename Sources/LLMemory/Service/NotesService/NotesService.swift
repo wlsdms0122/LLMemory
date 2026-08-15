@@ -22,10 +22,6 @@ public struct NotesService: NotesServiceable {
 
     private let template = Template()
 
-    private let events = Events()
-
-    private let environment = Environment()
-
     // MARK: - Initializer
     init(storage: GRDBStorage, retrieval: any RetrievalServiceable) {
         self.storage = storage
@@ -37,7 +33,7 @@ public struct NotesService: NotesServiceable {
         ids: [String],
         cliSessionId: String
     ) async throws -> (found: [NoteView], missing: [String]) {
-        let sessionId = environment.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try get(scope, ids: ids, sessionId: sessionId)
         }
@@ -52,7 +48,7 @@ public struct NotesService: NotesServiceable {
         sections: [String],
         cliSessionId: String
     ) async throws -> (note: NoteView, slices: [SectionSlice]) {
-        let sessionId = environment.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try getSections(scope, id: id, sections: sections, sessionId: sessionId)
         }
@@ -67,7 +63,7 @@ public struct NotesService: NotesServiceable {
         budget: Int,
         cliSessionId: String
     ) async throws -> (note: NoteView, cut: BudgetCut) {
-        let sessionId = environment.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try getBudget(scope, id: id, budget: budget, sessionId: sessionId)
         }
@@ -81,7 +77,7 @@ public struct NotesService: NotesServiceable {
         id: String,
         cliSessionId: String
     ) async throws -> (note: NoteView, entries: [TocEntry]) {
-        let sessionId = environment.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in try toc(scope, id: id, sessionId: sessionId) }
 
         try await retrieval.applyRecord(outcome.record)
@@ -93,7 +89,7 @@ public struct NotesService: NotesServiceable {
         id: String,
         cliSessionId: String
     ) async throws -> (note: NoteView, frame: [TemplateFrameNode]) {
-        let sessionId = environment.retrievalSession(cli: cliSessionId)
+        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in try template(scope, id: id, sessionId: sessionId) }
 
         try await retrieval.applyRecord(outcome.record)
@@ -178,7 +174,7 @@ public struct NotesService: NotesServiceable {
 
         let record: RetrievalRecord? = found.isEmpty ? nil : .init(
             sessionId: sessionId,
-            payloadJSON: events.retrievalPayloadJSON(cmd: "get", payload: [
+            payloadJSON: Events.retrievalPayloadJSON(cmd: "get", payload: [
                 ("hit_ids", found.map { note in note.id })
             ])
         )

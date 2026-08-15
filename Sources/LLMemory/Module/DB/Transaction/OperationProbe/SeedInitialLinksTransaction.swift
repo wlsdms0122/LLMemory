@@ -13,8 +13,6 @@ struct SeedInitialLinksTransaction: GRDBTransaction {
     let nid: String
     let tags: [String]
 
-    private let links = Links()
-
     // MARK: - Initializer
     init(nid: String, tags: [String]) {
         self.nid = nid
@@ -51,7 +49,7 @@ struct SeedInitialLinksTransaction: GRDBTransaction {
             let shared: Int = row["shared"]
             let otherTotal: Int = row["other_total"] as Int? ?? 0
 
-            guard let (source, destination) = links.normalize(
+            guard let (source, destination) = Links.normalize(
                 src: nid,
                 dst: candidateId,
                 kind: kind

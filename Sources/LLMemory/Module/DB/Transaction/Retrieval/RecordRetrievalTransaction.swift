@@ -16,8 +16,6 @@ struct RecordRetrievalTransaction: GRDBTransaction {
     // MARK: - Property
     let record: RetrievalRecord
 
-    private let events = Events()
-
     // MARK: - Initializer
     init(_ record: RetrievalRecord) {
         self.record = record
@@ -55,7 +53,7 @@ struct RecordRetrievalTransaction: GRDBTransaction {
             }
         }
 
-        events.record(
+        Events.record(
             db,
             kind: Events.kindRetrieval,
             payloadJSON: record.payloadJSON,

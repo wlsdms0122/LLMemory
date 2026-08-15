@@ -12,8 +12,6 @@ struct FetchLinkNeighborRowsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let nid: String
 
-    private let links = Links()
-
     // MARK: - Initializer
     init(nid: String) {
         self.nid = nid
@@ -22,7 +20,7 @@ struct FetchLinkNeighborRowsTransaction: GRDBReadTransaction {
     // MARK: - Public
     func perform(_ db: Database) throws -> [NeighborRow] {
         try Row.fetchAll(db, sql: """
-            SELECT n.id, n.title, n.summary, SUM(\(links.rankWeightSQL("l"))) AS w
+            SELECT n.id, n.title, n.summary, SUM(\(Links.rankWeightSQL("l"))) AS w
             FROM (
               SELECT dst AS other, kind, weight FROM note_links WHERE src = ?
               UNION ALL

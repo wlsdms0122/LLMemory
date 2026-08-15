@@ -28,10 +28,6 @@ struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
     let linkKind: String?
     let sessionId: String?
 
-    private let framing = Framing()
-
-    private let noteText = NoteText()
-
     // MARK: - Initializer
     init(text: String, linkKind: String? = nil, sessionId: String? = nil) {
         self.text = text
@@ -43,8 +39,8 @@ struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
     func perform(_ db: Database) throws -> FramingSnapshot {
         let similarLimit = Genes.int("related.similar_limit")
         let expandHops = Genes.int("related.expand_hops")
-        let keywords = framing.extractKeywords(text)
-        let entityHints = noteText.extractEntityHints(text)
+        let keywords = Framing.extractKeywords(text)
+        let entityHints = NoteText.extractEntityHints(text)
         let similarNotes = try FetchSimilarNotesTransaction(
             keywords: keywords,
             limit: similarLimit,

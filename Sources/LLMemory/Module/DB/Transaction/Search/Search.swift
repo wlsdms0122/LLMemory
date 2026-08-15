@@ -30,7 +30,6 @@ public struct Search: Sendable {
                f.section AS section, MIN(rank) AS best_rank
         """
     
-    private let framing = Framing()
 
     // MARK: - Initializer
     // MARK: - Public
@@ -77,7 +76,7 @@ public struct Search: Sendable {
             return trimmed.isEmpty ? nil : trimmed
         }
         
-        let parts = framing.extractKeywords(query)
+        let parts = Framing.extractKeywords(query)
             .map { keyword in "\"\(keyword.replacingOccurrences(of: "\"", with: ""))\"" }
         
         return parts.isEmpty ? nil : parts.joined(separator: " OR ")

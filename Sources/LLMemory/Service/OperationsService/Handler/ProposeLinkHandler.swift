@@ -24,7 +24,6 @@ struct ProposeLinkHandler: OperationHandling {
     private let noteExistence = NoteExistence()
     private let number = PayloadNumber()
     
-    private let links = Links()
     
     // MARK: - Initializer
     // MARK: - Public
@@ -83,7 +82,7 @@ struct ProposeLinkHandler: OperationHandling {
         let ceiling = neighborFloor - 0.02
         let weight = min(ceiling, base + max(0, ceiling - base) * confidence)
         
-        guard let (source, destination) = links.normalize(src: src, dst: dst, kind: kind) else {
+        guard let (source, destination) = Links.normalize(src: src, dst: dst, kind: kind) else {
             return ["status": "ok", "ids": [], "note": "skipped self-loop \(src)"]
         }
         

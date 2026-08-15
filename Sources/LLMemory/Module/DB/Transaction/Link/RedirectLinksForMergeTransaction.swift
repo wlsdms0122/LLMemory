@@ -13,8 +13,6 @@ struct RedirectLinksForMergeTransaction: GRDBTransaction {
     let fromId: String
     let intoId: String
 
-    private let links = Links()
-
     // MARK: - Initializer
     init(fromId: String, intoId: String) {
         self.fromId = fromId
@@ -37,7 +35,7 @@ struct RedirectLinksForMergeTransaction: GRDBTransaction {
             let newSrc = (row["src"] as String) == fromId ? intoId : (row["src"] as String)
             let newDst = (row["dst"] as String) == fromId ? intoId : (row["dst"] as String)
 
-            guard let (source, destination) = links.normalize(
+            guard let (source, destination) = Links.normalize(
                 src: newSrc,
                 dst: newDst,
                 kind: kind

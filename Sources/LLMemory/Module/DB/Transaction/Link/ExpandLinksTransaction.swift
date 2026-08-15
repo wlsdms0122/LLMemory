@@ -16,8 +16,6 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
     let limit: Int
     let kind: String?
 
-    private let links = Links()
-
     // MARK: - Initializer
     init(
         noteIds: [String],
@@ -50,7 +48,7 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
                 .joined(separator: ",")
             var sql = """
                 SELECT n.id, n.title, n.summary, l.weight,
-                       \(links.rankWeightSQL("l")) AS rank_w
+                       \(Links.rankWeightSQL("l")) AS rank_w
                 FROM note_links l
                 JOIN notes n ON n.id = CASE WHEN l.src IN (\(placeholders)) THEN l.dst ELSE l.src END
                 WHERE (l.src IN (\(placeholders)) OR l.dst IN (\(placeholders)))
