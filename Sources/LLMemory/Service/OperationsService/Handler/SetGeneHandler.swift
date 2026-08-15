@@ -31,20 +31,15 @@ struct SetGeneHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> String? {
         let id = op["gene"] as? String ?? ""
-        
-        guard let definition = Genes.gene(id) else {
-            return "unknown gene: '\(id)' — see `genome list` for the catalog"
-        }
+        var value: Double?
         
         if let raw = op["value"], !(raw is NSNull) {
-            guard let value = number.value(of: raw) else { return "value must be numeric" }
+            guard let parsed = number.value(of: raw) else { return "value must be numeric" }
             
-            if value < definition.min || value > definition.max {
-                return "value \(value) is outside gene '\(id)' bounds [\(definition.min), \(definition.max)]"
-            }
+            value = parsed
         }
         
-        return nil
+        return Genes.rejection(id, value: value).map { rejection in rejection.description }
     }
     
     func write(

@@ -45,6 +45,7 @@ tool/
 tool/set-up.sh   # 최초 1회 (또는 document/ 수정 후)
 swift build
 swift test
+tool/lint-sql.py # SQL lint (LIMIT 전순서 · 게이트 술어 중복)
 ```
 
 의존성: GRDB(SQLite), swift-argument-parser, Yams. `note_vectors`(PPMI+SVD)는

@@ -119,6 +119,31 @@ public enum Genes {
             : "config"
     }
 
+    // Whether the catalog admits this value, answered once. Every caller
+    // that decides admissibility asks here — the write transaction, the op
+    // that must refuse with a sentence before writing, and the shadow replay
+    // that only borrows a value. Three copies of the same inequality drift
+    // one bound at a time, and the copy that drifts is the one that refuses.
+    static func rejection(
+        _ id: String,
+        value: Double?,
+        requireMutable: Bool = false
+    ) -> GenomeWriteError? {
+        guard let gene = gene(id) else { return .unknownGene(id) }
+
+        if requireMutable && !gene.mutable { return .locked(id) }
+
+        guard let value else { return nil }
+
+        guard value >= gene.min && value <= gene.max else {
+            return .outOfBounds(id, value, gene)
+        }
+
+        if gene.integer && value != value.rounded() { return .notInteger(id, value) }
+
+        return nil
+    }
+
     static func warm(_ values: [String: Double]) {
         cache = values
     }

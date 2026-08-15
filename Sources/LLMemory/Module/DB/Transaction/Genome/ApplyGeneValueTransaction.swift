@@ -13,10 +13,15 @@ import GRDB
 // the process cache is primed with what was just written.
 //
 // It is a transaction rather than a service call because every caller
-// already holds a scope and needs this inside their unit of work — an ops
-// batch that is rejected later must not leave a gene changed. A service
-// method taking a scope would say the same thing while pretending the
-// work belongs a tier up.
+// already holds a scope and needs the *row* inside their unit of work — an
+// ops batch that is rejected later must not leave a gene changed. A service
+// method taking a scope would say the same thing while pretending the work
+// belongs a tier up.
+//
+// The cache prime is the one part that does not roll back: later ops in the
+// same batch have to read what this one wrote, so the value is published
+// before the outcome is known, and whoever owns the unit of work repairs it
+// on failure (OperationsEngine rewarms at its single exit).
 struct ApplyGeneValueTransaction: GRDBTransaction {
     // MARK: - Property
     let geneId: String
@@ -46,21 +51,11 @@ struct ApplyGeneValueTransaction: GRDBTransaction {
     // MARK: - Public
     @discardableResult
     func perform(_ db: Database) throws -> (old: Double, new: Double) {
-        guard let gene = Genes.gene(geneId) else {
-            throw GenomeWriteError.unknownGene(geneId)
+        if let rejection = Genes.rejection(geneId, value: value, requireMutable: requireMutable) {
+            throw rejection
         }
 
-        if requireMutable && !gene.mutable {
-            throw GenomeWriteError.locked(geneId)
-        }
-
-        guard value >= gene.min && value <= gene.max else {
-            throw GenomeWriteError.outOfBounds(geneId, value, gene)
-        }
-
-        if gene.integer && value != value.rounded() {
-            throw GenomeWriteError.notInteger(geneId, value)
-        }
+        guard let gene = Genes.gene(geneId) else { throw GenomeWriteError.unknownGene(geneId) }
 
         let old = Genes.cached(geneId) ?? Config.getDouble(geneId, default: gene.wildType)
 

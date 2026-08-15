@@ -27,9 +27,9 @@ struct RevertGeneValueTransaction: GRDBTransaction {
     // MARK: - Public
     @discardableResult
     func perform(_ db: Database) throws -> Double {
-        guard let gene = Genes.gene(geneId) else {
-            throw GenomeWriteError.unknownGene(geneId)
-        }
+        if let rejection = Genes.rejection(geneId, value: nil) { throw rejection }
+
+        guard let gene = Genes.gene(geneId) else { throw GenomeWriteError.unknownGene(geneId) }
 
         let old = Genes.cached(geneId) ?? Config.getDouble(geneId, default: gene.wildType)
 

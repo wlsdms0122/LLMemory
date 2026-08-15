@@ -8,10 +8,13 @@
 import Foundation
 import Storage
 
-// Genome-domain service — owns the plasticity-parameter rules (bounds,
-// mutability, integer genes) and the observation surfaces. DB touches ride
-// genome transactions; the code-owned catalog and value cache live in the
-// Genome module.
+// Genome-domain service — the observation surfaces: the catalog with this
+// brain's values, the provenance of every mutation, and offline reranking
+// under a candidate value.
+//
+// It does not own the plasticity rules. What a gene admits is the catalog's
+// (Genes.rejection), and writing a value is a transaction — both live in the
+// module, where the callers that need them already are.
 public struct GenomeService: GenomeServiceable {
     // MARK: - Property
     let storage: GRDBStorage
@@ -81,13 +84,7 @@ public struct GenomeService: GenomeServiceable {
         limit: Int,
         sampleDiffs: Int
     ) throws -> GenomeShadowResult {
-        guard let definition = Genes.gene(gene) else {
-            throw GenomeWriteError.unknownGene(gene)
-        }
-
-        guard value >= definition.min && value <= definition.max else {
-            throw GenomeWriteError.outOfBounds(gene, value, definition)
-        }
+        if let rejection = Genes.rejection(gene, value: value) { throw rejection }
 
         let baselineValue = Genes.double(gene)
         let logged = try scope.run(FetchLoggedRetrievalQueriesTransaction(limit: limit))
