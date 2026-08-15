@@ -102,60 +102,6 @@ struct NoteArtifactsInvariantTests {
         }
     }
     
-    // Parked. This invariant reads the source text of NoteArtifacts.swift and uses the
-    // `// MARK: rebuild` comment as a section boundary — a check hanging off a comment, which one
-    // tidy-up was enough to break. What it looks for is worth keeping (a new column on a reconciled
-    // table going unhandled in absorbForMerge), so restore it once it derives that from the schema
-    // or the code rather than from the prose around them.
-    @Test(.disabled("parses source text — restore after the redesign"))
-    func absorbForMergeNamesEveryColumnOfReconciledTables() throws {
-        // Given
-        let reconciled = ["note_usage", "note_retrieval_terms", "ripple_flags", "candidate_dismissals"]
-        let memory = try DatabaseQueue()
-        let columnsOf: [String: [String]] = try memory.write { db in
-            try db.execute(sql: "PRAGMA foreign_keys = OFF")
-            try db.execute(sql: Migration1.schema)
-            
-            var columns: [String: [String]] = [:]
-            
-            for table in reconciled {
-                let rows = try Row.fetchAll(db, sql: "PRAGMA table_info(\(table))")
-                
-                columns[table] = rows.map { row in row["name"] as String }
-            }
-            
-            return columns
-        }
-        
-        let source = PackageSource().file("Sources/LLMemory/Service/NoteArtifacts.swift")
-        let text = try String(contentsOf: source, encoding: .utf8)
-        
-        guard let start = text.range(of: "static func absorbForMerge"),
-            let end = text.range(of: "// MARK: rebuild") else {
-            Issue.record("absorbForMerge region markers not found")
-            
-            return
-        }
-        
-        let region = String(text[start.lowerBound..<end.lowerBound])
-        
-        var missing: [String] = []
-        
-        // When
-        for table in reconciled {
-            for column in columnsOf[table] ?? [] where column != "note_id" && !region.contains(column) {
-                missing.append("\(table).\(column)")
-            }
-        }
-        
-        // Then
-        #expect(missing.isEmpty, """
-            absorbForMerge does not reference a column of a reconciled table — for a new column, \
-            decide what merging it means (sum, max, pick a winner, inherit) and put that in the SQL: \
-            \(missing)
-            """)
-    }
-    
     @Test("a rebuild preserves every artifact declared as preserved")
     func rebuildPreservesEveryPreservedTable() throws {
         // When
