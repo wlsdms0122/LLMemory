@@ -76,8 +76,12 @@ Module 안쪽의 방향은 규정하지 않는다 — `Module/Lint` 가 `Module/
   산다 — DB 의 표현력은 DB 모듈 안에 있고, 위로 나가는 것은 매핑된 결과 타입뿐이다.
 - **필수 필드**는 `OperationSchema` 에만 선언한다. 핸들러가 다시 검사하면 규칙의 사본이 생기고,
   사본은 표류한다(`missingRequiredField(` 는 스키마/엔진의 것).
-- `notes_fts` 쓰기는 `ReindexNoteFTSTransaction` 한 곳. 두 번째 writer 는 인덱스 행이
-  무엇인가에 대한 두 번째 정의다.
+- **인덱스 행의 *정의*(`INSERT INTO notes_fts`)는 `ReindexNoteFTSTransaction` 한 곳.**
+  두 번째 INSERT 는 "행이 무엇인가"에 대한 두 번째 정의다. 삭제는 소유 트랜잭션이 하고
+  (`DeleteNoteRowTransaction`, `ClearNoteFTSTransaction`, `PruneFtsOrphansTransaction`,
+  rebuild), `enrich` 갱신은 `SyncNoteEnrichTransaction` 이 정본이다 —
+  `ValidatePendingTermsTransaction` 의 `UPDATE … SET enrich` 두 개는 IDF 측정용 임시
+  probe/restore 쌍이라 정의가 아니다.
 - 소스 재기준선(`RebaseNoteSourceTransaction` / `InheritSourceObservationTransaction`)은 ops
   핸들러와 Source 트랜잭션들만. 읽기 경로는 관측만 하고 판단하지 않는다.
 
@@ -97,6 +101,7 @@ tool/lint-sql.py
 - `LIMIT` 로 자르는 쿼리는 유니크 컬럼으로 전순서를 만든다. 아니면 살아남는 행은 SQLite 가
   먼저 닿은 것이 된다.
 - 게이트 술어는 `Policy` 밖에 손으로 쓰지 않는다 (§5).
+- `INSERT INTO notes_fts` 는 `ReindexNoteFTSTransaction` 밖에 없다 (§5).
 
 **왜 얘들만 도구인가**: 검사 대상이 코드의 *모양* 이 아니라 SQLite 에 실제로 가는 **문자열**
 이다. 그리고 행위 테스트로는 원리상 안 잡힌다 — 틀린 WHERE 절은 예외를 던지지 않고 그냥

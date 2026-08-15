@@ -107,8 +107,7 @@ public struct GenomeService: GenomeServiceable {
             default:
                 let snapshot = try scope.run(
                     BuildFramingSnapshotTransaction(
-                        userInput: loggedQuery.text,
-                        agentOutput: "",
+                        text: loggedQuery.text,
                         sessionId: loggedQuery.sessionId
                     )
                 )

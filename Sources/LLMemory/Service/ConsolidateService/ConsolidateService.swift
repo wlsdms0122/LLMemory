@@ -25,14 +25,12 @@ public struct ConsolidateService: ConsolidateServiceable {
     public var candidateValidKinds: [String] { Candidates.validKinds }
 
     let storage: GRDBStorage
-    let genome: any GenomeServiceable
 
     private let detectors = Candidates()
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, genome: any GenomeServiceable) {
+    init(storage: GRDBStorage) {
         self.storage = storage
-        self.genome = genome
     }
 
     // MARK: - Public

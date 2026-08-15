@@ -64,7 +64,7 @@ extension BrainHome {
     }
 
     var consolidateService: ConsolidateService {
-        ConsolidateService(storage: storage, genome: genomeService)
+        ConsolidateService(storage: storage)
     }
 
     var operationsEngine: OperationsEngine { OperationsEngine(lint: lintScanner) }

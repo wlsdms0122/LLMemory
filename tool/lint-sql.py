@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """SQL lint over the package sources.
 
-Two checks that read SQL, not code shape — which is why they are a lint and
+Three checks that read SQL, not code shape — which is why they are a lint and
 not a unit test. Both look at the string that reaches SQLite:
 
   cut       a LIMIT with no total order returns an arbitrary member of a tie,
             so the same query stops having the same answer.
   predicate a gate predicate spelled out in a query instead of composed from
             Policy drifts from the others one query at a time.
+  fts       a second INSERT into notes_fts is a second definition of what an
+            index row is.
 
 Neither can be a behavioural test: a wrong WHERE clause raises nothing, it
 returns different rows, so there is no red to go green.
@@ -42,6 +44,9 @@ GATE_PREDICATES = re.compile(
 )
 
 POLICY_OWNER = "Sources/LLMemory/Module/DB/Policy.swift"
+
+FTS_INSERT = "INSERT INTO notes_fts"
+FTS_OWNER = "Sources/LLMemory/Module/DB/Transaction/Note/ReindexNoteFTSTransaction.swift"
 
 TRIPLE_QUOTED = re.compile(r'"""(.*?)"""', re.DOTALL)
 
@@ -183,6 +188,24 @@ def predicate_findings(root):
     return findings
 
 
+def fts_findings(root):
+    """Only the INSERT — deletes belong to whoever owns the row being removed."""
+    findings = []
+
+    for path in swift_files(root):
+        relative = os.path.relpath(path, root)
+
+        if relative == FTS_OWNER:
+            continue
+
+        with open(path, encoding="utf-8") as handle:
+            for offset, line in enumerate(handle):
+                if FTS_INSERT in line.split("//")[0]:
+                    findings.append(f"{relative}:{offset + 1}  {line.strip()}")
+
+    return findings
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -193,6 +216,7 @@ def main():
 
     cut = cut_findings(root)
     predicate = predicate_findings(root)
+    fts = fts_findings(root)
 
     if cut:
         print("LIMIT cut with no total order — the row that survives the cut is")
@@ -206,7 +230,13 @@ def main():
         print("\n".join(f"  {finding}" for finding in predicate))
         print()
 
-    if cut or predicate:
+    if fts:
+        print("INSERT INTO notes_fts outside ReindexNoteFTSTransaction — a second")
+        print("insert is a second definition of what an index row is:\n")
+        print("\n".join(f"  {finding}" for finding in fts))
+        print()
+
+    if cut or predicate or fts:
         return 1
 
     print("sql lint: clean")

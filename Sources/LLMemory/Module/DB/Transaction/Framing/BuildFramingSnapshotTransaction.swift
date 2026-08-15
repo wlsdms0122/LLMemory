@@ -14,14 +14,17 @@ import GRDB
 //
 // It is a transaction because that is all it ever was: seven fetches whose
 // answers must come from the same snapshot, with keyword extraction in
-// front. Expansions degrade rather than fail, so a missing vector index
-// costs the caller its extra hits and nothing else.
+// front — extraction is part of assembling the snapshot, not something a
+// caller hands in. Expansions degrade rather than fail, so a missing vector
+// index costs the caller its extra hits and nothing else.
+//
+// The limits are read from the gene catalog here and nowhere else. A
+// parameter beside them would give "which limit did this replay use?" two
+// answers, and the shadow replay (which swaps a gene value and re-runs) is
+// exactly the caller that would make the two disagree.
 struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
     // MARK: - Property
-    let userInput: String
-    let agentOutput: String
-    let similarLimit: Int?
-    let expandHops: Int?
+    let text: String
     let linkKind: String?
     let sessionId: String?
 
@@ -30,27 +33,16 @@ struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
     private let noteText = NoteText()
 
     // MARK: - Initializer
-    init(
-        userInput: String,
-        agentOutput: String,
-        similarLimit: Int? = nil,
-        expandHops: Int? = nil,
-        linkKind: String? = nil,
-        sessionId: String? = nil
-    ) {
-        self.userInput = userInput
-        self.agentOutput = agentOutput
-        self.similarLimit = similarLimit
-        self.expandHops = expandHops
+    init(text: String, linkKind: String? = nil, sessionId: String? = nil) {
+        self.text = text
         self.linkKind = linkKind
         self.sessionId = sessionId
     }
 
     // MARK: - Public
     func perform(_ db: Database) throws -> FramingSnapshot {
-        let similarLimit = similarLimit ?? Genes.int("related.similar_limit")
-        let expandHops = expandHops ?? Genes.int("related.expand_hops")
-        let text = "\(userInput)\n\(agentOutput)"
+        let similarLimit = Genes.int("related.similar_limit")
+        let expandHops = Genes.int("related.expand_hops")
         let keywords = framing.extractKeywords(text)
         let entityHints = noteText.extractEntityHints(text)
         let similarNotes = try FetchSimilarNotesTransaction(

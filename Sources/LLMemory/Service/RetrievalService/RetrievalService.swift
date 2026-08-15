@@ -16,11 +16,7 @@ public struct RetrievalService: RetrievalServiceable {
     // MARK: - Property
     let storage: GRDBStorage
 
-    private let noteText = NoteText()
-
     private let events = Events()
-
-    private let framing = Framing()
 
     private let detectors = Candidates()
 
@@ -181,12 +177,7 @@ public struct RetrievalService: RetrievalServiceable {
         includeBodies: Bool
     ) throws -> (result: RelatedResult, record: RetrievalRecord) {
         let snapshot = try scope.run(
-            BuildFramingSnapshotTransaction(
-                userInput: text,
-                agentOutput: "",
-                linkKind: kind,
-                sessionId: sessionId
-            )
+            BuildFramingSnapshotTransaction(text: text, linkKind: kind, sessionId: sessionId)
         )
 
         var bodies: [String: String] = [:]

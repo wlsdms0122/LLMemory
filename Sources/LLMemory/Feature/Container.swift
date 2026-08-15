@@ -44,7 +44,7 @@ struct Container: Sendable {
         self.stats = StatsService(storage: storage)
         self.lint = lint
         self.enrichment = EnrichmentService(storage: storage)
-        self.consolidate = ConsolidateService(storage: storage, genome: genome)
+        self.consolidate = ConsolidateService(storage: storage)
         self.index = IndexService(storage: storage)
         self.genome = genome
         self.operations = OperationsService(
