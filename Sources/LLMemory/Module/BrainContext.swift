@@ -37,11 +37,10 @@ public final class BrainContext: @unchecked Sendable {
 
     let home: URL
 
-    // The parameter caches — mutated only under an explicit binding that also
-    // holds a storage gate (write scope, writeLock, or the warm/repair
-    // loaders); read scopes may read but never mutate.
+    // The parameter caches — replaced wholesale by the committed-state loader
+    // at boot and at the end of every write scope. Nothing else writes them,
+    // which is what keeps them behind committed state rather than ahead of it.
     var configCache: [String: String] = [:]
-    var configWarmed = false
     var genesCache: [String: Double] = [:]
 
     // MARK: - Initializer

@@ -20,11 +20,6 @@ enum Config {
         get { BrainContext.resolved.configCache }
         set { BrainContext.resolved.configCache = newValue }
     }
-    private static var warmed: Bool {
-        get { BrainContext.resolved.configWarmed }
-        set { BrainContext.resolved.configWarmed = newValue }
-    }
-    
     // MARK: - Initializer
     // MARK: - Public
     static func getInt(_ key: String, default defaultValue: Int) -> Int {
@@ -49,19 +44,16 @@ enum Config {
         return ["1", "true", "yes"].contains(raw.lowercased())
     }
     
+    // Teardown, not maintenance: drops both caches so a fixture's values do
+    // not outlive its brain. Nothing on the live path clears a cache — a cache
+    // that follows committed state is replaced by the next load, never emptied
+    // in between.
     static func invalidateCache() {
         cache.removeAll()
-        warmed = false
         Genes.invalidateCache()
     }
 
-    // The binding norm: cache APIs reachable from outside a scope take the
-    // storage and bind its context themselves; the ambient variants above
-    // assume an already-bound scope.
-    static func invalidateCache(_ storage: GRDBStorage) {
-        storage.context.bind { invalidateCache() }
-    }
-    
+
     // Re-read the caches from committed state. Run at boot and at the end of
     // every write scope, which is what keeps "the process holds what the
     // database holds" true rather than aspirational.
@@ -84,26 +76,15 @@ enum Config {
         return (value ?? nil) ?? defaultValue
     }
 
+    // Writes the row and only the row. A caller that must read a value it is
+    // itself writing reads the row too (getStringTx) — the cache catches up
+    // when the scope commits.
     static func set(_ key: String, value: Any, txDB db: Database) throws {
-        let stringValue = "\(value)"
-
-        try MetaRecord(key: prefix + key, value: stringValue).upsert(db)
-
-        cache[prefix + key] = stringValue
+        try MetaRecord(key: prefix + key, value: "\(value)").upsert(db)
     }
     
     static func cacheOverrideForTesting(_ key: String, value: String) {
         cache[prefix + key] = value
-    }
-    
-    static func allKeys() -> [String: String] {
-        var values: [String: String] = [:]
-        
-        for (key, value) in cache where value != nilSentinel {
-            values[String(key.dropFirst(prefix.count))] = value
-        }
-        
-        return values
     }
     
     // MARK: - Private
@@ -126,7 +107,6 @@ enum Config {
         }
 
         cache = fresh
-        warmed = true
 
         Genes.warm(genomeValues)
     }

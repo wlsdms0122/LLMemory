@@ -46,7 +46,6 @@ public final class Session {
             context: context
         )
 
-        Config.invalidateCache(storage)
         Config.reloadCommitted(storage)
     }
 
@@ -55,7 +54,6 @@ public final class Session {
     // database first comes into existence or migrates (init/update), since the
     // constructor may have warmed against a database that was not there yet.
     public func rewarm() {
-        Config.invalidateCache(storage)
         Config.reloadCommitted(storage)
     }
 
