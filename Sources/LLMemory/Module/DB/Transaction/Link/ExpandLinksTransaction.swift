@@ -18,8 +18,6 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
 
     private let links = Links()
 
-    private let policy = Policy()
-
     // MARK: - Initializer
     init(
         noteIds: [String],
@@ -57,7 +55,7 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
                 JOIN notes n ON n.id = CASE WHEN l.src IN (\(placeholders)) THEN l.dst ELSE l.src END
                 WHERE (l.src IN (\(placeholders)) OR l.dst IN (\(placeholders)))
                   AND l.weight >= ?
-                  AND \(policy.surface())
+                  AND \(Policy.surface())
                 """
             var arguments: [DatabaseValueConvertible?] = []
             arguments.append(contentsOf: frontierIds as [DatabaseValueConvertible?])

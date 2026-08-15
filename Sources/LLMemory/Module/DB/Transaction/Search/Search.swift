@@ -32,8 +32,6 @@ public struct Search: Sendable {
     
     private let framing = Framing()
 
-    private let policy = Policy()
-
     // MARK: - Initializer
     // MARK: - Public
     // The one place that decides what "this note carries this tag" means in SQL.
@@ -117,7 +115,7 @@ public struct Search: Sendable {
     
     // MARK: - Private
     func staleClause(_ includeStale: Bool) -> String {
-        includeStale ? "" : " AND \(policy.fresh())"
+        includeStale ? "" : " AND \(Policy.fresh())"
     }
     
     func fetchRows(

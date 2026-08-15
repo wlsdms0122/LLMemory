@@ -19,8 +19,6 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
 
     private let framing = Framing()
 
-    private let policy = Policy()
-
     // MARK: - Initializer
     init(keywords: [String], limit: Int, includeStale: Bool = false, sessionId: String? = nil) {
         self.keywords = keywords
@@ -45,7 +43,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
         var arguments: [DatabaseValueConvertible?] = [matchExpr]
 
         if !includeStale {
-            sql += " AND \(policy.fresh())"
+            sql += " AND \(Policy.fresh())"
         }
 
         let now = Int(Date().timeIntervalSince1970)

@@ -11,8 +11,6 @@ import GRDB
 // Cluster substrate — surfaced, forget-exempt link and entity co-mention
 // edges.
 struct FetchClusterEdgesTransaction: GRDBReadTransaction {
-    private let policy = Policy()
-
     // MARK: - Initializer
     init() { }
 
@@ -24,8 +22,8 @@ struct FetchClusterEdgesTransaction: GRDBReadTransaction {
             SELECT src, dst FROM note_links nl
             JOIN notes a ON a.id = nl.src
             JOIN notes b ON b.id = nl.dst
-            WHERE \(policy.all(policy.surface("a"), policy.forgetExempt("a")))
-              AND \(policy.all(policy.surface("b"), policy.forgetExempt("b")))
+            WHERE \(Policy.all(Policy.surface("a"), Policy.forgetExempt("a")))
+              AND \(Policy.all(Policy.surface("b"), Policy.forgetExempt("b")))
             """) {
             edges.append((row["src"], row["dst"]))
         }
@@ -36,8 +34,8 @@ struct FetchClusterEdgesTransaction: GRDBReadTransaction {
               ON e1.entity = e2.entity AND e1.note_id < e2.note_id
             JOIN notes na ON na.id = e1.note_id
             JOIN notes nb ON nb.id = e2.note_id
-            WHERE \(policy.all(policy.surface("na"), policy.forgetExempt("na")))
-              AND \(policy.all(policy.surface("nb"), policy.forgetExempt("nb")))
+            WHERE \(Policy.all(Policy.surface("na"), Policy.forgetExempt("na")))
+              AND \(Policy.all(Policy.surface("nb"), Policy.forgetExempt("nb")))
             GROUP BY e1.note_id, e2.note_id
             """) {
             edges.append((row["a"], row["b"]))

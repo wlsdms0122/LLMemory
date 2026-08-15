@@ -26,8 +26,6 @@ struct FetchFlaggedRowsTransaction: GRDBReadTransaction {
     let flag: String
     let limit: Int
 
-    private let policy = Policy()
-
     // MARK: - Initializer
     init(flag: String, limit: Int) {
         self.flag = flag
@@ -41,7 +39,7 @@ struct FetchFlaggedRowsTransaction: GRDBReadTransaction {
             FROM ripple_flags r
             JOIN notes n ON n.id = r.note_id
             WHERE r.flag = ? AND r.resolved_at IS NULL
-              AND \(policy.surface())
+              AND \(Policy.surface())
             ORDER BY r.created_at ASC, r.note_id ASC
             LIMIT ?
             """, arguments: [flag, limit]).map { row in

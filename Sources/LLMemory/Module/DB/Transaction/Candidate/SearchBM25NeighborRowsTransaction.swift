@@ -14,8 +14,6 @@ struct SearchBM25NeighborRowsTransaction: GRDBReadTransaction {
     let excludeId: String
     let limit: Int
 
-    private let policy = Policy()
-
     // MARK: - Initializer
     init(matchExpr: String, excludeId: String, limit: Int) {
         self.matchExpr = matchExpr
@@ -28,7 +26,7 @@ struct SearchBM25NeighborRowsTransaction: GRDBReadTransaction {
         try Row.fetchAll(db, sql: """
             SELECT n.id AS id, MIN(rank) AS s
             FROM notes_fts f JOIN notes n ON n.id = f.id
-            WHERE notes_fts MATCH ? AND n.id != ? AND \(policy.all(policy.surface(), policy.notEager()))
+            WHERE notes_fts MATCH ? AND n.id != ? AND \(Policy.all(Policy.surface(), Policy.notEager()))
             GROUP BY n.id
             ORDER BY s, n.id LIMIT ?
             """, arguments: [matchExpr, excludeId, limit]).map { row in

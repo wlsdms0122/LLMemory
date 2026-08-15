@@ -17,8 +17,6 @@ struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
 
     private let links = Links()
 
-    private let policy = Policy()
-
     // MARK: - Initializer
     init(noteId: String, minWeight: Double? = nil, limit: Int = 5, kind: String? = nil) {
         self.noteId = noteId
@@ -36,7 +34,7 @@ struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
             FROM note_links l
             JOIN notes n ON n.id = CASE WHEN l.src = ? THEN l.dst ELSE l.src END
             WHERE (l.src = ? OR l.dst = ?) AND l.weight >= ?
-              AND \(policy.surface())
+              AND \(Policy.surface())
             """
         var arguments: [DatabaseValueConvertible?] = [noteId, noteId, noteId, floor]
 

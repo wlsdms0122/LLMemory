@@ -14,8 +14,6 @@ struct FetchLinkNeighborRowsTransaction: GRDBReadTransaction {
 
     private let links = Links()
 
-    private let policy = Policy()
-
     // MARK: - Initializer
     init(nid: String) {
         self.nid = nid
@@ -31,7 +29,7 @@ struct FetchLinkNeighborRowsTransaction: GRDBReadTransaction {
               SELECT src AS other, kind, weight FROM note_links WHERE dst = ?
             ) l
             JOIN notes n ON n.id = l.other
-            WHERE \(policy.surface())
+            WHERE \(Policy.surface())
             GROUP BY n.id ORDER BY w DESC, n.id LIMIT 30
             """, arguments: [nid, nid]).map { row in
             NeighborRow(

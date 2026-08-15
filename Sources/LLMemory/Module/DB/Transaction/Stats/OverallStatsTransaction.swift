@@ -9,8 +9,6 @@ import Foundation
 import GRDB
 
 struct OverallStatsTransaction: GRDBReadTransaction {
-    private let policy = Policy()
-
     // MARK: - Initializer
     init() { }
 
@@ -19,7 +17,7 @@ struct OverallStatsTransaction: GRDBReadTransaction {
         let total = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM notes") ?? 0
         let stale = try Int.fetchOne(
             db,
-            sql: "SELECT COUNT(*) FROM notes WHERE \(policy.stale(""))"
+            sql: "SELECT COUNT(*) FROM notes WHERE \(Policy.stale(""))"
         ) ?? 0
         let tree = try FetchTreeTransaction().perform(db)
         let hitRow = try Row.fetchOne(db, sql: """

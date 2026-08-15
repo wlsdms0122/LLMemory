@@ -11,8 +11,6 @@ import GRDB
 struct BuildVectorsTransaction: GRDBTransaction {
     private let vectorMath = VectorMath()
 
-    private let policy = Policy()
-
     // MARK: - Initializer
     init() { }
 
@@ -22,7 +20,7 @@ struct BuildVectorsTransaction: GRDBTransaction {
         let now = Int(Date().timeIntervalSince1970)
         let noteIds = try String.fetchAll(
             db,
-            sql: "SELECT id FROM notes WHERE \(policy.surface("")) ORDER BY id"
+            sql: "SELECT id FROM notes WHERE \(Policy.surface("")) ORDER BY id"
         )
         let noteCount = noteIds.count
 
