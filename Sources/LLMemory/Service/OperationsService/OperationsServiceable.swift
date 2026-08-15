@@ -18,12 +18,12 @@ import Foundation
 protocol OperationsServiceable: Sendable {
     func apply(
         payloadJSON: String,
-        sessionId: String?
+        sessionId: SessionId?
     ) async -> OperationsResult
     
     func dryRun(
         payloadJSON: String,
-        sessionId: String?
+        sessionId: SessionId?
     ) async -> OperationsDryRunResult
     
     func operationNames() -> [String]

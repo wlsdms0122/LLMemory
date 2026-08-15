@@ -21,13 +21,13 @@ enum Events {
         _ db: Database,
         kind: String,
         payload: [String: Any?],
-        sessionId: String? = nil,
+        sessionId: SessionId? = nil,
         ts: Int? = nil
     ) {
         let timestamp = ts ?? Int(Date().timeIntervalSince1970)
         let json = serializePayload(payload)
         
-        var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId, payload: json)
+        var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId?.rawValue, payload: json)
         
         try? record.insert(db)
     }
@@ -38,7 +38,7 @@ enum Events {
         _ queue: any DatabaseWriter,
         kind: String,
         payload: [String: Any?],
-        sessionId: String? = nil,
+        sessionId: SessionId? = nil,
         ts: Int? = nil
     ) {
         try? queue.write { db in
@@ -50,11 +50,11 @@ enum Events {
         _ db: Database,
         kind: String,
         payloadJSON: String,
-        sessionId: String? = nil,
+        sessionId: SessionId? = nil,
         ts: Int? = nil
     ) {
         let timestamp = ts ?? Int(Date().timeIntervalSince1970)
-        var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId, payload: payloadJSON)
+        var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId?.rawValue, payload: payloadJSON)
 
         try? record.insert(db)
     }
@@ -63,11 +63,11 @@ enum Events {
         _ queue: any DatabaseWriter,
         kind: String,
         payloadJSON: String,
-        sessionId: String? = nil,
+        sessionId: SessionId? = nil,
         ts: Int? = nil
     ) {
         let timestamp = ts ?? Int(Date().timeIntervalSince1970)
-        var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId, payload: payloadJSON)
+        var record = EventRecord(ts: timestamp, kind: kind, sessionId: sessionId?.rawValue, payload: payloadJSON)
         
         try? queue.write { db in
             try record.insert(db)

@@ -15,11 +15,11 @@ struct RecordEventTransaction: GRDBTransaction {
     // MARK: - Property
     let kind: String
     let payloadJSON: String
-    let sessionId: String?
+    let sessionId: SessionId?
     let ts: Int?
 
     // MARK: - Initializer
-    init(kind: String, payload: [String: Any?], sessionId: String? = nil, ts: Int? = nil) {
+    init(kind: String, payload: [String: Any?], sessionId: SessionId? = nil, ts: Int? = nil) {
         self.init(
             kind: kind,
             payloadJSON: Events.serializePayload(payload),
@@ -28,7 +28,7 @@ struct RecordEventTransaction: GRDBTransaction {
         )
     }
 
-    init(kind: String, payloadJSON: String, sessionId: String? = nil, ts: Int? = nil) {
+    init(kind: String, payloadJSON: String, sessionId: SessionId? = nil, ts: Int? = nil) {
         self.kind = kind
         self.payloadJSON = payloadJSON
         self.sessionId = sessionId

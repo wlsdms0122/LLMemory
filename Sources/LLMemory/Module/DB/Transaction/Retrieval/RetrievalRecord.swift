@@ -43,7 +43,7 @@ public struct RetrievalRecord: Sendable {
     }
 
     // MARK: - Property
-    public let sessionId: String?
+    public let sessionId: SessionId?
     public let activateIds: [String]
     public let strengthenPairs: [Pair]
     public let rebirthRanked: [Ranked]
@@ -51,7 +51,7 @@ public struct RetrievalRecord: Sendable {
 
     // MARK: - Initializer
     init(
-        sessionId: String?,
+        sessionId: SessionId?,
         activateIds: [String] = [],
         strengthenPairs: [Pair] = [],
         rebirthRanked: [Ranked] = [],

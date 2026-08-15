@@ -18,7 +18,7 @@ extension OperationsEngine {
     static func apply(
         _ storage: GRDBStorage,
         _ payload: [String: Any],
-        sessionId: String? = nil
+        sessionId: SessionId? = nil
     ) -> OperationsResult {
         do {
             let json = try Self.encodePayload(payload)

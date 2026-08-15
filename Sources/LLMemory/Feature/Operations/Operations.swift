@@ -19,7 +19,7 @@ public struct Operations {
     // MARK: - Public
     public func apply(
         payloadJSON: String,
-        sessionId: String? = nil
+        sessionId: SessionId? = nil
     ) async -> OperationsResult {
         await service.apply(
             payloadJSON: payloadJSON,
@@ -29,7 +29,7 @@ public struct Operations {
 
     public func dryRun(
         payloadJSON: String,
-        sessionId: String? = nil
+        sessionId: SessionId? = nil
     ) async -> OperationsDryRunResult {
         await service.dryRun(
             payloadJSON: payloadJSON,

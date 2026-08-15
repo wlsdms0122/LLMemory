@@ -41,12 +41,12 @@ struct MarkUsedHandler: OperationHandling {
         let cutoff = context.now - Activation.usedLookbackSec
         let label = context.sessionId
         let surfaced = try scope.run(
-            NotesSurfacedRecentlyTransaction(noteIds: ids, cutoff: cutoff, label: label)
+            NotesSurfacedRecentlyTransaction(noteIds: ids, cutoff: cutoff, label: label?.rawValue)
         )
         
         if let missing = ids.first(where: { id in !surfaced.contains(id) }) {
             return "note '\(missing)' was not surfaced in any recent activity window"
-                + ((label?.isEmpty == false) ? " of session '\(label!)'" : "")
+                + (label.map { session in " of session '\(session.rawValue)'" } ?? "")
                 + " (lookback \(Activation.usedLookbackSec)s) — cannot mark unobserved usage"
         }
         
@@ -70,7 +70,7 @@ struct MarkUsedHandler: OperationHandling {
         let outcomes = try scope.run(MarkNotesUsedTransaction(
             ids: ids,
             response: op["response"] as? String,
-            sessionLabel: context.sessionId,
+            sessionLabel: context.sessionId?.rawValue,
             now: context.now
         ))
         let marked = outcomes.filter { outcome in outcome.matched }

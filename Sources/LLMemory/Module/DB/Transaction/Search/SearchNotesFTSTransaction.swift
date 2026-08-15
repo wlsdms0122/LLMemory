@@ -16,7 +16,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
     let includeStale: Bool
     let excludeTags: [String]?
     let sinceTs: Int?
-    let sessionId: String?
+    let sessionId: SessionId?
     let raw: Bool
     let keywords: any KeywordExtracting
 
@@ -29,7 +29,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
         includeStale: Bool = false,
         excludeTags: [String]? = nil,
         sinceTs: Int? = nil,
-        sessionId: String? = nil,
+        sessionId: SessionId? = nil,
         raw: Bool = false,
         keywords: any KeywordExtracting
     ) {
@@ -73,7 +73,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
         sql += Search.staleClause(includeStale)
         
         let prior: [String: Double]
-        if let sessionId, !sessionId.isEmpty {
+        if let sessionId {
             let windowMin = Genes.int("priming.window_min")
             prior = (try? ComputeTagPriorTransaction(
                 sessionId: sessionId,

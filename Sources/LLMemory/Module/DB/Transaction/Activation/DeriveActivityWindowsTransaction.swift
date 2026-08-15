@@ -57,14 +57,14 @@ struct DeriveActivityWindowsTransaction: GRDBTransaction {
         for row in rows {
             let eventId: Int = row["id"]
             let timestamp: Int = row["ts"]
-            let sessionId: String? = row["session_id"]
+            let sessionId = SessionId(row["session_id"])
             lastId = eventId
 
             guard let payload = parsePayload(row["payload"]) else { continue }
 
             result.eventsConsumed += 1
 
-            let windowId = try openWindow(db, ts: timestamp, label: sessionId)
+            let windowId = try openWindow(db, ts: timestamp, label: sessionId?.rawValue)
             touched.insert(windowId)
 
             try db.execute(sql: """

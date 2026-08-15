@@ -94,7 +94,7 @@ public enum Search {
             return trimmed.isEmpty ? nil : trimmed
         }
 
-        return matchExpression(cues: keywords.keywords(in: query, limit: 15))
+        return matchExpression(cues: keywords.keywords(in: query, limit: RetrievalCues.limit))
     }
 
     // The boost takes the item's *strongest* reinstated tag rather than the sum:

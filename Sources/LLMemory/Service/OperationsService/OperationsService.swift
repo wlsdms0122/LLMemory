@@ -29,7 +29,7 @@ public struct OperationsService: OperationsServiceable {
     // MARK: - Public
     public func apply(
         payloadJSON: String,
-        sessionId: String?
+        sessionId: SessionId?
     ) async -> OperationsResult {
         // Shape rejection happens before any lock — a malformed payload must
         // not open the write scope. The string is decoded again inside the
@@ -77,7 +77,7 @@ public struct OperationsService: OperationsServiceable {
     
     public func dryRun(
         payloadJSON: String,
-        sessionId: String?
+        sessionId: SessionId?
     ) async -> OperationsDryRunResult {
         do {
             return try await storage.read { scope in

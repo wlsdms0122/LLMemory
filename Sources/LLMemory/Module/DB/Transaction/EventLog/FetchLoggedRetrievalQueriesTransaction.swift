@@ -17,7 +17,7 @@ struct FetchLoggedRetrievalQueriesTransaction: GRDBReadTransaction {
         let text: String
         let tags: [String]
         let limit: Int
-        let sessionId: String?
+        let sessionId: SessionId?
 
         // MARK: - Initializer
         // MARK: - Public
@@ -49,7 +49,7 @@ struct FetchLoggedRetrievalQueriesTransaction: GRDBReadTransaction {
                 continue
             }
 
-            let sessionId: String? = row["session_id"]
+            let sessionId = SessionId(row["session_id"])
 
             if command == "search", let text = payload["query"] as? String, !text.isEmpty {
                 queries.append(

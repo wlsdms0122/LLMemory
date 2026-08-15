@@ -13,46 +13,47 @@ import GRDB
 // one consistent read.
 //
 // It is a transaction because that is all it ever was: seven fetches whose
-// answers must come from the same snapshot, with keyword extraction in
-// front — extraction is part of assembling the snapshot, not something a
-// caller hands in. Expansions degrade rather than fail, so a missing vector
-// index costs the caller its extra hits and nothing else.
+// answers must come from the same snapshot, with the text read for cues in
+// front. Expansions degrade rather than fail, so a missing vector index costs
+// the caller its extra hits and nothing else.
 //
-// The limits are read from the gene catalog here and nowhere else. A
-// parameter beside them would give "which limit did this replay use?" two
-// answers, and the shadow replay (which swaps a gene value and re-runs) is
-// exactly the caller that would make the two disagree.
+// How the text is read is the caller's choice and arrives as a contract; how
+// wide the fetches reach is the brain's, and is read from the gene catalog
+// here rather than taken as a parameter. A parameter beside them would give
+// "which limit did this replay use?" two answers, and the shadow replay
+// (which swaps a gene value and re-runs) is exactly the caller that would
+// make the two disagree.
 struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
     // MARK: - Property
     let text: String
     let linkKind: String?
-    let sessionId: String?
-    let keywordReader: any KeywordExtracting
-    let entityReader: any EntityHinting
+    let sessionId: SessionId?
+    let keywords: any KeywordExtracting
+    let entities: any EntityHinting
 
     // MARK: - Initializer
     init(
         text: String,
         linkKind: String? = nil,
-        sessionId: String? = nil,
+        sessionId: SessionId? = nil,
         keywords: any KeywordExtracting,
         entities: any EntityHinting
     ) {
         self.text = text
         self.linkKind = linkKind
         self.sessionId = sessionId
-        self.keywordReader = keywords
-        self.entityReader = entities
+        self.keywords = keywords
+        self.entities = entities
     }
 
     // MARK: - Public
     func perform(_ db: Database) throws -> FramingSnapshot {
         let similarLimit = Genes.int("related.similar_limit")
         let expandHops = Genes.int("related.expand_hops")
-        let keywords = keywordReader.keywords(in: text, limit: 15)
-        let entityHints = entityReader.hints(in: text)
+        let cues = keywords.keywords(in: text, limit: RetrievalCues.limit)
+        let entityHints = entities.hints(in: text)
         let similarNotes = try FetchSimilarNotesTransaction(
-            keywords: keywords,
+            keywords: cues,
             limit: similarLimit,
             sessionId: sessionId
         )
@@ -99,7 +100,7 @@ struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
         }
 
         return FramingSnapshot(
-            keywords: keywords,
+            keywords: cues,
             similar: similarNotes,
             linked: linked,
             vectorLinked: vectorLinked,

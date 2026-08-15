@@ -12,7 +12,7 @@ public struct HandlerContext {
     // The batch's ambient facts — resolved once at the apply/dry-run entry
     // so no handler re-derives them from process globals. The initializer
     // requires them: an unseeded context does not compile.
-    public let sessionId: String?
+    public let sessionId: SessionId?
     public let now: Int
     
     public var inFlightIds: Set<String> = []
@@ -23,7 +23,7 @@ public struct HandlerContext {
     public var opaqueBodyIds: Set<String> = []
     
     // MARK: - Initializer
-    public init(sessionId: String?, now: Int) {
+    public init(sessionId: SessionId?, now: Int) {
         self.sessionId = sessionId
         self.now = now
     }

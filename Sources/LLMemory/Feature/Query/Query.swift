@@ -39,7 +39,7 @@ public struct Query {
         tags: [String],
         limit: Int,
         expand: Int,
-        sessionId: String?,
+        sessionId: SessionId?,
         includeStale: Bool,
         excludeTags: [String],
         raw: Bool
@@ -59,7 +59,7 @@ public struct Query {
     public func related(
         text: String,
         kind: String?,
-        sessionId: String?,
+        sessionId: SessionId?,
         includeBodies: Bool
     ) async throws -> RelatedResult {
         try await retrieval.related(
@@ -72,7 +72,7 @@ public struct Query {
 
     public func get(
         ids: [String],
-        sessionId: String? = nil
+        sessionId: SessionId? = nil
     ) async throws -> (found: [NoteView], missing: [String]) {
         try await notes.get(ids: ids, sessionId: sessionId)
     }
@@ -80,7 +80,7 @@ public struct Query {
     public func getSections(
         id: String,
         sections: [String],
-        sessionId: String? = nil
+        sessionId: SessionId? = nil
     ) async throws -> (note: NoteView, slices: [SectionSlice]) {
         try await notes.getSections(
             id: id,
@@ -92,7 +92,7 @@ public struct Query {
     public func getBudget(
         id: String,
         budget: Int,
-        sessionId: String? = nil
+        sessionId: SessionId? = nil
     ) async throws -> (note: NoteView, cut: BudgetCut) {
         try await notes.getBudget(
             id: id,
@@ -103,14 +103,14 @@ public struct Query {
 
     public func toc(
         id: String,
-        sessionId: String? = nil
+        sessionId: SessionId? = nil
     ) async throws -> (note: NoteView, entries: [TocEntry]) {
         try await notes.toc(id: id, sessionId: sessionId)
     }
 
     public func template(
         id: String,
-        sessionId: String? = nil
+        sessionId: SessionId? = nil
     ) async throws -> (note: NoteView, frame: [TemplateFrameNode]) {
         try await notes.template(id: id, sessionId: sessionId)
     }
@@ -135,7 +135,7 @@ public struct Query {
     public func neighbors(
         id: String,
         k: Int,
-        sessionId: String? = nil
+        sessionId: SessionId? = nil
     ) async throws -> [NeighborScore] {
         try await retrieval.neighbors(id: id, k: k, sessionId: sessionId)
     }

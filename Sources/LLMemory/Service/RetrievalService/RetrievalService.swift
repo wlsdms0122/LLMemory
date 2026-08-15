@@ -37,7 +37,7 @@ public struct RetrievalService: RetrievalServiceable {
         tags: [String],
         limit: Int,
         expand: Int,
-        sessionId: String?,
+        sessionId: SessionId?,
         includeStale: Bool,
         excludeTags: [String],
         raw: Bool
@@ -64,7 +64,7 @@ public struct RetrievalService: RetrievalServiceable {
     public func related(
         text: String,
         kind: String?,
-        sessionId: String?,
+        sessionId: SessionId?,
         includeBodies: Bool
     ) async throws -> RelatedResult {
         let outcome = try await storage.read { scope in
@@ -90,7 +90,7 @@ public struct RetrievalService: RetrievalServiceable {
     public func neighbors(
         id: String,
         k: Int,
-        sessionId: String?
+        sessionId: SessionId?
     ) async throws -> [NeighborScore] {
         let outcome = try await storage.read { scope in
             try neighbors(scope, id: id, k: k, sessionId: sessionId)
@@ -117,7 +117,7 @@ public struct RetrievalService: RetrievalServiceable {
         tags: [String] = [],
         limit: Int = 5,
         expand: Int = 0,
-        sessionId: String? = nil,
+        sessionId: SessionId? = nil,
         includeStale: Bool = false,
         excludeTags: [String]? = nil,
         sinceTs: Int? = nil,
@@ -175,7 +175,7 @@ public struct RetrievalService: RetrievalServiceable {
         _ scope: GRDBReadScope,
         text: String,
         kind: String?,
-        sessionId: String?,
+        sessionId: SessionId?,
         includeBodies: Bool
     ) throws -> (result: RelatedResult, record: RetrievalRecord) {
         let snapshot = try scope.run(
@@ -217,7 +217,7 @@ public struct RetrievalService: RetrievalServiceable {
         _ scope: GRDBReadScope,
         id: String,
         k: Int,
-        sessionId: String? = nil
+        sessionId: SessionId? = nil
     ) throws -> (scores: [NeighborScore], record: RetrievalRecord?) {
         let scores = try detectors.neighbors(scope, noteId: id, k: k)
         let record: RetrievalRecord? = scores.isEmpty ? nil : .init(

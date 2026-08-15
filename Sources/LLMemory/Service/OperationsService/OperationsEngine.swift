@@ -60,7 +60,7 @@ public struct OperationsEngine: Sendable {
     public func apply(
         _ scope: GRDBScope,
         _ payload: [String: Any],
-        sessionId: String? = nil
+        sessionId: SessionId? = nil
     ) -> OperationsResult {
         let rationale = payload["rationale"] as? String ?? ""
         
@@ -113,7 +113,7 @@ public struct OperationsEngine: Sendable {
     private func applySequence(
         _ scope: GRDBScope,
         opsRaw: [[String: Any]],
-        sessionId: String?,
+        sessionId: SessionId?,
         rationale: String
     ) throws -> OperationsResult {
         let now = Int(Date().timeIntervalSince1970)
@@ -315,7 +315,7 @@ public struct OperationsEngine: Sendable {
         )
 }
     
-    public func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], sessionId: String? = nil) -> OperationsDryRunResult {
+    public func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], sessionId: SessionId? = nil) -> OperationsDryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return OperationsDryRunResult(
                 status: "rejected",
@@ -443,7 +443,7 @@ public struct OperationsEngine: Sendable {
     private func validate(
         _ ops: [[String: Any]],
         scope: GRDBReadScope,
-        sessionId: String? = nil,
+        sessionId: SessionId? = nil,
         now: Int = Int(Date().timeIntervalSince1970)
     ) throws -> (String, Int?)? {
         var context = HandlerContext(sessionId: sessionId, now: now)

@@ -9,7 +9,7 @@ import Foundation
 
 public struct FrequencyKeywords: KeywordExtracting {
     // MARK: - Property
-    static let stopwords: Set<String> = [
+    private static let stopwords: Set<String> = [
         "그리고", "하지만", "그런데", "그래서", "그러면", "이게", "저게", "이거",
         "저거", "뭐야", "있어", "없어", "해줘", "해봐", "하자", "이렇게", "저렇게",
         "이런", "저런", "정도", "우리", "너가", "니가", "내가", "근데",

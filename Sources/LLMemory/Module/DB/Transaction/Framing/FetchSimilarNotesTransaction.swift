@@ -13,11 +13,11 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
     let keywords: [String]
     let limit: Int
     let includeStale: Bool
-    let sessionId: String?
+    let sessionId: SessionId?
 
 
     // MARK: - Initializer
-    init(keywords: [String], limit: Int, includeStale: Bool = false, sessionId: String? = nil) {
+    init(keywords: [String], limit: Int, includeStale: Bool = false, sessionId: SessionId? = nil) {
         self.keywords = keywords
         self.limit = limit
         self.includeStale = includeStale
@@ -44,7 +44,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
         let now = Int(Date().timeIntervalSince1970)
         let prior: [String: Double]
 
-        if let sessionId, !sessionId.isEmpty {
+        if let sessionId {
             let windowMin = Genes.int("priming.window_min")
             prior = (try? ComputeTagPriorTransaction(
                 sessionId: sessionId,

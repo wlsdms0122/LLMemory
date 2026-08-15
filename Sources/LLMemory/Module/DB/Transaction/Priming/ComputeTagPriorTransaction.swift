@@ -14,12 +14,12 @@ import GRDB
 // in as many contexts as it has tags, and the session decides which one is warm.
 struct ComputeTagPriorTransaction: GRDBReadTransaction {
     // MARK: - Property
-    let sessionId: String
+    let sessionId: SessionId
     let windowSec: Int
     let now: Int
 
     // MARK: - Initializer
-    init(sessionId: String, windowSec: Int, now: Int) {
+    init(sessionId: SessionId, windowSec: Int, now: Int) {
         self.sessionId = sessionId
         self.windowSec = windowSec
         self.now = now
@@ -36,7 +36,7 @@ struct ComputeTagPriorTransaction: GRDBReadTransaction {
                 ORDER BY ts DESC, id DESC
                 LIMIT 50
                 """,
-            arguments: [sessionId, cutoff]
+            arguments: [sessionId.rawValue, cutoff]
         )
 
         if rows.isEmpty { return [:] }

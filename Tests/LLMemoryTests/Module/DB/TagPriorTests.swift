@@ -34,7 +34,7 @@ struct TagPriorTests {
 
         // When
         let prior = try home.read { database in
-            try ComputeTagPriorTransaction(sessionId: "s1", windowSec: 3600, now: now)
+            try ComputeTagPriorTransaction(sessionId: SessionId("s1")!, windowSec: 3600, now: now)
                 .perform(database)
         }
 
@@ -54,7 +54,7 @@ struct TagPriorTests {
 
         // When
         let prior = try home.read { database in
-            try ComputeTagPriorTransaction(sessionId: "mine", windowSec: 3600, now: now)
+            try ComputeTagPriorTransaction(sessionId: SessionId("mine")!, windowSec: 3600, now: now)
                 .perform(database)
         }
 
