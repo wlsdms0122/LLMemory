@@ -21,8 +21,6 @@ struct SetGeneHandler: OperationHandling {
         example: ##"{"op":"set_gene","gene":"links.sibling_rank_weight","value":0.2,"reason":"형제 도배 실측 완화"}"##
     )
     
-    let genome: any GenomeServiceable
-    
     private let number = PayloadNumber()
     
     // MARK: - Initializer
@@ -59,14 +57,15 @@ struct SetGeneHandler: OperationHandling {
         let reason = op["reason"] as? String
         
         if let raw = op["value"], !(raw is NSNull), let value = number.value(of: raw) {
-            let result = try genome.setGene(
-                scope,
-                id: id,
-                value: value,
-                cause: "set_gene",
-                detail: reason,
-                requireMutable: false,
-                now: now
+            let result = try scope.run(
+                ApplyGeneValueTransaction(
+                    geneId: id,
+                    value: value,
+                    cause: "set_gene",
+                    detail: reason,
+                    requireMutable: false,
+                    ts: now
+                )
             )
             
             return [
@@ -76,7 +75,9 @@ struct SetGeneHandler: OperationHandling {
             ]
         }
         
-        let old = try genome.resetGene(scope, id: id, cause: "set_gene", now: now)
+        let old = try scope.run(
+            RevertGeneValueTransaction(geneId: id, cause: "set_gene", ts: now)
+        )
         
         return ["status": "ok", "ids": [id], "note": "gene \(id): \(old) → wild-type"]
     }

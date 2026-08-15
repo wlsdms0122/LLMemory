@@ -30,8 +30,8 @@ public struct OperationsEngine: Sendable {
     // handlers that use them, and the engine is the wiring that hands them
     // over. A field here would say the engine uses them too, and would be the
     // second path to them.
-    init(genome: any GenomeServiceable, lint: any LintScanning) {
-        self.registry = HandlerRegistry(genome: genome, lint: lint)
+    init(lint: any LintScanning) {
+        self.registry = HandlerRegistry(lint: lint)
     }
     
     // MARK: - Public

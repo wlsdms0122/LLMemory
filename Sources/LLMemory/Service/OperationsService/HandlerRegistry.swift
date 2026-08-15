@@ -11,10 +11,10 @@ import Foundation
 // that answers it.
 //
 // It is assembled per engine rather than held as a type-level table, because
-// two handlers need a collaborator: set_gene writes through genome, and
-// dismiss_candidate has to see live lint findings before it may record a
-// keep-decision. A table built at wiring time can hand those in; a static one
-// could only let the handlers reach for them.
+// one handler needs a collaborator: dismiss_candidate has to see live lint
+// findings before it may record a keep-decision, and which rules are in the
+// catalog is wiring, not a constant. A table built at wiring time can hand
+// that in; a static one could only let the handler reach for it.
 struct HandlerRegistry: Sendable {
     // MARK: - Property
     let handlers: [String: any OperationHandling]
@@ -22,7 +22,7 @@ struct HandlerRegistry: Sendable {
     var names: [String] { handlers.keys.sorted() }
     
     // MARK: - Initializer
-    init(genome: any GenomeServiceable, lint: any LintScanning) {
+    init(lint: any LintScanning) {
         handlers = [
             "create_note": CreateNoteHandler(),
             "patch_section": PatchSectionHandler(),
@@ -32,7 +32,7 @@ struct HandlerRegistry: Sendable {
             "resolve_flag": ResolveFlagHandler(),
             "dismiss_candidate": DismissCandidateHandler(lint: lint),
             "mark_used": MarkUsedHandler(),
-            "set_gene": SetGeneHandler(genome: genome),
+            "set_gene": SetGeneHandler(),
             "invalidate": InvalidateHandler(),
             "revalidate": RevalidateHandler(),
             "rebase_source": RebaseSourceHandler(),

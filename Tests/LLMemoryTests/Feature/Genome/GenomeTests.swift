@@ -38,9 +38,11 @@ struct GenomeTests {
         
         // When — the genome itself carries a value.
         try home.database().write { database in
-            _ = try home.genomeService.setGene(
-                GRDBScope(database), id: "priming.alpha", value: 1.2, cause: "set_gene",
-                detail: nil, requireMutable: false, now: 1
+            _ = try GRDBScope(database).run(
+                ApplyGeneValueTransaction(
+                    geneId: "priming.alpha", value: 1.2, cause: "set_gene",
+                    requireMutable: false, ts: 1
+                )
             )
         }
         
@@ -107,9 +109,11 @@ struct GenomeTests {
     func lockedGeneGuard() throws {
         try home.database().write { database in
             #expect(throws: GenomeWriteError.self) {
-                try home.genomeService.setGene(
-                    GRDBScope(database), id: "links.decay_factor", value: 0.8,
-                    cause: "homeostasis:test", detail: nil, requireMutable: true, now: 1
+                try GRDBScope(database).run(
+                    ApplyGeneValueTransaction(
+                        geneId: "links.decay_factor", value: 0.8,
+                        cause: "homeostasis:test", requireMutable: true, ts: 1
+                    )
                 )
             }
         }
@@ -208,9 +212,11 @@ struct GenomeTests {
         let base = home.now - 50_000
         
         try home.database().write { database in
-            _ = try home.genomeService.setGene(
-                GRDBScope(database), id: "related.expand_hops", value: 0, cause: "set_gene",
-                detail: "test setup", requireMutable: false, now: home.now
+            _ = try GRDBScope(database).run(
+                ApplyGeneValueTransaction(
+                    geneId: "related.expand_hops", value: 0, cause: "set_gene",
+                    detail: "test setup", requireMutable: false, ts: home.now
+                )
             )
             
             for index in 0 ..< 12 {

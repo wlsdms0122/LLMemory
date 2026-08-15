@@ -56,7 +56,7 @@ extension BrainHome {
     var lintService: LintService { LintService(storage: storage, scanner: lintScanner) }
 
     var genomeService: GenomeService {
-        GenomeService(storage: storage, retrieval: retrievalService)
+        GenomeService(storage: storage)
     }
 
     var notesService: NotesService {
@@ -67,7 +67,7 @@ extension BrainHome {
         ConsolidateService(storage: storage, genome: genomeService)
     }
 
-    var operationsEngine: OperationsEngine { OperationsEngine(genome: genomeService, lint: lintScanner) }
+    var operationsEngine: OperationsEngine { OperationsEngine(lint: lintScanner) }
 
     @discardableResult
     func apply(_ operations: [[String: Any]], rationale: String = "test") -> OperationsResult {

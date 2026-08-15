@@ -15,12 +15,10 @@ import Storage
 public struct GenomeService: GenomeServiceable {
     // MARK: - Property
     let storage: GRDBStorage
-    let retrieval: any RetrievalServiceable
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, retrieval: any RetrievalServiceable) {
+    init(storage: GRDBStorage) {
         self.storage = storage
-        self.retrieval = retrieval
     }
 
     // MARK: - Public
@@ -110,14 +108,12 @@ public struct GenomeService: GenomeServiceable {
                     .map { hit in hit.id }
 
             default:
-                let snapshot = try retrieval.snapshot(
-                    scope,
-                    userInput: loggedQuery.text,
-                    agentOutput: "",
-                    similarLimit: nil,
-                    expandHops: nil,
-                    linkKind: nil,
-                    sessionId: loggedQuery.sessionId
+                let snapshot = try scope.run(
+                    BuildFramingSnapshotTransaction(
+                        userInput: loggedQuery.text,
+                        agentOutput: "",
+                        sessionId: loggedQuery.sessionId
+                    )
                 )
 
                 return snapshot.similar.map { note in note.id }
@@ -161,74 +157,6 @@ public struct GenomeService: GenomeServiceable {
             queriesChanged: changed,
             diffs: diffs
         )
-    }
-
-    // The one write path for gene values — validates against the code-owned
-    // declaration, records provenance, and keeps the in-process cache honest.
-    @discardableResult
-    func setGene(
-        _ scope: GRDBScope,
-        id: String,
-        value: Double,
-        cause: String,
-        detail: String?,
-        requireMutable: Bool,
-        now: Int
-    ) throws -> (old: Double, new: Double) {
-        guard let gene = Genes.gene(id) else { throw GenomeWriteError.unknownGene(id) }
-
-        if requireMutable && !gene.mutable { throw GenomeWriteError.locked(id) }
-
-        guard value >= gene.min && value <= gene.max else {
-            throw GenomeWriteError.outOfBounds(id, value, gene)
-        }
-
-        if gene.integer && value != value.rounded() {
-            throw GenomeWriteError.notInteger(id, value)
-        }
-
-        let old = Genes.cached(id) ?? Config.getDouble(id, default: gene.wildType)
-
-        try scope.run(
-            SetGeneTransaction(
-                geneId: id,
-                value: value,
-                oldValue: old,
-                cause: cause,
-                detail: detail,
-                ts: now
-            )
-        )
-
-        Genes.prime(id, value)
-
-        return (old, value)
-    }
-
-    @discardableResult
-    func resetGene(
-        _ scope: GRDBScope,
-        id: String,
-        cause: String,
-        now: Int
-    ) throws -> Double {
-        guard let gene = Genes.gene(id) else { throw GenomeWriteError.unknownGene(id) }
-
-        let old = Genes.cached(id) ?? Config.getDouble(id, default: gene.wildType)
-
-        try scope.run(
-            ResetGeneTransaction(
-                geneId: id,
-                oldValue: old,
-                wildType: gene.wildType,
-                cause: cause,
-                ts: now
-            )
-        )
-
-        Genes.prime(id, nil)
-
-        return old
     }
 
     // MARK: - Private

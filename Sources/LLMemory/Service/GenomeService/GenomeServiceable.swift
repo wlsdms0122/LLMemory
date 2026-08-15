@@ -11,9 +11,9 @@ import Foundation
 // the provenance of every mutation, and offline reranking under a candidate
 // value.
 //
-// setGene/resetGene are the one write path for a gene value, and they take a
-// scope because their callers (the homeostasis tick, the set_gene handler)
-// are already inside one.
+// Writing a gene value is not here: every caller of it is already inside a
+// unit of work and needs the change to belong to that unit, which makes it
+// a transaction (ApplyGeneValueTransaction), not a feature of this service.
 protocol GenomeServiceable: Sendable {
     func list() async throws -> [GeneListRow]
 
@@ -28,23 +28,4 @@ protocol GenomeServiceable: Sendable {
         limit: Int,
         sampleDiffs: Int
     ) async throws -> GenomeShadowResult
-
-    @discardableResult
-    func setGene(
-        _ scope: GRDBScope,
-        id: String,
-        value: Double,
-        cause: String,
-        detail: String?,
-        requireMutable: Bool,
-        now: Int
-    ) throws -> (old: Double, new: Double)
-
-    @discardableResult
-    func resetGene(
-        _ scope: GRDBScope,
-        id: String,
-        cause: String,
-        now: Int
-    ) throws -> Double
 }

@@ -341,14 +341,15 @@ public struct ConsolidateService: ConsolidateServiceable {
             }
 
             if target != current {
-                let result = try genome.setGene(
-                    scope,
-                    id: gene,
-                    value: target,
-                    cause: "homeostasis:expand_landing",
-                    detail: "rate=\(String(format: "%.4f", landingRate)) n=\(sampleSeen)",
-                    requireMutable: true,
-                    now: now
+                let result = try scope.run(
+                    ApplyGeneValueTransaction(
+                        geneId: gene,
+                        value: target,
+                        cause: "homeostasis:expand_landing",
+                        detail: "rate=\(String(format: "%.4f", landingRate)) n=\(sampleSeen)",
+                        requireMutable: true,
+                        ts: now
+                    )
                 )
                 adjustedGene = gene
                 oldValue = result.old

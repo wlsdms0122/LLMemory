@@ -173,90 +173,6 @@ public struct RetrievalService: RetrievalServiceable {
         return (rows, extra, record)
     }
 
-    func snapshot(
-        _ scope: GRDBReadScope,
-        userInput: String,
-        agentOutput: String,
-        similarLimit: Int?,
-        expandHops: Int?,
-        linkKind: String?,
-        sessionId: String?
-    ) throws -> FramingSnapshot {
-        let similarLimit = similarLimit ?? Genes.int("related.similar_limit")
-        let expandHops = expandHops ?? Genes.int("related.expand_hops")
-        let text = "\(userInput)\n\(agentOutput)"
-        let keywords = framing.extractKeywords(text)
-        let entityHints = noteText.extractEntityHints(text)
-        var similarNotes: [SimilarNote] = []
-        var topTagCounts: [(String, Int)] = []
-        var cooccurrences: [(String, String, Int)] = []
-        var vocabEntries: [String] = []
-        var entityHits: [EntityHit] = []
-        
-        similarNotes = try scope.run(
-            FetchSimilarNotesTransaction(
-                keywords: keywords,
-                limit: similarLimit,
-                sessionId: sessionId
-            )
-        )
-
-        let similarTagSet = Set(similarNotes.flatMap { note in note.tags })
-        topTagCounts = try scope.run(FetchTopTagsTransaction())
-        cooccurrences = try scope.run(FetchTagCooccurrenceTransaction(tags: similarTagSet.sorted()))
-        vocabEntries = try scope.run(FetchTagVocabTransaction())
-        entityHits = try scope.run(FetchEntityHitsTransaction(entities: entityHints))
-        
-        var degraded: [String] = []
-        var linked: [ExpandedNote] = []
-        
-        if !similarNotes.isEmpty {
-            do {
-                linked = try scope.run(
-                    ExpandLinksTransaction(
-                        noteIds: similarNotes.map { note in note.id },
-                        hops: expandHops,
-                        kind: linkKind
-                    )
-                )
-            } catch {
-                degraded.append("linked: \(error)")
-            }
-        }
-        
-        var vectorLinked: [VectorHit] = []
-        
-        if !similarNotes.isEmpty {
-            let already = Set(similarNotes.map { note in note.id })
-                .union(linked.map { note in note.id })
-            
-            do {
-                vectorLinked = try scope.run(
-                    ExpandByVectorsTransaction(
-                        seedIds: similarNotes.map { note in note.id },
-                        limit: similarLimit,
-                        excludeIds: already
-                    )
-                )
-            } catch {
-                degraded.append("vector_linked: \(error)")
-            }
-        }
-        
-        return FramingSnapshot(
-            keywords: keywords,
-            similar: similarNotes,
-            linked: linked,
-            vectorLinked: vectorLinked,
-            topTags: topTagCounts,
-            cooccur: cooccurrences,
-            vocab: vocabEntries,
-            entityHints: entityHints,
-            entityHits: entityHits,
-            degraded: degraded
-        )
-    }
-
     func related(
         _ scope: GRDBReadScope,
         text: String,
@@ -264,14 +180,13 @@ public struct RetrievalService: RetrievalServiceable {
         sessionId: String?,
         includeBodies: Bool
     ) throws -> (result: RelatedResult, record: RetrievalRecord) {
-        let snapshot = try snapshot(
-            scope,
-            userInput: text,
-            agentOutput: "",
-            similarLimit: nil,
-            expandHops: nil,
-            linkKind: kind,
-            sessionId: sessionId
+        let snapshot = try scope.run(
+            BuildFramingSnapshotTransaction(
+                userInput: text,
+                agentOutput: "",
+                linkKind: kind,
+                sessionId: sessionId
+            )
         )
 
         var bodies: [String: String] = [:]

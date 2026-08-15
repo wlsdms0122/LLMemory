@@ -9,12 +9,13 @@ import Foundation
 
 // The associative read surface — search, related, neighbors, entity.
 //
-// Two scope-taking members are here, and only two, because exactly two
-// collaborators call them: genome replays a logged query under a candidate
-// gene value (`snapshot`), and notes applies the retrieval its own reads
-// caused (`applyRecord`). The rest of the sync cores stay off the contract —
-// what a contract admits is what a collaborator asks for, and everything
-// beyond that is an implementation detail handed out for free.
+// Features only: every member opens and closes its own unit of work. Work
+// a collaborator needs *inside* a scope it already holds is not a feature
+// of this service — it is a transaction, and it lives in the DB module
+// where scopes are spoken (BuildFramingSnapshotTransaction).
+//
+// applyRecord is the exception that proves it: it takes a record, not a
+// scope, and opens its own write.
 protocol RetrievalServiceable: Sendable {
     func search(
         query: String,
@@ -44,16 +45,6 @@ protocol RetrievalServiceable: Sendable {
         name: String?,
         limit: Int
     ) async throws -> [EntityHit]
-
-    func snapshot(
-        _ scope: GRDBReadScope,
-        userInput: String,
-        agentOutput: String,
-        similarLimit: Int?,
-        expandHops: Int?,
-        linkKind: String?,
-        sessionId: String?
-    ) throws -> FramingSnapshot
 
     @discardableResult
     func applyRecord(_ record: RetrievalRecord?) async throws -> [String]
