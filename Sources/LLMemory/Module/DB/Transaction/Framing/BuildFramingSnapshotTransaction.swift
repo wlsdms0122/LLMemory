@@ -39,8 +39,8 @@ struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
     func perform(_ db: Database) throws -> FramingSnapshot {
         let similarLimit = Genes.int("related.similar_limit")
         let expandHops = Genes.int("related.expand_hops")
-        let keywords = Framing.extractKeywords(text)
-        let entityHints = NoteText.extractEntityHints(text)
+        let keywords = FrequencyKeywords.extractKeywords(text)
+        let entityHints = PatternEntityHints.extractEntityHints(text)
         let similarNotes = try FetchSimilarNotesTransaction(
             keywords: keywords,
             limit: similarLimit,

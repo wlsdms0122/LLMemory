@@ -1,5 +1,5 @@
 //
-//  Framing.swift
+//  FrequencyKeywords.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/15/26.
@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-public enum Framing {
+public enum FrequencyKeywords {
     // MARK: - Property
     static let stopwords: Set<String> = [
         "그리고", "하지만", "그런데", "그래서", "그러면", "이게", "저게", "이거",

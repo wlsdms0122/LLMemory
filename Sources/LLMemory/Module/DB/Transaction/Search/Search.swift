@@ -76,7 +76,7 @@ public enum Search {
             return trimmed.isEmpty ? nil : trimmed
         }
         
-        let parts = Framing.extractKeywords(query)
+        let parts = FrequencyKeywords.extractKeywords(query)
             .map { keyword in "\"\(keyword.replacingOccurrences(of: "\"", with: ""))\"" }
         
         return parts.isEmpty ? nil : parts.joined(separator: " OR ")

@@ -1,5 +1,5 @@
 //
-//  NoteText.swift
+//  PatternEntityHints.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum NoteText {
+public enum PatternEntityHints {
     // MARK: - Property
     private static let ticketRegex = try! NSRegularExpression(pattern: #"\b[A-Z][A-Z0-9]+-\d+\b"#)
     private static let titleCaseRegex = try! NSRegularExpression(

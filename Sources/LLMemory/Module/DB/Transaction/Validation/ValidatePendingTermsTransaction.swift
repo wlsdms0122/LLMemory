@@ -63,7 +63,7 @@ struct ValidatePendingTermsTransaction: GRDBTransaction {
             let noteId: String = row["note_id"]
             let kind: String = row["kind"]
             let term: String = row["term"]
-            let tokens = Framing.extractKeywords(term, limit: 24)
+            let tokens = FrequencyKeywords.extractKeywords(term, limit: 24)
 
             if tokens.isEmpty {
                 try reject(db, nid: noteId, kind: kind, term: term, reason: .malformed, now: now)
