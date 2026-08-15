@@ -44,16 +44,6 @@ enum Config {
         return ["1", "true", "yes"].contains(raw.lowercased())
     }
     
-    // Teardown, not maintenance: drops both caches so a fixture's values do
-    // not outlive its brain. Nothing on the live path clears a cache — a cache
-    // that follows committed state is replaced by the next load, never emptied
-    // in between.
-    static func invalidateCache() {
-        cache.removeAll()
-        Genes.invalidateCache()
-    }
-
-
     // Re-read the caches from committed state. Run at boot and at the end of
     // every write scope, which is what keeps "the process holds what the
     // database holds" true rather than aspirational.
@@ -62,8 +52,24 @@ enum Config {
     // writes these caches inside a transaction, so they can only be behind
     // committed state, never ahead of it — an unreadable database is a reason
     // to keep the last committed values, not to drop to defaults.
+    //
+    // The three failures below are how a brain answers before it exists: a
+    // Session is constructed against a directory the migration has not reached
+    // yet, and bootstrap re-runs this once it has. Every other failure means a
+    // database that was readable a moment ago no longer is, and the process is
+    // about to serve values it can no longer justify — so it says so.
     static func reloadCommitted(_ storage: GRDBStorage) {
-        storage.context.bind { try? loadCommitted(storage) }
+        storage.context.bind {
+            do {
+                try loadCommitted(storage)
+            } catch DBError.notInitialized, DBError.pendingMigrations, DBError.superseded {
+                return
+            } catch {
+                FileHandle.standardError.write(
+                    Data("llmemory: parameter cache is stale — reload failed: \(error)\n".utf8)
+                )
+            }
+        }
     }
 
     static func getStringTx(
@@ -83,10 +89,27 @@ enum Config {
         try MetaRecord(key: prefix + key, value: "\(value)").upsert(db)
     }
     
-    static func cacheOverrideForTesting(_ key: String, value: String) {
-        cache[prefix + key] = value
+    // The two seams below exist so a fixture can act on one named brain. Both
+    // run outside any scope, where the ambient context is a weak fallback —
+    // whichever Session is still alive — so the brain is an argument, not
+    // something they go looking for.
+
+    // Drops both caches so one fixture's values cannot outlive its brain.
+    // Nothing on the live path clears a cache: a cache that follows committed
+    // state is replaced by the next load, never emptied in between.
+    static func discardCache(_ context: BrainContext) {
+        context.bind {
+            cache.removeAll()
+            Genes.invalidateCache()
+        }
     }
-    
+
+    // Plants a value the database does not hold, so a test can prove a reader
+    // consults the row rather than this cache.
+    static func plantStaleCacheValue(_ context: BrainContext, _ key: String, value: String) {
+        context.bind { cache[prefix + key] = value }
+    }
+
     // MARK: - Private
     // One snapshot for both caches — config rows and genome values come from
     // the same read transaction, then swap in together.

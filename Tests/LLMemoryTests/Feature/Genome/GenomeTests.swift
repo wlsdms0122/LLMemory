@@ -30,7 +30,7 @@ struct GenomeTests {
         #expect(Genes.source("links.sibling_rank_weight") == "wild_type")
         
         // When — a legacy config value exists.
-        try Config.set(home.database(), "priming.alpha", value: 0.8)
+        try Config.set(home.session, "priming.alpha", value: 0.8)
         
         // Then
         #expect(Genes.double("priming.alpha") == 0.8)
@@ -125,7 +125,7 @@ struct GenomeTests {
         home.createNote(id: "seed")
         home.createNote(id: "dead-expand")
         
-        try Config.set(home.database(), "homeostasis.min_sample", value: 10)
+        try Config.set(home.session, "homeostasis.min_sample", value: 10)
         
         let base = home.now - 50_000
         
@@ -175,7 +175,7 @@ struct GenomeTests {
         home.createNote(id: "seed")
         home.createNote(id: "dead-expand")
         
-        try Config.set(home.database(), "homeostasis.min_sample", value: 10)
+        try Config.set(home.session, "homeostasis.min_sample", value: 10)
         
         let base = home.now - 50_000
         
@@ -207,7 +207,7 @@ struct GenomeTests {
         home.createNote(id: "seed")
         home.createNote(id: "landed-expand")
         
-        try Config.set(home.database(), "homeostasis.min_sample", value: 10)
+        try Config.set(home.session, "homeostasis.min_sample", value: 10)
         
         let base = home.now - 50_000
         
@@ -263,7 +263,7 @@ struct GenomeTests {
         home.createNote(id: "seed")
         home.createNote(id: "dead-expand")
         
-        try Config.set(home.database(), "homeostasis.min_sample", value: 10)
+        try Config.set(home.session, "homeostasis.min_sample", value: 10)
         
         let base = home.now - 50_000
         
@@ -329,7 +329,7 @@ struct GenomeTests {
         }
         
         // When — the cache is rewound the way a second process would see it.
-        Config.cacheOverrideForTesting("activation.derive_watermark", value: "0")
+        Config.plantStaleCacheValue(home.session.context, "activation.derive_watermark", value: "0")
         
         try home.write { database in
             let result = try DeriveActivityWindowsTransaction(now: 3_000_200).perform(database)

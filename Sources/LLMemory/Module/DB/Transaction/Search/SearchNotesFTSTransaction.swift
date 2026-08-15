@@ -19,7 +19,6 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
     let sessionId: String?
     let raw: Bool
 
-    private let search = Search()
 
     // MARK: - Initializer
     init(
@@ -44,7 +43,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [SearchRow] {
-        guard let matchExpr = search.ftsMatchExpr(query, raw: raw) else { return [] }
+        guard let matchExpr = Search.ftsMatchExpr(query, raw: raw) else { return [] }
         
         var sql = Search.rowSQL + """
              FROM notes_fts f JOIN notes n ON n.id = f.id
@@ -54,8 +53,8 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
         var arguments: [DatabaseValueConvertible?] = [matchExpr]
         
         for (clause, tagArguments) in [
-            try search.tagClause(db, tags: tags),
-            try search.tagClause(db, tags: excludeTags ?? [], negated: true)
+            try Search.tagClause(db, tags: tags),
+            try Search.tagClause(db, tags: excludeTags ?? [], negated: true)
         ] where !clause.isEmpty {
             sql += " AND \(clause)"
             arguments.append(contentsOf: tagArguments)
@@ -68,7 +67,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
             arguments.append(sinceTs)
         }
         
-        sql += search.staleClause(includeStale)
+        sql += Search.staleClause(includeStale)
         
         let prior: [String: Double]
         if let sessionId, !sessionId.isEmpty {
@@ -84,7 +83,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
         }
         
         let needsRerank = !prior.isEmpty
-        let fetchLimit = search.fetchPoolSize(limit: limit, needsRerank: needsRerank)
+        let fetchLimit = Search.fetchPoolSize(limit: limit, needsRerank: needsRerank)
         sql += Search.noteAggregationSQL
         
         do {
@@ -92,7 +91,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
             
             let rawRows: [SearchRow]
             do {
-                rawRows = try search.fetchRows(db, sql: sql, arguments: arguments)
+                rawRows = try Search.fetchRows(db, sql: sql, arguments: arguments)
             } catch {
                 if raw { throw Search.SearchError.invalidRawQuery(matchExpr) }
                 
@@ -103,7 +102,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
                 return Array(rawRows.prefix(limit))
             }
             
-            return search.rerank(rawRows, prior: prior, limit: limit) { row in
+            return Search.rerank(rawRows, prior: prior, limit: limit) { row in
                 (row.tagsCSV ?? "").split(separator: ",").map(String.init)
             }
         }

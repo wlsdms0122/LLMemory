@@ -15,7 +15,6 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
     let includeStale: Bool
     let sessionId: String?
 
-    private let search = Search()
 
     // MARK: - Initializer
     init(keywords: [String], limit: Int, includeStale: Bool = false, sessionId: String? = nil) {
@@ -60,7 +59,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
         }
 
         let needsRerank = !prior.isEmpty
-        let fetchLimit = search.fetchPoolSize(limit: limit, needsRerank: needsRerank)
+        let fetchLimit = Search.fetchPoolSize(limit: limit, needsRerank: needsRerank)
         sql += Search.noteAggregationSQL
         arguments.append(fetchLimit)
 
@@ -84,7 +83,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
 
         if !needsRerank { return pool }
 
-        return search.rerank(pool, prior: prior, limit: limit) { note in note.tags }
+        return Search.rerank(pool, prior: prior, limit: limit) { note in note.tags }
     }
 
     // MARK: - Private

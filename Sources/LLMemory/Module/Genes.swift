@@ -10,8 +10,9 @@ import Foundation
 // The plasticity-parameter substrate. The declaration (gene list, bounds,
 // wild types) is code-owned and species-level; the per-brain current values
 // live in the DB and reach this layer through a cache that is loaded from
-// committed state — at boot and at the end of every write scope. Nothing
-// writes it from inside a transaction, so it is never ahead of the database.
+// committed state — at boot and at the end of every write scope. The loader is
+// its only writer, so it is never ahead of the database and a value that
+// belongs to one execution rather than to the brain never lands in it.
 //
 // A caller that must read a value it is itself writing reads the row
 // (FetchGeneValueTransaction), not this.
@@ -91,6 +92,12 @@ public enum Genes {
         set { BrainContext.resolved.genesCache = newValue }
     }
 
+    // A candidate value that belongs to one execution, not to the brain. The
+    // shadow replay re-runs a logged query under a value the genome does not
+    // hold, and a task-local is the only place that value can live without
+    // being visible to whoever else is reading this brain at the time.
+    @TaskLocal private static var candidates: [String: Double] = [:]
+
     // MARK: - Initializer
     // MARK: - Public
     public static func gene(_ id: String) -> Gene? {
@@ -104,9 +111,7 @@ public enum Genes {
             return Config.getDouble(id, default: 0)
         }
 
-        if let cached = cache[id] { return cached }
-
-        return Config.getDouble(id, default: gene.wildType)
+        return resolve(gene, stored: cache[id]).value
     }
 
     public static func int(_ id: String) -> Int {
@@ -114,13 +119,9 @@ public enum Genes {
     }
 
     public static func source(_ id: String) -> String {
-        if cache[id] != nil { return "genome" }
-
         guard let gene = gene(id) else { return "config" }
 
-        return Config.getDouble(id, default: gene.wildType) == gene.wildType
-            ? "wild_type"
-            : "config"
+        return resolve(gene, stored: cache[id]).source
     }
 
     // Whether the catalog admits this value, answered once. Every caller
@@ -154,17 +155,27 @@ public enum Genes {
 
     static func invalidateCache() { cache.removeAll() }
 
-    static func withOverride<T>(
+    static func withCandidate<T>(
         _ id: String,
         _ value: Double,
         _ body: () throws -> T
     ) rethrows -> T {
-        let prior = cache[id]
-        cache[id] = value
+        try $candidates.withValue(candidates.merging([id: value]) { _, new in new }, operation: body)
+    }
 
-        defer { cache[id] = prior }
+    // The one place a gene value is resolved, so "which value?" and "where
+    // from?" cannot disagree. `stored` is the genome-table value — the cache
+    // for the ambient readers above, an explicit snapshot for the list, which
+    // reports committed state and must not consult a cache to do it. A
+    // candidate belongs to this execution and outranks both.
+    static func resolve(_ gene: Gene, stored: Double?) -> (value: Double, source: String) {
+        if let candidate = candidates[gene.id] { return (candidate, "shadow") }
 
-        return try body()
+        if let stored { return (stored, "genome") }
+
+        let configured = Config.getDouble(gene.id, default: gene.wildType)
+
+        return (configured, configured == gene.wildType ? "wild_type" : "config")
     }
 
     // MARK: - Private

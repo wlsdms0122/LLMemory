@@ -69,7 +69,7 @@ final class MemoryHome: BrainHome, @unchecked Sendable {
         
         session.storage.disconnect()
         
-        Config.invalidateCache()
+        Config.discardCache(session.context)
         
         Self.exclusion.unlock()
     }

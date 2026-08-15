@@ -12,7 +12,6 @@ struct ListNoteRowsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let filter: NoteListFilter
 
-    private let search = Search()
 
     // MARK: - Initializer
     init(_ filter: NoteListFilter) {
@@ -29,7 +28,7 @@ struct ListNoteRowsTransaction: GRDBReadTransaction {
             arguments.append(priority)
         }
 
-        let (tagClause, tagArguments) = try search.tagClause(db, tags: filter.tags)
+        let (tagClause, tagArguments) = try Search.tagClause(db, tags: filter.tags)
 
         if !tagClause.isEmpty {
             clauses.append(tagClause)

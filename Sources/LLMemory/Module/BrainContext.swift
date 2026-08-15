@@ -37,9 +37,11 @@ public final class BrainContext: @unchecked Sendable {
 
     let home: URL
 
-    // The parameter caches — replaced wholesale by the committed-state loader
-    // at boot and at the end of every write scope. Nothing else writes them,
-    // which is what keeps them behind committed state rather than ahead of it.
+    // The parameter caches — this brain's copy of committed state. The
+    // committed-state loader is their only writer, and it runs at boot and at
+    // the end of every write scope while that scope's gate and flock are still
+    // held. A value that belongs to one execution rather than to the brain
+    // (the shadow replay's candidate gene) is task-local and never lands here.
     var configCache: [String: String] = [:]
     var genesCache: [String: Double] = [:]
 

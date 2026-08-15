@@ -75,8 +75,9 @@ public struct GenomeService: GenomeServiceable {
     }
 
     // Offline reranking — replays the logged retrieval queries against the
-    // current corpus under a candidate gene value. The override lives only in
-    // the in-process cache for the duration of the replay; nothing commits.
+    // current corpus under a candidate gene value. The candidate is task-local
+    // to the replay: it never reaches the brain's cache, so a concurrent reader
+    // of this brain cannot see it and nothing has to be put back afterwards.
     func shadow(
         _ scope: GRDBReadScope,
         gene: String,
@@ -123,7 +124,7 @@ public struct GenomeService: GenomeServiceable {
 
         for loggedQuery in logged {
             let baseline = try replayIds(loggedQuery)
-            let candidate = try Genes.withOverride(gene, value) { try replayIds(loggedQuery) }
+            let candidate = try Genes.withCandidate(gene, value) { try replayIds(loggedQuery) }
 
             if baseline != candidate {
                 changed += 1
@@ -156,22 +157,22 @@ public struct GenomeService: GenomeServiceable {
     }
 
     // MARK: - Private
-    // Catalog mapping over an explicit value snapshot — same value/source
-    // semantics as Genes.double/source, without touching the process cache.
+    // Catalog mapping over an explicit value snapshot — the list reports
+    // committed state, so the genome value comes from the read rather than
+    // from the process cache. Which value wins and what it is called is
+    // Genes.resolve's answer, not a second copy of it.
     private func catalogRows(values: [String: Double]) -> [GeneListRow] {
         Genes.catalog.map { gene in
-            let configValue = Config.getDouble(gene.id, default: gene.wildType)
+            let resolved = Genes.resolve(gene, stored: values[gene.id])
 
             return GeneListRow(
                 id: gene.id,
-                value: values[gene.id] ?? configValue,
+                value: resolved.value,
                 wildType: gene.wildType,
                 min: gene.min,
                 max: gene.max,
                 mutable: gene.mutable,
-                source: values[gene.id] != nil
-                    ? "genome"
-                    : (configValue == gene.wildType ? "wild_type" : "config"),
+                source: resolved.source,
                 summary: gene.summary
             )
         }

@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-public struct Search: Sendable {
+public enum Search {
     enum SearchError: LocalizedError {
         case invalidRawQuery(String)
         
@@ -37,7 +37,7 @@ public struct Search: Sendable {
     // Aliases exist so a caller may spell a tag either way, and only the canonical
     // spelling is stored on the note — so the resolution belongs here, with the
     // clause it guards, rather than at each call site.
-    func tagClause(
+    static func tagClause(
         _ db: Database,
         tags: [String],
         negated: Bool = false
@@ -65,11 +65,11 @@ public struct Search: Sendable {
         return (clauses.joined(separator: " AND "), canonical)
     }
 
-    func fetchPoolSize(limit: Int, needsRerank: Bool) -> Int {
+    static func fetchPoolSize(limit: Int, needsRerank: Bool) -> Int {
         needsRerank ? limit + min(limit * 2, 30) : limit
     }
     
-    func ftsMatchExpr(_ query: String, raw: Bool) -> String? {
+    static func ftsMatchExpr(_ query: String, raw: Bool) -> String? {
         if raw {
             let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
             
@@ -85,7 +85,7 @@ public struct Search: Sendable {
     // The boost takes the item's *strongest* reinstated tag rather than the sum:
     // a note that carries five tags is not five times more primed, and summing
     // would make tag count itself a ranking signal.
-    func rerank<T>(
+    static func rerank<T>(
         _ pool: [T],
         prior: [String: Double],
         limit: Int,
@@ -112,22 +112,22 @@ public struct Search: Sendable {
             .map { scoredItem in scoredItem.item }
     }
     
-    // MARK: - Private
-    func staleClause(_ includeStale: Bool) -> String {
+    static func staleClause(_ includeStale: Bool) -> String {
         includeStale ? "" : " AND \(Policy.fresh())"
     }
-    
-    func fetchRows(
+
+    static func fetchRows(
         _ db: Database,
         sql: String,
         arguments: [DatabaseValueConvertible?]
     ) throws -> [SearchRow] {
         let rows = try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
-        
+
         return rows.map { row in rowToSearchRow(row, hasExtra: false) }
     }
-    
-    private func rowToSearchRow(_ row: Row, hasExtra: Bool) -> SearchRow {
+
+    // MARK: - Private
+    private static func rowToSearchRow(_ row: Row, hasExtra: Bool) -> SearchRow {
         let section = (row["section"] as String?).flatMap { value in value.isEmpty ? nil : value }
         
         return SearchRow(
