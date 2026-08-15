@@ -18,6 +18,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
     let sinceTs: Int?
     let sessionId: String?
     let raw: Bool
+    let keywords: any KeywordExtracting
 
 
     // MARK: - Initializer
@@ -29,7 +30,8 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
         excludeTags: [String]? = nil,
         sinceTs: Int? = nil,
         sessionId: String? = nil,
-        raw: Bool = false
+        raw: Bool = false,
+        keywords: any KeywordExtracting
     ) {
         self.query = query
         self.tags = tags
@@ -39,11 +41,12 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
         self.sinceTs = sinceTs
         self.sessionId = sessionId
         self.raw = raw
+        self.keywords = keywords
     }
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [SearchRow] {
-        guard let matchExpr = Search.ftsMatchExpr(query, raw: raw) else { return [] }
+        guard let matchExpr = Search.ftsMatchExpr(query, raw: raw, keywords: keywords) else { return [] }
         
         var sql = Search.rowSQL + """
              FROM notes_fts f JOIN notes n ON n.id = f.id

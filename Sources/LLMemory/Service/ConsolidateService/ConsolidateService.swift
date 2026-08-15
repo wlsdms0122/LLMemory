@@ -25,12 +25,14 @@ public struct ConsolidateService: ConsolidateServiceable {
     public var candidateValidKinds: [String] { Candidates.validKinds }
 
     let storage: GRDBStorage
+    let keywords: any KeywordExtracting
 
     private let detectors = Candidates()
 
     // MARK: - Initializer
-    init(storage: GRDBStorage) {
+    init(storage: GRDBStorage, keywords: any KeywordExtracting) {
         self.storage = storage
+        self.keywords = keywords
     }
 
     // MARK: - Public
@@ -202,7 +204,7 @@ public struct ConsolidateService: ConsolidateServiceable {
         var staleRejected = 0
         var reviewPass = EnrichmentReviewPass()
 
-        switch try scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: nil)) }) {
+        switch try scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: nil, keywords: keywords)) }) {
         case .success(let pass): validationPass = pass
         case .failure(let error): degrade("term_validation", error)
         }

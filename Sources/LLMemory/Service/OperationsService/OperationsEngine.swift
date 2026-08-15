@@ -25,13 +25,12 @@ public struct OperationsEngine: Sendable {
     
     private let template = Template()
     
+    let keywords: any KeywordExtracting
+
     // MARK: - Initializer
-    // The collaborators are parameters, not fields: they belong to the two
-    // handlers that use them, and the engine is the wiring that hands them
-    // over. A field here would say the engine uses them too, and would be the
-    // second path to them.
-    init(lint: any LintScanning) {
+    init(lint: any LintScanning, keywords: any KeywordExtracting) {
         self.registry = HandlerRegistry(lint: lint)
+        self.keywords = keywords
     }
     
     // MARK: - Public
@@ -288,7 +287,7 @@ public struct OperationsEngine: Sendable {
             // rolls back whole. The pass name rides the result; the error
             // detail rides the trace event.
             if case .failure(let error)? =
-                try? scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: touched)) }) {
+                try? scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: touched, keywords: keywords)) }) {
                 degradedPasses.append("term_validation")
                 
                 try? scope.run(

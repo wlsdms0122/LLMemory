@@ -15,12 +15,20 @@ import Storage
 public struct RetrievalService: RetrievalServiceable {
     // MARK: - Property
     let storage: GRDBStorage
+    let keywords: any KeywordExtracting
+    let entities: any EntityHinting
 
     private let detectors = Candidates()
 
     // MARK: - Initializer
-    init(storage: GRDBStorage) {
+    init(
+        storage: GRDBStorage,
+        keywords: any KeywordExtracting,
+        entities: any EntityHinting
+    ) {
         self.storage = storage
+        self.keywords = keywords
+        self.entities = entities
     }
 
     // MARK: - Public
@@ -124,7 +132,8 @@ public struct RetrievalService: RetrievalServiceable {
                 excludeTags: excludeTags,
                 sinceTs: sinceTs,
                 sessionId: sessionId,
-                raw: raw
+                raw: raw,
+                keywords: keywords
             )
         )
         var extra: [ExpandedNote] = []
@@ -170,7 +179,13 @@ public struct RetrievalService: RetrievalServiceable {
         includeBodies: Bool
     ) throws -> (result: RelatedResult, record: RetrievalRecord) {
         let snapshot = try scope.run(
-            BuildFramingSnapshotTransaction(text: text, linkKind: kind, sessionId: sessionId)
+            BuildFramingSnapshotTransaction(
+                text: text,
+                linkKind: kind,
+                sessionId: sessionId,
+                keywords: keywords,
+                entities: entities
+            )
         )
 
         var bodies: [String: String] = [:]

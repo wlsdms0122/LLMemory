@@ -24,18 +24,18 @@ struct SearchTests {
     // MARK: - Test
     @Test("a plain query becomes an OR over its tokens, so any one of them can match")
     func matchExprTokenizesToOR() {
-        #expect(Search.ftsMatchExpr("alpha beta", raw: false) == "\"alpha\" OR \"beta\"")
+        #expect(Search.ftsMatchExpr("alpha beta", raw: false, keywords: FrequencyKeywords()) == "\"alpha\" OR \"beta\"")
     }
     
     @Test("a raw query is handed to FTS5 verbatim, operators and all")
     func matchExprRawPassesVerbatim() {
-        #expect(Search.ftsMatchExpr("transfer NOT giro", raw: true) == "transfer NOT giro")
+        #expect(Search.ftsMatchExpr("transfer NOT giro", raw: true, keywords: FrequencyKeywords()) == "transfer NOT giro")
     }
     
     @Test("a query with no tokens is nil rather than an expression that matches everything")
     func matchExprEmptyIsNil() {
-        #expect(Search.ftsMatchExpr("   ", raw: false) == nil)
-        #expect(Search.ftsMatchExpr("", raw: true) == nil)
+        #expect(Search.ftsMatchExpr("   ", raw: false, keywords: FrequencyKeywords()) == nil)
+        #expect(Search.ftsMatchExpr("", raw: true, keywords: FrequencyKeywords()) == nil)
     }
     
     @Test("a multi-keyword query matches a note carrying any keyword, not the phrase")
@@ -49,7 +49,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(query: "log masking transformer").perform(database)
+            try SearchNotesFTSTransaction(query: "log masking transformer", keywords: FrequencyKeywords()).perform(database)
         }
         
         // Then
@@ -64,7 +64,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(query: "transfer NOT giro", raw: true).perform(database)
+            try SearchNotesFTSTransaction(query: "transfer NOT giro", raw: true, keywords: FrequencyKeywords()).perform(database)
         }
         
         // Then
@@ -83,7 +83,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(query: "quixotic pool", limit: 40).perform(database)
+            try SearchNotesFTSTransaction(query: "quixotic pool", limit: 40, keywords: FrequencyKeywords()).perform(database)
         }
         
         // Then
@@ -105,7 +105,7 @@ struct SearchTests {
         // Then
         try home.read { database in
             #expect(throws: Search.SearchError.self) {
-                _ = try SearchNotesFTSTransaction(query: "transfer \"", raw: true).perform(database)
+                _ = try SearchNotesFTSTransaction(query: "transfer \"", raw: true, keywords: FrequencyKeywords()).perform(database)
             }
         }
     }
@@ -116,12 +116,32 @@ struct SearchTests {
         #expect(create(id: "safe-note", title: "transfer", body: "## A\ntransfer\n").status == "ok")
         
         // When
-        let hits = try home.read { database in try SearchNotesFTSTransaction(query: "transfer \"").perform(database) }
+        let hits = try home.read { database in try SearchNotesFTSTransaction(query: "transfer \"", keywords: FrequencyKeywords()).perform(database) }
         
         // Then
         #expect(hits.contains { hit in hit.id == "safe-note" })
     }
-    
+
+    @Test("the search reads its cues through whichever reader it was given")
+    func searchUsesTheInjectedKeywordReader() throws {
+        // Given — the note is findable only by a word the query never contains,
+        // so a hit proves the substituted reader is the one that was consulted.
+        #expect(create(id: "swap-note", title: "quokka", body: "## A\nquokka\n").status == "ok")
+
+        struct FixedKeywords: KeywordExtracting {
+            func keywords(in text: String, limit: Int) -> [String] { ["quokka"] }
+        }
+
+        // When
+        let hits = try home.read { database in
+            try SearchNotesFTSTransaction(query: "nothing to do with it", keywords: FixedKeywords())
+                .perform(database)
+        }
+
+        // Then
+        #expect(hits.contains { hit in hit.id == "swap-note" })
+    }
+
     // MARK: - Private
     private func create(id: String, title: String, body: String) -> OperationsResult {
         home.createNote(id: id, title: title, tags: ["tech"], content: body)

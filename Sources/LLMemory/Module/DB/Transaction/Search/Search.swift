@@ -69,17 +69,32 @@ public enum Search {
         needsRerank ? limit + min(limit * 2, 30) : limit
     }
     
-    static func ftsMatchExpr(_ query: String, raw: Bool) -> String? {
+    // The one place a set of cues becomes an FTS5 MATCH expression. A cue
+    // carrying a quote would close the phrase early and change what was asked,
+    // so the quoting belongs to this translation rather than to each caller —
+    // which is what the two copies of it disagreed about.
+    static func matchExpression(cues: [String]) -> String? {
+        let parts = cues
+            .filter { cue in !cue.isEmpty }
+            .map { cue in "\"\(cue.replacingOccurrences(of: "\"", with: ""))\"" }
+
+        return parts.isEmpty ? nil : parts.joined(separator: " OR ")
+    }
+
+    // `raw` hands the caller's own FTS5 expression through; otherwise the
+    // query is read for cues first, by whichever reader the caller was given.
+    static func ftsMatchExpr(
+        _ query: String,
+        raw: Bool,
+        keywords: any KeywordExtracting
+    ) -> String? {
         if raw {
             let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            
+
             return trimmed.isEmpty ? nil : trimmed
         }
-        
-        let parts = FrequencyKeywords.extractKeywords(query)
-            .map { keyword in "\"\(keyword.replacingOccurrences(of: "\"", with: ""))\"" }
-        
-        return parts.isEmpty ? nil : parts.joined(separator: " OR ")
+
+        return matchExpression(cues: keywords.keywords(in: query, limit: 15))
     }
 
     // The boost takes the item's *strongest* reinstated tag rather than the sum:

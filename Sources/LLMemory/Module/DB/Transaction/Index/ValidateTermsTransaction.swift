@@ -11,15 +11,17 @@ import GRDB
 struct ValidateTermsTransaction: GRDBTransaction {
     // MARK: - Property
     let rejectStale: Bool
+    let keywords: any KeywordExtracting
 
     // MARK: - Initializer
-    init(rejectStale: Bool) {
+    init(rejectStale: Bool, keywords: any KeywordExtracting) {
         self.rejectStale = rejectStale
+        self.keywords = keywords
     }
 
     // MARK: - Public
     func perform(_ db: Database) throws -> Indexer.ValidateResult {
-        let pass = try ValidatePendingTermsTransaction(noteIds: nil).perform(db)
+        let pass = try ValidatePendingTermsTransaction(noteIds: nil, keywords: keywords).perform(db)
         let staleRejected = rejectStale ? try RejectStalePendingTermsTransaction().perform(db) : 0
 
         return Indexer.ValidateResult(

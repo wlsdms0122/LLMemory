@@ -18,10 +18,18 @@ import Storage
 public struct GenomeService: GenomeServiceable {
     // MARK: - Property
     let storage: GRDBStorage
+    let keywords: any KeywordExtracting
+    let entities: any EntityHinting
 
     // MARK: - Initializer
-    init(storage: GRDBStorage) {
+    init(
+        storage: GRDBStorage,
+        keywords: any KeywordExtracting,
+        entities: any EntityHinting
+    ) {
         self.storage = storage
+        self.keywords = keywords
+        self.entities = entities
     }
 
     // MARK: - Public
@@ -100,7 +108,8 @@ public struct GenomeService: GenomeServiceable {
                         query: loggedQuery.text,
                         tags: loggedQuery.tags,
                         limit: loggedQuery.limit,
-                        sessionId: loggedQuery.sessionId
+                        sessionId: loggedQuery.sessionId,
+                        keywords: keywords
                     )
                 )
                     .map { hit in hit.id }
@@ -109,7 +118,9 @@ public struct GenomeService: GenomeServiceable {
                 let snapshot = try scope.run(
                     BuildFramingSnapshotTransaction(
                         text: loggedQuery.text,
-                        sessionId: loggedQuery.sessionId
+                        sessionId: loggedQuery.sessionId,
+                        keywords: keywords,
+                        entities: entities
                     )
                 )
 

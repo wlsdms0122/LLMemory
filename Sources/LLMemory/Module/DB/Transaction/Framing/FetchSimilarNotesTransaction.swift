@@ -26,9 +26,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [SimilarNote] {
-        let matchExpr = FrequencyKeywords.ftsQuery(keywords)
-
-        if matchExpr.isEmpty { return [] }
+        guard let matchExpr = Search.matchExpression(cues: keywords) else { return [] }
 
         var sql = """
                 SELECT n.id, n.title, n.summary,

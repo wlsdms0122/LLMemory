@@ -181,7 +181,7 @@ struct CutTotalOrderInvariantTests {
         }
         
         // When
-        let rows = try home.read { database in try SearchNotesFTSTransaction(query: "zebra", limit: 3).perform(database) }
+        let rows = try home.read { database in try SearchNotesFTSTransaction(query: "zebra", limit: 3, keywords: FrequencyKeywords()).perform(database) }
         
         // Then
         #expect(rows.map(\.id) == ["se-n1", "se-n2", "se-n3"])

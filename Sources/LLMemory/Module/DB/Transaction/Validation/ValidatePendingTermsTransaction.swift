@@ -25,10 +25,12 @@ struct ValidatePendingTermsTransaction: GRDBTransaction {
     private static let idfMinCorpus = 8
 
     let noteIds: [String]?
+    let keywords: any KeywordExtracting
 
     // MARK: - Initializer
-    init(noteIds: [String]? = nil) {
+    init(noteIds: [String]? = nil, keywords: any KeywordExtracting) {
         self.noteIds = noteIds
+        self.keywords = keywords
     }
 
     // MARK: - Public
@@ -63,7 +65,7 @@ struct ValidatePendingTermsTransaction: GRDBTransaction {
             let noteId: String = row["note_id"]
             let kind: String = row["kind"]
             let term: String = row["term"]
-            let tokens = FrequencyKeywords.extractKeywords(term, limit: 24)
+            let tokens = keywords.keywords(in: term, limit: 24)
 
             if tokens.isEmpty {
                 try reject(db, nid: noteId, kind: kind, term: term, reason: .malformed, now: now)

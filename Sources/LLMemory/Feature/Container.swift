@@ -34,8 +34,14 @@ struct Container: Sendable {
 
     // MARK: - Initializer
     init(storage: GRDBStorage) {
-        let retrieval = RetrievalService(storage: storage)
-        let genome = GenomeService(storage: storage)
+        // The retrieval strategies are chosen once, here, and handed to
+        // everything that reads text for cues. Swapping either one is this
+        // line and nothing else — which is the whole reason they are named by
+        // what they answer rather than by how they answer it.
+        let keywords: any KeywordExtracting = FrequencyKeywords()
+        let entities: any EntityHinting = PatternEntityHints()
+        let retrieval = RetrievalService(storage: storage, keywords: keywords, entities: entities)
+        let genome = GenomeService(storage: storage, keywords: keywords, entities: entities)
         let scanner = LintScanner(rules: LintRuleRegistry())
         let lint = LintService(storage: storage, scanner: scanner)
 
@@ -44,12 +50,12 @@ struct Container: Sendable {
         self.stats = StatsService(storage: storage)
         self.lint = lint
         self.enrichment = EnrichmentService(storage: storage)
-        self.consolidate = ConsolidateService(storage: storage)
-        self.index = IndexService(storage: storage)
+        self.consolidate = ConsolidateService(storage: storage, keywords: keywords)
+        self.index = IndexService(storage: storage, keywords: keywords)
         self.genome = genome
         self.operations = OperationsService(
             storage: storage,
-            engine: OperationsEngine(lint: scanner)
+            engine: OperationsEngine(lint: scanner, keywords: keywords)
         )
     }
 

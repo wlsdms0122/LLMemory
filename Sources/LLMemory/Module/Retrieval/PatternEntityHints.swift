@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum PatternEntityHints {
+public struct PatternEntityHints: EntityHinting {
     // MARK: - Property
     private static let ticketRegex = try! NSRegularExpression(pattern: #"\b[A-Z][A-Z0-9]+-\d+\b"#)
     private static let titleCaseRegex = try! NSRegularExpression(
@@ -15,8 +15,10 @@ public enum PatternEntityHints {
     )
     
     // MARK: - Initializer
+    public init() { }
+
     // MARK: - Public
-    static func extractEntityHints(_ text: String) -> [String] {
+    public func hints(in text: String) -> [String] {
         guard !text.isEmpty else { return [] }
         
         var seen = Set<String>()
@@ -24,7 +26,7 @@ public enum PatternEntityHints {
         let nsText = text as NSString
         let range = NSRange(location: 0, length: nsText.length)
         
-        ticketRegex.enumerateMatches(in: text, range: range) { match, _, _ in
+        Self.ticketRegex.enumerateMatches(in: text, range: range) { match, _, _ in
             guard let match else { return }
             
             let hint = nsText.substring(with: match.range)
@@ -35,7 +37,7 @@ public enum PatternEntityHints {
             }
         }
         
-        titleCaseRegex.enumerateMatches(in: text, range: range) { match, _, _ in
+        Self.titleCaseRegex.enumerateMatches(in: text, range: range) { match, _, _ in
             guard let match else { return }
             
             let hint = nsText.substring(with: match.range)

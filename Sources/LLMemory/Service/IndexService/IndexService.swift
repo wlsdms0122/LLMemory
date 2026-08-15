@@ -12,12 +12,14 @@ import Storage
 public struct IndexService: IndexServiceable {
     // MARK: - Property
     let storage: GRDBStorage
+    let keywords: any KeywordExtracting
 
     private let indexer = Indexer()
 
     // MARK: - Initializer
-    init(storage: GRDBStorage) {
+    init(storage: GRDBStorage, keywords: any KeywordExtracting) {
         self.storage = storage
+        self.keywords = keywords
     }
 
     // MARK: - Public
@@ -66,7 +68,7 @@ public struct IndexService: IndexServiceable {
     public func validateTerms(
         rejectStale: Bool
     ) async throws -> Indexer.ValidateResult {
-        try await storage.run { scope in try scope.run(ValidateTermsTransaction(rejectStale: rejectStale)) }
+        try await storage.run { scope in try scope.run(ValidateTermsTransaction(rejectStale: rejectStale, keywords: keywords)) }
     }
 
     // MARK: - Private
