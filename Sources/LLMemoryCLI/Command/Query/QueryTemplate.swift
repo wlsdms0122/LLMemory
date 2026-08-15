@@ -54,7 +54,7 @@ struct QueryTemplate: AsyncParsableCommand {
     func run() async throws {
         let brain = Brain(home: global.home)
         
-        let (note, frame) = try await brain.query.template(id: id, cliSessionId: global.sessionId)
+        let (note, frame) = try await brain.query.template(id: id, sessionId: global.session)
         let output = Output(id: note.id, path: note.path, frame: frame)
         
         CommandOutput().render(output, json: format.json) { output in

@@ -31,9 +31,8 @@ public struct NotesService: NotesServiceable {
     // MARK: - Public
     public func get(
         ids: [String],
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> (found: [NoteView], missing: [String]) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try get(scope, ids: ids, sessionId: sessionId)
         }
@@ -46,9 +45,8 @@ public struct NotesService: NotesServiceable {
     public func getSections(
         id: String,
         sections: [String],
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> (note: NoteView, slices: [SectionSlice]) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try getSections(scope, id: id, sections: sections, sessionId: sessionId)
         }
@@ -61,9 +59,8 @@ public struct NotesService: NotesServiceable {
     public func getBudget(
         id: String,
         budget: Int,
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> (note: NoteView, cut: BudgetCut) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try getBudget(scope, id: id, budget: budget, sessionId: sessionId)
         }
@@ -75,9 +72,8 @@ public struct NotesService: NotesServiceable {
 
     public func toc(
         id: String,
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> (note: NoteView, entries: [TocEntry]) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in try toc(scope, id: id, sessionId: sessionId) }
 
         try await retrieval.applyRecord(outcome.record)
@@ -87,9 +83,8 @@ public struct NotesService: NotesServiceable {
 
     public func template(
         id: String,
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> (note: NoteView, frame: [TemplateFrameNode]) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in try template(scope, id: id, sessionId: sessionId) }
 
         try await retrieval.applyRecord(outcome.record)

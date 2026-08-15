@@ -58,7 +58,7 @@ struct QueryNeighbors: AsyncParsableCommand {
         let scores = try await brain.query.neighbors(
             id: id,
             k: k,
-            cliSessionId: global.sessionId
+            sessionId: global.session
         )
         let items = scores.map { score in
             Item(

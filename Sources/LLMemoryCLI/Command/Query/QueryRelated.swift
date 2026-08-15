@@ -187,7 +187,7 @@ struct QueryRelated: AsyncParsableCommand {
         let result = try await brain.query.related(
             text: text,
             kind: kind,
-            cliSessionId: global.sessionId,
+            sessionId: global.session,
             includeBodies: includeBodies
         )
         let snapshot = result.snapshot

@@ -187,7 +187,7 @@ struct QueryGet: AsyncParsableCommand {
         
         let (found, missing) = try await brain.query.get(
             ids: ids,
-            cliSessionId: global.sessionId
+            sessionId: global.session
         )
         let outputs: [Output] = found.map { note in
             Output(
@@ -232,7 +232,7 @@ struct QueryGet: AsyncParsableCommand {
         let (note, slices) = try await brain.query.getSections(
             id: ids[0],
             sections: section,
-            cliSessionId: global.sessionId
+            sessionId: global.session
         )
         let output = Output(
             id: note.id,
@@ -261,7 +261,7 @@ struct QueryGet: AsyncParsableCommand {
         let (note, cut) = try await brain.query.getBudget(
             id: ids[0],
             budget: budget,
-            cliSessionId: global.sessionId
+            sessionId: global.session
         )
         let output = BudgetOutput(
             id: note.id,
@@ -356,7 +356,7 @@ struct QueryGet: AsyncParsableCommand {
     private func runToc() async throws {
         let brain = Brain(home: global.home)
         
-        let (note, entries) = try await brain.query.toc(id: ids[0], cliSessionId: global.sessionId)
+        let (note, entries) = try await brain.query.toc(id: ids[0], sessionId: global.session)
         let output = TocOutput(
             id: note.id,
             path: note.path,

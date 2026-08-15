@@ -37,7 +37,19 @@ struct GlobalHomeOptions: ParsableArguments {
         )
     )
     var sessionId: String = ""
-    
+
+    // The session this invocation belongs to, resolved here and nowhere else.
+    // The flag wins; otherwise the runtime's ambient MEMORY_SESSION_ID answers.
+    // Below this line it is a value that was already decided — a service that
+    // re-derived it would be a second answer to the same question.
+    var session: String? {
+        if !sessionId.isEmpty { return sessionId }
+
+        let ambient = ProcessInfo.processInfo.environment["MEMORY_SESSION_ID"]
+
+        return (ambient?.isEmpty ?? true) ? nil : ambient
+    }
+
     // MARK: - Initializer
     // MARK: - Public
     func validate() throws {

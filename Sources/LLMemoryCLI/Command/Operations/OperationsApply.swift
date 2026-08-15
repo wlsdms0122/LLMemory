@@ -54,7 +54,7 @@ struct OperationsApply: AsyncParsableCommand {
         
         let result = await brain.operations.apply(
             payloadJSON: payload,
-            cliSessionId: global.sessionId
+            sessionId: global.session
         )
         
         CommandOutput().render(result, json: format.json) { result in OperationsResultBlocks().blocks(of: result) }

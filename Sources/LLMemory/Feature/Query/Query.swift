@@ -39,7 +39,7 @@ public struct Query {
         tags: [String],
         limit: Int,
         expand: Int,
-        cliSessionId: String,
+        sessionId: String?,
         includeStale: Bool,
         excludeTags: [String],
         raw: Bool
@@ -49,7 +49,7 @@ public struct Query {
             tags: tags,
             limit: limit,
             expand: expand,
-            cliSessionId: cliSessionId,
+            sessionId: sessionId,
             includeStale: includeStale,
             excludeTags: excludeTags,
             raw: raw
@@ -59,60 +59,60 @@ public struct Query {
     public func related(
         text: String,
         kind: String?,
-        cliSessionId: String,
+        sessionId: String?,
         includeBodies: Bool
     ) async throws -> RelatedResult {
         try await retrieval.related(
             text: text,
             kind: kind,
-            cliSessionId: cliSessionId,
+            sessionId: sessionId,
             includeBodies: includeBodies
         )
     }
 
     public func get(
         ids: [String],
-        cliSessionId: String = ""
+        sessionId: String? = nil
     ) async throws -> (found: [NoteView], missing: [String]) {
-        try await notes.get(ids: ids, cliSessionId: cliSessionId)
+        try await notes.get(ids: ids, sessionId: sessionId)
     }
 
     public func getSections(
         id: String,
         sections: [String],
-        cliSessionId: String = ""
+        sessionId: String? = nil
     ) async throws -> (note: NoteView, slices: [SectionSlice]) {
         try await notes.getSections(
             id: id,
             sections: sections,
-            cliSessionId: cliSessionId
+            sessionId: sessionId
         )
     }
 
     public func getBudget(
         id: String,
         budget: Int,
-        cliSessionId: String = ""
+        sessionId: String? = nil
     ) async throws -> (note: NoteView, cut: BudgetCut) {
         try await notes.getBudget(
             id: id,
             budget: budget,
-            cliSessionId: cliSessionId
+            sessionId: sessionId
         )
     }
 
     public func toc(
         id: String,
-        cliSessionId: String = ""
+        sessionId: String? = nil
     ) async throws -> (note: NoteView, entries: [TocEntry]) {
-        try await notes.toc(id: id, cliSessionId: cliSessionId)
+        try await notes.toc(id: id, sessionId: sessionId)
     }
 
     public func template(
         id: String,
-        cliSessionId: String = ""
+        sessionId: String? = nil
     ) async throws -> (note: NoteView, frame: [TemplateFrameNode]) {
-        try await notes.template(id: id, cliSessionId: cliSessionId)
+        try await notes.template(id: id, sessionId: sessionId)
     }
 
     public func entity(
@@ -135,9 +135,9 @@ public struct Query {
     public func neighbors(
         id: String,
         k: Int,
-        cliSessionId: String = ""
+        sessionId: String? = nil
     ) async throws -> [NeighborScore] {
-        try await retrieval.neighbors(id: id, k: k, cliSessionId: cliSessionId)
+        try await retrieval.neighbors(id: id, k: k, sessionId: sessionId)
     }
 
     public func noteStats(

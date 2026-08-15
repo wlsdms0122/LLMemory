@@ -29,14 +29,8 @@ public struct OperationsService: OperationsServiceable {
     // MARK: - Public
     public func apply(
         payloadJSON: String,
-        cliSessionId: String
+        sessionId: String?
     ) async -> OperationsResult {
-        // Session resolution happens here, below every surface, with the
-        // sibling services' convention: the CLI override wins, the
-        // environment is the fallback — so the observation policy never
-        // silently loses its session filter.
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
-        
         // Shape rejection happens before any lock — a malformed payload must
         // not open the write scope. The string is decoded again inside the
         // scope because [String: Any] cannot cross the Sendable wall.
@@ -83,10 +77,8 @@ public struct OperationsService: OperationsServiceable {
     
     public func dryRun(
         payloadJSON: String,
-        cliSessionId: String
+        sessionId: String?
     ) async -> OperationsDryRunResult {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
-        
         do {
             return try await storage.read { scope in
                 guard let payload = engine.decodePayload(payloadJSON) else {

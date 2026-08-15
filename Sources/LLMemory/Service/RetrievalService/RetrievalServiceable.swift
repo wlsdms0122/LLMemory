@@ -22,7 +22,7 @@ protocol RetrievalServiceable: Sendable {
         tags: [String],
         limit: Int,
         expand: Int,
-        cliSessionId: String,
+        sessionId: String?,
         includeStale: Bool,
         excludeTags: [String],
         raw: Bool
@@ -31,14 +31,14 @@ protocol RetrievalServiceable: Sendable {
     func related(
         text: String,
         kind: String?,
-        cliSessionId: String,
+        sessionId: String?,
         includeBodies: Bool
     ) async throws -> RelatedResult
 
     func neighbors(
         id: String,
         k: Int,
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> [NeighborScore]
 
     func entity(

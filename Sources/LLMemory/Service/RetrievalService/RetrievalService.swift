@@ -29,12 +29,11 @@ public struct RetrievalService: RetrievalServiceable {
         tags: [String],
         limit: Int,
         expand: Int,
-        cliSessionId: String,
+        sessionId: String?,
         includeStale: Bool,
         excludeTags: [String],
         raw: Bool
     ) async throws -> (rows: [SearchRow], extra: [ExpandedNote]) {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try search(
                 scope,
@@ -57,10 +56,9 @@ public struct RetrievalService: RetrievalServiceable {
     public func related(
         text: String,
         kind: String?,
-        cliSessionId: String,
+        sessionId: String?,
         includeBodies: Bool
     ) async throws -> RelatedResult {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try related(
                 scope,
@@ -84,9 +82,8 @@ public struct RetrievalService: RetrievalServiceable {
     public func neighbors(
         id: String,
         k: Int,
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> [NeighborScore] {
-        let sessionId = Environment.retrievalSession(cli: cliSessionId)
         let outcome = try await storage.read { scope in
             try neighbors(scope, id: id, k: k, sessionId: sessionId)
         }

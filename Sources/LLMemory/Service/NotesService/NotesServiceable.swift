@@ -16,29 +16,29 @@ import Foundation
 protocol NotesServiceable: Sendable {
     func get(
         ids: [String],
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> (found: [NoteView], missing: [String])
 
     func getSections(
         id: String,
         sections: [String],
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> (note: NoteView, slices: [SectionSlice])
 
     func getBudget(
         id: String,
         budget: Int,
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> (note: NoteView, cut: BudgetCut)
 
     func toc(
         id: String,
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> (note: NoteView, entries: [TocEntry])
 
     func template(
         id: String,
-        cliSessionId: String
+        sessionId: String?
     ) async throws -> (note: NoteView, frame: [TemplateFrameNode])
 
     func list(

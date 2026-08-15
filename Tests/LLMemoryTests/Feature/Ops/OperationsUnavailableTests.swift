@@ -32,11 +32,11 @@ struct OperationsUnavailableTests {
         // When
         let applied = await operations.apply(
             payloadJSON: #"{"ops":[{"op":"flag","id":"x","kind":"reconsolidate","reason":"r"}],"rationale":"r"}"#,
-            cliSessionId: ""
+            sessionId: ""
         )
         let dryRun = await operations.dryRun(
             payloadJSON: #"{"ops":[{"op":"flag","id":"x","kind":"reconsolidate","reason":"r"}],"rationale":"r"}"#,
-            cliSessionId: ""
+            sessionId: ""
         )
 
         // Then

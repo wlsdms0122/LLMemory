@@ -109,7 +109,7 @@ struct QuerySearch: AsyncParsableCommand {
             tags: tag,
             limit: limit,
             expand: expand,
-            cliSessionId: global.sessionId,
+            sessionId: global.session,
             includeStale: includeStale,
             excludeTags: excludeTags,
             raw: raw
