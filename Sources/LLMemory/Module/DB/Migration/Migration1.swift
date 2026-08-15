@@ -234,7 +234,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
 
 -- ─────────────────────────────────────────────────────────
 -- events (mutation/hygiene/retrieval trace). vocabulary 자유 (CHECK 없음) —
--- caller (Events.swift) 가 정의. 압축은 raw 삭제 — 단 retrieval 이벤트는 삭제 전에
+-- caller (EventKind) 가 정의. 압축은 raw 삭제 — 단 retrieval 이벤트는 삭제 전에
 -- activity_windows/retrieval_hits 로 승계된다 (Activation.deriveWindows, integrate 가
 -- 순서 강제. 승계 후 폐기 — 뇌가 발화 로그 대신 흔적을 남기는 것과 같다).
 -- ─────────────────────────────────────────────────────────

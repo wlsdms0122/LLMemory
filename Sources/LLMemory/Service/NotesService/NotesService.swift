@@ -170,7 +170,7 @@ public struct NotesService: NotesServiceable {
         let record: RetrievalRecord? = found.isEmpty ? nil : .init(
             sessionId: sessionId,
             payload: EventPayload(command: .get, [
-                ("hit_ids", found.map { note in note.id })
+                "hit_ids": found.map { note in note.id }
             ])
         )
 

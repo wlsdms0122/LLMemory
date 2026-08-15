@@ -8,10 +8,11 @@
 import Foundation
 import GRDB
 
-// Writes an event row — the one way one gets written. Best-effort by
-// contract: a trace must not fail the operation it traces, so a refused
-// insert is swallowed here rather than left for every caller to swallow
-// its own way.
+// Writes an event row — the one way one gets written. Whether a refused
+// insert matters is not this transaction's to decide: a trace must not fail
+// the operation it traces, but "must not fail it" and "must not be noticed"
+// are different contracts, and only the caller knows which one it wants.
+// So the failure comes back out, and each caller says what it does with it.
 struct RecordEventTransaction: GRDBTransaction {
     // MARK: - Property
     let kind: EventKind
@@ -33,12 +34,12 @@ struct RecordEventTransaction: GRDBTransaction {
     func perform(_ db: Database) throws {
         var record = EventRecord(
             ts: ts ?? Int(Date().timeIntervalSince1970),
-            kind: kind,
+            kind: kind.rawValue,
             sessionId: sessionId?.rawValue,
             payload: payload.json
         )
 
-        try? record.insert(db)
+        try record.insert(db)
     }
 
     // MARK: - Private

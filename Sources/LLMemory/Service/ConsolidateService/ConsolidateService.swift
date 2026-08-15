@@ -113,7 +113,9 @@ public struct ConsolidateService: ConsolidateServiceable {
 
             let report = try homeostasisTick(scope, now: now)
 
-            try scope.run(
+            // The run happened whether or not its trace lands — losing the
+            // trace must not undo the consolidation it describes.
+            try? scope.run(
                 RecordEventTransaction(
                     kind: .consolidation,
                     payload: EventPayload([
@@ -148,7 +150,7 @@ public struct ConsolidateService: ConsolidateServiceable {
         let now = Int(Date().timeIntervalSince1970)
         let decay = try scope.run(DecayAndPruneLinksTransaction())
 
-        try scope.run(
+        try? scope.run(
             RecordEventTransaction(
                 kind: .consolidation,
                 payload: EventPayload([
@@ -262,7 +264,7 @@ public struct ConsolidateService: ConsolidateServiceable {
             for (key, value) in dictionary { tracePayload[key] = value }
         }
 
-        try scope.run(
+        try? scope.run(
             RecordEventTransaction(kind: .consolidation, payload: EventPayload(tracePayload), ts: now)
         )
 

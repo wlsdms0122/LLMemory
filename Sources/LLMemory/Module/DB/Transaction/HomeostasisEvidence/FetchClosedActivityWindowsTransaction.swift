@@ -35,7 +35,8 @@ struct FetchClosedActivityWindowsTransaction: GRDBReadTransaction {
     func perform(_ db: Database) throws -> [Window] {
         let firstGet = try Int.fetchOne(
             db,
-            sql: "SELECT MIN(surfaced_at) FROM retrieval_hits WHERE cmd = 'get'"
+            sql: "SELECT MIN(surfaced_at) FROM retrieval_hits WHERE cmd = ?",
+            arguments: [RetrievalCommand.get.rawValue]
         )
         let sightedSince = firstGet ?? Int.max
         let candidates = try Row.fetchAll(db, sql: """

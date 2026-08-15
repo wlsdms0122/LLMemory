@@ -24,11 +24,16 @@ struct FetchExpandEvidenceTransaction: GRDBReadTransaction {
                    EXISTS (
                      SELECT 1 FROM retrieval_hits g
                      WHERE g.window_id = h.window_id AND g.note_id = h.note_id
-                       AND g.cmd = 'get' AND g.surfaced_at >= h.surfaced_at
+                       AND g.cmd = ? AND g.surfaced_at >= h.surfaced_at
                    ) AS landed
             FROM retrieval_hits h
-            WHERE h.window_id = ? AND h.surface_kind = 'expand' AND h.cmd != 'get'
-            """, arguments: [windowId])
+            WHERE h.window_id = ? AND h.surface_kind = ? AND h.cmd != ?
+            """, arguments: [
+                RetrievalCommand.get.rawValue,
+                windowId,
+                SurfaceKind.expand.rawValue,
+                RetrievalCommand.get.rawValue
+            ])
 
         return (rows.count, rows.filter { row in (row["landed"] as Int? ?? 0) == 1 }.count)
     }

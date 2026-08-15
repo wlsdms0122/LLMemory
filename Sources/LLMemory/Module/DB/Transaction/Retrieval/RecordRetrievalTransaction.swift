@@ -53,13 +53,17 @@ struct RecordRetrievalTransaction: GRDBTransaction {
             }
         }
 
-        try RecordEventTransaction(
-            kind: .retrieval,
-            payload: record.payload,
-            sessionId: record.sessionId,
-            ts: now
-        )
-            .perform(db)
+        do {
+            try RecordEventTransaction(
+                kind: .retrieval,
+                payload: record.payload,
+                sessionId: record.sessionId,
+                ts: now
+            )
+                .perform(db)
+        } catch {
+            degraded.append("event: \(error)")
+        }
 
         return degraded
     }

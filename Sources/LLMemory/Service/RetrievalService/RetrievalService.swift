@@ -150,15 +150,15 @@ public struct RetrievalService: RetrievalServiceable {
 
         let hitIds = rows.map { row in row.id } + extra.map { note in note.id }
         let trimmedQuery = String(query.prefix(200))
-        let payload: [(String, Any?)] = [
-            ("query", trimmedQuery),
-            ("tags", tags),
-            ("limit", limit),
-            ("include_stale", includeStale),
-            ("exclude_tags", excludeTags as Any?),
-            ("since_ts", sinceTs as Any?),
-            ("hit_ids", rows.map { row in row.id }),
-            ("expand_ids", extra.map { note in note.id })
+        let payload: [String: Any?] = [
+            "query": trimmedQuery,
+            "tags": tags,
+            "limit": limit,
+            "include_stale": includeStale,
+            "exclude_tags": excludeTags,
+            "since_ts": sinceTs,
+            "hit_ids": rows.map { row in row.id },
+            "expand_ids": extra.map { note in note.id }
         ]
         let record = RetrievalRecord(
             sessionId: sessionId,
@@ -204,9 +204,9 @@ public struct RetrievalService: RetrievalServiceable {
             sessionId: sessionId,
             rebirthRanked: relatedRanked(snapshot: snapshot),
             payload: EventPayload(command: .related, [
-                ("text", String(text.prefix(200))),
-                ("hit_ids", snapshot.similar.map { note in note.id }),
-                ("expand_ids", snapshot.linked.map { note in note.id })
+                "text": String(text.prefix(200)),
+                "hit_ids": snapshot.similar.map { note in note.id },
+                "expand_ids": snapshot.linked.map { note in note.id }
             ])
         )
 
@@ -223,8 +223,8 @@ public struct RetrievalService: RetrievalServiceable {
         let record: RetrievalRecord? = scores.isEmpty ? nil : .init(
             sessionId: sessionId,
             payload: EventPayload(command: .neighbors, [
-                ("anchor", id),
-                ("hit_ids", scores.map { score in score.id })
+                "anchor": id,
+                "hit_ids": scores.map { score in score.id }
             ])
         )
 

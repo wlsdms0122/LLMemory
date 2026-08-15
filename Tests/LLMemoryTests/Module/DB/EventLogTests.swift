@@ -29,7 +29,7 @@ struct EventLogTests {
         try home.write { database in
             try RecordEventTransaction(
                 kind: .retrieval,
-                payload: EventPayload(command: .search, [("query", "quokka"), ("hit_ids", ["n1"])]),
+                payload: EventPayload(command: .search, ["query": "quokka", "hit_ids": ["n1"]]),
                 ts: 1_000
             )
                 .perform(database)
@@ -66,13 +66,13 @@ struct EventLogTests {
             try RecordEventTransaction(
                 kind: .retrieval,
                 payload: EventPayload(
-                    command: .search, [("query", "a"), ("tags", ["swift"]), ("limit", 3)]),
+                    command: .search, ["query": "a", "tags": ["swift"], "limit": 3]),
                 ts: 1_000
             )
                 .perform(database)
             try RecordEventTransaction(
                 kind: .retrieval,
-                payload: EventPayload(command: .related, [("text", "b")]),
+                payload: EventPayload(command: .related, ["text": "b"]),
                 ts: 1_001
             )
                 .perform(database)
@@ -103,6 +103,24 @@ struct EventLogTests {
             with: Data(payload.json.utf8)) as? [String: Any]
 
         #expect(decoded?.keys.sorted() == ["kept"])
+    }
+
+    @Test("a payload that could not be encoded says so instead of arriving empty")
+    func failedEncodeIsDistinguishableFromEmpty() {
+        let lost = EventPayload(["count": Double.nan])
+
+        #expect(lost.json != "{}")
+        #expect(lost.json.contains("payload_encode_failed"))
+        #expect(EventPayload([:]).json == "{}", "carrying nothing is not the same as losing it")
+    }
+
+    @Test("the command survives an encoding failure — it is what the readers select on")
+    func failedEncodeKeepsItsCommand() {
+        let lost = EventPayload(command: .search, ["count": Double.nan])
+        let decoded = try? JSONSerialization.jsonObject(with: Data(lost.json.utf8)) as? [String: Any]
+
+        #expect(decoded?["cmd"] as? String == RetrievalCommand.search.rawValue)
+        #expect(decoded?["payload_encode_failed"] as? Bool == true)
     }
 
     // MARK: - Private

@@ -157,7 +157,7 @@ struct RecordCatalogTests {
             try genomeEvent.insert(db)
             #expect(genomeEvent.id != nil)
 
-            var event = EventRecord(ts: 1, kind: .capture, sessionId: "s", payload: "{}")
+            var event = EventRecord(ts: 1, kind: EventKind.capture.rawValue, sessionId: "s", payload: "{}")
             try event.insert(db)
             #expect(event.id != nil)
         }

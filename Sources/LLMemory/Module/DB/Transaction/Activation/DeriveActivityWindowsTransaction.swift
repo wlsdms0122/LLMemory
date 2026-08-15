@@ -72,6 +72,9 @@ struct DeriveActivityWindowsTransaction: GRDBTransaction {
                 WHERE id = ?
                 """, arguments: [timestamp, windowId])
 
+            // Copied through rather than re-spelled: for a payload this
+            // binary wrote, cmd is already a RetrievalCommand — the fallback
+            // marks a payload it could not attribute to one.
             let cmd = payload.cmd ?? "unknown"
 
             for id in payload.hitIds {
@@ -81,7 +84,7 @@ struct DeriveActivityWindowsTransaction: GRDBTransaction {
                     noteId: id,
                     ts: timestamp,
                     cmd: cmd,
-                    kind: "hit"
+                    kind: .hit
                 )
                 result.hitsRecorded += 1
             }
@@ -93,7 +96,7 @@ struct DeriveActivityWindowsTransaction: GRDBTransaction {
                     noteId: id,
                     ts: timestamp,
                     cmd: cmd,
-                    kind: "expand"
+                    kind: .expand
                 )
                 result.hitsRecorded += 1
             }
@@ -144,12 +147,12 @@ struct DeriveActivityWindowsTransaction: GRDBTransaction {
         noteId: String,
         ts: Int,
         cmd: String,
-        kind: String
+        kind: SurfaceKind
     ) throws {
         try db.execute(sql: """
             INSERT INTO retrieval_hits (window_id, note_id, surfaced_at, cmd, surface_kind)
             VALUES (?, ?, ?, ?, ?)
-            """, arguments: [windowId, noteId, ts, cmd, kind])
+            """, arguments: [windowId, noteId, ts, cmd, kind.rawValue])
     }
 
     private func parsePayload(_ raw: String?) -> RetrievalPayload? {

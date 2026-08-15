@@ -55,10 +55,10 @@ struct FetchLoggedRetrievalQueriesTransaction: GRDBReadTransaction {
         var queries: [LoggedQuery] = []
 
         for row in rows {
-            guard let raw = row["payload"] as String?,
-                let data = raw.data(using: .utf8),
+            guard let payloadText = row["payload"] as String?,
+                let data = payloadText.data(using: .utf8),
                 let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let raw = payload["cmd"] as? String
+                let command = payload["cmd"] as? String
             else {
                 continue
             }
@@ -68,7 +68,7 @@ struct FetchLoggedRetrievalQueriesTransaction: GRDBReadTransaction {
             // neighbors and get log no query text, so there is nothing of
             // theirs to run again — they fall through unrecognised, as does
             // a command written by a binary this one does not know.
-            switch RetrievalCommand(rawValue: raw) {
+            switch RetrievalCommand(rawValue: command) {
             case .search:
                 guard let text = payload["query"] as? String, !text.isEmpty else { continue }
 
