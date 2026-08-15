@@ -189,13 +189,13 @@ struct ActivationTests {
         // When
             // A labeled mark attaches to the window with that label, and to no other.
             let ok = try MarkNotesUsedTransaction(ids: ["answer-note"], response: nil,
-                sessionLabel: "turn-1", now: now).perform(database)
+                sessionLabel: SessionId("turn-1"), now: now).perform(database)
         
         // Then
             #expect(ok.first?.signal == "reported")
             #expect(throws: Activation.UsedError.self) {
                 _ = try MarkNotesUsedTransaction(ids: ["snapshot-only-note"], response: nil,
-                    sessionLabel: "turn-1", now: now).perform(database)
+                    sessionLabel: SessionId("turn-1"), now: now).perform(database)
             }
         }
     }

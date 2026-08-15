@@ -41,7 +41,7 @@ struct MarkUsedHandler: OperationHandling {
         let cutoff = context.now - Activation.usedLookbackSec
         let label = context.sessionId
         let surfaced = try scope.run(
-            NotesSurfacedRecentlyTransaction(noteIds: ids, cutoff: cutoff, label: label?.rawValue)
+            NotesSurfacedRecentlyTransaction(noteIds: ids, cutoff: cutoff, label: label)
         )
         
         if let missing = ids.first(where: { id in !surfaced.contains(id) }) {
@@ -70,7 +70,7 @@ struct MarkUsedHandler: OperationHandling {
         let outcomes = try scope.run(MarkNotesUsedTransaction(
             ids: ids,
             response: op["response"] as? String,
-            sessionLabel: context.sessionId?.rawValue,
+            sessionLabel: context.sessionId,
             now: context.now
         ))
         let marked = outcomes.filter { outcome in outcome.matched }

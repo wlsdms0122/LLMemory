@@ -20,10 +20,10 @@ struct NotesSurfacedRecentlyTransaction: GRDBReadTransaction {
 
     let noteIds: [String]
     let cutoff: Int
-    let label: String?
+    let label: SessionId?
 
     // MARK: - Initializer
-    init(noteIds: [String], cutoff: Int, label: String? = nil) {
+    init(noteIds: [String], cutoff: Int, label: SessionId? = nil) {
         self.noteIds = noteIds
         self.cutoff = cutoff
         self.label = label
@@ -42,12 +42,13 @@ struct NotesSurfacedRecentlyTransaction: GRDBReadTransaction {
         for chunk in chunks {
             let placeholders = chunk.map { _ in "?" }.joined(separator: ",")
 
-            if let label, !label.isEmpty {
+            if let label {
                 surfaced.formUnion(try String.fetchAll(db, sql: """
                     SELECT DISTINCT h.note_id FROM retrieval_hits h
                     JOIN activity_windows w ON w.id = h.window_id
                     WHERE h.note_id IN (\(placeholders)) AND h.surfaced_at >= ? AND w.label = ?
-                    """, arguments: StatementArguments(chunk + [cutoff, label] as [DatabaseValueConvertible])))
+                    """, arguments: StatementArguments(
+                        chunk + [cutoff, label.rawValue] as [DatabaseValueConvertible])))
             } else {
                 surfaced.formUnion(try String.fetchAll(db, sql: """
                     SELECT DISTINCT note_id FROM retrieval_hits
@@ -60,11 +61,11 @@ struct NotesSurfacedRecentlyTransaction: GRDBReadTransaction {
 
         let rows: [Row]
 
-        if let label, !label.isEmpty {
+        if let label {
             rows = try Row.fetchAll(db, sql: """
                 SELECT payload FROM events
                 WHERE kind = 'retrieval' AND ts >= ? AND session_id = ?
-                """, arguments: [cutoff, label])
+                """, arguments: [cutoff, label.rawValue])
         } else {
             rows = try Row.fetchAll(db, sql: """
                 SELECT payload FROM events WHERE kind = 'retrieval' AND ts >= ?

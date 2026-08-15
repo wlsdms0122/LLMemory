@@ -23,11 +23,11 @@ struct MarkNotesUsedTransaction: GRDBTransaction {
     // MARK: - Property
     let ids: [String]
     let response: String?
-    let sessionLabel: String?
+    let sessionLabel: SessionId?
     let now: Int
 
     // MARK: - Initializer
-    init(ids: [String], response: String?, sessionLabel: String? = nil, now: Int) {
+    init(ids: [String], response: String?, sessionLabel: SessionId? = nil, now: Int) {
         self.ids = ids
         self.response = response
         self.sessionLabel = sessionLabel
@@ -42,13 +42,13 @@ struct MarkNotesUsedTransaction: GRDBTransaction {
         for id in ids {
             let hit: Row?
 
-            if let sessionLabel, !sessionLabel.isEmpty {
+            if let sessionLabel {
                 hit = try Row.fetchOne(db, sql: """
                     SELECT h.id FROM retrieval_hits h
                     JOIN activity_windows w ON w.id = h.window_id
                     WHERE h.note_id = ? AND h.surfaced_at >= ? AND w.label = ?
                     ORDER BY h.surfaced_at DESC LIMIT 1
-                    """, arguments: [id, cutoff, sessionLabel])
+                    """, arguments: [id, cutoff, sessionLabel.rawValue])
             } else {
                 hit = try Row.fetchOne(db, sql: """
                     SELECT id FROM retrieval_hits WHERE note_id = ? AND surfaced_at >= ?
