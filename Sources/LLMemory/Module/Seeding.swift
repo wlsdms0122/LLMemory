@@ -58,11 +58,18 @@ public struct Seeding: Sendable {
         // MARK: - Private
     }
 
+    private let paths: Paths
+
     private let frontmatter = Frontmatter()
 
-    private let trash = Trash()
+    private let trash: Trash
 
     // MARK: - Initializer
+    init(paths: Paths) {
+        self.paths = paths
+        trash = Trash(paths: paths)
+    }
+
     // MARK: - Public
     // `seeded` is what the brain records as holding a seeded copy — the catalog
     // narrows the search, and the file decides, because the row is only as fresh
@@ -98,7 +105,7 @@ public struct Seeding: Sendable {
         }
 
         for (seed, claimant) in claimants {
-            let canonical = Paths.file(forId: seed.id)
+            let canonical = paths.file(forId: seed.id)
 
             switch claimant {
             case .identical:
@@ -159,7 +166,7 @@ public struct Seeding: Sendable {
         let shipped = Set(Seed.notes.map { note in note.id })
 
         for id in seeded.sorted() where !shipped.contains(id) {
-            let file = Paths.file(forId: id)
+            let file = paths.file(forId: id)
 
             // Confirmed against the file, not taken from the row: what is there
             // now may no longer be the copy the catalog remembers.
@@ -198,7 +205,7 @@ public struct Seeding: Sendable {
     }
 
     private func claimant(of seed: Seed.Note) -> Claimant {
-        let canonical = Paths.file(forId: seed.id)
+        let canonical = paths.file(forId: seed.id)
 
         guard FileManager.default.fileExists(atPath: canonical.path) else { return .absent }
 

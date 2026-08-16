@@ -270,7 +270,7 @@ struct FragmentationLintTests {
         #expect(try siblingEdgeCount() == 1)
         
         // When
-        _ = try indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), home.brain, rebuild: true)
         
         // Then
         #expect(try siblingEdgeCount() == 1, "a rebuild must not erase sibling edges")

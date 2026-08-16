@@ -10,7 +10,7 @@ import GRDB
 
 // Index maintenance transactions — full build/reconcile, targeted reindex,
 // integrity check, and enrichment-term validation.
-struct ReconcileIndexTransaction: GRDBTransaction {
+struct ReconcileIndexTransaction: GRDBBrainTransaction {
     // MARK: - Property
     let scan: Indexer.Scan
     let rebuild: Bool
@@ -26,8 +26,9 @@ struct ReconcileIndexTransaction: GRDBTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> Indexer.BuildResult {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> Indexer.BuildResult {
         try indexer.reconcile(
+            brain,
             db,
             pending: scan.pending,
             scannedRels: scan.scannedRels,

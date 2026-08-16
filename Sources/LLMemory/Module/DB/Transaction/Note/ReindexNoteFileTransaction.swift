@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct ReindexNoteFileTransaction: GRDBTransaction {
+struct ReindexNoteFileTransaction: GRDBBrainTransaction {
     // MARK: - Property
     let path: URL
 
@@ -21,10 +21,10 @@ struct ReindexNoteFileTransaction: GRDBTransaction {
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database) throws -> String {
-        if let rejection = Paths.liveNoteRejection(of: path) {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> String {
+        if let rejection = brain.paths.liveNoteRejection(of: path) {
             throw NotesError.notALiveNote(
-                path: Paths.relative(of: path) ?? path.path,
+                path: brain.paths.relative(of: path) ?? path.path,
                 reason: rejection
             )
         }
@@ -41,7 +41,7 @@ struct ReindexNoteFileTransaction: GRDBTransaction {
         }
 
         return try UpsertNoteTransaction(file: path, fields: fields, body: body, raw: text, now: now)
-            .perform(db)
+            .perform(db, brain)
     }
 
     // MARK: - Private

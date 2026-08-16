@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct StrengthenLinksTransaction: GRDBTransaction {
+struct StrengthenLinksTransaction: GRDBBrainTransaction {
     // MARK: - Property
     let pairs: [(String, String)]
     let kind: LinkKind
@@ -30,10 +30,10 @@ struct StrengthenLinksTransaction: GRDBTransaction {
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database) throws -> Int {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> Int {
         guard !pairs.isEmpty else { return 0 }
 
-        let stepValue = step ?? Genes.double("links.strengthen_step")
+        let stepValue = step ?? brain.genes.double("links.strengthen_step")
         let now = Int(Date().timeIntervalSince1970)
         var strengthened = 0
 

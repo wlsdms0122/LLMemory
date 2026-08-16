@@ -25,8 +25,8 @@ struct SourceVerifyInvariantTests {
     // MARK: - Test
     
     // the baseline is an observation: only rebase (declaration change / ack) may move it
-    private static func writeSourcedNote(_ id: String, source: URL, body: String = "# body") throws -> URL {
-        let directory = Paths.notes
+    private static func writeSourcedNote(_ paths: Paths, _ id: String, source: URL, body: String = "# body") throws -> URL {
+        let directory = paths.notes
         
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         
@@ -67,7 +67,7 @@ struct SourceVerifyInvariantTests {
         try "alpha".write(to: first, atomically: true, encoding: .utf8)
         try "beta".write(to: second, atomically: true, encoding: .utf8)
         
-        let noteDirectory = Paths.notes
+        let noteDirectory = home.paths.notes
         
         try FileManager.default.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -89,7 +89,7 @@ struct SourceVerifyInvariantTests {
         
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         
         let future = 9_999_999_999
         
@@ -103,7 +103,7 @@ struct SourceVerifyInvariantTests {
         
         try FileManager.default.removeItem(at: second)
         
-        _ = try queue.write { db in try VerifySourcesTransaction(now: future).perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction(now: future).perform(db, home.brain) }
         
         let after = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT source_stale FROM note_source WHERE note_id = 'src-1'") ?? -1
@@ -124,7 +124,7 @@ struct SourceVerifyInvariantTests {
         try fileManager.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_000_000)], ofItemAtPath: older.path)
         try fileManager.setAttributes([.modificationDate: Date(timeIntervalSince1970: 2_000_000)], ofItemAtPath: newer.path)
         
-        let noteDirectory = Paths.notes
+        let noteDirectory = home.paths.notes
         
         try fileManager.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -145,11 +145,11 @@ struct SourceVerifyInvariantTests {
         
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         try "alpha-changed".write(to: older, atomically: true, encoding: .utf8)
         try fileManager.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_500_000)], ofItemAtPath: older.path)
         
-        _ = try queue.write { db in try VerifySourcesTransaction().perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction().perform(db, home.brain) }
         
         // When
         let stale = try queue.read { db in
@@ -163,7 +163,7 @@ struct SourceVerifyInvariantTests {
     @Test("a reference that is not a file has nothing to drift from, so it is not tracked")
     func opaqueRefsAreNotDriftTracked() throws {
         // Given
-        let noteDirectory = Paths.notes
+        let noteDirectory = home.paths.notes
         
         try FileManager.default.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -184,7 +184,7 @@ struct SourceVerifyInvariantTests {
         
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         
         // When
         let rows = try queue.read { db in
@@ -194,7 +194,7 @@ struct SourceVerifyInvariantTests {
         // Then
         #expect(rows == 0, "URL/date/relative-only sources must not create a note_source row")
         
-        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db, home.brain) }
         
         let stale = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM note_source WHERE note_id = 'src-url' AND source_stale = 1") ?? -1
@@ -210,7 +210,7 @@ struct SourceVerifyInvariantTests {
         
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
-        let noteDirectory = Paths.notes
+        let noteDirectory = home.paths.notes
         
         try FileManager.default.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -231,7 +231,7 @@ struct SourceVerifyInvariantTests {
         
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         
         // When
         let tracked = try queue.read { db in
@@ -243,7 +243,7 @@ struct SourceVerifyInvariantTests {
         
         try FileManager.default.removeItem(at: grounding)
         
-        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db, home.brain) }
         
         let stale = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT source_stale FROM note_source WHERE note_id = 'src-mix'") ?? -1
@@ -259,10 +259,10 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote("src-keep", source: file)
+        let notePath = try Self.writeSourcedNote(home.paths, "src-keep", source: file)
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         
         // When
         let baseline = try Self.sourceRow(queue, "src-keep")
@@ -272,14 +272,14 @@ struct SourceVerifyInvariantTests {
         
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db, home.brain) }
         
         #expect(try Self.sourceRow(queue, "src-keep")?.stale == 1)
         
         let raw = try String(contentsOf: notePath, encoding: .utf8)
         
         try (raw + "\nunrelated edit\n").write(to: notePath, atomically: true, encoding: .utf8)
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         
         let after = try Self.sourceRow(queue, "src-keep")
         
@@ -294,17 +294,17 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote("src-rb", source: file)
+        let notePath = try Self.writeSourcedNote(home.paths, "src-rb", source: file)
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         
         let baseline = try Self.sourceRow(queue, "src-rb")
         
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
         // When
-        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db, home.brain) }
         
         // Then
         #expect(try Self.sourceRow(queue, "src-rb")?.stale == 1)
@@ -313,7 +313,7 @@ struct SourceVerifyInvariantTests {
             try SnapshotArtifactsForRebuildTransaction().perform(db)
             try db.execute(sql: "DELETE FROM notes")
             
-            _ = try ReindexNoteFileTransaction(path: notePath).perform(db)
+            _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain)
             
             try RestoreArtifactsAfterRebuildTransaction().perform(db)
         }
@@ -331,10 +331,10 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote("src-ack", source: file)
+        let notePath = try Self.writeSourcedNote(home.paths, "src-ack", source: file)
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         
         // When
         let early = OperationsEngine.apply(home.storage, ["ops": [["op": "rebase_source", "id": "src-ack", "reason": "r"]], "rationale": "t"])
@@ -344,7 +344,7 @@ struct SourceVerifyInvariantTests {
         
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db, home.brain) }
         
         let before = try Self.sourceRow(queue, "src-ack")
         
@@ -359,7 +359,7 @@ struct SourceVerifyInvariantTests {
         #expect(after?.stale == 0, "rebase must clear source_stale")
         #expect(after?.hash != before?.hash, "rebase must move the baseline to the current file")
         
-        let plainPath = Paths.notes.appendingPathComponent("src-plain.md")
+        let plainPath = home.paths.notes.appendingPathComponent("src-plain.md")
         
         try """
         ---
@@ -372,7 +372,7 @@ struct SourceVerifyInvariantTests {
 
         # body
         """.write(to: plainPath, atomically: true, encoding: .utf8)
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: plainPath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: plainPath).perform(db, home.brain) }
         
         let none = OperationsEngine.apply(home.storage, ["ops": [["op": "rebase_source", "id": "src-plain", "reason": "r"]], "rationale": "t"])
         
@@ -388,14 +388,14 @@ struct SourceVerifyInvariantTests {
         try "one".write(to: first, atomically: true, encoding: .utf8)
         try "two".write(to: second, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote("src-decl", source: first)
+        let notePath = try Self.writeSourcedNote(home.paths, "src-decl", source: first)
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         try "one drifted".write(to: first, atomically: true, encoding: .utf8)
         
         // When
-        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db, home.brain) }
         
         // Then
         #expect(try Self.sourceRow(queue, "src-decl")?.stale == 1)
@@ -421,14 +421,14 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote("src-sp", source: file,
+        let notePath = try Self.writeSourcedNote(home.paths, "src-sp", source: file,
             body: "## A\nalpha\n## B\nbeta\n")
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db, home.brain) }
         
         // When
         let parent = try Self.sourceRow(queue, "src-sp")
@@ -461,18 +461,18 @@ struct SourceVerifyInvariantTests {
         try "one".write(to: first, atomically: true, encoding: .utf8)
         try "two".write(to: second, atomically: true, encoding: .utf8)
         
-        let intoPath = try Self.writeSourcedNote("src-mi", source: first)
+        let intoPath = try Self.writeSourcedNote(home.paths, "src-mi", source: first)
         let queue = try home.storage.connect()
         
         // When
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: intoPath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: intoPath).perform(db, home.brain) }
         
         // Then
         #expect(home.createNote(id: "src-mf", content: "## F\nfrom body\n").status == "ok")
         
         try "one drifted".write(to: first, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db, home.brain) }
         
         #expect(try Self.sourceRow(queue, "src-mi")?.stale == 1)
         
@@ -500,13 +500,13 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote("src-same", source: file)
+        let notePath = try Self.writeSourcedNote(home.paths, "src-same", source: file)
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db, home.brain) }
         
         // When
         let before = try Self.sourceRow(queue, "src-same")
@@ -532,14 +532,14 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote("src-rs", source: file,
+        let notePath = try Self.writeSourcedNote(home.paths, "src-rs", source: file,
             body: "## A\nalpha\n## B\nbeta\n")
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction(now: 9_999_999_999).perform(db, home.brain) }
         
         // When
         let parent = try Self.sourceRow(queue, "src-rs")

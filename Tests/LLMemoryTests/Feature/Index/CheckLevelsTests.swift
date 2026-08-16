@@ -25,7 +25,7 @@ struct CheckLevelsTests {
     @Test("every message a level emits is tagged with the level that produced it")
     func messagesCarryTheirLevelPrefix() throws {
         // When
-        let (_, messages) = try indexer.check(home.database(), level: .l1)
+        let (_, messages) = try indexer.check(home.database(), home.brain, level: .l1)
         
         // Then
         for message in messages {
@@ -39,8 +39,8 @@ struct CheckLevelsTests {
         try writeUnindexedNote(id: "l0-orphan")
         
         // When
-        let (passedLevel0, messagesAtLevel0) = try indexer.check(home.database(), level: .l0)
-        let (passedLevel1, messagesAtLevel1) = try indexer.check(home.database(), level: .l1)
+        let (passedLevel0, messagesAtLevel0) = try indexer.check(home.database(), home.brain, level: .l0)
+        let (passedLevel1, messagesAtLevel1) = try indexer.check(home.database(), home.brain, level: .l1)
         
         // Then
         #expect(passedLevel0, "the file's shape is intact, so L0 must pass — got \(messagesAtLevel0)")
@@ -57,8 +57,8 @@ struct CheckLevelsTests {
     ])
     func aLevelCarriesTheOneBelowIt(level: Indexer.IntegrityLevel, below: Indexer.IntegrityLevel, prefixes: [String]) throws {
         // When
-        let (_, deeper) = try indexer.check(home.database(), level: level)
-        let (_, shallower) = try indexer.check(home.database(), level: below)
+        let (_, deeper) = try indexer.check(home.database(), home.brain, level: level)
+        let (_, shallower) = try indexer.check(home.database(), home.brain, level: below)
         
         // Then
         let carried = deeper.filter { message in
@@ -74,7 +74,7 @@ struct CheckLevelsTests {
         let levelPrefix = try NSRegularExpression(pattern: #"^L[1-4]$"#)
         
         // When
-        let (_, messages) = try indexer.check(home.database(), level: .l4)
+        let (_, messages) = try indexer.check(home.database(), home.brain, level: .l4)
         
         // Then
         for message in messages {
@@ -92,7 +92,7 @@ struct CheckLevelsTests {
     // MARK: - Private
     // Written straight to disk so the note exists as a file without ever reaching the index.
     private func writeUnindexedNote(id: String) throws {
-        let directory = Paths.notes
+        let directory = home.paths.notes
         
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try """

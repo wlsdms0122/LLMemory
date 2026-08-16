@@ -64,38 +64,34 @@ struct SessionBindingTests {
         }
 
         #expect(strayValue == "first", "the probe was written into the first session's database file")
-
-        // Constructing the second session moved the process-global Paths remnant; put it back
-        // so the fixture tears down against its own home.
-        BrainContext.adoptFallback(home.session.context)
-        home.session.rewarm()
     }
 
-    // The cycle-5 contract: paths and parameter caches follow the executing
-    // brain's scope, not whichever Session was constructed last.
-    @Test("two live sessions keep their own paths and caches — scoped work resolves per brain")
-    func scopedWorkResolvesPerBrain() throws {
+    // There is no ambient brain to move any more: paths and parameter caches
+    // belong to the Session that owns them and arrive through the scope it
+    // opens. Constructing another Session is not an event the first one can
+    // observe — which is the whole difference from the version of this that
+    // answered from a process-wide fallback.
+    @Test("a second session is not something the first one can notice")
+    func sessionsDoNotShareParameters() throws {
         // Given — a probe value primed into the fixture's own context
         try home.write { database in
             try Config.set("binding-probe", value: "mine", txDB: database)
         }
 
-        // When — constructing a second session moves the ambient fallback
+        home.session.rewarm()
+
+        // When
         let second = try SecondaryHome()
 
-        #expect(Paths.brainRoot == second.session.home,
-            "the ambient fallback did not move to the newest session")
+        try second.storage.initialize()
 
-        // Then — the first storage's scoped work still resolves its own brain
-        let (root, probe) = try home.storage.writeLock {
-            (Paths.brainRoot, Config.getString("binding-probe", default: ""))
-        }
-
-        #expect(root == home.session.home, "a scope resolved another brain's paths")
-        #expect(probe == "mine", "a scope resolved another brain's config cache")
-
-        BrainContext.adoptFallback(home.session.context)
-        home.session.rewarm()
+        // Then
+        #expect(home.paths.brainRoot == home.session.home)
+        #expect(second.session.context.paths.brainRoot == second.session.home)
+        #expect(home.paths.brainRoot != second.session.home, "two homes, two roots")
+        #expect(home.config.getString("binding-probe", default: "") == "mine")
+        #expect(second.session.context.config.getString("binding-probe", default: "") == "",
+            "a second brain has its own cache, not a share of this one's")
     }
 
     @Test("a storage caches its connection — reconnecting yields the same queue")

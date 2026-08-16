@@ -21,7 +21,7 @@ struct EagerCapInvariantTests {
     // MARK: - Initializer
     init() throws {
         home = try MemoryHome()
-        cap = Config.getInt("eager.max_count", default: 20)
+        cap = home.config.getInt("eager.max_count", default: 20)
     }
     
     // MARK: - Test

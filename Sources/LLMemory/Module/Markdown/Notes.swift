@@ -50,8 +50,8 @@ struct Notes: Sendable {
         }
     }
     
-    func relativeToBrainRoot(_ file: URL) throws -> String {
-        guard let relativePath = Paths.relative(of: file) else {
+    func relativeToBrainRoot(_ file: URL, _ paths: Paths) throws -> String {
+        guard let relativePath = paths.relative(of: file) else {
             throw NotesError.notUnderBrainRoot(file.path)
         }
         

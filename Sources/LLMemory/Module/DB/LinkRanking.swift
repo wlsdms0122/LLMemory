@@ -19,8 +19,8 @@ enum LinkRanking {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    static func weightSQL(_ alias: String) -> String {
-        let discount = Genes.double("links.sibling_rank_weight")
+    static func weightSQL(_ alias: String, _ brain: BrainContext) -> String {
+        let discount = brain.genes.double("links.sibling_rank_weight")
 
         return """
             (\(alias).weight * (CASE WHEN \(alias).kind = '\(LinkKind.sibling.rawValue)' \

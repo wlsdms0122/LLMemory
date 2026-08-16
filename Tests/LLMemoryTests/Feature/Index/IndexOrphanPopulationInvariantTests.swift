@@ -33,7 +33,7 @@ struct IndexOrphanPopulationInvariantTests {
         try breakFrontmatter(at: try home.indexedPath(of: "opx"))
         
         // When
-        let result = try indexer.buildLocked(home.database(), rebuild: false)
+        let result = try indexer.buildLocked(home.database(), home.brain, rebuild: false)
         
         // Then
         let survived = try home.read { database in
@@ -60,7 +60,7 @@ struct IndexOrphanPopulationInvariantTests {
         
         // When
         #expect(throws: Error.self, "rebuild must fail loud instead of committing a lossy snapshot") {
-            try indexer.buildLocked(home.database(), rebuild: true)
+            try indexer.buildLocked(home.database(), home.brain, rebuild: true)
         }
         
         // Then
@@ -84,7 +84,7 @@ struct IndexOrphanPopulationInvariantTests {
         try breakFrontmatter(at: destination)
         
         // When
-        let result = try indexer.buildLocked(home.database(), rebuild: false)
+        let result = try indexer.buildLocked(home.database(), home.brain, rebuild: false)
         
         // Then
         let rows = try home.read { database in
@@ -106,13 +106,13 @@ struct IndexOrphanPopulationInvariantTests {
         _ = try move(id: "mvx", to: "skill/mvx.md")
         
         // When
-        _ = try indexer.buildLocked(home.database(), rebuild: false)
+        _ = try indexer.buildLocked(home.database(), home.brain, rebuild: false)
         
         // Then
         let ids = try home.read { database in
             try String.fetchAll(database, sql: "SELECT id FROM notes ORDER BY id")
         }
-        let (ok, messages) = try indexer.check(home.database(), level: .l2)
+        let (ok, messages) = try indexer.check(home.database(), home.brain, level: .l2)
         
         #expect(!ids.contains("mvx"), "the old address still has a row: \(ids)")
         #expect(ids.contains("skill.mvx"), "the new address has no row: \(ids)")
@@ -127,7 +127,7 @@ struct IndexOrphanPopulationInvariantTests {
         try FileManager.default.removeItem(at: try home.indexedPath(of: "gone"))
         
         // When
-        let result = try indexer.buildLocked(home.database(), rebuild: false)
+        let result = try indexer.buildLocked(home.database(), home.brain, rebuild: false)
         
         // Then
         let rows = try home.read { database in
@@ -147,7 +147,7 @@ struct IndexOrphanPopulationInvariantTests {
     @discardableResult
     private func move(id: String, to relativePath: String) throws -> URL {
         let source = try home.indexedPath(of: id)
-        let destination = Paths.cortexRoot.appendingPathComponent(relativePath)
+        let destination = home.paths.cortexRoot.appendingPathComponent(relativePath)
         
         try FileManager.default.createDirectory(
             at: destination.deletingLastPathComponent(),

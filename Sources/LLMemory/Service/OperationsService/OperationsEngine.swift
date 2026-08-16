@@ -15,7 +15,6 @@ public struct OperationsEngine: Sendable {
     
     private let bodyProjection = BodyProjection()
     
-    private let trashLookup = TrashedNoteLookup()
     
     private let sectionEdit = SectionEdit()
     
@@ -196,6 +195,7 @@ public struct OperationsEngine: Sendable {
                 }
                 
                 if let sectionError = checkSectionInvariants(
+                    scope.brain.paths,
                     affected: affected,
                     backups: backups
                 ) {
@@ -365,6 +365,7 @@ public struct OperationsEngine: Sendable {
     }
     
     func checkSectionInvariants(
+        _ paths: Paths,
         affected: [URL],
         backups: [(URL, String?)]
     ) -> String? {
@@ -373,7 +374,7 @@ public struct OperationsEngine: Sendable {
         for path in affected {
             if path.pathExtension != "md" { continue }
             
-            let noteId = trashLookup.trashStemId(path)
+            let noteId = TrashedNoteLookup(paths: paths).trashStemId(path)
             let body: String
             do {
                 guard let read = try noteFiles.readNoteIfPresent(at: path) else { continue }
@@ -392,7 +393,7 @@ public struct OperationsEngine: Sendable {
             
             var existingPaths = Set<String>()
             
-            if let preText = preImage(path, nid: noteId, backups: backups),
+            if let preText = preImage(path, paths, nid: noteId, backups: backups),
                 let (_, preBody) = try? frontmatter.parse(preText) {
                 existingPaths = Set(
                     sectionEdit.findPathCollisions(preBody).map { collision in
@@ -518,7 +519,7 @@ public struct OperationsEngine: Sendable {
         let urls = try handler.touches(op, scope)
         
         for url in urls {
-            guard let noteId = Paths.id(ofFile: url) else { continue }
+            guard let noteId = scope.brain.paths.id(ofFile: url) else { continue }
             
             if try scope.run(NoteLockedTransaction(nid: noteId)) {
                 return "note is locked (human-only) — edit the file directly, not via ops: \(noteId)"
@@ -592,6 +593,7 @@ public struct OperationsEngine: Sendable {
     
     private func preImage(
         _ path: URL,
+        _ paths: Paths,
         nid: String,
         backups: [(URL, String?)]
     ) -> String? {
@@ -599,7 +601,7 @@ public struct OperationsEngine: Sendable {
             if let text { return text }
         }
         
-        for (url, text) in backups where trashLookup.trashStemId(url) == nid {
+        for (url, text) in backups where TrashedNoteLookup(paths: paths).trashStemId(url) == nid {
             if let text { return text }
         }
         
@@ -623,7 +625,7 @@ public struct OperationsEngine: Sendable {
         for path in affected where path.pathExtension == "md" {
             enqueue(path)
             
-            if let noteId = Paths.id(ofFile: path) { affectedIds.append(noteId) }
+            if let noteId = scope.brain.paths.id(ofFile: path) { affectedIds.append(noteId) }
         }
         
         var violations: [String] = []
@@ -634,7 +636,7 @@ public struct OperationsEngine: Sendable {
                     FetchTemplateDependentNoteIdsTransaction(templateIds: affectedIds)
                 )
                 
-                for noteId in dependents { enqueue(Paths.file(forId: noteId)) }
+                for noteId in dependents { enqueue(scope.brain.paths.file(forId: noteId)) }
             } catch {
                 violations.append("template reverse-dependency lookup failed: \(error)")
             }
@@ -650,14 +652,14 @@ public struct OperationsEngine: Sendable {
                 
                 (doc, body) = read
             } catch {
-                let noteId = Paths.id(ofFile: path) ?? path.lastPathComponent
+                let noteId = scope.brain.paths.id(ofFile: path) ?? path.lastPathComponent
                 violations.append("\(noteId): unreadable, template frame unverifiable: \(error)")
                 continue
             }
             
             guard let templateId = doc.template, !templateId.isEmpty else { continue }
             
-            let noteId = Paths.id(ofFile: path) ?? path.lastPathComponent
+            let noteId = scope.brain.paths.id(ofFile: path) ?? path.lastPathComponent
             
             guard let frame = (try? scope.run(LoadTemplateFrameTransaction(templateId: templateId))) ?? nil else {
                 violations.append("\(noteId): unknown template '\(templateId)'")
@@ -677,7 +679,7 @@ public struct OperationsEngine: Sendable {
     }
     
     private func checkEagerCap(scope: GRDBReadScope, before: Int) -> String? {
-        let cap = Config.getInt("eager.max_count", default: 20)
+        let cap = scope.brain.config.getInt("eager.max_count", default: 20)
         let after = (try? scope.run(CountEagerNotesTransaction())) ?? 0
         
         if after > cap && after > before {

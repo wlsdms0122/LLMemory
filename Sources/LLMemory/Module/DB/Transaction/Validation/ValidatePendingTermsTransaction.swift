@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct ValidatePendingTermsTransaction: GRDBTransaction {
+struct ValidatePendingTermsTransaction: GRDBBrainTransaction {
     private enum RejectReason: String {
         case roundtripFail = "roundtrip_fail"
         case idfCommon = "idf_common"
@@ -35,7 +35,7 @@ struct ValidatePendingTermsTransaction: GRDBTransaction {
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database) throws -> TermValidationPass {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> TermValidationPass {
         var sql = """
             SELECT note_id, kind, term FROM note_retrieval_terms WHERE status = 'pending'
             """
@@ -51,8 +51,8 @@ struct ValidatePendingTermsTransaction: GRDBTransaction {
 
         guard !rows.isEmpty else { return TermValidationPass() }
 
-        let topK = Config.getInt("enrich.roundtrip_topk", default: 10)
-        let dfCeiling = Config.getDouble("enrich.idf_df_ceiling", default: 0.25)
+        let topK = brain.config.getInt("enrich.roundtrip_topk", default: 10)
+        let dfCeiling = brain.config.getDouble("enrich.idf_df_ceiling", default: 0.25)
         let totalNotes = try Int.fetchOne(
             db,
             sql: "SELECT COUNT(*) FROM notes n WHERE \(Policy.surface())"

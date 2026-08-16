@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct DeriveActivityWindowsTransaction: GRDBTransaction {
+struct DeriveActivityWindowsTransaction: GRDBBrainTransaction {
     struct DeriveResult {
         // MARK: - Property
         var eventsConsumed = 0
@@ -41,7 +41,7 @@ struct DeriveActivityWindowsTransaction: GRDBTransaction {
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database) throws -> DeriveResult {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> DeriveResult {
         var result = DeriveResult()
         let watermark = Int(Config.getStringTx(Activation.watermarkKey, default: "0", txDB: db)) ?? 0
         let rows = try Row.fetchAll(db, sql: """
@@ -64,7 +64,7 @@ struct DeriveActivityWindowsTransaction: GRDBTransaction {
 
             result.eventsConsumed += 1
 
-            let windowId = try openWindow(db, ts: timestamp, label: sessionId?.rawValue)
+            let windowId = try openWindow(db, brain, ts: timestamp, label: sessionId?.rawValue)
             touched.insert(windowId)
 
             try db.execute(sql: """
@@ -110,7 +110,12 @@ struct DeriveActivityWindowsTransaction: GRDBTransaction {
     }
 
     // MARK: - Private
-    private func openWindow(_ db: Database, ts: Int, label: String?) throws -> Int64 {
+    private func openWindow(
+        _ db: Database,
+        _ brain: BrainContext,
+        ts: Int,
+        label: String?
+    ) throws -> Int64 {
         let row: Row?
 
         if let label {
@@ -128,7 +133,7 @@ struct DeriveActivityWindowsTransaction: GRDBTransaction {
         if let row {
             let endedAt: Int = row["ended_at"]
 
-            if ts - endedAt <= Activation.windowGapSec {
+            if ts - endedAt <= Activation.windowGapSec(brain) {
                 return row["id"]
             }
         }

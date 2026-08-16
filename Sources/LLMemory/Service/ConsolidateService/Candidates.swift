@@ -40,9 +40,9 @@ public struct Candidates: Sendable {
     // MARK: - Initializer
     // MARK: - Public
     func splitCandidates(_ scope: GRDBReadScope, limit: Int = 20) throws -> [SplitCandidate] {
-        let minWords = Config.getInt("split.min_words", default: 400)
-        let minSections = Config.getInt("split.min_sections", default: 4)
-        let minTagDiversity = Config.getInt("split.min_tag_diversity", default: 3)
+        let minWords = scope.brain.config.getInt("split.min_words", default: 400)
+        let minSections = scope.brain.config.getInt("split.min_sections", default: 4)
+        let minTagDiversity = scope.brain.config.getInt("split.min_tag_diversity", default: 3)
         let rows = try scope.run(
             FetchSplitShapeRowsTransaction(minWords: minWords, minSections: minSections)
         )
@@ -55,6 +55,7 @@ public struct Candidates: Sendable {
             
             let verdict = dismissalPolicy.gate(
                 dismissals[row.id],
+                config: scope.brain.config,
                 currentWords: row.wordCount,
                 currentSections: row.sectionCount,
                 globalGeneration: generation
@@ -222,7 +223,7 @@ public struct Candidates: Sendable {
         maxSize: Int? = nil,
         limit: Int = 20
     ) throws -> [CandidateCluster] {
-        let cap = maxSize ?? Config.getInt("candidates.cluster.max_size", default: 12)
+        let cap = maxSize ?? scope.brain.config.getInt("candidates.cluster.max_size", default: 12)
         let edges = try scope.run(FetchClusterEdgesTransaction())
         
         var parent: [String: String] = [:]
@@ -302,8 +303,8 @@ public struct Candidates: Sendable {
         vecCos: Double? = nil,
         ftsBm25: Double? = nil
     ) throws -> [MissingEdge] {
-        let cosineThreshold = vecCos ?? Genes.double("candidates.missing_edge.vec_cos")
-        let bm25Threshold = ftsBm25 ?? Genes.double("candidates.missing_edge.fts_bm25")
+        let cosineThreshold = vecCos ?? scope.brain.genes.double("candidates.missing_edge.vec_cos")
+        let bm25Threshold = ftsBm25 ?? scope.brain.genes.double("candidates.missing_edge.fts_bm25")
         var linked = Set<String>()
         var degree: [String: Int] = [:]
         
@@ -438,7 +439,7 @@ public struct Candidates: Sendable {
         var ftsTokensById: [String: Set<String>] = [:]
         
         for row in rows {
-            let bodyPath = Paths.brainRoot.appendingPathComponent(row.path)
+            let bodyPath = scope.brain.paths.brainRoot.appendingPathComponent(row.path)
             let body: String
             do {
                 body = try noteFiles.requireNote(at: bodyPath).body

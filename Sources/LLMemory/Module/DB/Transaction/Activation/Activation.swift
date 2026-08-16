@@ -23,13 +23,15 @@ enum Activation {
     // MARK: - Property
     static let watermarkKey = "activation.derive_watermark"
 
-    static var windowGapSec: Int { Genes.int("activation.window_gap_sec") }
-
-    static var usedLookbackSec: Int {
-        Config.getInt("activation.used_lookback_sec", default: 86_400)
-    }
-
     // MARK: - Initializer
     // MARK: - Public
+    static func windowGapSec(_ brain: BrainContext) -> Int {
+        brain.genes.int("activation.window_gap_sec")
+    }
+
+    static func usedLookbackSec(_ brain: BrainContext) -> Int {
+        brain.config.getInt("activation.used_lookback_sec", default: 86_400)
+    }
+
     // MARK: - Private
 }

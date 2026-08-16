@@ -16,7 +16,7 @@ struct RestoreEffectInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
-    private let trashLookup = TrashedNoteLookup()
+    private var trashLookup: TrashedNoteLookup { TrashedNoteLookup(paths: home.paths) }
 
     // MARK: - Initializer
     init() throws {

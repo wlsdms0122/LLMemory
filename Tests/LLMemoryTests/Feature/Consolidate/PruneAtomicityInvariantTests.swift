@@ -31,7 +31,7 @@ struct PruneAtomicityInvariantTests {
         // When
         #expect(throws: RollbackSignal.self) {
             try queue.write { database in
-                _ = try DecayAndPruneLinksTransaction(factor: 0.5, floor: 0.0).perform(database)
+                _ = try DecayAndPruneLinksTransaction(factor: 0.5, floor: 0.0).perform(database, home.brain)
                 
                 #expect(try Self.linkWeight(database) == 0.5, "decay is visible inside the transaction")
                 
@@ -51,7 +51,7 @@ struct PruneAtomicityInvariantTests {
         try home.write { database in try seedAssocLink(database, weight: 1.0) }
         
         // When
-        let result = try home.database().write { db in try home.consolidateService.prune(GRDBScope(db)) }
+        let result = try home.database().write { db in try home.consolidateService.prune(GRDBScope(db, home.brain)) }
         
         // Then
         let weight = try home.read { database in try Self.linkWeight(database) }

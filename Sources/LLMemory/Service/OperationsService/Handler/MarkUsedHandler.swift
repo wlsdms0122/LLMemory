@@ -38,7 +38,7 @@ struct MarkUsedHandler: OperationHandling {
         
         if ids.count != raw.count { return "ids must all be strings" }
         
-        let cutoff = context.now - Activation.usedLookbackSec
+        let cutoff = context.now - Activation.usedLookbackSec(scope.brain)
         let label = context.sessionId
         let surfaced = try scope.run(
             NotesSurfacedRecentlyTransaction(noteIds: ids, cutoff: cutoff, label: label)
@@ -47,7 +47,7 @@ struct MarkUsedHandler: OperationHandling {
         if let missing = ids.first(where: { id in !surfaced.contains(id) }) {
             return "note '\(missing)' was not surfaced in any recent activity window"
                 + (label.map { session in " of session '\(session.rawValue)'" } ?? "")
-                + " (lookback \(Activation.usedLookbackSec)s) — cannot mark unobserved usage"
+                + " (lookback \(Activation.usedLookbackSec(scope.brain))s) — cannot mark unobserved usage"
         }
         
         return nil

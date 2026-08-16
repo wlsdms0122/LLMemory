@@ -81,8 +81,11 @@ struct Dismissals: Sendable {
         "\(target.storageKey)\u{0}\(kind)"
     }
 
+    // Habituation grows the bar a re-opened finding has to clear, and by how
+    // much is configuration — so it arrives with the question.
     func gate(
         _ dismissal: Dismissal?,
+        config: Config,
         currentWords: Int,
         currentSections: Int,
         globalGeneration: Int
@@ -96,11 +99,11 @@ struct Dismissals: Sendable {
             )
         }
         
-        let growthFactor = max(1.0, Config.getDouble("habituation.growth_factor", default: 1.5))
+        let growthFactor = max(1.0, config.getDouble("habituation.growth_factor", default: 1.5))
         let factor = pow(growthFactor, Double(max(dismissal.dismissCount - 1, 0)))
-        let wordGrowth = max(0.0, Config.getDouble("habituation.word_growth", default: 0.5))
+        let wordGrowth = max(0.0, config.getDouble("habituation.word_growth", default: 0.5))
             * factor
-        let sectionGrowth = max(0.0, Config.getDouble("habituation.section_growth", default: 2.0))
+        let sectionGrowth = max(0.0, config.getDouble("habituation.section_growth", default: 2.0))
             * factor
         let baseWords = max(dismissal.wordCount, 1)
         let wordRatio = Double(currentWords) / Double(baseWords)

@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct VerifySourcesTransaction: GRDBTransaction {
+struct VerifySourcesTransaction: GRDBBrainTransaction {
     // MARK: - Property
     let now: Int?
 
@@ -20,7 +20,7 @@ struct VerifySourcesTransaction: GRDBTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> SourceVerifyResult {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> SourceVerifyResult {
         let now = self.now ?? Int(Date().timeIntervalSince1970)
         let rows = try Row.fetchAll(db, sql: """
             SELECT note_id AS id, source_hash, source_stale, decl_hash FROM note_source
@@ -42,7 +42,7 @@ struct VerifySourcesTransaction: GRDBTransaction {
             let storedDecl: String? = row["decl_hash"]
             let allPaths: [String]
             do {
-                allPaths = try FetchNoteSourcePathsTransaction(noteId: noteId).perform(db)
+                allPaths = try FetchNoteSourcePathsTransaction(noteId: noteId).perform(db, brain)
             } catch {
                 guard error is NoteUnreadable else { throw error }
 
@@ -61,7 +61,8 @@ struct VerifySourcesTransaction: GRDBTransaction {
             }
 
             if sourceFingerprint.computeDeclHash(allPaths) != storedDecl {
-                try RebaseNoteSourceTransaction(noteId: noteId, paths: allPaths, now: now).perform(db)
+                try RebaseNoteSourceTransaction(noteId: noteId, paths: allPaths, now: now)
+                    .perform(db)
                 result.rechecked += 1
 
                 if previousStale == 1 { result.recovered += 1 }

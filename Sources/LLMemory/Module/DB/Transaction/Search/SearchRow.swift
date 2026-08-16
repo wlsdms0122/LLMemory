@@ -40,8 +40,8 @@ public struct SearchRow: Sendable {
     }
 
     // MARK: - Initializer
-    init(_ row: Row) {
-        path = Paths.relativeFile(forId: row["id"] as String)
+    init(_ row: Row, _ paths: Paths) {
+        path = paths.relativeFile(forId: row["id"] as String)
         id = row["id"]
         title = row["title"]
         summary = row["summary"] as String?

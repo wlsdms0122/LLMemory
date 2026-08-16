@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct FetchSimilarNotesTransaction: GRDBReadTransaction {
+struct FetchSimilarNotesTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let keywords: [String]
     let limit: Int
@@ -25,7 +25,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [SimilarNote] {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [SimilarNote] {
         guard let expression = FTSMatch.cues(keywords).expression else { return [] }
 
         var sql = """
@@ -42,7 +42,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
         }
 
         let now = Int(Date().timeIntervalSince1970)
-        let prior = TagPriorRerank.prior(db, sessionId: sessionId, now: now)
+        let prior = TagPriorRerank.prior(db, brain, sessionId: sessionId, now: now)
 
         sql += SearchRow.aggregationSQL
         arguments.append(TagPriorRerank.poolSize(limit: limit, needsRerank: !prior.isEmpty))
@@ -59,13 +59,13 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
                 id: row["id"],
                 title: row["title"],
                 summary: row["summary"] as String?,
-                path: Paths.relativeFile(forId: row["id"] as String),
+                path: brain.paths.relativeFile(forId: row["id"] as String),
                 tags: tags,
                 section: section
             )
         }
 
-        return TagPriorRerank.apply(pool, prior: prior, limit: limit) { note in note.tags }
+        return TagPriorRerank.apply(pool, brain, prior: prior, limit: limit) { note in note.tags }
     }
 
     // MARK: - Private

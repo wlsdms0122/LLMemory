@@ -45,12 +45,16 @@ public struct Index {
     let session: Session
     let service: any IndexServiceable
 
-    private let seeding = Seeding()
+    private let paths: Paths
+
+    private let seeding: Seeding
 
     // MARK: - Initializer
     init(session: Session, service: any IndexServiceable) {
         self.session = session
         self.service = service
+        paths = session.context.paths
+        seeding = Seeding(paths: session.context.paths)
     }
     
     public func build(rebuild: Bool = false) async throws -> Indexer.BuildResult {
@@ -78,36 +82,29 @@ public struct Index {
         try await service.validateTerms(rejectStale: rejectStale)
     }
     
-    // Lifecycle work touches the filesystem outside any scope — the session's
-    // context is bound explicitly so a second live brain cannot steal these
-    // writes through the ambient fallback.
     public func initialize(seed: Bool = true, force: Bool = false) throws -> InitResult {
-        try session.context.bind { try initializeBound(seed: seed, force: force) }
-    }
-
-    private func initializeBound(seed: Bool, force: Bool) throws -> InitResult {
         let fileManager = FileManager.default
-        let dataExisted = fileManager.fileExists(atPath: Paths.dataDirectory.path)
-        let cortexExisted = fileManager.fileExists(atPath: Paths.cortexRoot.path)
-        let dbExisted = fileManager.fileExists(atPath: Paths.db.path)
+        let dataExisted = fileManager.fileExists(atPath: paths.dataDirectory.path)
+        let cortexExisted = fileManager.fileExists(atPath: paths.cortexRoot.path)
+        let dbExisted = fileManager.fileExists(atPath: paths.db.path)
         
-        try fileManager.createDirectory(at: Paths.dataDirectory, withIntermediateDirectories: true)
-        try fileManager.createDirectory(at: Paths.cortexRoot, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: paths.dataDirectory, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: paths.cortexRoot, withIntermediateDirectories: true)
         
         // Planted inside the bootstrap: after the migration, before the build.
         var seeding: Seeding.Result?
         let result = try session.bootstrap { scope in
-            if seed { seeding = try plantBound(force: force, scope: scope) }
+            if seed { seeding = try plant(force: force, scope: scope) }
         }
 
         try Guide.markdown.write(
-            to: Paths.brainRoot.appendingPathComponent("README.md"),
+            to: paths.brainRoot.appendingPathComponent("README.md"),
             atomically: true,
             encoding: .utf8
         )
         
         return InitResult(
-            homePath: Paths.brainRoot.path,
+            homePath: paths.brainRoot.path,
             dataExisted: dataExisted,
             cortexExisted: cortexExisted,
             dbExisted: dbExisted,
@@ -119,27 +116,23 @@ public struct Index {
     }
     
     public func update(seed: Bool = true, force: Bool = false) throws -> UpdateResult {
-        try session.context.bind { try updateBound(seed: seed, force: force) }
-    }
-
-    private func updateBound(seed: Bool, force: Bool) throws -> UpdateResult {
         // update is the migration surface: a brain left behind by a binary upgrade
         // is carried forward by the bootstrap, before anything else touches the
         // connection — and before the seeds are restated, so a brain whose schema
         // did not move forward does not get files that did.
         var seeding: Seeding.Result?
         let result = try session.bootstrap { scope in
-            if seed { seeding = try plantBound(force: force, scope: scope) }
+            if seed { seeding = try plant(force: force, scope: scope) }
         }
 
         try Guide.markdown.write(
-            to: Paths.brainRoot.appendingPathComponent("README.md"),
+            to: paths.brainRoot.appendingPathComponent("README.md"),
             atomically: true,
             encoding: .utf8
         )
         
         return UpdateResult(
-            homePath: Paths.brainRoot.path,
+            homePath: paths.brainRoot.path,
             seeding: seeding,
             indexed: result.count,
             changed: result.changed,
@@ -148,7 +141,7 @@ public struct Index {
     }
 
     // MARK: - Private
-    private func plantBound(force: Bool, scope: BootstrapScope) throws -> Seeding.Result {
+    private func plant(force: Bool, scope: BootstrapScope) throws -> Seeding.Result {
         seeding.plant(
             force: force,
             seeded: try scope.seededNoteIds(),

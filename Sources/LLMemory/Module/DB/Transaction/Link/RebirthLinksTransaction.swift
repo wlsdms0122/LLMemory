@@ -8,32 +8,35 @@
 import Foundation
 import GRDB
 
-struct RebirthLinksTransaction: GRDBTransaction {
+struct RebirthLinksTransaction: GRDBBrainTransaction {
     // MARK: - Property
-    let rankedIds: [(String, Double)]
+    // A factor per note, absent meaning the gene's default — which is not
+    // something a constructor can answer, since the brain arrives with the
+    // database and not before it.
+    let ranked: [(id: String, factor: Double?)]
     let cap: Double
 
     // MARK: - Initializer
-    init(rankedIds: [(String, Double)], cap: Double = 1.0) {
-        self.rankedIds = rankedIds
+    init(ranked: [(id: String, factor: Double?)], cap: Double = 1.0) {
+        self.ranked = ranked
         self.cap = cap
     }
 
+    // An unranked set — every note carries the same weight of evidence.
     init(noteIds: [String], factor: Double? = nil, cap: Double = 1.0) {
-        let factor = factor ?? Genes.double("rebirth.default_factor")
-
-        self.init(rankedIds: noteIds.map { id in (id, factor) }, cap: cap)
+        self.init(ranked: noteIds.map { id in (id, factor) }, cap: cap)
     }
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database) throws -> Int {
-        guard rankedIds.count >= 2 else { return 0 }
+    func perform(_ db: Database, _ brain: BrainContext) throws -> Int {
+        guard ranked.count >= 2 else { return 0 }
 
+        let defaultFactor = brain.genes.double("rebirth.default_factor")
         var factorOf: [String: Double] = [:]
 
-        for (id, factor) in rankedIds {
-            factorOf[id] = max(factorOf[id] ?? 0, factor)
+        for (id, factor) in ranked {
+            factorOf[id] = max(factorOf[id] ?? 0, factor ?? defaultFactor)
         }
 
         let ids = Array(factorOf.keys)

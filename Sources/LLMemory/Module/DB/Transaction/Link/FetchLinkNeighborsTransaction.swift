@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
+struct FetchLinkNeighborsTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let noteId: String
     let minWeight: Double?
@@ -24,11 +24,11 @@ struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [LinkNeighbor] {
-        let floor = minWeight ?? Genes.double("links.neighbor_floor")
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [LinkNeighbor] {
+        let floor = minWeight ?? brain.genes.double("links.neighbor_floor")
         var sql = """
             SELECT n.id, n.title, n.summary, l.kind, l.weight,
-                   \(LinkRanking.weightSQL("l")) AS rank_w
+                   \(LinkRanking.weightSQL("l", brain)) AS rank_w
             FROM note_links l
             JOIN notes n ON n.id = CASE WHEN l.src = ? THEN l.dst ELSE l.src END
             WHERE (l.src = ? OR l.dst = ?) AND l.weight >= ?
@@ -51,7 +51,7 @@ struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
                 id: row["id"],
                 title: row["title"],
                 summary: row["summary"] as String?,
-                path: Paths.relativeFile(forId: row["id"] as String),
+                path: brain.paths.relativeFile(forId: row["id"] as String),
                 kind: row["kind"],
                 weight: row["weight"]
             )

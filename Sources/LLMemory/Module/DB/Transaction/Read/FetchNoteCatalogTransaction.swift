@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct FetchNoteCatalogTransaction: GRDBReadTransaction {
+struct FetchNoteCatalogTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let ids: [String]
 
@@ -18,7 +18,7 @@ struct FetchNoteCatalogTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [String: CatalogNote] {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [String: CatalogNote] {
         guard !ids.isEmpty else { return [:] }
 
         let placeholders = ids.map { _ in "?" }.joined(separator: ",")
@@ -34,7 +34,7 @@ struct FetchNoteCatalogTransaction: GRDBReadTransaction {
         for row in rows {
             catalog[row["id"] as String] = CatalogNote(
                 id: row["id"],
-                path: Paths.relativeFile(forId: row["id"] as String),
+                path: brain.paths.relativeFile(forId: row["id"] as String),
                 title: row["title"],
                 summary: row["summary"] as String?,
                 priority: row["priority"],

@@ -18,7 +18,7 @@ struct NoteFamilyIndex {
     // MARK: - Initializer
     // MARK: - Public
     func families(_ scope: GRDBReadScope) throws -> [NoteFamily] {
-        let minFamily = Config.getInt("lint.fragment_min_family", default: 3)
+        let minFamily = scope.brain.config.getInt("lint.fragment_min_family", default: 3)
         let graph = try scope.run(FetchFamilyGraphTransaction())
         let allIds = Set(graph.notes)
         var adjacency: [String: [String]] = [:]

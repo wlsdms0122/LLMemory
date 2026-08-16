@@ -49,7 +49,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(match: .text("log masking transformer", keywords: FrequencyKeywords())).perform(database)
+            try SearchNotesFTSTransaction(match: .text("log masking transformer", keywords: FrequencyKeywords())).perform(database, home.brain)
         }
         
         // Then
@@ -64,7 +64,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(match: .raw("transfer NOT giro")).perform(database)
+            try SearchNotesFTSTransaction(match: .raw("transfer NOT giro")).perform(database, home.brain)
         }
         
         // Then
@@ -83,7 +83,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(match: .text("quixotic pool", keywords: FrequencyKeywords()), limit: 40).perform(database)
+            try SearchNotesFTSTransaction(match: .text("quixotic pool", keywords: FrequencyKeywords()), limit: 40).perform(database, home.brain)
         }
         
         // Then
@@ -105,7 +105,7 @@ struct SearchTests {
         // Then
         try home.read { database in
             #expect(throws: FTSMatchError.self) {
-                _ = try SearchNotesFTSTransaction(match: .raw("transfer \"")).perform(database)
+                _ = try SearchNotesFTSTransaction(match: .raw("transfer \"")).perform(database, home.brain)
             }
         }
     }
@@ -116,7 +116,7 @@ struct SearchTests {
         #expect(create(id: "safe-note", title: "transfer", body: "## A\ntransfer\n").status == "ok")
         
         // When
-        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("transfer \"", keywords: FrequencyKeywords())).perform(database) }
+        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("transfer \"", keywords: FrequencyKeywords())).perform(database, home.brain) }
         
         // Then
         #expect(hits.contains { hit in hit.id == "safe-note" })
@@ -135,7 +135,7 @@ struct SearchTests {
         // When
         let hits = try home.read { database in
             try SearchNotesFTSTransaction(match: .text("nothing to do with it", keywords: FixedKeywords()))
-                .perform(database)
+                .perform(database, home.brain)
         }
 
         // Then

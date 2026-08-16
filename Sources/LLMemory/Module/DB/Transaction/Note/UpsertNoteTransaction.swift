@@ -11,7 +11,7 @@ import GRDB
 // notes-row transactions — the core catalog row, its FTS projection,
 // reference links, and lifecycle provenance. File-level note reading stays
 // in the Notes module.
-struct UpsertNoteTransaction: GRDBTransaction {
+struct UpsertNoteTransaction: GRDBBrainTransaction {
     // MARK: - Property
     let file: URL
     let fields: FrontmatterDoc
@@ -34,15 +34,15 @@ struct UpsertNoteTransaction: GRDBTransaction {
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database) throws -> String {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> String {
         // The file's location is the id. Whatever the caller carried in `fields`
         // is not consulted here — there is one source, so there is nothing to
         // reconcile and no way for a row to point somewhere its file is not.
-        guard let noteId = Paths.id(ofFile: file), !noteId.isEmpty else {
+        guard let noteId = brain.paths.id(ofFile: file), !noteId.isEmpty else {
             throw NotesError.notALiveNote(
-                path: Paths.relative(of: file) ?? file.path,
-                reason: Paths.liveNoteRejection(of: file)
-                    ?? Paths.addressRejection(of: file)
+                path: brain.paths.relative(of: file) ?? file.path,
+                reason: brain.paths.liveNoteRejection(of: file)
+                    ?? brain.paths.addressRejection(of: file)
                     ?? "not addressable"
             )
         }

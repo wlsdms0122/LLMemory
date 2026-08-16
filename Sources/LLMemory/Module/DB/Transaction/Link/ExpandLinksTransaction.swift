@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct ExpandLinksTransaction: GRDBReadTransaction {
+struct ExpandLinksTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let noteIds: [String]
     let hops: Int
@@ -32,10 +32,10 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [ExpandedNote] {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [ExpandedNote] {
         guard !noteIds.isEmpty else { return [] }
 
-        let floor = minWeight ?? Genes.double("links.neighbor_floor")
+        let floor = minWeight ?? brain.genes.double("links.neighbor_floor")
         var seen: [String: (note: ExpandedNote, rankWeight: Double)] = [:]
         var frontier = Set(noteIds)
         var visited = Set(noteIds)
@@ -48,7 +48,7 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
                 .joined(separator: ",")
             var sql = """
                 SELECT n.id, n.title, n.summary, l.weight,
-                       \(LinkRanking.weightSQL("l")) AS rank_w
+                       \(LinkRanking.weightSQL("l", brain)) AS rank_w
                 FROM note_links l
                 JOIN notes n ON n.id = CASE WHEN l.src IN (\(placeholders)) THEN l.dst ELSE l.src END
                 WHERE (l.src IN (\(placeholders)) OR l.dst IN (\(placeholders)))
@@ -83,7 +83,7 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
                             id: noteId,
                             title: row["title"],
                             summary: row["summary"] as String?,
-                            path: Paths.relativeFile(forId: row["id"] as String),
+                            path: brain.paths.relativeFile(forId: row["id"] as String),
                             weight: row["weight"],
                             rankWeight: rankWeight
                         ),

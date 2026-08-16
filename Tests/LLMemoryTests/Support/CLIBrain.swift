@@ -18,6 +18,8 @@ final class CLIBrain {
     let url: URL
     
     var path: String { url.path }
+
+    var paths: Paths { Paths(home: url.path) }
     
     // MARK: - Initializer
     init(prefix: String = "llmemory-cli-test", seeded: Bool = true, seed: Bool = true) throws {
@@ -66,7 +68,7 @@ final class CLIBrain {
     }
 
     func noteURL(id: String) -> URL {
-        file(Paths.relativeFile(forId: id))
+        file(paths.relativeFile(forId: id))
     }
     
     // MARK: - Private

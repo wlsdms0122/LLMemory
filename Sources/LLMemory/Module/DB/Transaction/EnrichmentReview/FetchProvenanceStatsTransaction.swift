@@ -8,14 +8,14 @@
 import Foundation
 import GRDB
 
-struct FetchProvenanceStatsTransaction: GRDBReadTransaction {
+struct FetchProvenanceStatsTransaction: GRDBBrainReadTransaction {
     private let vectorMath = VectorMath()
 
     // MARK: - Initializer
     init() { }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [EnrichmentStatus.ProvenanceStat] {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [EnrichmentStatus.ProvenanceStat] {
         let edges = try Row.fetchAll(db, sql: """
             SELECT src, dst, COALESCE(provenance, '(none)') AS prov
             FROM note_links WHERE kind = ?
@@ -24,7 +24,7 @@ struct FetchProvenanceStatsTransaction: GRDBReadTransaction {
         guard !edges.isEmpty else { return [] }
 
         let vectors = try FetchNoteVectorsTransaction().perform(db)
-        let floor = Config.getDouble("enrich.disagree_floor", default: 0.15)
+        let floor = brain.config.getDouble("enrich.disagree_floor", default: 0.15)
         var total: [String: Int] = [:]
         var disagree: [String: Int] = [:]
 

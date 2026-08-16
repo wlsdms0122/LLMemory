@@ -131,7 +131,7 @@ struct QueryEnrichment: AsyncParsableCommand {
                     assocEdges: stat.assocEdges,
                     disagreeEdges: stat.disagreeEdges,
                     disagreeRate: (stat.disagreeRate * 1000).rounded() / 1000,
-                    alarm: stat.alarm
+                    alarm: stat.alarm(over: status.modelAlarmRate)
                 )
             },
             reviewFlagged: status.reviewFlagged

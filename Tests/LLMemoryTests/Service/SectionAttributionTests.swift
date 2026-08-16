@@ -119,7 +119,7 @@ struct SectionAttributionTests {
         
         // When
         let hit = try home.read { database in
-            try FetchSimilarNotesTransaction(keywords: ["qwombat"], limit: 5).perform(database)
+            try FetchSimilarNotesTransaction(keywords: ["qwombat"], limit: 5).perform(database, home.brain)
                 .first { similar in similar.id == "sim-note" }
         }
         
@@ -135,7 +135,7 @@ struct SectionAttributionTests {
     }
     
     private func search(_ query: String) throws -> [SearchRow] {
-        try home.read { database in try SearchNotesFTSTransaction(match: .text(query, keywords: FrequencyKeywords())).perform(database) }
+        try home.read { database in try SearchNotesFTSTransaction(match: .text(query, keywords: FrequencyKeywords())).perform(database, home.brain) }
     }
     
     private func hit(for query: String, in noteId: String) throws -> SearchRow? {

@@ -23,15 +23,15 @@ struct PathNormalizationInvariantTests {
     @Test("relative() answers from the path alone — a note that does not exist yet still has one")
     func relativeIsExistenceIndependent() {
         // Given
-        let root = Paths.brainRoot
+        let root = home.paths.brainRoot
         
         // Then
-        #expect(Paths.relative(of: root.appendingPathComponent("cortex")) == "cortex")
-        #expect(Paths.relative(of: root.appendingPathComponent("cortex/absent.md"))
+        #expect(home.paths.relative(of: root.appendingPathComponent("cortex")) == "cortex")
+        #expect(home.paths.relative(of: root.appendingPathComponent("cortex/absent.md"))
             == "cortex/absent.md")
-        #expect(Paths.relative(of: home.url.appendingPathComponent("cortex/absent.md"))
+        #expect(home.paths.relative(of: home.url.appendingPathComponent("cortex/absent.md"))
             == "cortex/absent.md")
-        #expect(Paths.relative(of: URL(fileURLWithPath: "/etc/passwd")) == nil,
+        #expect(home.paths.relative(of: URL(fileURLWithPath: "/etc/passwd")) == nil,
             "a path outside the brain has no relative form")
     }
     

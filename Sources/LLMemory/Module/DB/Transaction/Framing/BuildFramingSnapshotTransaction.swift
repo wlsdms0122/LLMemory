@@ -23,7 +23,7 @@ import GRDB
 // "which limit did this replay use?" two answers, and the shadow replay
 // (which swaps a gene value and re-runs) is exactly the caller that would
 // make the two disagree.
-struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
+struct BuildFramingSnapshotTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let text: String
     let linkKind: LinkKind?
@@ -47,9 +47,9 @@ struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> FramingSnapshot {
-        let similarLimit = Genes.int("related.similar_limit")
-        let expandHops = Genes.int("related.expand_hops")
+    func perform(_ db: Database, _ brain: BrainContext) throws -> FramingSnapshot {
+        let similarLimit = brain.genes.int("related.similar_limit")
+        let expandHops = brain.genes.int("related.expand_hops")
         let cues = keywords.keywords(in: text, limit: RetrievalCues.limit)
         let entityHints = entities.hints(in: text)
         let similarNotes = try FetchSimilarNotesTransaction(
@@ -57,7 +57,7 @@ struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
             limit: similarLimit,
             sessionId: sessionId
         )
-            .perform(db)
+            .perform(db, brain)
         let similarTagSet = Set(similarNotes.flatMap { note in note.tags })
         let topTagCounts = try FetchTopTagsTransaction().perform(db)
         let cooccurrences = try FetchTagCooccurrenceTransaction(tags: similarTagSet.sorted())
@@ -75,7 +75,7 @@ struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
                     hops: expandHops,
                     kind: linkKind
                 )
-                    .perform(db)
+                    .perform(db, brain)
             } catch {
                 degraded.append("linked: \(error)")
             }
@@ -93,7 +93,7 @@ struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
                     limit: similarLimit,
                     excludeIds: already
                 )
-                    .perform(db)
+                    .perform(db, brain)
             } catch {
                 degraded.append("vector_linked: \(error)")
             }

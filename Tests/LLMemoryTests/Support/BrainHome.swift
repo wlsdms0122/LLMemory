@@ -35,7 +35,7 @@ extension BrainHome {
     // The production shape — a read scope handed in, never hand-assembled
     // at the call site. Raw `read` stays for SQL probes.
     func readScope<T>(_ body: (GRDBReadScope) throws -> T) throws -> T {
-        try database().read { db in try body(GRDBReadScope(db)) }
+        try database().read { db in try body(GRDBReadScope(db, session.context)) }
     }
 
     func write<T>(_ body: (Database) throws -> T) throws -> T {
@@ -111,7 +111,7 @@ extension BrainHome {
 
         guard known != nil else { throw TestFailure("no indexed path for \(id)") }
 
-        return url.appendingPathComponent(Paths.relativeFile(forId: id))
+        return url.appendingPathComponent(session.context.paths.relativeFile(forId: id))
     }
 
     func bodyText(of id: String) throws -> String {
@@ -136,7 +136,7 @@ extension BrainHome {
         body: String,
         entities: [String] = []
     ) throws -> URL {
-        let file = url.appendingPathComponent(Paths.relativeFile(forId: id))
+        let file = url.appendingPathComponent(session.context.paths.relativeFile(forId: id))
 
         try FileManager.default.createDirectory(
             at: file.deletingLastPathComponent(),
@@ -183,7 +183,7 @@ extension BrainHome {
     }
 
     func reindexFile(at file: URL) throws {
-        try write { database in _ = try ReindexNoteFileTransaction(path: file).perform(database) }
+        try write { database in _ = try ReindexNoteFileTransaction(path: file).perform(database, session.context) }
     }
 
     func reindexNote(id: String) throws {

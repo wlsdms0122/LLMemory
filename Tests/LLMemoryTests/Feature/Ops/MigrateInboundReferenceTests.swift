@@ -52,7 +52,7 @@ struct MigrateInboundReferenceTests {
             "a rewritten citation is not stale, so the referrer must not be flagged")
         
         let body = try String(
-            contentsOf: home.url.appendingPathComponent(Paths.relativeFile(forId: "referrer")),
+            contentsOf: home.url.appendingPathComponent(home.paths.relativeFile(forId: "referrer")),
             encoding: .utf8
         )
         
@@ -70,7 +70,7 @@ struct MigrateInboundReferenceTests {
             body: "see [[roll-target]] for context"
         ))
         
-        let citer = home.url.appendingPathComponent(Paths.relativeFile(forId: "roll-citer"))
+        let citer = home.url.appendingPathComponent(home.paths.relativeFile(forId: "roll-citer"))
         let before = try String(contentsOf: citer, encoding: .utf8)
         
         // When — the migrate succeeds, then a second op fails the transaction.
@@ -93,7 +93,7 @@ struct MigrateInboundReferenceTests {
         try home.reindexFile(at: try home.writeNoteFile(id: "lonely", body: "# body"))
         try home.reindexFile(at: try home.writeNoteFile(id: "bystander", body: "unrelated body"))
         
-        let bystander = home.url.appendingPathComponent(Paths.relativeFile(forId: "bystander"))
+        let bystander = home.url.appendingPathComponent(home.paths.relativeFile(forId: "bystander"))
         let before = try String(contentsOf: bystander, encoding: .utf8)
         
         // When

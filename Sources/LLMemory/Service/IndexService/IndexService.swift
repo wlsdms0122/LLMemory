@@ -31,7 +31,7 @@ public struct IndexService: IndexServiceable {
         // lock could mark a concurrently committed note as an orphan and
         // delete it. Atomicity beats lock duration here.
         try await storage.run { scope in
-            let scan = indexer.scanPending()
+            let scan = indexer.scanPending(scope.brain)
 
             return try scope.run(
                 ReconcileIndexTransaction(

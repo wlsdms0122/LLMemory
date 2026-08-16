@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct FetchLinkNeighborRowsTransaction: GRDBReadTransaction {
+struct FetchLinkNeighborRowsTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let nid: String
 
@@ -18,9 +18,9 @@ struct FetchLinkNeighborRowsTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [NeighborRow] {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [NeighborRow] {
         try Row.fetchAll(db, sql: """
-            SELECT n.id, n.title, n.summary, SUM(\(LinkRanking.weightSQL("l"))) AS w
+            SELECT n.id, n.title, n.summary, SUM(\(LinkRanking.weightSQL("l", brain))) AS w
             FROM (
               SELECT dst AS other, kind, weight FROM note_links WHERE src = ?
               UNION ALL

@@ -10,21 +10,28 @@ import Foundation
 // Where one brain keeps its files. Every value here is relative to a home,
 // which is what separates it from NoteAddress: the grammar of an id needs no
 // brain, and the location of the note it names needs nothing else.
-enum Paths {
+struct Paths: Sendable {
     // MARK: - Property
-    static var brainRoot: URL { root() }
-    static var dataDirectory: URL { root().appendingPathComponent("data") }
-    
-    static var db: URL { dataDirectory.appendingPathComponent("memory.db") }
-    
-    static var cortexRoot: URL { root().appendingPathComponent("cortex") }
-    static var notes: URL { cortexRoot }
-    static var trash: URL { cortexRoot.appendingPathComponent(".trash") }
+    let brainRoot: URL
+
+    var dataDirectory: URL { brainRoot.appendingPathComponent("data") }
+    var db: URL { dataDirectory.appendingPathComponent("memory.db") }
+
+    var cortexRoot: URL { brainRoot.appendingPathComponent("cortex") }
+    var notes: URL { cortexRoot }
+    var trash: URL { cortexRoot.appendingPathComponent(".trash") }
 
     // MARK: - Initializer
-    
+    // A home is taken as written and resolved once, so two spellings of the
+    // same directory cannot become two brains.
+    init(home: String) {
+        let expanded = URL(fileURLWithPath: (home as NSString).expandingTildeInPath)
+
+        brainRoot = expanded.resolvingSymlinksInPath().standardized
+    }
+
     // MARK: - Public
-    static func relative(of file: URL) -> String? {
+    func relative(of file: URL) -> String? {
         let abs = canonical(file)
         let root = canonical(brainRoot)
         let prefix = root.hasSuffix("/") ? root : root + "/"
@@ -34,7 +41,7 @@ enum Paths {
         return String(abs.dropFirst(prefix.count))
     }
     
-    static func liveNoteRejection(of file: URL) -> String? {
+    func liveNoteRejection(of file: URL) -> String? {
         guard let relative = relative(of: file) else {
             return "outside brain home \(brainRoot.path)"
         }
@@ -60,9 +67,9 @@ enum Paths {
         return nil
     }
     
-    static func scanNotes() -> [URL] {
+    func scanNotes() -> [URL] {
         let fileManager = FileManager.default
-        let notesRoot = root().appendingPathComponent("cortex")
+        let notesRoot = cortexRoot
         
         guard fileManager.fileExists(atPath: notesRoot.path) else { return [] }
         
@@ -93,7 +100,7 @@ enum Paths {
     // file(forId:)/id(ofFile:) are inverses — nothing about a note's
     // whereabouts is stored, so nothing about it can drift out of agreement
     // with itself.
-    static func file(forId id: String) -> URL {
+    func file(forId id: String) -> URL {
         let labels = NoteAddress.labels(of: id)
 
         return labels.dropLast()
@@ -103,7 +110,7 @@ enum Paths {
 
     // The brain-relative spelling of the same address — what output surfaces
     // show and what callers used to read off the removed column.
-    static func relativeFile(forId id: String) -> String {
+    func relativeFile(forId id: String) -> String {
         let file = file(forId: id)
 
         return relative(of: file) ?? file.path
@@ -113,7 +120,7 @@ enum Paths {
     // inside a file name would otherwise make the pair many-to-one — cortex/a/b.c.md
     // and cortex/a/b/c.md both spell a.b.c — and with the address as the only id,
     // two files sharing one would mean one of them silently overwriting the other.
-    static func id(ofFile file: URL) -> String? {
+    func id(ofFile file: URL) -> String? {
         guard let relative = relative(of: file) else { return nil }
 
         let components = relative.split(separator: "/").map(String.init)
@@ -135,21 +142,17 @@ enum Paths {
     }
 
     // Why a file cannot be addressed, for the surfaces that must not skip it quietly.
-    static func addressRejection(of file: URL) -> String? {
+    func addressRejection(of file: URL) -> String? {
         guard id(ofFile: file) == nil else { return nil }
 
         return "no address: a path label may not contain '.' "
             + "(\(relative(of: file) ?? file.path))"
     }
 
-    static func canonicalPath(_ url: URL) -> String { canonical(url) }
+    func canonicalPath(_ url: URL) -> String { canonical(url) }
 
     // MARK: - Private
-    private static func root() -> URL {
-        BrainContext.resolved.home
-    }
-    
-    private static func canonical(_ url: URL) -> String {
+    private func canonical(_ url: URL) -> String {
         let path = url.standardized.path
         for aliased in ["/tmp", "/var", "/etc"] {
             let privatized = "/private" + aliased

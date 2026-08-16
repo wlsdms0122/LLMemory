@@ -166,6 +166,7 @@ struct LintScanner: LintScanning {
                 
                 return dismissalPolicy.gate(
                     dismissal,
+                    config: scope.brain.config,
                     currentWords: shape.words,
                     currentSections: shape.sections,
                     globalGeneration: generation
@@ -237,8 +238,8 @@ struct LintScanner: LintScanning {
             return [LintIssue("error", "missing", "note not in db: \(nid)", .note(nid))]
         }
         
-        let relativePath = Paths.relativeFile(forId: nid)
-        let path = Paths.file(forId: nid)
+        let relativePath = scope.brain.paths.relativeFile(forId: nid)
+        let path = scope.brain.paths.file(forId: nid)
         
         if !FileManager.default.fileExists(atPath: path.path) {
             return [LintIssue("error", "file-missing", "file does not exist: \(relativePath)", .note(nid))]

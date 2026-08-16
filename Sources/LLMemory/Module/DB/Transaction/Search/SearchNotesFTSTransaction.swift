@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct SearchNotesFTSTransaction: GRDBReadTransaction {
+struct SearchNotesFTSTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let match: FTSMatch
     let tags: [String]
@@ -38,7 +38,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [SearchRow] {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [SearchRow] {
         guard let expression = match.expression else { return [] }
 
         var sql = SearchRow.projectionSQL + """
@@ -66,7 +66,7 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
         }
 
         let now = Int(Date().timeIntervalSince1970)
-        let prior = TagPriorRerank.prior(db, sessionId: sessionId, now: now)
+        let prior = TagPriorRerank.prior(db, brain, sessionId: sessionId, now: now)
 
         sql += SearchRow.aggregationSQL
         arguments.append(TagPriorRerank.poolSize(limit: limit, needsRerank: !prior.isEmpty))
@@ -80,7 +80,8 @@ struct SearchNotesFTSTransaction: GRDBReadTransaction {
         }
 
         return TagPriorRerank.apply(
-            rows.map(SearchRow.init),
+            rows.map { row in SearchRow(row, brain.paths) },
+            brain,
             prior: prior,
             limit: limit
         ) { row in row.tags }

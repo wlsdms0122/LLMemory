@@ -12,7 +12,7 @@ import GRDB
 // the one mandatory state transition (fail-loud); strengthening and rebirth
 // are advisory learning signals and the event is a trace — those stay
 // best-effort, surfaced through the returned degraded notes.
-struct RecordRetrievalTransaction: GRDBTransaction {
+struct RecordRetrievalTransaction: GRDBBrainTransaction {
     // MARK: - Property
     let record: RetrievalRecord
 
@@ -22,7 +22,7 @@ struct RecordRetrievalTransaction: GRDBTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [String] {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [String] {
         let now = Int(Date().timeIntervalSince1970)
         var degraded: [String] = []
 
@@ -36,7 +36,7 @@ struct RecordRetrievalTransaction: GRDBTransaction {
                     pairs: record.strengthenPairs.map { pair in (pair.source, pair.destination) },
                     cap: 1.0
                 )
-                    .perform(db)
+                    .perform(db, brain)
             } catch {
                 degraded.append("strengthen: \(error)")
             }
@@ -45,9 +45,9 @@ struct RecordRetrievalTransaction: GRDBTransaction {
         if record.rebirthRanked.count >= 2 {
             do {
                 _ = try RebirthLinksTransaction(
-                    rankedIds: record.rebirthRanked.map { ranked in (ranked.id, ranked.factor) }
+                    ranked: record.rebirthRanked.map { ranked in (ranked.id, ranked.factor) }
                 )
-                    .perform(db)
+                    .perform(db, brain)
             } catch {
                 degraded.append("rebirth: \(error)")
             }

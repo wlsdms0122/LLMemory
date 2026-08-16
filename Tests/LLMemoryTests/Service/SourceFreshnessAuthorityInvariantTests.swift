@@ -21,8 +21,8 @@ struct SourceFreshnessAuthorityInvariantTests {
     }
     
     // MARK: - Test
-    private static func writeNote(_ id: String, sources: [URL]) throws -> URL {
-        let directory = Paths.notes
+    private static func writeNote(_ paths: Paths, _ id: String, sources: [URL]) throws -> URL {
+        let directory = paths.notes
         
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         
@@ -60,10 +60,10 @@ struct SourceFreshnessAuthorityInvariantTests {
         
         try "alpha".write(to: source, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote("fresh-1", sources: [source])
+        let path = try Self.writeNote(home.paths, "fresh-1", sources: [source])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
         
         let baselineMtime = try Self.mtime(source)
         
@@ -75,7 +75,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         #expect(abs(try Self.mtime(source).timeIntervalSince(baselineMtime)) < 0.000_001,
             "probe setup: mtime was not restored")
         
-        let result = try queue.write { db in try VerifySourcesTransaction().perform(db) }
+        let result = try queue.write { db in try VerifySourcesTransaction().perform(db, home.brain) }
         
         #expect(result.stillFresh == 0, "verify declared a note fresh without looking at its content")
         #expect(result.becameStale == 1, "content drift under a restored mtime went undetected")
@@ -94,19 +94,19 @@ struct SourceFreshnessAuthorityInvariantTests {
         
         try "alpha".write(to: source, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote("fresh-2", sources: [source])
+        let path = try Self.writeNote(home.paths, "fresh-2", sources: [source])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
         
         let baselineMtime = try Self.mtime(source)
         
-        _ = try queue.write { db in try VerifySourcesTransaction().perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction().perform(db, home.brain) }
         
         try "beta".write(to: source, atomically: true, encoding: .utf8)
         try Self.setMtime(source, baselineMtime)
         
-        _ = try queue.write { db in try VerifySourcesTransaction().perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction().perform(db, home.brain) }
         
         // When
         let stale = try queue.read { db in
@@ -124,21 +124,21 @@ struct SourceFreshnessAuthorityInvariantTests {
         
         try "alpha".write(to: source, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote("fresh-3", sources: [source])
+        let path = try Self.writeNote(home.paths, "fresh-3", sources: [source])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
         try "beta".write(to: source, atomically: true, encoding: .utf8)
         
         // When
-        let drifted = try queue.write { db in try VerifySourcesTransaction().perform(db) }
+        let drifted = try queue.write { db in try VerifySourcesTransaction().perform(db, home.brain) }
         
         // Then
         #expect(drifted.becameStale == 1)
         
         try "alpha".write(to: source, atomically: true, encoding: .utf8)
         
-        let recovered = try queue.write { db in try VerifySourcesTransaction().perform(db) }
+        let recovered = try queue.write { db in try VerifySourcesTransaction().perform(db, home.brain) }
         
         #expect(recovered.recovered == 1, "restoring the original content did not clear source_stale")
     }
@@ -152,13 +152,13 @@ struct SourceFreshnessAuthorityInvariantTests {
         try "alpha".write(to: first, atomically: true, encoding: .utf8)
         try "beta".write(to: second, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote("fresh-4", sources: [first, second])
+        let path = try Self.writeNote(home.paths, "fresh-4", sources: [first, second])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
         try FileManager.default.removeItem(at: second)
         
-        _ = try queue.write { db in try VerifySourcesTransaction().perform(db) }
+        _ = try queue.write { db in try VerifySourcesTransaction().perform(db, home.brain) }
         
         // When
         let stale = try queue.read { db in

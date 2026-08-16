@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct VerifyNoteSourceTransaction: GRDBTransaction {
+struct VerifyNoteSourceTransaction: GRDBBrainTransaction {
     // MARK: - Property
     let noteId: String
     let now: Int?
@@ -23,7 +23,7 @@ struct VerifyNoteSourceTransaction: GRDBTransaction {
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database) throws -> Bool {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> Bool {
         let timestamp = now ?? Int(Date().timeIntervalSince1970)
         let row = try Row.fetchOne(
             db,
@@ -35,7 +35,7 @@ struct VerifyNoteSourceTransaction: GRDBTransaction {
             return false
         }
 
-        let paths = try FetchNoteSourcePathsTransaction(noteId: noteId).perform(db)
+        let paths = try FetchNoteSourcePathsTransaction(noteId: noteId).perform(db, brain)
 
         guard let currentDecl = sourceFingerprint.computeDeclHash(paths),
             let current = sourceFingerprint.computeFingerprint(paths)

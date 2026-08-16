@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct BuildVectorsTransaction: GRDBTransaction {
+struct BuildVectorsTransaction: GRDBBrainTransaction {
     private let vectorMath = VectorMath()
 
     // MARK: - Initializer
@@ -16,7 +16,7 @@ struct BuildVectorsTransaction: GRDBTransaction {
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database) throws -> VectorBuildResult {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> VectorBuildResult {
         let now = Int(Date().timeIntervalSince1970)
         let noteIds = try String.fetchAll(
             db,
@@ -34,7 +34,7 @@ struct BuildVectorsTransaction: GRDBTransaction {
             )
         }
 
-        let dim = min(Config.getInt("vectors.dim", default: 48), noteCount - 1)
+        let dim = min(brain.config.getInt("vectors.dim", default: 48), noteCount - 1)
         var indexById: [String: Int] = [:]
 
         for (index, id) in noteIds.enumerated() { indexById[id] = index }

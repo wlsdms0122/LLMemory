@@ -19,8 +19,10 @@ public struct EnrichmentStatus: Sendable {
             assocEdges > 0 ? Double(disagreeEdges) / Double(assocEdges) : 0
         }
 
-        public var alarm: Bool {
-            disagreeRate > Config.getDouble("enrich.model_alarm_rate", default: 0.4)
+        // The threshold is a configured judgement, so it arrives with the
+        // question rather than being fetched from wherever this row is read.
+        public func alarm(over rate: Double) -> Bool {
+            disagreeRate > rate
         }
 
         // MARK: - Initializer
@@ -39,6 +41,10 @@ public struct EnrichmentStatus: Sendable {
     public let vectorCount: Int
     public let provenanceStats: [ProvenanceStat]
     public let reviewFlagged: Int
+    // The rate above which a provenance is worth looking at. It is this
+    // brain's judgement, so it is reported with the numbers it judges rather
+    // than fetched again wherever they are rendered.
+    public let modelAlarmRate: Double
 
     public var vectorCoverage: Double {
         noteCount > 0 ? Double(vectorCount) / Double(noteCount) : 0

@@ -8,14 +8,14 @@
 import Foundation
 import GRDB
 
-struct PruneFtsOrphansTransaction: GRDBTransaction {
+struct PruneFtsOrphansTransaction: GRDBBrainTransaction {
     private let noteFiles = Notes()
 
     // MARK: - Initializer
     init() { }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> (orphansPruned: Int, refilled: Int, unreadable: [String]) {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> (orphansPruned: Int, refilled: Int, unreadable: [String]) {
         let noteIds = Set(try String.fetchAll(db, sql: "SELECT id FROM notes"))
         let ftsIds = Set(try String.fetchAll(db, sql: "SELECT DISTINCT id FROM notes_fts"))
         let orphans = ftsIds.subtracting(noteIds)
@@ -39,7 +39,7 @@ struct PruneFtsOrphansTransaction: GRDBTransaction {
             
             let title: String = row["title"]
             let summary: String? = row["summary"]
-            let path = Paths.file(forId: noteId)
+            let path = brain.paths.file(forId: noteId)
             let body: String
             do {
                 guard let read = try noteFiles.readNoteIfPresent(at: path) else { continue }

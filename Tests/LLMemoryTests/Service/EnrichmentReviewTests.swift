@@ -55,7 +55,7 @@ struct EnrichmentReviewTests {
         
         // When
         let queue = try home.storage.connect()
-        let status = try queue.read { db in try EnrichmentStatusTransaction().perform(db) }
+        let status = try queue.read { db in try EnrichmentStatusTransaction().perform(db, home.brain) }
         
         // Then
         #expect(status.assocTotal == 1)
@@ -85,14 +85,14 @@ struct EnrichmentReviewTests {
             "op": "propose_link", "src": "rev-alpha0", "dst": "rev-beta0",
             "provenance": "noisy:model"
         ]])
-        _ = try home.database().write { db in try BuildVectorsTransaction().perform(db) }
+        _ = try home.database().write { db in try BuildVectorsTransaction().perform(db, home.brain) }
         
         let now = home.now
         let flagged = try home.storage.writeLock { () -> Int in
             let queue = try home.storage.connect()
         
         // When
-            return try queue.write { db in try FlagEnrichmentDisagreementsTransaction(now: now).perform(db).flagged }
+            return try queue.write { db in try FlagEnrichmentDisagreementsTransaction(now: now).perform(db, home.brain).flagged }
         }
         
         // Then
@@ -126,7 +126,7 @@ struct EnrichmentReviewTests {
         
         // When
         let queue = try home.storage.connect()
-        let stats = try queue.read { db in try FetchProvenanceStatsTransaction().perform(db) }
+        let stats = try queue.read { db in try FetchProvenanceStatsTransaction().perform(db, home.brain) }
         let modelX = stats.first { entry in entry.provenance == "modelX" }
         
         // Then
@@ -144,10 +144,10 @@ struct EnrichmentReviewTests {
         // Then
         #expect(home.apply([["op": "invalidate", "id": "cov-arch", "reason": "test"]]).status == "ok")
         
-        _ = try home.database().write { db in try BuildVectorsTransaction().perform(db) }
+        _ = try home.database().write { db in try BuildVectorsTransaction().perform(db, home.brain) }
         
         let queue = try home.storage.connect()
-        let status = try queue.read { db in try EnrichmentStatusTransaction().perform(db) }
+        let status = try queue.read { db in try EnrichmentStatusTransaction().perform(db, home.brain) }
         
         #expect(status.vectorCount == 2, "only surface notes get a vector row")
         #expect(status.noteCount == 2, "denominator must count the surface population, not off-surface notes")
@@ -171,7 +171,7 @@ struct EnrichmentReviewTests {
                 try Self.putVector(db, id: "rev-h1", vector: [1, 0])
                 try Self.putVector(db, id: "rev-h2", vector: [0, 1])
                 
-                _ = try FlagEnrichmentDisagreementsTransaction(now: now).perform(db)
+                _ = try FlagEnrichmentDisagreementsTransaction(now: now).perform(db, home.brain)
             }
         }
         
@@ -185,7 +185,7 @@ struct EnrichmentReviewTests {
             try queue.write { db in
                 try Self.putVector(db, id: "rev-h2", vector: [1, 0])
                 
-                _ = try FlagEnrichmentDisagreementsTransaction(now: now + 1).perform(db)
+                _ = try FlagEnrichmentDisagreementsTransaction(now: now + 1).perform(db, home.brain)
             }
         }
         
@@ -217,7 +217,7 @@ struct EnrichmentReviewTests {
                 try Self.putVector(db, id: "rev-e1", vector: [1, 0])
                 try Self.putVector(db, id: "rev-e2", vector: [0, 1])
                 
-                _ = try FlagEnrichmentDisagreementsTransaction(now: now).perform(db)
+                _ = try FlagEnrichmentDisagreementsTransaction(now: now).perform(db, home.brain)
             }
         }
         
@@ -232,7 +232,7 @@ struct EnrichmentReviewTests {
                 try db.execute(sql: "DELETE FROM note_links WHERE kind = ?",
                     arguments: [LinkKind.assoc.rawValue])
                 
-                _ = try FlagEnrichmentDisagreementsTransaction(now: now + 1).perform(db)
+                _ = try FlagEnrichmentDisagreementsTransaction(now: now + 1).perform(db, home.brain)
             }
         }
         
@@ -257,7 +257,7 @@ struct EnrichmentReviewTests {
                 try Self.putVector(db, id: "rev-k1", vector: [1, 0])
                 try Self.putVector(db, id: "rev-k2", vector: [0, 1])
                 
-                _ = try FlagEnrichmentDisagreementsTransaction(now: now).perform(db)
+                _ = try FlagEnrichmentDisagreementsTransaction(now: now).perform(db, home.brain)
             }
         }
         
@@ -265,7 +265,7 @@ struct EnrichmentReviewTests {
             try queue.write { db in
                 try db.execute(sql: "DELETE FROM note_vectors")
                 
-                _ = try FlagEnrichmentDisagreementsTransaction(now: now + 1).perform(db)
+                _ = try FlagEnrichmentDisagreementsTransaction(now: now + 1).perform(db, home.brain)
             }
         }
         
@@ -293,12 +293,12 @@ struct EnrichmentReviewTests {
                 try Self.putVector(db, id: "rev-j1", vector: [1, 0])
                 try Self.putVector(db, id: "rev-j2", vector: [0, 1])
                 
-                _ = try FlagEnrichmentDisagreementsTransaction(now: now).perform(db)
+                _ = try FlagEnrichmentDisagreementsTransaction(now: now).perform(db, home.brain)
             }
         }
         
         // When
-        let candidates = try queue.read { db in try detectors.enrichReviewCandidates(GRDBReadScope(db)) }
+        let candidates = try queue.read { db in try detectors.enrichReviewCandidates(GRDBReadScope(db, home.brain)) }
         
         // Then
         #expect(Set(candidates.map { candidate in candidate.id }) == ["rev-j1", "rev-j2"])
@@ -321,7 +321,7 @@ struct EnrichmentReviewTests {
         
         try home.storage.writeLock {
             try queue.write { db in
-                _ = try FlagEnrichmentDisagreementsTransaction(now: now + 1).perform(db)
+                _ = try FlagEnrichmentDisagreementsTransaction(now: now + 1).perform(db, home.brain)
             }
         }
         
@@ -365,7 +365,7 @@ struct EnrichmentReviewTests {
             let queue = try home.storage.connect()
         
         // When
-            return try queue.write { db in try FlagEnrichmentDisagreementsTransaction(now: now).perform(db).flagged }
+            return try queue.write { db in try FlagEnrichmentDisagreementsTransaction(now: now).perform(db, home.brain).flagged }
         }
         
         // Then

@@ -17,9 +17,15 @@ import Foundation
 // anything else that needs to look.
 struct TrashedNoteLookup {
     // MARK: - Property
+    private let paths: Paths
+
     private let noteFiles = Notes()
 
     // MARK: - Initializer
+    init(paths: Paths) {
+        self.paths = paths
+    }
+
     // MARK: - Public
     func trashName(_ url: URL) -> (nid: String, counter: Int) {
         let stem = url.deletingPathExtension().lastPathComponent
@@ -35,7 +41,7 @@ struct TrashedNoteLookup {
     // under .trash/ read the same way — leaf label alone would only be the last
     // label of a dotted address.
     func trashStemId(_ url: URL) -> String {
-        guard let relative = Paths.relative(of: url) else { return trashName(url).nid }
+        guard let relative = paths.relative(of: url) else { return trashName(url).nid }
         
         var labels = relative.split(separator: "/").map(String.init)
         
@@ -53,10 +59,10 @@ struct TrashedNoteLookup {
     ) throws -> (url: URL, doc: FrontmatterDoc, body: String)? {
         let fileManager = FileManager.default
         
-        guard fileManager.fileExists(atPath: Paths.trash.path) else { return nil }
+        guard fileManager.fileExists(atPath: paths.trash.path) else { return nil }
         
         guard let iterator = fileManager.enumerator(
-            at: Paths.trash,
+            at: paths.trash,
             includingPropertiesForKeys: nil
         ) else {
             return nil

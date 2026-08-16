@@ -28,16 +28,16 @@ struct PathIdInvariantTests {
     // MARK: - Test
     @Test("a dot in the id is a directory separator, and the last label is the file")
     func idSpellsThePath() {
-        #expect(Paths.relativeFile(forId: "principles") == "cortex/principles.md")
-        #expect(Paths.relativeFile(forId: "a.b") == "cortex/a/b.md")
-        #expect(Paths.relativeFile(forId: "journal.2026.08.bkios-545")
+        #expect(home.paths.relativeFile(forId: "principles") == "cortex/principles.md")
+        #expect(home.paths.relativeFile(forId: "a.b") == "cortex/a/b.md")
+        #expect(home.paths.relativeFile(forId: "journal.2026.08.bkios-545")
             == "cortex/journal/2026/08/bkios-545.md")
     }
 
     @Test("reading the address back off the file returns the id it was built from")
     func pathAndIdAreInverses() {
         for id in ["principles", "a.b", "a.b.c.d", "journal.2026.08.bkios-545"] {
-            #expect(Paths.id(ofFile: Paths.file(forId: id)) == id, "round trip broke for \(id)")
+            #expect(home.paths.id(ofFile: home.paths.file(forId: id)) == id, "round trip broke for \(id)")
         }
     }
 
@@ -69,10 +69,10 @@ struct PathIdInvariantTests {
         }
 
         // Then — only one of them has an address, and the other is named, not skipped.
-        #expect(Paths.id(ofFile: proper) == "a.b.c")
-        #expect(Paths.id(ofFile: dotted) == nil, "two files resolved to one address")
+        #expect(home.paths.id(ofFile: proper) == "a.b.c")
+        #expect(home.paths.id(ofFile: dotted) == nil, "two files resolved to one address")
 
-        let result = try indexer.buildLocked(home.database(), rebuild: false)
+        let result = try indexer.buildLocked(home.database(), home.brain, rebuild: false)
         let ids = try home.read { database in
             try String.fetchAll(database, sql: "SELECT id FROM notes ORDER BY id")
         }
@@ -112,7 +112,7 @@ struct PathIdInvariantTests {
         #expect(FileManager.default.fileExists(atPath: parent.path))
         #expect(FileManager.default.fileExists(atPath: child.path))
 
-        let (ok, messages) = try indexer.check(home.database(), level: .l2)
+        let (ok, messages) = try indexer.check(home.database(), home.brain, level: .l2)
 
         #expect(ok, "\(messages)")
     }
@@ -236,7 +236,7 @@ struct PathIdInvariantTests {
 
         // Then
         #expect(!text.contains("\nid:"), "the note wrote its address down a second time")
-        #expect(Paths.id(ofFile: file) == "x.y.z", "the location is where the id comes from")
+        #expect(home.paths.id(ofFile: file) == "x.y.z", "the location is where the id comes from")
 
         let indexed = try home.read { database in
             try String.fetchAll(database, sql: "SELECT id FROM notes WHERE id = 'x.y.z'")

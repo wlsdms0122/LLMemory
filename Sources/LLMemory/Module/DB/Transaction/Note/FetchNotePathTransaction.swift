@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct FetchNotePathTransaction: GRDBReadTransaction {
+struct FetchNotePathTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let nid: String
 
@@ -20,10 +20,10 @@ struct FetchNotePathTransaction: GRDBReadTransaction {
     // MARK: - Public
     // Existence is the only thing the DB is asked — where the note lives is a
     // function of its id, so nil here means "no such note", never "no path".
-    func perform(_ db: Database) throws -> URL? {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> URL? {
         guard try NoteExistsTransaction(nid: nid).perform(db) else { return nil }
 
-        return Paths.file(forId: nid)
+        return brain.paths.file(forId: nid)
     }
 
     // MARK: - Private

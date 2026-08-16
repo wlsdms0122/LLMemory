@@ -19,7 +19,6 @@ struct RestoreHandler: OperationHandling {
     )
     
     private let noteExistence = NoteExistence()
-    private let trashLookup = TrashedNoteLookup()
     
     private let frontmatter = Frontmatter()
     
@@ -36,7 +35,7 @@ struct RestoreHandler: OperationHandling {
         }
         
         do {
-            if try trashLookup.findTrashedFile(noteId) != nil { return nil }
+            if try TrashedNoteLookup(paths: scope.brain.paths).findTrashedFile(noteId) != nil { return nil }
         } catch {
             return "\(error)"
         }
@@ -52,7 +51,7 @@ struct RestoreHandler: OperationHandling {
         let noteId = op["id"] as! String
         let now = context.now
         
-        guard let found = try trashLookup.findTrashedFile(noteId) else {
+        guard let found = try TrashedNoteLookup(paths: scope.brain.paths).findTrashedFile(noteId) else {
             throw OperationError.notInTrash(noteId)
         }
         
@@ -63,7 +62,7 @@ struct RestoreHandler: OperationHandling {
         doc.trashedAt = nil
         doc.trashedReason = nil
         
-        let destination = Paths.file(forId: noteId)
+        let destination = scope.brain.paths.file(forId: noteId)
         
         try FileManager.default.createDirectory(
             at: destination.deletingLastPathComponent(),
@@ -98,9 +97,9 @@ struct RestoreHandler: OperationHandling {
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
         let noteId = op["id"] as? String ?? ""
         
-        guard let found = try trashLookup.findTrashedFile(noteId) else { return [] }
+        guard let found = try TrashedNoteLookup(paths: scope.brain.paths).findTrashedFile(noteId) else { return [] }
         
-        return [found.url, Paths.file(forId: noteId)]
+        return [found.url, scope.brain.paths.file(forId: noteId)]
     }
     
     // MARK: - Private

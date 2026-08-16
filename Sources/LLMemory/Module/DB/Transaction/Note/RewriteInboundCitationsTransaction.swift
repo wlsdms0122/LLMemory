@@ -16,7 +16,7 @@ import GRDB
 // note_ref_markers is what makes it tractable — it records who cites whom
 // whether or not the citation resolved, so the set of files to touch is known
 // rather than searched for.
-struct RewriteInboundCitationsTransaction: GRDBTransaction {
+struct RewriteInboundCitationsTransaction: GRDBBrainTransaction {
     // MARK: - Property
     let from: String
     let to: String
@@ -29,7 +29,7 @@ struct RewriteInboundCitationsTransaction: GRDBTransaction {
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database) throws -> [String] {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [String] {
         guard from != to else { return [] }
 
         let referrers = try String.fetchAll(
@@ -40,7 +40,7 @@ struct RewriteInboundCitationsTransaction: GRDBTransaction {
         var rewritten: [String] = []
 
         for src in referrers.sorted() {
-            let file = Paths.file(forId: src)
+            let file = brain.paths.file(forId: src)
             // Not `try?`. With no alias table, a citation this loop fails to
             // rewrite is a reference that breaks — reporting success while
             // leaving one behind is the exact state the design forbids, so an
@@ -55,7 +55,7 @@ struct RewriteInboundCitationsTransaction: GRDBTransaction {
             guard updated != text else { continue }
 
             try updated.write(to: file, atomically: true, encoding: .utf8)
-            try ReindexNoteFileTransaction(path: file).perform(db)
+            try ReindexNoteFileTransaction(path: file).perform(db, brain)
             rewritten.append(src)
         }
 

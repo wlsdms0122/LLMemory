@@ -17,9 +17,9 @@ struct StructuralLossInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
-    private let trashLookup = TrashedNoteLookup()
+    private var trashLookup: TrashedNoteLookup { TrashedNoteLookup(paths: home.paths) }
 
-    private let trash = Trash()
+    private var trash: Trash { Trash(paths: home.paths) }
 
     // MARK: - Initializer
     init() throws {
@@ -72,7 +72,7 @@ struct StructuralLossInvariantTests {
         #expect(home.createNote(id: "trsh-snap", content: "## A\nsecond\n").status == "ok")
         
         // When
-        let source = try home.read { database in try FetchNotePathTransaction(nid: "trsh-snap").perform(database) }
+        let source = try home.read { database in try FetchNotePathTransaction(nid: "trsh-snap").perform(database, home.brain) }
         
         guard let source, let predicted = trash.destination(of: source) else {
             throw TestFailure("setup: no trash destination for the live note")
@@ -178,7 +178,7 @@ struct StructuralLossInvariantTests {
         home.createNote(id: "mig-src", content: "## A\nbody\n")
         
         let operation: [String: Any] = ["op": "migrate_note", "id": "mig-src", "new_id": "mig.dst"]
-        let expected = Paths.file(forId: "mig.dst")
+        let expected = home.paths.file(forId: "mig.dst")
         
         // When
         let touched = try home.readScope { scope in
@@ -234,7 +234,7 @@ struct StructuralLossInvariantTests {
             id: "zomb-from", tags: ["tech"], content: "## Body\nsource body merged in\n"
         ).status == "ok")
         
-        let fromPath = Paths.file(forId: "zomb-from")
+        let fromPath = home.paths.file(forId: "zomb-from")
         
         // When — the directory is read-only, so removing the absorbed file must fail.
         try Self.withReadOnlyDirectory(fromPath.deletingLastPathComponent()) {
@@ -258,7 +258,7 @@ struct StructuralLossInvariantTests {
             id: "zomb-ssrc", tags: ["tech"], content: "## A\nalpha body\n## B\nbeta body\n"
         ).status == "ok")
         
-        let sourcePath = Paths.file(forId: "zomb-ssrc")
+        let sourcePath = home.paths.file(forId: "zomb-ssrc")
         
         // When
         try Self.withReadOnlyDirectory(sourcePath.deletingLastPathComponent()) {

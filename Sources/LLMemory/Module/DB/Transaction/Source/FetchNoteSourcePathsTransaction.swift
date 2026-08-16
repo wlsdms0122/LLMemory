@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct FetchNoteSourcePathsTransaction: GRDBReadTransaction {
+struct FetchNoteSourcePathsTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let noteId: String
 
@@ -20,10 +20,10 @@ struct FetchNoteSourcePathsTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [String] {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [String] {
         guard try NoteExistsTransaction(nid: noteId).perform(db) else { return [] }
 
-        return try noteFiles.requireNote(at: Paths.file(forId: noteId)).doc.source
+        return try noteFiles.requireNote(at: brain.paths.file(forId: noteId)).doc.source
     }
 
     // MARK: - Private

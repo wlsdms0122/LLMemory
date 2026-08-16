@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct CheckIntegrityTransaction: GRDBReadTransaction {
+struct CheckIntegrityTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let level: Indexer.IntegrityLevel
 
@@ -20,8 +20,8 @@ struct CheckIntegrityTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> (ok: Bool, msgs: [String]) {
-        try indexer.check(db, rawLevel: level.rawValue)
+    func perform(_ db: Database, _ brain: BrainContext) throws -> (ok: Bool, msgs: [String]) {
+        try indexer.check(db, brain, rawLevel: level.rawValue)
     }
 
     // MARK: - Private

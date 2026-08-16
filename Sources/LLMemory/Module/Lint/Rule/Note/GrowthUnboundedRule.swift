@@ -30,7 +30,7 @@ struct GrowthUnboundedRule: NoteLintRule {
         let dated = note.document.sections.filter { section in
             matches(Self.datedHeadingRegex, section.title)
         }
-        let minEntries = Config.getInt("lint.growth_min_dated_sections", default: 8)
+        let minEntries = index.config.getInt("lint.growth_min_dated_sections", default: 8)
         
         guard dated.count >= minEntries else { return [] }
         

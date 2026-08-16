@@ -39,7 +39,7 @@ public struct GenomeService: GenomeServiceable {
     // of masquerading as wild-type.
     public func list() async throws -> [GeneListRow] {
         try await storage.read { scope in
-            catalogRows(values: try scope.run(FetchGenomeValuesTransaction()))
+            catalogRows(scope.brain.genes, values: try scope.run(FetchGenomeValuesTransaction()))
         }
     }
 
@@ -95,7 +95,7 @@ public struct GenomeService: GenomeServiceable {
     ) throws -> GenomeShadowResult {
         if let rejection = Genes.rejection(gene, value: value) { throw rejection }
 
-        let baselineValue = Genes.double(gene)
+        let baselineValue = scope.brain.genes.double(gene)
         let logged = try scope.run(FetchLoggedRetrievalQueriesTransaction(limit: limit))
 
         func replayIds(
@@ -171,9 +171,9 @@ public struct GenomeService: GenomeServiceable {
     // committed state, so the genome value comes from the read rather than
     // from the process cache. Which value wins and what it is called is
     // Genes.resolve's answer, not a second copy of it.
-    private func catalogRows(values: [String: Double]) -> [GeneListRow] {
+    private func catalogRows(_ genes: Genes, values: [String: Double]) -> [GeneListRow] {
         Genes.catalog.map { gene in
-            let resolved = Genes.resolve(gene, stored: values[gene.id])
+            let resolved = genes.resolve(gene, stored: values[gene.id])
 
             return GeneListRow(
                 id: gene.id,

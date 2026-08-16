@@ -190,7 +190,7 @@ struct EnrichmentTests {
             "provenance": "test:capture"
         ]]).status == "ok")
         
-        _ = try indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), home.brain, rebuild: true)
         
         let queue = try home.storage.connect()
         let (status, hit) = try home.read { db -> (String?, Bool) in
@@ -359,7 +359,7 @@ struct EnrichmentTests {
         #expect(home.apply([["op": "flag", "id": "rbm-note",
             "kind": "reconsolidate", "reason": "preserved"]]).status == "ok")
         
-        _ = try indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), home.brain, rebuild: true)
         
         let value = try home.read { db in
             try String.fetchOne(db, sql: "SELECT reason FROM ripple_flags WHERE note_id='rbm-note' AND flag='reconsolidate'")
@@ -379,7 +379,7 @@ struct EnrichmentTests {
             try db.execute(sql: "UPDATE note_usage SET hit_count=7, last_retrieved_at=1700000000 WHERE note_id='usage-note'")
         }
         
-        _ = try indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), home.brain, rebuild: true)
         
         // When
         let (hitCount, lastRetrieved) = try home.read { db -> (Int, Int) in
@@ -427,14 +427,14 @@ struct EnrichmentTests {
             "content": "## a\nb\n", "entities": ["BAR-9"]]]).status == "ok")
         
         let path = try home.read { db in
-            Paths.relativeFile(forId: "rc-note")
+            home.paths.relativeFile(forId: "rc-note")
         }
         
         try home.write { db in
             try db.execute(sql: "UPDATE entity_index SET hit_count=5 WHERE note_id='rc-note' AND entity='BAR-9'")
         }
         
-        _ = try home.database().write { db in try indexer.reindexFiles(db, filePaths: [path]) }
+        _ = try home.database().write { db in try indexer.reindexFiles(db, home.brain, filePaths: [path]) }
         
         let hitCount = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT hit_count FROM entity_index WHERE note_id='rc-note' AND entity='BAR-9'") ?? -1
@@ -456,7 +456,7 @@ struct EnrichmentTests {
             try db.execute(sql: "UPDATE entity_index SET hit_count=9 WHERE note_id='eh-note' AND entity='FOO-1'")
         }
         
-        _ = try indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), home.brain, rebuild: true)
         
         let hitCount = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT hit_count FROM entity_index WHERE note_id='eh-note' AND entity='FOO-1'") ?? -1
@@ -479,7 +479,7 @@ struct EnrichmentTests {
         
         #expect(before == 2)
         
-        _ = try indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), home.brain, rebuild: true)
         
         let after = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM entity_index WHERE note_id='ent-note'") ?? 0
@@ -503,7 +503,7 @@ struct EnrichmentTests {
                 """)
         }
         
-        _ = try indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), home.brain, rebuild: true)
         
         // When
         let survived = try home.read { db in
@@ -746,13 +746,13 @@ struct EnrichmentTests {
         #expect(abs(weight - 0.454) < 0.001)
         #expect((row?["provenance"] as String?) == "test:capture")
         
-        let assocExpanded = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["enr-pl-a"], hops: 1, kind: .assoc).perform(db) }
+        let assocExpanded = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["enr-pl-a"], hops: 1, kind: .assoc).perform(db, home.brain) }
         
         #expect(!assocExpanded.contains { hit in hit.id == "enr-pl-b" })
         
-        _ = try home.database().write { db in try StrengthenLinksTransaction(pairs: [("enr-pl-a", "enr-pl-b")], kind: .assoc, step: 0.3).perform(db) }
+        _ = try home.database().write { db in try StrengthenLinksTransaction(pairs: [("enr-pl-a", "enr-pl-b")], kind: .assoc, step: 0.3).perform(db, home.brain) }
         
-        let after = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["enr-pl-a"], hops: 1, kind: .assoc).perform(db) }
+        let after = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["enr-pl-a"], hops: 1, kind: .assoc).perform(db, home.brain) }
         
         #expect(after.contains { hit in hit.id == "enr-pl-b" })
     }

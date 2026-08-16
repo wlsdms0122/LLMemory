@@ -16,7 +16,7 @@ import GRDB
 // ops batch that is rejected later must not leave a gene changed. A service
 // method taking a scope would say the same thing while pretending the work
 // belongs a tier up.
-struct ApplyGeneValueTransaction: GRDBTransaction {
+struct ApplyGeneValueTransaction: GRDBBrainTransaction {
     // MARK: - Property
     let geneId: String
     let value: Double
@@ -44,7 +44,7 @@ struct ApplyGeneValueTransaction: GRDBTransaction {
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database) throws -> (old: Double, new: Double) {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> (old: Double, new: Double) {
         if let rejection = Genes.rejection(geneId, value: value, requireMutable: requireMutable) {
             throw rejection
         }
@@ -52,7 +52,7 @@ struct ApplyGeneValueTransaction: GRDBTransaction {
         guard let gene = Genes.gene(geneId) else { throw GenomeWriteError.unknownGene(geneId) }
 
         let old = try FetchGeneValueTransaction(geneId: geneId).perform(db)
-            ?? Config.getDouble(geneId, default: gene.wildType)
+            ?? brain.config.getDouble(geneId, default: gene.wildType)
 
         try SetGeneTransaction(
             geneId: geneId,

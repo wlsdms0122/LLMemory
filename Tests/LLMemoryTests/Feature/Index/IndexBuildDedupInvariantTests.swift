@@ -45,7 +45,7 @@ struct IndexBuildDedupInvariantTests {
         try FileManager.default.copyItem(at: original, to: copyURL)
         
         // When
-        let result = try indexer.buildLocked(home.database(), rebuild: false)
+        let result = try indexer.buildLocked(home.database(), home.brain, rebuild: false)
         
         // Then
         let ids = try home.read { database in
@@ -68,6 +68,7 @@ struct IndexBuildDedupInvariantTests {
         // When
         _ = try home.database().write { database in
             try indexer.reconcile(
+                home.brain,
                 database,
                 pending: [source, destination],
                 scannedRels: [source.rel, destination.rel],
@@ -103,7 +104,7 @@ struct IndexBuildDedupInvariantTests {
             .write(to: file, atomically: true, encoding: .utf8)
         try fileManager.setAttributes([.modificationDate: frozen as Any], ofItemAtPath: file.path)
         
-        let result = try indexer.buildLocked(home.database(), rebuild: false)
+        let result = try indexer.buildLocked(home.database(), home.brain, rebuild: false)
         
         // Then
         let indexedRows = try home.read { database in
@@ -132,7 +133,7 @@ struct IndexBuildDedupInvariantTests {
             .write(to: file, atomically: true, encoding: .utf8)
         try fileManager.setAttributes([.modificationDate: frozen as Any], ofItemAtPath: file.path)
         
-        let (passed, messages) = try indexer.check(home.database(), level: .l2)
+        let (passed, messages) = try indexer.check(home.database(), home.brain, level: .l2)
         
         // Then
         #expect(!passed)
@@ -145,7 +146,7 @@ struct IndexBuildDedupInvariantTests {
     
     private func pendingNote(at url: URL) throws -> Indexer.PendingNote {
         let resolved = url.resolvingSymlinksInPath().standardizedFileURL
-        let relativePath = resolved.path.replacingOccurrences(of: Paths.brainRoot.path + "/", with: "")
+        let relativePath = resolved.path.replacingOccurrences(of: home.paths.brainRoot.path + "/", with: "")
         let text = try String(contentsOf: resolved, encoding: .utf8)
         let (fields, body) = try frontmatter.parse(text)
         

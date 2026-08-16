@@ -87,11 +87,16 @@ public struct Indexer: Sendable {
     // Caller holds the write lock (run's write marker or an explicit writeLock).
     // Scanning and parsing stay outside the transaction — only the reconcile
     // holds the lock.
-    func buildLocked(_ queue: any DatabaseWriter, rebuild: Bool = false) throws -> BuildResult {
-        let scanned = scanPending()
+    func buildLocked(
+        _ queue: any DatabaseWriter,
+        _ brain: BrainContext,
+        rebuild: Bool = false
+    ) throws -> BuildResult {
+        let scanned = scanPending(brain)
 
         return try queue.write { db in
             try reconcile(
+                brain,
                 db,
                 pending: scanned.pending,
                 scannedRels: scanned.scannedRels,
@@ -103,8 +108,8 @@ public struct Indexer: Sendable {
     }
 
     // The corpus scan — file I/O and parsing, no connection involved.
-    func scanPending() -> Scan {
-        let files = Paths.scanNotes()
+    func scanPending(_ brain: BrainContext) -> Scan {
+        let files = brain.paths.scanNotes()
         var scannedRels = Set<String>()
         var pending: [PendingNote] = []
         var fileErrors: [String] = []
@@ -112,13 +117,13 @@ public struct Indexer: Sendable {
         for file in files {
             let relativePath: String
             do {
-                relativePath = try noteFiles.relativeToBrainRoot(file)
+                relativePath = try noteFiles.relativeToBrainRoot(file, brain.paths)
             } catch {
                 fileErrors.append("\(file.path): \(error)")
                 continue
             }
 
-            if let rejection = Paths.addressRejection(of: file) {
+            if let rejection = brain.paths.addressRejection(of: file) {
                 fileErrors.append("\(relativePath): \(rejection)")
                 continue
             }
@@ -147,21 +152,29 @@ public struct Indexer: Sendable {
         return Scan(pending: pending, scannedRels: scannedRels, errors: fileErrors)
     }
 
-    func check(_ queue: any DatabaseReader, level: IntegrityLevel = .l1) throws -> (ok: Bool, msgs: [String]) {
-        try check(queue, rawLevel: level.rawValue)
+    func check(
+        _ queue: any DatabaseReader,
+        _ brain: BrainContext,
+        level: IntegrityLevel = .l1
+    ) throws -> (ok: Bool, msgs: [String]) {
+        try check(queue, brain, rawLevel: level.rawValue)
     }
 
     // Applies each file as its own savepoint (one file = one rollback unit)
     // and reports outcomes as data — printing and exit codes are the CLI
     // surface's business, decided after the enclosing transaction commits.
-    func reindexFiles(_ db: Database, filePaths: [String]) throws -> [ReindexOutcome] {
+    func reindexFiles(
+        _ db: Database,
+        _ brain: BrainContext,
+        filePaths: [String]
+    ) throws -> [ReindexOutcome] {
         var outcomes: [ReindexOutcome] = []
 
         for filePath in filePaths {
             var path = URL(fileURLWithPath: (filePath as NSString).expandingTildeInPath)
 
             if !path.path.hasPrefix("/") {
-                path = Paths.brainRoot.appendingPathComponent(filePath)
+                path = brain.paths.brainRoot.appendingPathComponent(filePath)
             }
 
             path = path.standardizedFileURL.resolvingSymlinksInPath()
@@ -171,11 +184,11 @@ public struct Indexer: Sendable {
                 continue
             }
 
-            if Paths.relative(of: path) == nil {
+            if brain.paths.relative(of: path) == nil {
                 outcomes.append(
                     ReindexOutcome(
                         filePath: filePath,
-                        result: .failure("outside brain home \(Paths.brainRoot.path)")
+                        result: .failure("outside brain home \(brain.paths.brainRoot.path)")
                     )
                 )
                 continue
@@ -187,9 +200,9 @@ public struct Indexer: Sendable {
             do {
                 try db.inSavepoint {
                     do {
-                        let noteId = try ReindexNoteFileTransaction(path: path).perform(db)
+                        let noteId = try ReindexNoteFileTransaction(path: path).perform(db, brain)
 
-                        reindexed = (noteId, Paths.relative(of: path) ?? path.path)
+                        reindexed = (noteId, brain.paths.relative(of: path) ?? path.path)
 
                         return .commit
                     } catch {
@@ -219,6 +232,7 @@ public struct Indexer: Sendable {
 
     // MARK: - Private
     func reconcile(
+        _ brain: BrainContext,
         _ db: Database,
         pending: [PendingNote],
         scannedRels: Set<String>,
@@ -242,7 +256,7 @@ public struct Indexer: Sendable {
         for row in existingRows {
             let id: String = row["id"]
 
-            existingByPath[Paths.relativeFile(forId: id)] = (id, row["content_hash"])
+            existingByPath[brain.paths.relativeFile(forId: id)] = (id, row["content_hash"])
         }
 
         // `seen` is claimed before the upsert on purpose: a file that fails to
@@ -252,7 +266,7 @@ public struct Indexer: Sendable {
         // No duplicate check: two files are two locations, and two locations are
         // two addresses. Nothing can claim an id that another file already has.
         func reconcileOne(_ note: PendingNote) throws {
-            if let noteId = Paths.id(ofFile: note.file) { seen.insert(noteId) }
+            if let noteId = brain.paths.id(ofFile: note.file) { seen.insert(noteId) }
 
             if let previous = existingByPath[note.rel],
                 previous.hash == note.contentHash && !rebuild {
@@ -264,7 +278,7 @@ public struct Indexer: Sendable {
                 body: note.body,
                 raw: note.raw,
                 now: now
-            ).perform(db)
+            ).perform(db, brain)
             changed += 1
         }
 
@@ -311,12 +325,20 @@ public struct Indexer: Sendable {
     }
 
     // MARK: - Private
-    func check(_ queue: any DatabaseReader, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
-        try queue.read { db in try check(db, rawLevel: level) }
+    func check(
+        _ queue: any DatabaseReader,
+        _ brain: BrainContext,
+        rawLevel level: Int
+    ) throws -> (ok: Bool, msgs: [String]) {
+        try queue.read { db in try check(db, brain, rawLevel: level) }
     }
 
-    func check(_ db: Database, rawLevel level: Int) throws -> (ok: Bool, msgs: [String]) {
-        let eagerCap = Config.getInt("eager.max_count", default: 20)
+    func check(
+        _ db: Database,
+        _ brain: BrainContext,
+        rawLevel level: Int
+    ) throws -> (ok: Bool, msgs: [String]) {
+        let eagerCap = brain.config.getInt("eager.max_count", default: 20)
         var messages: [String] = []
         var ok = true
         let shape = try SchemaShape(migrations: Session.migrations).check(db)
@@ -333,9 +355,9 @@ public struct Indexer: Sendable {
         // disagreement surfaces as a mismatch rather than as two ghosts.
         var filesById: [String: URL] = [:]
 
-        for file in Paths.scanNotes() {
-            guard let id = Paths.id(ofFile: file) else {
-                messages.append("L1\tunaddressable\t\(Paths.relative(of: file) ?? file.path)")
+        for file in brain.paths.scanNotes() {
+            guard let id = brain.paths.id(ofFile: file) else {
+                messages.append("L1\tunaddressable\t\(brain.paths.relative(of: file) ?? file.path)")
                 ok = false
                 continue
             }

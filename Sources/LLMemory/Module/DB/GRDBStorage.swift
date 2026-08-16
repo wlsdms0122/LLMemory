@@ -13,10 +13,9 @@ import Storage
 
 public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // MARK: - Property
-    // The owning brain's ambient state — bound as a task-local around every
-    // scope body, so Paths/Config/Genes resolve to this brain while its
-    // transactions run (async GRDB closures leave the caller's task, so the
-    // binding happens inside them, not just around the call).
+    // The brain this storage belongs to. Every scope it opens carries it, so
+    // a transaction reading a parameter is handed this brain's rather than
+    // finding one.
     let context: BrainContext
 
     private let databaseURL: URL
@@ -200,7 +199,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         defer { releaseLock() }
 
-        // The process-global caches (config values, gene values) follow
+        // This brain's caches (config values, gene values) follow
         // committed state, and a write scope is where committed state changes.
         // Reloading here rather than inside the body is what makes that true on
         // both paths: a body that wrote and then threw rolls its rows back, and
@@ -208,10 +207,10 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         //
         // It runs while the gate and flock are still held — outside them
         // another writer's committed values could be clobbered by ours.
-        defer { Config.reloadCommitted(self) }
+        defer { context.config.reloadCommitted(self, genes: context.genes) }
 
         return try await connection.write { db in
-            try self.context.bind { try body(GRDBScope(db)) }
+            try body(GRDBScope(db, self.context))
         }
     }
 
@@ -220,7 +219,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     @discardableResult
     public func read<T: Sendable>(_ body: @escaping @Sendable (GRDBReadScope) throws -> T) async throws -> T {
         try await connect().read { db in
-            try self.context.bind { try body(GRDBReadScope(db)) }
+            try body(GRDBReadScope(db, self.context))
         }
     }
 
@@ -239,9 +238,9 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         // The same reload as `run`: this is a write scope too, so the caches
         // follow what it committed.
-        defer { Config.reloadCommitted(self) }
+        defer { context.config.reloadCommitted(self, genes: context.genes) }
 
-        return try context.bind(body)
+        return try body()
     }
 
     // MARK: - Private

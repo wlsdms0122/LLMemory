@@ -35,10 +35,6 @@ struct RelatedFailLoudTests {
         #expect(throws: DBError.self) {
             _ = try ghost.storage.connect()
         }
-        
-        // Rebind the fixture home so its teardown runs against its own paths.
-        BrainContext.adoptFallback(home.session.context)
-        home.session.rewarm()
     }
     
     @Test("related on a brain whose schema does not match the binary throws")
@@ -66,7 +62,7 @@ struct RelatedFailLoudTests {
         }
 
         // Restore the ledger so the fixture can tear the home down through a working connection.
-        let raw = try DatabaseQueue(path: Paths.db.path)
+        let raw = try DatabaseQueue(path: home.paths.db.path)
 
         try raw.write { database in
             try database.execute(

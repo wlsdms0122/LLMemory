@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct FetchSurfaceNoteRowsTransaction: GRDBReadTransaction {
+struct FetchSurfaceNoteRowsTransaction: GRDBBrainReadTransaction {
     struct SurfaceNote {
         // MARK: - Property
         let id: String
@@ -25,7 +25,7 @@ struct FetchSurfaceNoteRowsTransaction: GRDBReadTransaction {
     init() { }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [SurfaceNote] {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [SurfaceNote] {
         try Row.fetchAll(db, sql: """
             SELECT id, title, summary FROM notes
             WHERE \(Policy.all(Policy.surface(""), Policy.forgetExempt("")))
@@ -35,7 +35,7 @@ struct FetchSurfaceNoteRowsTransaction: GRDBReadTransaction {
                 id: row["id"],
                 title: row["title"],
                 summary: row["summary"] as String?,
-                path: Paths.relativeFile(forId: row["id"] as String)
+                path: brain.paths.relativeFile(forId: row["id"] as String)
             )
         }
     }

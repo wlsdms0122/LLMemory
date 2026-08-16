@@ -21,7 +21,6 @@ struct DeleteNoteHandler: OperationHandling {
     
     private let noteExistence = NoteExistence()
     
-    private let trash = Trash()
     
     // MARK: - Initializer
     // MARK: - Public
@@ -67,7 +66,7 @@ struct DeleteNoteHandler: OperationHandling {
         
         // Safe to move here: `touches` names both this file and its trash
         // destination, so a rollback of the surrounding batch restores them.
-        let trashPath = try trash.file(src, reason: op["reason"] as? String ?? "", now: now)
+        let trashPath = try Trash(paths: scope.brain.paths).file(src, reason: op["reason"] as? String ?? "", now: now)
         
         let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(80)
         
@@ -90,7 +89,7 @@ struct DeleteNoteHandler: OperationHandling {
             return []
         }
         
-        return trash.destination(of: src).map { destination in [src, destination] } ?? [src]
+        return Trash(paths: scope.brain.paths).destination(of: src).map { destination in [src, destination] } ?? [src]
     }
     
     // MARK: - Private

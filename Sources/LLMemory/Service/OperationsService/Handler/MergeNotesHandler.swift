@@ -29,7 +29,6 @@ struct MergeNotesHandler: OperationHandling {
     
     private let frontmatter = Frontmatter()
     
-    private let trash = Trash()
     
     // MARK: - Initializer
     // MARK: - Public
@@ -136,7 +135,7 @@ struct MergeNotesHandler: OperationHandling {
         try scope.run(SyncNoteEnrichTransaction(noteId: intoId))
         
         for path in fromPaths {
-            try trash.file(path, reason: "merged into \(intoId)", now: now)
+            try Trash(paths: scope.brain.paths).file(path, reason: "merged into \(intoId)", now: now)
         }
         
         return [
@@ -166,7 +165,7 @@ struct MergeNotesHandler: OperationHandling {
             if let path = try scope.run(FetchNotePathTransaction(nid: fromId)) {
                 paths.append(path)
                 
-                if let trashPath = trash.destination(of: path) { paths.append(trashPath) }
+                if let trashPath = Trash(paths: scope.brain.paths).destination(of: path) { paths.append(trashPath) }
             }
         }
         

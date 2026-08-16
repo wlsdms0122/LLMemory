@@ -92,7 +92,7 @@ struct DismissalsTests {
         #expect(!(try splitCandidateIds().contains("big-4")))
         
         // When
-        _ = try indexer.buildLocked(home.database(), rebuild: true)
+        _ = try indexer.buildLocked(home.database(), home.brain, rebuild: true)
         
         // Then
         let survived = try home.read { database in
@@ -119,7 +119,7 @@ struct DismissalsTests {
         #expect(dismiss("big-5").status == "ok")
         
         // Then
-        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("zephyrquark", keywords: FrequencyKeywords())).perform(database) }
+        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("zephyrquark", keywords: FrequencyKeywords())).perform(database, home.brain) }
         
         #expect(!(try splitCandidateIds().contains("big-5")))
         #expect(hits.contains { hit in hit.id == "big-5" }, "a dismissal must not affect search")

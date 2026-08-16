@@ -149,14 +149,14 @@ public struct NotesService: NotesServiceable {
                 continue
             }
 
-            let path = Paths.file(forId: id)
+            let path = scope.brain.paths.file(forId: id)
             let text = try String(contentsOf: path, encoding: .utf8)
             let (doc, body) = try frontmatter.parse(text)
 
             found.append(
                 NoteView(
                     id: id,
-                    path: Paths.relative(of: path) ?? path.path,
+                    path: scope.brain.paths.relative(of: path) ?? path.path,
                     frontmatter: NoteFrontmatter(doc),
                     body: body,
                     hitCount: record.hitCount,

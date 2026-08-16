@@ -28,25 +28,19 @@ public final class Session {
 
     // MARK: - Initializer
     public init(home: String) {
-        // The context carries this brain's paths and parameter caches; the
-        // storage binds it around every scope. It also becomes the process
-        // fallback so ambient reads outside any scope (file walks before a
-        // scope opens, CLI startup) keep resolving in single-brain flows.
+        // The context carries this brain's paths and parameter caches, and
+        // the storage hands it to every scope it opens.
         let context = BrainContext(home: home)
-
-        BrainContext.adoptFallback(context)
 
         self.context = context
         self.home = context.home
         self.storage = GRDBStorage(
-            // The one spelling of the DB location is Paths.db — resolved under
-            // this context explicitly rather than through the fallback.
-            databaseURL: context.bind { Paths.db },
+            databaseURL: context.paths.db,
             migrations: Self.migrations,
             context: context
         )
 
-        Config.reloadCommitted(storage)
+        context.config.reloadCommitted(storage, genes: context.genes)
     }
 
     // MARK: - Public
@@ -54,7 +48,7 @@ public final class Session {
     // database first comes into existence or migrates (init/update), since the
     // constructor may have warmed against a database that was not there yet.
     public func rewarm() {
-        Config.reloadCommitted(storage)
+        context.config.reloadCommitted(storage, genes: context.genes)
     }
 
     // The init/update bootstrap — the one lifecycle boundary allowed to touch
@@ -86,7 +80,7 @@ public final class Session {
 
             try beforeIndexing(BootstrapScope(queue: queue, context: context))
 
-            let built = try indexer.buildLocked(queue, rebuild: false)
+            let built = try indexer.buildLocked(queue, context, rebuild: false)
 
             return built
         }

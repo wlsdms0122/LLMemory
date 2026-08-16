@@ -10,7 +10,7 @@ import GRDB
 
 // Loads a template note's body and parses its heading frame — nil when the
 // template note does not exist.
-struct LoadTemplateFrameTransaction: GRDBReadTransaction {
+struct LoadTemplateFrameTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let templateId: String
 
@@ -22,8 +22,11 @@ struct LoadTemplateFrameTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [TemplateFrameNode]? {
-        guard let (_, _, body) = try FetchNoteTransaction(nid: templateId).perform(db) else { return nil }
+    func perform(_ db: Database, _ brain: BrainContext) throws -> [TemplateFrameNode]? {
+        guard let (_, _, body) = try FetchNoteTransaction(nid: templateId).perform(db, brain)
+        else {
+            return nil
+        }
 
         return template.parseFrame(body)
     }

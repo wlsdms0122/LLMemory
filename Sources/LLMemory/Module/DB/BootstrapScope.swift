@@ -15,14 +15,8 @@ import GRDB
 public struct BootstrapScope {
     // MARK: - Property
     private let queue: any DatabaseWriter
-    // GRDB runs read/write bodies on its own serial queue, and a task-local does
-    // not cross that thread. Everything below rebinds for the same reason every
-    // GRDBStorage entry point does — without it a body resolves paths through the
-    // process fallback, which is the most recently created live brain and not
-    // necessarily this one.
     private let context: BrainContext
 
-    private let trash = Trash()
 
     // MARK: - Initializer
     init(queue: any DatabaseWriter, context: BrainContext) {
@@ -33,7 +27,7 @@ public struct BootstrapScope {
     // MARK: - Public
     public func seededNoteIds() throws -> [String] {
         try queue.read { database in
-            try self.context.bind { try FetchSeededNoteIdsTransaction().perform(database) }
+            try FetchSeededNoteIdsTransaction().perform(database)
         }
     }
 
@@ -51,13 +45,11 @@ public struct BootstrapScope {
         now: Int
     ) throws -> URL? {
         try queue.write { database in
-            try self.context.bind {
-                try RemoveNoteRowsTransaction(nid: id, flagReason: flagReason, now: now)
-                    .perform(database)
-            }
+            try RemoveNoteRowsTransaction(nid: id, flagReason: flagReason, now: now)
+                .perform(database)
         }
 
-        return try trash.file(file, reason: trashReason, now: now)
+        return try Trash(paths: context.paths).file(file, reason: trashReason, now: now)
     }
 
     // MARK: - Private

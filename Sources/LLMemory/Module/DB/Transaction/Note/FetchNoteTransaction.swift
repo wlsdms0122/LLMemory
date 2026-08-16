@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct FetchNoteTransaction: GRDBReadTransaction {
+struct FetchNoteTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let nid: String
 
@@ -20,10 +20,10 @@ struct FetchNoteTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> (URL, FrontmatterDoc, String)? {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> (URL, FrontmatterDoc, String)? {
         guard try NoteExistsTransaction(nid: nid).perform(db) else { return nil }
 
-        let path = Paths.file(forId: nid)
+        let path = brain.paths.file(forId: nid)
         let text = try String(contentsOf: path, encoding: .utf8)
         let (fields, body) = try frontmatter.parse(text)
 

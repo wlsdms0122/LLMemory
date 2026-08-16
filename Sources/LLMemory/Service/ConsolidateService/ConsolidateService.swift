@@ -15,9 +15,18 @@ public struct ConsolidateService: ConsolidateServiceable {
     let homeostasisSeenKey = "homeostasis.expand_seen"
     let homeostasisLandedKey = "homeostasis.expand_landed"
 
-    var homeostasisMinSample: Int { Config.getInt("homeostasis.min_sample", default: 50) }
-    var homeostasisLowRate: Double { Config.getDouble("homeostasis.low_rate", default: 0.02) }
-    var homeostasisHighRate: Double { Config.getDouble("homeostasis.high_rate", default: 0.15) }
+    // The thresholds the tick judges by, read off the brain being adjusted.
+    func homeostasisMinSample(_ config: Config) -> Int {
+        config.getInt("homeostasis.min_sample", default: 50)
+    }
+
+    func homeostasisLowRate(_ config: Config) -> Double {
+        config.getDouble("homeostasis.low_rate", default: 0.02)
+    }
+
+    func homeostasisHighRate(_ config: Config) -> Double {
+        config.getDouble("homeostasis.high_rate", default: 0.15)
+    }
 
     // Candidate-kind catalog — code-owned vocabulary for the surfacing CLI.
     public let candidateRetrievalKinds = Candidates.retrievalKinds
@@ -169,7 +178,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     // hygiene prunes, term validation, disagreement review, vector rebuild.
     func integrate(_ scope: GRDBScope) throws -> IntegrateResult {
         let now = Int(Date().timeIntervalSince1970)
-        let retentionSec = Config.getInt("events.retention_days", default: 30) * 24 * 60 * 60
+        let retentionSec = scope.brain.config.getInt("events.retention_days", default: 30) * 24 * 60 * 60
 
         _ = try scope.run(DeriveActivityWindowsTransaction(now: now))
 
@@ -187,7 +196,7 @@ public struct ConsolidateService: ConsolidateServiceable {
         _ = try scope.run(
             PruneOldLifecycleEventsTransaction(
                 now: now,
-                retentionDays: Config.getInt("lifecycle.retention_days", default: 180)
+                retentionDays: scope.brain.config.getInt("lifecycle.retention_days", default: 180)
             )
         )
 
@@ -287,11 +296,14 @@ public struct ConsolidateService: ConsolidateServiceable {
         let watermark = Int(
             try scope.run(FetchConfigValueTransaction(key: homeostasisWatermarkKey, default: "0"))
         ) ?? 0
-        let closedBefore = now - Genes.int("activation.window_gap_sec")
+        let closedBefore = now - scope.brain.genes.int("activation.window_gap_sec")
         let windows = try scope.run(
             FetchClosedActivityWindowsTransaction(watermark: watermark, closedBefore: closedBefore)
         )
 
+        let minSample = homeostasisMinSample(scope.brain.config)
+        let lowRate = homeostasisLowRate(scope.brain.config)
+        let highRate = homeostasisHighRate(scope.brain.config)
         var cohortSeen = 0
         var cohortLanded = 0
         var lastWindow = watermark
@@ -320,9 +332,9 @@ public struct ConsolidateService: ConsolidateServiceable {
         var adjustedGene: String? = nil
         var oldValue: Double? = nil
         var newValue: Double? = nil
-        var note = "accumulating (\(sampleSeen)/\(homeostasisMinSample) expand hits)"
+        var note = "accumulating (\(sampleSeen)/\(minSample) expand hits)"
 
-        if sampleSeen >= homeostasisMinSample {
+        if sampleSeen >= minSample {
             evaluated = true
 
             let landingRate = Double(sampleLanded) / Double(sampleSeen)
@@ -334,15 +346,15 @@ public struct ConsolidateService: ConsolidateServiceable {
             // From the row, not the process cache — the tick reads the value
             // it is about to move, and it moves it in this same scope.
             let current = try scope.run(FetchGeneValueTransaction(geneId: gene))
-                ?? Config.getDouble(gene, default: wildType)
+                ?? scope.brain.config.getDouble(gene, default: wildType)
             var target = current
 
-            if landingRate < homeostasisLowRate && current > bounds.min {
+            if landingRate < lowRate && current > bounds.min {
                 target = current - 1
-                note = "expand landing rate \(String(format: "%.3f", landingRate)) < \(homeostasisLowRate) — narrowing"
-            } else if landingRate > homeostasisHighRate && current < wildType {
+                note = "expand landing rate \(String(format: "%.3f", landingRate)) < \(lowRate) — narrowing"
+            } else if landingRate > highRate && current < wildType {
                 target = current + 1
-                note = "expand landing rate \(String(format: "%.3f", landingRate)) > \(homeostasisHighRate) — restoring toward wild-type"
+                note = "expand landing rate \(String(format: "%.3f", landingRate)) > \(highRate) — restoring toward wild-type"
             } else {
                 note = "expand landing rate \(String(format: "%.3f", landingRate)) — within band, no adjustment"
             }

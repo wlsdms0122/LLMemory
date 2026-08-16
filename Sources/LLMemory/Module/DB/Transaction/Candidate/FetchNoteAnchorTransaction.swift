@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 // One note's retrieval-facing header — the anchor row for neighbor scoring.
-struct FetchNoteAnchorTransaction: GRDBReadTransaction {
+struct FetchNoteAnchorTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let nid: String
 
@@ -19,7 +19,7 @@ struct FetchNoteAnchorTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> (title: String, path: URL)? {
+    func perform(_ db: Database, _ brain: BrainContext) throws -> (title: String, path: URL)? {
         guard let title = try String.fetchOne(
             db,
             sql: "SELECT title FROM notes WHERE id = ?",
@@ -28,7 +28,7 @@ struct FetchNoteAnchorTransaction: GRDBReadTransaction {
             return nil
         }
 
-        return (title: title, path: Paths.file(forId: nid))
+        return (title: title, path: brain.paths.file(forId: nid))
     }
 
     // MARK: - Private

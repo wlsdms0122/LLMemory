@@ -16,7 +16,7 @@ import Foundation
 //
 // A caller that must read a value it is itself writing reads the row
 // (FetchGeneValueTransaction), not this.
-public enum Genes {
+public final class Genes: @unchecked Sendable {
     public struct Gene: Sendable {
         // MARK: - Property
         public let id: String
@@ -86,11 +86,10 @@ public enum Genes {
              summary: "익명 활성화의 시간창 추정 gap (관측 정책 — 기록에 영구 반영)")
     ]
 
-    // The value cache lives on the bound brain's context.
-    private static var cache: [String: Double] {
-        get { BrainContext.resolved.genesCache }
-        set { BrainContext.resolved.genesCache = newValue }
-    }
+    // This brain's copy of committed genome state. Its only writer is the
+    // committed-state loader, which runs at boot and at the end of every
+    // write scope, so it is never ahead of the database.
+    private var cache: [String: Double] = [:]
 
     // A candidate value that belongs to one execution, not to the brain. The
     // shadow replay re-runs a logged query under a value the genome does not
@@ -98,28 +97,38 @@ public enum Genes {
     // being visible to whoever else is reading this brain at the time.
     @TaskLocal private static var candidates: [String: Double] = [:]
 
+    // The configuration this brain falls back to for a gene the genome has
+    // no row for.
+    private let config: Config
+
     // MARK: - Initializer
+    init(config: Config) {
+        self.config = config
+    }
+
     // MARK: - Public
+    // The catalogue is species-level — it ships with the binary and is the
+    // same for every brain, so it answers without one.
     public static func gene(_ id: String) -> Gene? {
         catalog.first { gene in gene.id == id }
     }
 
-    public static func double(_ id: String) -> Double {
-        guard let gene = gene(id) else {
+    public func double(_ id: String) -> Double {
+        guard let gene = Self.gene(id) else {
             assertionFailure("undeclared gene: \(id)")
 
-            return Config.getDouble(id, default: 0)
+            return config.getDouble(id, default: 0)
         }
 
         return resolve(gene, stored: cache[id]).value
     }
 
-    public static func int(_ id: String) -> Int {
+    public func int(_ id: String) -> Int {
         Int(double(id).rounded())
     }
 
-    public static func source(_ id: String) -> String {
-        guard let gene = gene(id) else { return "config" }
+    public func source(_ id: String) -> String {
+        guard let gene = Self.gene(id) else { return "config" }
 
         return resolve(gene, stored: cache[id]).source
     }
@@ -134,7 +143,7 @@ public enum Genes {
         value: Double?,
         requireMutable: Bool = false
     ) -> GenomeWriteError? {
-        guard let gene = gene(id) else { return .unknownGene(id) }
+        guard let gene = Self.gene(id) else { return .unknownGene(id) }
 
         if requireMutable && !gene.mutable { return .locked(id) }
 
@@ -149,11 +158,11 @@ public enum Genes {
         return nil
     }
 
-    static func warm(_ values: [String: Double]) {
+    func warm(_ values: [String: Double]) {
         cache = values
     }
 
-    static func invalidateCache() { cache.removeAll() }
+    func invalidateCache() { cache.removeAll() }
 
     static func withCandidate<T>(
         _ id: String,
@@ -164,16 +173,16 @@ public enum Genes {
     }
 
     // The one place a gene value is resolved, so "which value?" and "where
-    // from?" cannot disagree. `stored` is the genome-table value — the cache
-    // for the ambient readers above, an explicit snapshot for the list, which
+    // from?" cannot disagree. `stored` is the genome-table value — the warmed
+    // cache for the readers above, an explicit snapshot for the list, which
     // reports committed state and must not consult a cache to do it. A
     // candidate belongs to this execution and outranks both.
-    static func resolve(_ gene: Gene, stored: Double?) -> (value: Double, source: String) {
-        if let candidate = candidates[gene.id] { return (candidate, "shadow") }
+    func resolve(_ gene: Gene, stored: Double?) -> (value: Double, source: String) {
+        if let candidate = Self.candidates[gene.id] { return (candidate, "shadow") }
 
         if let stored { return (stored, "genome") }
 
-        let configured = Config.getDouble(gene.id, default: gene.wildType)
+        let configured = config.getDouble(gene.id, default: gene.wildType)
 
         return (configured, configured == gene.wildType ? "wild_type" : "config")
     }

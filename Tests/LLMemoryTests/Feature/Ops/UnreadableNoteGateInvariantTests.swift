@@ -17,7 +17,7 @@ struct UnreadableNoteGateInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
-    private let trashLookup = TrashedNoteLookup()
+    private var trashLookup: TrashedNoteLookup { TrashedNoteLookup(paths: home.paths) }
 
     private let noteFiles = Notes()
 
@@ -94,7 +94,7 @@ struct UnreadableNoteGateInvariantTests {
         _ = try corrupt(id: "il1-bad", body: "garbage, no frontmatter\n")
         
         // When
-        let issues = try home.read { database in try CheckCorpusIntegrityL1Transaction().perform(database).issues }
+        let issues = try home.read { database in try CheckCorpusIntegrityL1Transaction().perform(database, home.brain).issues }
         
         // Then
         #expect(issues.contains { issue in issue.contains("il1-bad") && issue.contains("unreadable") },
@@ -115,7 +115,7 @@ struct UnreadableNoteGateInvariantTests {
             try home.database().write { database -> (orphansPruned: Int, refilled: Int, unreadable: [String]) in
                 try database.execute(sql: "DELETE FROM notes_fts WHERE id IN ('fts-ok','fts-bad')")
                 
-                return try PruneFtsOrphansTransaction().perform(database)
+                return try PruneFtsOrphansTransaction().perform(database, home.brain)
             }
         }
         
@@ -182,7 +182,7 @@ struct UnreadableNoteGateInvariantTests {
         let file = try corrupt(id: "sg-note", body: "garbage\n")
         
         // When
-        let violation = home.operationsEngine.checkSectionInvariants(affected: [file], backups: [(file, nil)])
+        let violation = home.operationsEngine.checkSectionInvariants(home.paths, affected: [file], backups: [(file, nil)])
         
         // Then
         #expect(violation?.contains("sg-note") == true, "unexpected: \(violation ?? "nil")")
@@ -195,7 +195,7 @@ struct UnreadableNoteGateInvariantTests {
         let absent = home.url.appendingPathComponent("cortex/deleted.md")
         
         // Then
-        #expect(home.operationsEngine.checkSectionInvariants(affected: [absent], backups: [(absent, nil)]) == nil)
+        #expect(home.operationsEngine.checkSectionInvariants(home.paths, affected: [absent], backups: [(absent, nil)]) == nil)
     }
     
     @Test("the lifecycle stamp refuses to record a shape it could not measure")
@@ -312,7 +312,7 @@ struct UnreadableNoteGateInvariantTests {
     private func stampLifecycle(of noteId: String) throws {
         try home.storage.writeLock {
             try home.database().write { database in
-                try StampNoteLifecycleTransaction(nid: noteId, now: 1, isNew: false).perform(database)
+                try StampNoteLifecycleTransaction(nid: noteId, now: 1, isNew: false).perform(database, home.brain)
             }
         }
     }

@@ -162,7 +162,7 @@ public struct RetrievalService: RetrievalServiceable {
             sessionId: sessionId,
             activateIds: hitIds,
             strengthenPairs: cooccurrencePairs(hitIds),
-            rebirthRanked: searchRanked(rows: rows, extra: extra),
+            rebirthRanked: searchRanked(scope.brain.genes, rows: rows, extra: extra),
             payload: EventPayload(command: .search, payload)
         )
 
@@ -190,7 +190,7 @@ public struct RetrievalService: RetrievalServiceable {
 
         if includeBodies {
             for note in snapshot.similar {
-                let path = Paths.brainRoot.appendingPathComponent(note.path)
+                let path = scope.brain.paths.brainRoot.appendingPathComponent(note.path)
 
                 if let body = try? String(contentsOf: path, encoding: .utf8) {
                     bodies[note.id] = body
@@ -200,7 +200,7 @@ public struct RetrievalService: RetrievalServiceable {
 
         let record = RetrievalRecord(
             sessionId: sessionId,
-            rebirthRanked: relatedRanked(snapshot: snapshot),
+            rebirthRanked: relatedRanked(scope.brain.genes, snapshot: snapshot),
             payload: EventPayload(command: .related, [
                 "text": .string(String(text.prefix(200))),
                 "hit_ids": JSONValue(snapshot.similar.map { note in note.id }),
@@ -269,10 +269,11 @@ public struct RetrievalService: RetrievalServiceable {
     }
 
     private func searchRanked(
+        _ genes: Genes,
         rows: [SearchRow],
         extra: [ExpandedNote]
     ) -> [RetrievalRecord.Ranked] {
-        let boost = Genes.double("rebirth.search_boost")
+        let boost = genes.double("rebirth.search_boost")
         var ranked: [RetrievalRecord.Ranked] = []
 
         for (index, row) in rows.enumerated() {
@@ -288,8 +289,8 @@ public struct RetrievalService: RetrievalServiceable {
         return ranked
     }
 
-    private func relatedRanked(snapshot: FramingSnapshot) -> [RetrievalRecord.Ranked] {
-        let boost = Genes.double("rebirth.related_boost")
+    private func relatedRanked(_ genes: Genes, snapshot: FramingSnapshot) -> [RetrievalRecord.Ranked] {
+        let boost = genes.double("rebirth.related_boost")
         var ranked: [RetrievalRecord.Ranked] = []
 
         for (index, note) in snapshot.similar.enumerated() {

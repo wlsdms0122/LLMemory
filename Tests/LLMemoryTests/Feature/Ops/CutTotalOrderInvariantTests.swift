@@ -111,7 +111,7 @@ struct CutTotalOrderInvariantTests {
         
         // When
         try home.database().write { database in
-            try writeEffects.seedInitialLinks(GRDBScope(database), nid: "sd-new", tags: ["shared"])
+            try writeEffects.seedInitialLinks(GRDBScope(database, home.brain), nid: "sd-new", tags: ["shared"])
         }
         
         // Then
@@ -181,7 +181,7 @@ struct CutTotalOrderInvariantTests {
         }
         
         // When
-        let rows = try home.read { database in try SearchNotesFTSTransaction(match: .text("zebra", keywords: FrequencyKeywords()), limit: 3).perform(database) }
+        let rows = try home.read { database in try SearchNotesFTSTransaction(match: .text("zebra", keywords: FrequencyKeywords()), limit: 3).perform(database, home.brain) }
         
         // Then
         #expect(rows.map(\.id) == ["se-n1", "se-n2", "se-n3"])
@@ -200,7 +200,7 @@ struct CutTotalOrderInvariantTests {
                     VALUES (?, ?, '', 'lazy', ?, ?)
                     """, arguments: [noteId, noteId, wordCount, sectionCount])
                 
-                let file = home.url.appendingPathComponent(Paths.relativeFile(forId: noteId))
+                let file = home.url.appendingPathComponent(home.paths.relativeFile(forId: noteId))
                 
                 try FileManager.default.createDirectory(
                     at: file.deletingLastPathComponent(),
