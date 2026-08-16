@@ -20,7 +20,7 @@ struct SetFrontmatterHandler: OperationHandling {
     
     private let composer = NoteComposer()
     private let noteExistence = NoteExistence()
-    private let writeEffects = NoteWriteBookkeeper()
+    private let bookkeeper = NoteWriteBookkeeper()
     
     private let frontmatter = Frontmatter()
     
@@ -97,7 +97,7 @@ struct SetFrontmatterHandler: OperationHandling {
         
         let keys = fields.keys.sorted().joined(separator: ",")
         
-        try writeEffects.recordEdit(scope, nid: noteId, opLabel: "set_frontmatter/\(keys)", now: now)
+        try bookkeeper.recordEdit(scope, nid: noteId, opLabel: "set_frontmatter/\(keys)", now: now)
         
         return [
             "status": "ok",

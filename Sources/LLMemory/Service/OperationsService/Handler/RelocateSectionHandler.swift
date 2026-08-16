@@ -21,7 +21,7 @@ struct RelocateSectionHandler: OperationHandling {
     )
     
     private let noteExistence = NoteExistence()
-    private let writeEffects = NoteWriteBookkeeper()
+    private let bookkeeper = NoteWriteBookkeeper()
     
     private let sectionEdit = SectionEdit()
     
@@ -150,13 +150,13 @@ struct RelocateSectionHandler: OperationHandling {
         
         try scope.run(StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false))
         try scope.run(StampNoteLifecycleTransaction(nid: toId, now: now, isNew: false))
-        try writeEffects.recordEdit(
+        try bookkeeper.recordEdit(
             scope,
             nid: fromId,
             opLabel: "relocate_section/from→\(toId)",
             now: now
         )
-        try writeEffects.recordEdit(
+        try bookkeeper.recordEdit(
             scope,
             nid: toId,
             opLabel: "relocate_section/from←\(fromId)",

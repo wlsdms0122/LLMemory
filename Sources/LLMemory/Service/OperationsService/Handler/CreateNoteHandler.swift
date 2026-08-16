@@ -30,7 +30,7 @@ struct CreateNoteHandler: OperationHandling {
     private let composer = NoteComposer()
     private let noteExistence = NoteExistence()
     private let sourceInput = NoteSourceInput()
-    private let writeEffects = NoteWriteBookkeeper()
+    private let bookkeeper = NoteWriteBookkeeper()
     
     private let frontmatter = Frontmatter()
     
@@ -146,7 +146,7 @@ struct CreateNoteHandler: OperationHandling {
             reason: op["rationale"] as? String,
             now: now
         ))
-        try writeEffects.seedInitialLinks(scope, nid: noteId, tags: doc.tags)
+        try bookkeeper.seedInitialLinks(scope, nid: noteId, tags: doc.tags)
         
         return [
             "status": "ok",

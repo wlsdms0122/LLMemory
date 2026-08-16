@@ -22,7 +22,7 @@ struct PatchSectionHandler: OperationHandling {
     )
     
     private let noteExistence = NoteExistence()
-    private let writeEffects = NoteWriteBookkeeper()
+    private let bookkeeper = NoteWriteBookkeeper()
     
     private let sectionEdit = SectionEdit()
     
@@ -123,7 +123,7 @@ struct PatchSectionHandler: OperationHandling {
         let now = context.now
         
         try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
-        try writeEffects.recordEdit(
+        try bookkeeper.recordEdit(
             scope,
             nid: noteId,
             opLabel: "patch_section/\(action)",

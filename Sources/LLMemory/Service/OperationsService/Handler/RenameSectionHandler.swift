@@ -20,7 +20,7 @@ struct RenameSectionHandler: OperationHandling {
     )
     
     private let noteExistence = NoteExistence()
-    private let writeEffects = NoteWriteBookkeeper()
+    private let bookkeeper = NoteWriteBookkeeper()
     
     private let sectionEdit = SectionEdit()
     
@@ -73,7 +73,7 @@ struct RenameSectionHandler: OperationHandling {
         let now = context.now
         
         try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
-        try writeEffects.recordEdit(scope, nid: noteId, opLabel: "rename_section", now: now)
+        try bookkeeper.recordEdit(scope, nid: noteId, opLabel: "rename_section", now: now)
         
         return [
             "status": "ok",

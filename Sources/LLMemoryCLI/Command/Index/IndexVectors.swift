@@ -39,7 +39,7 @@ struct IndexVectors: AsyncParsableCommand {
             llmemory's own graph:
               
               1. note×note matrix — note_links weights symmetrized across kinds
-                 (assoc + cooccur + reference). NoteFile with no links get a tag
+                 (assoc + cooccur + reference). Notes with no links get a tag
                  Jaccard floor so no row is empty.
               2. PPMI — positive pointwise mutual information replaces raw
                  weight, discounting chance co-occurrence of busy notes. This

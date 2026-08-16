@@ -18,7 +18,7 @@ struct CutTotalOrderInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
-    private let writeEffects = NoteWriteBookkeeper()
+    private let bookkeeper = NoteWriteBookkeeper()
 
     private let frontmatter = Frontmatter()
 
@@ -111,7 +111,7 @@ struct CutTotalOrderInvariantTests {
         
         // When
         try home.database().write { database in
-            try writeEffects.seedInitialLinks(GRDBScope(database, home.brain), nid: "sd-new", tags: ["shared"])
+            try bookkeeper.seedInitialLinks(GRDBScope(database, home.brain), nid: "sd-new", tags: ["shared"])
         }
         
         // Then

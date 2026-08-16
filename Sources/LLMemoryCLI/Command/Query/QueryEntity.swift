@@ -37,7 +37,7 @@ struct QueryEntity: AsyncParsableCommand {
         commandName: "entity",
         abstract: "Reverse lookup: entity → notes.",
         discussion: """
-            NoteFile mentioning an entity in body, ordered by last_seen_at. Used
+            Notes mentioning an entity in body, ordered by last_seen_at. Used
             by retrieval to surface notes sharing named entities when keyword
             overlap is low.
             

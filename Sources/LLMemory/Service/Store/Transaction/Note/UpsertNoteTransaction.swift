@@ -10,7 +10,7 @@ import GRDB
 
 // notes-row transactions — the core catalog row, its FTS projection,
 // reference links, and lifecycle provenance. File-level note reading stays
-// in the NoteFile module.
+// in NoteFile.
 struct UpsertNoteTransaction: GRDBBrainTransaction {
     // MARK: - Property
     let file: URL

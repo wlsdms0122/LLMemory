@@ -93,7 +93,7 @@ public struct BrainContext: Sendable {
     // Plants a value the database does not hold, so a test can prove a reader
     // consults the row rather than the cache.
     func plantStaleConfigValue(_ key: String, value: String) {
-        cache.plantConfigValue(Config.prefix + key, value)
+        cache.plantConfigValue(key, value)
     }
 
     // MARK: - Private
@@ -108,6 +108,6 @@ public struct BrainContext: Sendable {
             )
         }
 
-        cache.warm(config: configRows, genes: genomeValues)
+        cache.warm(config: Config.cached(configRows), genes: genomeValues)
     }
 }

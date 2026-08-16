@@ -8,21 +8,22 @@
 import Foundation
 import GRDB
 
-// Every committed config row, keyed as stored. What warms the parameter cache
-// at boot and at the end of every write scope.
+// Every committed config row, keyed the way a caller spells a config key.
+// All three config transactions take that spelling and add the stored prefix
+// themselves, so the prefix never travels in a signature.
 //
-// A row whose value is NULL is a value the brain has deliberately unset; it
-// comes back as the sentinel so the cache can tell it apart from a key that
-// was never written.
+// A NULL value comes back as a present nil: the brain unset that key on
+// purpose, which is not the same as never having written it. How a cache
+// keeps those two apart is the cache's problem, not this row's.
 struct FetchConfigRowsTransaction: GRDBReadTransaction {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    func perform(_ db: Database) throws -> [String: String] {
-        var rows: [String: String] = [:]
+    func perform(_ db: Database) throws -> [String: String?] {
+        var rows: [String: String?] = [:]
 
         for record in try MetaRecord.filter(Column("key").like("\(Config.prefix)%")).fetchAll(db) {
-            rows[record.key] = record.value ?? Config.nilSentinel
+            rows[String(record.key.dropFirst(Config.prefix.count))] = record.value
         }
 
         return rows
