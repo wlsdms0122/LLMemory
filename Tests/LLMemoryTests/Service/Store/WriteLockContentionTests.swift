@@ -29,8 +29,7 @@ struct WriteLockContentionTests {
         // Given — a rival storage over the same database file, as a second process would open.
         let rival = GRDBStorage(
             databaseURL: home.url.appendingPathComponent("data/memory.db"),
-            migrations: Session.migrations,
-            context: BrainContext(home: home.path)
+            migrations: Session.migrations
         )
         let holderEntered = DispatchSemaphore(value: 0)
         let releaseHolder = DispatchSemaphore(value: 0)

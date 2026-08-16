@@ -27,8 +27,9 @@ public final class Session {
 
     // MARK: - Initializer
     public init(home: String) {
-        // The context carries this brain's paths and parameter caches, and
-        // the storage hands it to every scope it opens.
+        // The context carries this brain's paths and parameter caches. The
+        // storage does not hold it — it only reports that committed state
+        // changed, and the caches follow.
         let context = BrainContext(home: home)
 
         self.context = context
@@ -36,7 +37,7 @@ public final class Session {
         self.storage = GRDBStorage(
             databaseURL: context.layout.db,
             migrations: Self.migrations,
-            context: context
+            didCommit: { storage in context.reloadCommitted(storage) }
         )
 
         context.reloadCommitted(storage)

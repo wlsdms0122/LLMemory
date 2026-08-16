@@ -13,10 +13,11 @@ import Storage
 
 public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // MARK: - Property
-    // The brain this storage belongs to. Every scope it opens carries it, so
-    // a transaction reading a parameter is handed this brain's rather than
-    // finding one.
-    let context: BrainContext
+    // What the owner of this store does once committed state has changed.
+    // The store does not know what a brain is — it knows when the answer to
+    // "what is committed" moved, and says so; whoever caches those answers
+    // decides what that costs them.
+    private let didCommit: @Sendable (GRDBStorage) -> Void
 
     private let databaseURL: URL
     private let migrations: [any GRDBMigration]
@@ -48,11 +49,11 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     public init(
         databaseURL: URL,
         migrations: [any GRDBMigration],
-        context: BrainContext
+        didCommit: @escaping @Sendable (GRDBStorage) -> Void = { _ in }
     ) {
         self.databaseURL = databaseURL
         self.migrations = migrations
-        self.context = context
+        self.didCommit = didCommit
     }
 
     // MARK: - Lifecycle
@@ -199,15 +200,15 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         defer { releaseLock() }
 
-        // This brain's caches (config values, gene values) follow
-        // committed state, and a write scope is where committed state changes.
-        // Reloading here rather than inside the body is what makes that true on
-        // both paths: a body that wrote and then threw rolls its rows back, and
-        // the caches never held the rolled-back values to begin with.
+        // A write scope is where committed state changes, so this is where
+        // the owner is told. Announcing here rather than inside the body is
+        // what makes it true on both paths: a body that wrote and then threw
+        // rolls its rows back, and nothing downstream ever held the
+        // rolled-back values to begin with.
         //
         // It runs while the gate and flock are still held — outside them
         // another writer's committed values could be clobbered by ours.
-        defer { context.reloadCommitted(self) }
+        defer { didCommit(self) }
 
         return try await connection.write { db in
             try body(GRDBScope(db))
@@ -236,9 +237,8 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         defer { releaseLock() }
 
-        // The same reload as `run`: this is a write scope too, so the caches
-        // follow what it committed.
-        defer { context.reloadCommitted(self) }
+        // The same announcement as `run`: this is a write scope too.
+        defer { didCommit(self) }
 
         return try body()
     }

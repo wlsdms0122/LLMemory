@@ -24,8 +24,7 @@ struct OperationsUnavailableTests {
         let home = "/nonexistent-\(UUID().uuidString)"
         let storage = GRDBStorage(
             databaseURL: URL(fileURLWithPath: "\(home)/data/memory.db"),
-            migrations: [],
-            context: BrainContext(home: home)
+            migrations: []
         )
         let operations = Container(storage: storage, brain: BrainContext(home: home)).operations
 
