@@ -43,10 +43,10 @@ GATE_PREDICATES = re.compile(
     r"|NOT EXISTS ?\(SELECT 1 FROM candidate_dismissals"
 )
 
-POLICY_OWNER = "Sources/LLMemory/Module/DB/Policy.swift"
+POLICY_OWNER = "Sources/LLMemory/Service/Store/SQL/Policy.swift"
 
 FTS_INSERT = "INSERT INTO notes_fts"
-FTS_OWNER = "Sources/LLMemory/Module/DB/Transaction/Note/ReindexNoteFTSTransaction.swift"
+FTS_OWNER = "Sources/LLMemory/Service/Store/Transaction/Note/ReindexNoteFTSTransaction.swift"
 
 TRIPLE_QUOTED = re.compile(r'"""(.*?)"""', re.DOTALL)
 

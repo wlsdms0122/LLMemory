@@ -8,6 +8,8 @@
 import Foundation
 import GRDB
 
+// Writes the row and only the row. The parameter caches catch up when the
+// scope commits, so nothing here has to keep them in step.
 struct SetConfigValueTransaction: GRDBTransaction {
     // MARK: - Property
     let key: String
@@ -21,7 +23,7 @@ struct SetConfigValueTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws {
-        try Config.set(key, value: value, txDB: db)
+        try MetaRecord(key: Config.prefix + key, value: value).upsert(db)
     }
 
     // MARK: - Private

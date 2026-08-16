@@ -8,7 +8,9 @@
 import Foundation
 import GRDB
 
-// meta-table access for services — Config owns the key encoding.
+// One committed config row. Config answers from the warmed cache, which is
+// the right answer everywhere except inside the write that is setting the
+// value — there the row is ahead of the cache, so the row is what is asked.
 struct FetchConfigValueTransaction: GRDBReadTransaction {
     // MARK: - Property
     let key: String
@@ -22,7 +24,9 @@ struct FetchConfigValueTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> String {
-        Config.getStringTx(key, default: defaultValue, txDB: db)
+        let stored = try MetaRecord.fetchOne(db, key: Config.prefix + key)?.value
+
+        return (stored ?? nil) ?? defaultValue
     }
 
     // MARK: - Private

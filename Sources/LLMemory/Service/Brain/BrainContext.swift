@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import GRDB
 
 // One brain, as everything about it that is not its database: where its files
 // live, what its configuration says, what its genes are set to. They share a
@@ -102,20 +101,13 @@ public struct BrainContext: Sendable {
     // the same read transaction, then swap in together.
     private func loadCommitted(_ storage: GRDBStorage) throws {
         let queue = try storage.connect()
-        let (rows, genomeValues) = try queue.read { db in
+        let (configRows, genomeValues) = try queue.read { db in
             (
-                try MetaRecord
-                    .filter(Column("key").like("\(Config.prefix)%"))
-                    .fetchAll(db),
+                try FetchConfigRowsTransaction().perform(db),
                 try FetchGenomeValuesTransaction().perform(db)
             )
         }
-        var fresh: [String: String] = [:]
 
-        for row in rows {
-            fresh[row.key] = row.value ?? Config.nilSentinel
-        }
-
-        cache.warm(config: fresh, genes: genomeValues)
+        cache.warm(config: configRows, genes: genomeValues)
     }
 }

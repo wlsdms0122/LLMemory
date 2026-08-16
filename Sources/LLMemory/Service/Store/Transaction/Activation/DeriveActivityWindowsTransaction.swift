@@ -43,7 +43,9 @@ struct DeriveActivityWindowsTransaction: GRDBBrainTransaction {
     @discardableResult
     func perform(_ db: Database, _ brain: BrainContext) throws -> DeriveResult {
         var result = DeriveResult()
-        let watermark = Int(Config.getStringTx(Activation.watermarkKey, default: "0", txDB: db)) ?? 0
+        let watermark = Int(
+            try FetchConfigValueTransaction(key: Activation.watermarkKey, default: "0").perform(db)
+        ) ?? 0
         let rows = try Row.fetchAll(db, sql: """
             SELECT id, ts, session_id, payload FROM events
             WHERE kind = ? AND id > ? ORDER BY id
@@ -102,7 +104,7 @@ struct DeriveActivityWindowsTransaction: GRDBBrainTransaction {
             }
         }
 
-        try Config.set(Activation.watermarkKey, value: lastId, txDB: db)
+        try SetConfigValueTransaction(key: Activation.watermarkKey, value: "\(lastId)").perform(db)
 
         result.windowsTouched = touched.count
 
