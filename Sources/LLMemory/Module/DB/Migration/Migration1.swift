@@ -64,7 +64,10 @@ CREATE TABLE IF NOT EXISTS notes (
   section_count INTEGER NOT NULL DEFAULT 0,
   -- 투영 identity: 파일 원문 전체의 해시. 증분 skip 과 verify L2 가 이 하나로 판정한다
   -- (초 단위 mtime 은 같은 초 편집을 가렸다 — 08-03).
-  content_hash TEXT NOT NULL DEFAULT ''
+  content_hash TEXT NOT NULL DEFAULT '',
+  -- 배포본의 씨드에서 심긴 노트라는 출처 표시 (frontmatter 파생). 전용 디렉터리가
+  -- 없으므로 init/update 가 "이 주소가 배포본 것인가"를 이걸로 가른다. ops 는 못 쓴다.
+  seed INTEGER NOT NULL DEFAULT 0 CHECK (seed IN (0,1))
 );
 -- note_usage = engram 의 활성 동역학 (memory-trace). 매 회상마다 갱신, 마크다운 밖.
 CREATE TABLE IF NOT EXISTS note_usage (

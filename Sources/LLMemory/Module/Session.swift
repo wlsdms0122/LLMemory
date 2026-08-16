@@ -15,8 +15,7 @@ public final class Session {
     // The migration catalogue is assembled here — the state binding is the
     // single place that knows which migrations make up the current brain schema.
     static let migrations: [any GRDBMigration] = [
-        Migration1(),
-        Migration2()
+        Migration1()
     ]
 
     public let home: URL
