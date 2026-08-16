@@ -41,7 +41,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     // from this brain each time they are needed.
     var enrichment: EnrichmentTuning { EnrichmentTuning(brain.config) }
 
-    private var detector: CandidateDetector { CandidateDetector(brain: brain) }
+    private let detector: CandidateDetector
 
     private let corpus = CorpusReconciler()
 
@@ -49,6 +49,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     init(storage: GRDBStorage, brain: BrainContext, keywords: any KeywordExtracting) {
         self.storage = storage
         self.brain = brain
+        self.detector = CandidateDetector(brain: brain)
         self.keywords = keywords
     }
 

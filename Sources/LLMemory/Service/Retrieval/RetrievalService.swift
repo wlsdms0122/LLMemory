@@ -19,7 +19,7 @@ public struct RetrievalService: RetrievalServiceable {
     let keywords: any KeywordExtracting
     let entities: any EntityHinting
 
-    private var detector: CandidateDetector { CandidateDetector(brain: brain) }
+    private let detector: CandidateDetector
 
     // How far this brain's genes say retrieval reaches. Named in one place;
     // the transactions take the numbers.
@@ -34,6 +34,7 @@ public struct RetrievalService: RetrievalServiceable {
     ) {
         self.storage = storage
         self.brain = brain
+        self.detector = CandidateDetector(brain: brain)
         self.keywords = keywords
         self.entities = entities
     }
