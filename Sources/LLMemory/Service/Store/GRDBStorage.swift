@@ -36,7 +36,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     private var lockOwner: LockOwner?
     private let lockMutex = NSLock()
     private let writeSection = NSRecursiveLock()
-    private let writeGate = WriteGate()
+    private let writeGate = AsyncLock()
 
     private var brainRootPath: String {
         databaseURL.deletingLastPathComponent()
