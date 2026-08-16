@@ -7,9 +7,8 @@
 
 import Foundation
 
-// Whether two strings are one edit apart — the shared judgement behind
-// "you probably meant this one": a mistyped frontmatter field, a note
-// reference that is nearly an id, two tags that are nearly one tag.
+// Whether two strings are one edit apart — the judgement behind "you
+// probably meant this one". Callers decide what a near miss is worth.
 struct EditDistance {
     // MARK: - Property
     // MARK: - Initializer

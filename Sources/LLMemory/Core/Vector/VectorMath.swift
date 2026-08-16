@@ -8,9 +8,8 @@
 import Foundation
 import Accelerate
 
-// Pure numerics behind the algorithmic vectors — PPMI weighting, truncated
-// SVD (LAPACK), and cosine similarity. Rows in and out are the vector
-// transactions' business.
+// Pure numerics over dense matrices — PPMI weighting, truncated SVD
+// (LAPACK), and cosine similarity. What the rows mean is the caller's.
 struct VectorMath: Sendable {
     // MARK: - Property
     // MARK: - Initializer

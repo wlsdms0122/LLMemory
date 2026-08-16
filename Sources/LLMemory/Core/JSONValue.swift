@@ -7,15 +7,15 @@
 
 import Foundation
 
-// A value JSON can carry, and nothing else. Payloads used to be built out of
-// `Any`, which meant the set of things that could go in was larger than the
-// set that could come out — and the gap was only discovered at write time, by
-// a serializer that raises rather than throws.
+// A value JSON can carry, and nothing else. The alternative is `Any`, where
+// the set of things that can go in is larger than the set that can come out —
+// and the gap is only discovered at write time, by a serializer that raises
+// rather than throws.
 //
 // Integer and number are separate cases on purpose. They are one type in
-// JSON's grammar but not to the readers: the shadow replay asks a payload for
-// `limit` as an Int, and a limit that went out as 3.0 comes back as nothing at
-// all. Whichever one a value was written as is the one it has to be read as.
+// JSON's grammar but not to a reader that asked for an Int: a value written
+// as 3 and read back as 3.0 answers nothing at all. Whichever one a value was
+// written as is the one it has to be read as.
 enum JSONValue: Codable, Sendable, Hashable {
     // MARK: - Property
     case string(String)
