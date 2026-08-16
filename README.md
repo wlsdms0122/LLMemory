@@ -63,10 +63,6 @@ setup 을 먼저 돌려 임베드를 최신으로 만든 뒤 release 빌드한�
 
 ## 설계 원칙 (요약)
 
-코드를 쓸 때 따르는 구조 규약(계층 방향·계약 참조·1파일 1타입 등)은
-[`CONVENTION.md`](CONVENTION.md) 가 SSoT.
-
-
 - **Anchor-free**: 상태 위치는 `--home` 으로만. 바이너리 위치·외부 경로 가정 없음.
 - **SSoT**: cortex/ markdown 이 진실, DB 는 파생 — `data/memory.db` 를 지우고
   `init` 하면 재구성된다.
