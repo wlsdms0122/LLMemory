@@ -29,7 +29,7 @@ struct EventLogTests {
         try home.write { database in
             try RecordEventTransaction(
                 kind: .retrieval,
-                payload: EventPayload(command: .search, ["query": "quokka", "hit_ids": ["n1"]]),
+                payload: EventPayload(command: .search, ["query": "quokka", "hit_ids": JSONValue(["n1"])]),
                 ts: 1_000
             )
                 .perform(database)
@@ -66,7 +66,7 @@ struct EventLogTests {
             try RecordEventTransaction(
                 kind: .retrieval,
                 payload: EventPayload(
-                    command: .search, ["query": "a", "tags": ["swift"], "limit": 3]),
+                    command: .search, ["query": "a", "tags": JSONValue(["swift"]), "limit": 3]),
                 ts: 1_000
             )
                 .perform(database)
@@ -105,9 +105,20 @@ struct EventLogTests {
         #expect(decoded?.keys.sorted() == ["kept"])
     }
 
+    @Test("an integer stays one across the column — a limit read back as 3.0 is a limit lost")
+    func integersDoNotArriveAsDoubles() {
+        let payload = EventPayload(["limit": 3, "ratio": 0.5])
+        let decoded = try? JSONSerialization.jsonObject(
+            with: Data(payload.json.utf8)) as? [String: Any]
+
+        #expect(payload.json.contains("\"limit\":3,"), "got \(payload.json)")
+        #expect(decoded?["limit"] as? Int == 3, "the shadow replay reads this field as an Int")
+        #expect(decoded?["ratio"] as? Double == 0.5)
+    }
+
     @Test("a payload that could not be encoded says so instead of arriving empty")
     func failedEncodeIsDistinguishableFromEmpty() {
-        let lost = EventPayload(["count": Double.nan])
+        let lost = EventPayload(["count": .number(.nan)])
 
         #expect(lost.json != "{}")
         #expect(lost.json.contains("payload_encode_failed"))
@@ -116,7 +127,7 @@ struct EventLogTests {
 
     @Test("the command survives an encoding failure — it is what the readers select on")
     func failedEncodeKeepsItsCommand() {
-        let lost = EventPayload(command: .search, ["count": Double.nan])
+        let lost = EventPayload(command: .search, ["count": .number(.nan)])
         let decoded = try? JSONSerialization.jsonObject(with: Data(lost.json.utf8)) as? [String: Any]
 
         #expect(decoded?["cmd"] as? String == RetrievalCommand.search.rawValue)

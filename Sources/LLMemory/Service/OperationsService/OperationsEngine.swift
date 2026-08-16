@@ -129,9 +129,9 @@ public struct OperationsEngine: Sendable {
                 kind: .capture,
                 payload: EventPayload([
                     "tx_status": "rejected",
-                    "error": message,
-                    "rejected_index": index,
-                    "op_count": opsRaw.count
+                    "error": .string(message),
+                    "rejected_index": index.map { index in .integer(index) },
+                    "op_count": .integer(opsRaw.count)
                 ]),
                 sessionId: sessionId
             ))
@@ -157,8 +157,8 @@ public struct OperationsEngine: Sendable {
                 kind: .capture,
                 payload: EventPayload([
                     "tx_status": "rejected",
-                    "error": message,
-                    "op_count": opsRaw.count
+                    "error": .string(message),
+                    "op_count": .integer(opsRaw.count)
                 ]),
                 sessionId: sessionId
             ))
@@ -240,14 +240,14 @@ public struct OperationsEngine: Sendable {
         
         if let (index, message) = failure {
             let recovery = restoreFiles(backups)
-            var payload: [String: Any?] = [
+            var payload: [String: JSONValue?] = [
                 "tx_status": "failed",
-                "error": message,
-                "op_count": opsRaw.count,
-                "recovery_failed": recovery
+                "error": .string(message),
+                "op_count": .integer(opsRaw.count),
+                "recovery_failed": JSONValue(recovery)
             ]
             
-            if let index { payload["failed_index"] = index }
+            if let index { payload["failed_index"] = .integer(index) }
             
             try? scope.run(RecordEventTransaction(
                 kind: .capture,
@@ -265,16 +265,20 @@ public struct OperationsEngine: Sendable {
             )
         }
         
-        let opsSummary: [[String: Any]] = results.map { result in
-            ["op": result.op, "status": result.status, "ids": result.ids]
+        let opsSummary = results.map { result in
+            JSONValue.object([
+                "op": .string(result.op),
+                "status": .string(result.status),
+                "ids": JSONValue(result.ids)
+            ])
         }
         
         try? scope.run(RecordEventTransaction(
             kind: .capture,
             payload: EventPayload([
                 "tx_status": "ok",
-                "op_count": opsRaw.count,
-                "ops": opsSummary
+                "op_count": .integer(opsRaw.count),
+                "ops": .array(opsSummary)
             ]),
             sessionId: sessionId
         ))
@@ -296,7 +300,7 @@ public struct OperationsEngine: Sendable {
                         payload: EventPayload([
                             "tx_status": "degraded",
                             "pass": "term_validation",
-                            "error": "\(error)"
+                            "error": .string("\(error)")
                         ]),
                         sessionId: sessionId
                     )

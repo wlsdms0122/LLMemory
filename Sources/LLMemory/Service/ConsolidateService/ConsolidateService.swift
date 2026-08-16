@@ -120,9 +120,9 @@ public struct ConsolidateService: ConsolidateServiceable {
                     kind: .consolidation,
                     payload: EventPayload([
                         "action": "homeostasis",
-                        "windows_processed": report.windowsProcessed,
-                        "adjusted_gene": report.adjustedGene as Any?,
-                        "note": report.note
+                        "windows_processed": .integer(report.windowsProcessed),
+                        "adjusted_gene": report.adjustedGene.map { gene in .string(gene) },
+                        "note": .string(report.note)
                     ]),
                     ts: now
                 )
@@ -155,8 +155,8 @@ public struct ConsolidateService: ConsolidateServiceable {
                 kind: .consolidation,
                 payload: EventPayload([
                     "action": "prune",
-                    "links_decayed": decay.decayed,
-                    "links_pruned": decay.pruned
+                    "links_decayed": .integer(decay.decayed),
+                    "links_pruned": .integer(decay.pruned)
                 ]),
                 ts: now
             )
@@ -254,14 +254,16 @@ public struct ConsolidateService: ConsolidateServiceable {
             vectorsBuilt: (vectorBuild?.skipped == false) ? (vectorBuild?.noteCount ?? 0) : 0,
             degradedPasses: degradedPasses
         )
-        var tracePayload: [String: Any?] = [
+        var tracePayload: [String: JSONValue?] = [
             "action": "integrate",
-            "events_compacted": eventsCompacted
+            "events_compacted": .integer(eventsCompacted)
         ]
 
+        // The summary is already a Codable shape, so it arrives as payload
+        // values rather than as Any that has to be re-inspected on the way in.
         if let data = try? JSONEncoder().encode(summary),
-            let dictionary = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            for (key, value) in dictionary { tracePayload[key] = value }
+            let decoded = try? JSONDecoder().decode([String: JSONValue].self, from: data) {
+            for (key, value) in decoded { tracePayload[key] = value }
         }
 
         try? scope.run(
