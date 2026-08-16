@@ -38,7 +38,7 @@ struct MigrateNoteHandler: OperationHandling {
         let newId = (op["new_id"] as? String) ?? noteId
         let nsNewId = newId as NSString
         
-        if Paths.idRegex.firstMatch(
+        if NoteAddress.idRegex.firstMatch(
             in: newId,
             range: NSRange(location: 0, length: nsNewId.length)
         ) == nil {

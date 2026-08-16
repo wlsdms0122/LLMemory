@@ -33,7 +33,7 @@ struct PrefixStatsTransaction: GRDBReadTransaction {
             FROM notes n LEFT JOIN note_usage u ON u.note_id = n.id
             WHERE n.id = ? OR n.id GLOB ?
             """, arguments: [prefix, prefix + ".*"])!
-        // Same membership as Paths.id(_:isWithin:) — GLOB is its SQL spelling,
+        // Same membership as NoteAddress.id(_:isWithin:) — GLOB is its SQL spelling,
         // and `.*` matches any remaining labels because GLOB's * crosses dots.
 
         return PrefixStats(

@@ -127,7 +127,7 @@ struct SeedTests {
         let prefixes = Set(rows.compactMap { row in row.first as? String })
 
         // Then
-        #expect(prefixes == Set(Seed.notes.compactMap { seed in Paths.branch(of: seed.id, depth: 1) }),
+        #expect(prefixes == Set(Seed.notes.compactMap { seed in NoteAddress.branch(of: seed.id, depth: 1) }),
             "fresh brain tree: \(prefixes.sorted())")
     }
 

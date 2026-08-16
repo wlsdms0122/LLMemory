@@ -17,7 +17,7 @@ struct InvalidIDRule: NoteLintRule {
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {
         let nsId = note.nid as NSString
         
-        guard Paths.idRegex.firstMatch(
+        guard NoteAddress.idRegex.firstMatch(
             in: note.nid,
             range: NSRange(location: 0, length: nsId.length)
         ) == nil else {

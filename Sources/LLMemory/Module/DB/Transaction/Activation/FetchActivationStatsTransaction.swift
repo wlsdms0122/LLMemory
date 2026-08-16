@@ -29,7 +29,7 @@ struct FetchActivationStatsTransaction: GRDBReadTransaction {
         // number of branches, not the length of the log. The branch expression is
         // shared rather than spelled out here.
         let prefixRows = try Row.fetchAll(db, sql: """
-            SELECT \(Paths.branchSQL(column: "note_id")) AS prefix,
+            SELECT \(NoteAddress.branchSQL(column: "note_id")) AS prefix,
                    COUNT(*) AS surfaced,
                    SUM(CASE WHEN used_signal IS NOT NULL THEN 1 ELSE 0 END) AS used
             FROM retrieval_hits

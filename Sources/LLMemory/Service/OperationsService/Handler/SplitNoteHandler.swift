@@ -66,7 +66,7 @@ struct SplitNoteHandler: OperationHandling {
             let childId = child["id"] as! String
             let nsChildId = childId as NSString
             
-            if Paths.idRegex.firstMatch(
+            if NoteAddress.idRegex.firstMatch(
                 in: childId,
                 range: NSRange(location: 0, length: nsChildId.length)
             ) == nil {

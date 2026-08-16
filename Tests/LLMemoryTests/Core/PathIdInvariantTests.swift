@@ -85,14 +85,14 @@ struct PathIdInvariantTests {
     @Test("only a dot-joined kebab id is an address — everything else is refused")
     func idSyntaxIsLabelsJoinedByDots() {
         for accepted in ["a", "a-b", "a.b", "a.b-c.d", "2026", "a.2026.08.x"] {
-            #expect(Paths.idRegex.firstMatch(
+            #expect(NoteAddress.idRegex.firstMatch(
                 in: accepted,
                 range: NSRange(location: 0, length: (accepted as NSString).length)
             ) != nil, "refused a valid address: \(accepted)")
         }
 
         for refused in ["", ".a", "a.", "a..b", "-a", "a.-b", "A.b", "a b", "a_b", "a/b"] {
-            #expect(Paths.idRegex.firstMatch(
+            #expect(NoteAddress.idRegex.firstMatch(
                 in: refused,
                 range: NSRange(location: 0, length: (refused as NSString).length)
             ) == nil, "admitted an invalid address: \(refused)")

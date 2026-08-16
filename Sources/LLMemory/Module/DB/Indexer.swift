@@ -535,7 +535,7 @@ public struct Indexer: Sendable {
             let noteId = row.id
             let nsNoteId = noteId as NSString
 
-            if Paths.idRegex.firstMatch(
+            if NoteAddress.idRegex.firstMatch(
                 in: noteId,
                 range: NSRange(location: 0, length: nsNoteId.length)
             ) == nil {
