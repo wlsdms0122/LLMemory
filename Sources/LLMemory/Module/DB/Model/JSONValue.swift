@@ -52,6 +52,33 @@ enum JSONValue: Codable, Sendable, Hashable {
     }
 
     // MARK: - Public
+    // The reader's side of the integer/number split: a field written as one
+    // is asked for as one, and a payload that carries something else answers
+    // nothing rather than a number that was never meant to be an index.
+    var integer: Int? {
+        guard case let .integer(value) = self else { return nil }
+
+        return value
+    }
+
+    var string: String? {
+        guard case let .string(value) = self else { return nil }
+
+        return value
+    }
+
+    // A list of ids or tags read back. A member that is not a string is not
+    // one of them — the whole field is refused rather than silently thinned.
+    var strings: [String]? {
+        guard case let .array(values) = self else { return nil }
+
+        return try? values.map { value in
+            guard case let .string(text) = value else { throw JSONValueMismatch() }
+
+            return text
+        }
+    }
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
 
@@ -67,6 +94,10 @@ enum JSONValue: Codable, Sendable, Hashable {
 
     // MARK: - Private
 }
+
+// Thrown only to abandon a map that met the wrong shape — the caller sees a
+// nil field, which is the same answer as a field that was never written.
+private struct JSONValueMismatch: Error { }
 
 // The literal conformances are what keep a payload readable as a dictionary
 // literal — the alternative is wrapping every constant at every call site,

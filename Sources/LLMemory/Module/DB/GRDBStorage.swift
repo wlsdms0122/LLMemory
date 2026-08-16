@@ -207,7 +207,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         //
         // It runs while the gate and flock are still held — outside them
         // another writer's committed values could be clobbered by ours.
-        defer { context.config.reloadCommitted(self, genes: context.genes) }
+        defer { context.reloadCommitted(self) }
 
         return try await connection.write { db in
             try body(GRDBScope(db, self.context))
@@ -238,7 +238,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         // The same reload as `run`: this is a write scope too, so the caches
         // follow what it committed.
-        defer { context.config.reloadCommitted(self, genes: context.genes) }
+        defer { context.reloadCommitted(self) }
 
         return try body()
     }

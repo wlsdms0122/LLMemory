@@ -33,6 +33,7 @@ struct ExpandLinksTransaction: GRDBBrainReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database, _ brain: BrainContext) throws -> [ExpandedNote] {
+        let siblingDiscount = brain.genes.double("links.sibling_rank_weight")
         guard !noteIds.isEmpty else { return [] }
 
         let floor = minWeight ?? brain.genes.double("links.neighbor_floor")
@@ -48,7 +49,7 @@ struct ExpandLinksTransaction: GRDBBrainReadTransaction {
                 .joined(separator: ",")
             var sql = """
                 SELECT n.id, n.title, n.summary, l.weight,
-                       \(LinkRanking.weightSQL("l", brain)) AS rank_w
+                       \(LinkRanking.weightSQL("l", siblingDiscount: siblingDiscount)) AS rank_w
                 FROM note_links l
                 JOIN notes n ON n.id = CASE WHEN l.src IN (\(placeholders)) THEN l.dst ELSE l.src END
                 WHERE (l.src IN (\(placeholders)) OR l.dst IN (\(placeholders)))

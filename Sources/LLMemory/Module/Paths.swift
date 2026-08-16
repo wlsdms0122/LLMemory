@@ -41,6 +41,16 @@ struct Paths: Sendable {
         return String(abs.dropFirst(prefix.count))
     }
     
+    // The same answer as relative(of:), for callers that cannot carry on
+    // without one — a file outside this brain is not a file it can name.
+    func requireRelative(of file: URL) throws -> String {
+        guard let relativePath = relative(of: file) else {
+            throw NotesError.notUnderBrainRoot(file.path)
+        }
+
+        return relativePath
+    }
+
     func liveNoteRejection(of file: URL) -> String? {
         guard let relative = relative(of: file) else {
             return "outside brain home \(brainRoot.path)"

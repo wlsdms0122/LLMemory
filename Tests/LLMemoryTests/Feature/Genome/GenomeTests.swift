@@ -23,6 +23,40 @@ struct GenomeTests {
     }
     
     // MARK: - Test
+    // The shadow replay borrows a value the genome does not hold. It used to
+    // borrow it through a process-wide task-local, which meant every Genes in
+    // the task saw it — including another brain's.
+    @Test("a borrowed gene value belongs to the replay, not to the brain that lent it")
+    func shadowValueDoesNotEscapeTheReplay() throws {
+        // Given
+        let baseline = home.genes.double("related.expand_hops")
+
+        // When
+        let shadowed = home.genes.shadowing("related.expand_hops", baseline + 1)
+
+        // Then
+        #expect(shadowed.double("related.expand_hops") == baseline + 1)
+        #expect(shadowed.source("related.expand_hops") == "shadow")
+        #expect(home.genes.double("related.expand_hops") == baseline,
+            "the lending brain's genome must be untouched")
+        #expect(home.brain.genes.double("related.expand_hops") == baseline)
+    }
+
+    @Test("a shadowing scope hands the borrowed value to its own work and to nothing else")
+    func shadowValueTravelsWithTheScope() throws {
+        // Given
+        let baseline = home.genes.double("related.expand_hops")
+
+        // Then
+        try home.readScope { scope in
+            let shadow = scope.shadowing(gene: "related.expand_hops", value: baseline + 1)
+
+            #expect(shadow.brain.genes.double("related.expand_hops") == baseline + 1)
+            #expect(scope.brain.genes.double("related.expand_hops") == baseline,
+                "the scope it was derived from must still read the brain's own value")
+        }
+    }
+
     @Test("a gene with no row reads as wild-type, config beats wild-type, and a genome row beats both")
     func valueResolution() throws {
         // Then — no row anywhere.
@@ -329,7 +363,7 @@ struct GenomeTests {
         }
         
         // When — the cache is rewound the way a second process would see it.
-        home.config.plantStaleCacheValue("activation.derive_watermark", value: "0")
+        home.brain.plantStaleConfigValue("activation.derive_watermark", value: "0")
         
         try home.write { database in
             let result = try DeriveActivityWindowsTransaction(now: 3_000_200).perform(database, home.brain)

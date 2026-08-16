@@ -117,7 +117,7 @@ public struct Indexer: Sendable {
         for file in files {
             let relativePath: String
             do {
-                relativePath = try noteFiles.relativeToBrainRoot(file, brain.paths)
+                relativePath = try brain.paths.requireRelative(of: file)
             } catch {
                 fileErrors.append("\(file.path): \(error)")
                 continue

@@ -21,13 +21,11 @@ enum TagPriorRerank {
     // computed is not a reason to refuse the query it was going to improve.
     static func prior(
         _ db: Database,
-        _ brain: BrainContext,
         sessionId: SessionId?,
+        windowMin: Int,
         now: Int
     ) -> [String: Double] {
         guard let sessionId else { return [:] }
-
-        let windowMin = brain.genes.int("priming.window_min")
 
         return (try? ComputeTagPriorTransaction(
             sessionId: sessionId,
@@ -48,14 +46,13 @@ enum TagPriorRerank {
     // summing would make tag count itself a ranking signal.
     static func apply<T>(
         _ pool: [T],
-        _ brain: BrainContext,
         prior: [String: Double],
+        alpha: Double,
         limit: Int,
         tagsOf: (T) -> [String]
     ) -> [T] {
         guard !prior.isEmpty else { return Array(pool.prefix(limit)) }
 
-        let alpha = brain.genes.double("priming.alpha")
         let poolCount = Double(pool.count)
         let scored: [(index: Int, score: Double, item: T)] = pool.enumerated()
             .map { index, item in

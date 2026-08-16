@@ -25,7 +25,11 @@ struct FetchLintCorpusIndexTransaction: GRDBBrainReadTransaction {
         return LintCorpusIndex(
             ids: Set(try String.fetchAll(db, sql: "SELECT id FROM notes")),
             tagAliases: aliases,
-            config: brain.config
+            oversizedWords: brain.config.getInt("lint.oversized_words", default: 2_000),
+            growthMinDatedSections: brain.config.getInt(
+                "lint.growth_min_dated_sections",
+                default: 8
+            )
         )
     }
 

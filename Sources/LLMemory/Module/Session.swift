@@ -40,7 +40,7 @@ public final class Session {
             context: context
         )
 
-        context.config.reloadCommitted(storage, genes: context.genes)
+        context.reloadCommitted(storage)
     }
 
     // MARK: - Public
@@ -48,7 +48,7 @@ public final class Session {
     // database first comes into existence or migrates (init/update), since the
     // constructor may have warmed against a database that was not there yet.
     public func rewarm() {
-        context.config.reloadCommitted(storage, genes: context.genes)
+        context.reloadCommitted(storage)
     }
 
     // The init/update bootstrap — the one lifecycle boundary allowed to touch

@@ -98,7 +98,12 @@ public struct GenomeService: GenomeServiceable {
         let baselineValue = scope.brain.genes.double(gene)
         let logged = try scope.run(FetchLoggedRetrievalQueriesTransaction(limit: limit))
 
+        // The scope is a parameter, not a capture: the candidate run is the
+        // same replay against a scope whose brain answers one gene
+        // differently, so the borrowed value reaches these transactions and
+        // no others.
         func replayIds(
+            _ scope: GRDBReadScope,
             _ loggedQuery: FetchLoggedRetrievalQueriesTransaction.LoggedQuery
         ) throws -> [String] {
             switch loggedQuery.replay {
@@ -133,8 +138,8 @@ public struct GenomeService: GenomeServiceable {
         var changed = 0
 
         for loggedQuery in logged {
-            let baseline = try replayIds(loggedQuery)
-            let candidate = try Genes.withCandidate(gene, value) { try replayIds(loggedQuery) }
+            let baseline = try replayIds(scope, loggedQuery)
+            let candidate = try replayIds(scope.shadowing(gene: gene, value: value), loggedQuery)
 
             if baseline != candidate {
                 changed += 1

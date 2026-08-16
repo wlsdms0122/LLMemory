@@ -42,7 +42,12 @@ struct FetchSimilarNotesTransaction: GRDBBrainReadTransaction {
         }
 
         let now = Int(Date().timeIntervalSince1970)
-        let prior = TagPriorRerank.prior(db, brain, sessionId: sessionId, now: now)
+        let prior = TagPriorRerank.prior(
+            db,
+            sessionId: sessionId,
+            windowMin: brain.genes.int("priming.window_min"),
+            now: now
+        )
 
         sql += SearchRow.aggregationSQL
         arguments.append(TagPriorRerank.poolSize(limit: limit, needsRerank: !prior.isEmpty))
@@ -65,7 +70,12 @@ struct FetchSimilarNotesTransaction: GRDBBrainReadTransaction {
             )
         }
 
-        return TagPriorRerank.apply(pool, brain, prior: prior, limit: limit) { note in note.tags }
+        return TagPriorRerank.apply(
+            pool,
+            prior: prior,
+            alpha: brain.genes.double("priming.alpha"),
+            limit: limit
+        ) { note in note.tags }
     }
 
     // MARK: - Private

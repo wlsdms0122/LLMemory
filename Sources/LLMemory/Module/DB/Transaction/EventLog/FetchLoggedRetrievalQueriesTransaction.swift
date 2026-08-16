@@ -55,10 +55,15 @@ struct FetchLoggedRetrievalQueriesTransaction: GRDBReadTransaction {
         var queries: [LoggedQuery] = []
 
         for row in rows {
+            // Decoded into the same type that wrote it, so `limit` is read
+            // as the integer it was written as rather than as whatever
+            // JSONSerialization decided a number should be.
             guard let payloadText = row["payload"] as String?,
-                let data = payloadText.data(using: .utf8),
-                let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let command = payload["cmd"] as? String
+                let payload = try? JSONDecoder().decode(
+                    [String: JSONValue].self,
+                    from: Data(payloadText.utf8)
+                ),
+                let command = payload["cmd"]?.string
             else {
                 continue
             }
@@ -70,13 +75,13 @@ struct FetchLoggedRetrievalQueriesTransaction: GRDBReadTransaction {
             // a command written by a binary this one does not know.
             switch RetrievalCommand(rawValue: command) {
             case .search:
-                guard let text = payload["query"] as? String, !text.isEmpty else { continue }
+                guard let text = payload["query"]?.string, !text.isEmpty else { continue }
 
                 queries.append(
                     LoggedQuery(
                         replay: .search(
-                            tags: payload["tags"] as? [String] ?? [],
-                            limit: payload["limit"] as? Int ?? 5
+                            tags: payload["tags"]?.strings ?? [],
+                            limit: payload["limit"]?.integer ?? 5
                         ),
                         text: text,
                         sessionId: sessionId
@@ -84,7 +89,7 @@ struct FetchLoggedRetrievalQueriesTransaction: GRDBReadTransaction {
                 )
 
             case .related:
-                guard let text = payload["text"] as? String, !text.isEmpty else { continue }
+                guard let text = payload["text"]?.string, !text.isEmpty else { continue }
 
                 queries.append(LoggedQuery(replay: .related, text: text, sessionId: sessionId))
 

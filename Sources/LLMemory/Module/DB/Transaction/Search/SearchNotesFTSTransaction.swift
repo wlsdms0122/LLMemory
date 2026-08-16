@@ -66,7 +66,12 @@ struct SearchNotesFTSTransaction: GRDBBrainReadTransaction {
         }
 
         let now = Int(Date().timeIntervalSince1970)
-        let prior = TagPriorRerank.prior(db, brain, sessionId: sessionId, now: now)
+        let prior = TagPriorRerank.prior(
+            db,
+            sessionId: sessionId,
+            windowMin: brain.genes.int("priming.window_min"),
+            now: now
+        )
 
         sql += SearchRow.aggregationSQL
         arguments.append(TagPriorRerank.poolSize(limit: limit, needsRerank: !prior.isEmpty))
@@ -81,8 +86,8 @@ struct SearchNotesFTSTransaction: GRDBBrainReadTransaction {
 
         return TagPriorRerank.apply(
             rows.map { row in SearchRow(row, brain.paths) },
-            brain,
             prior: prior,
+            alpha: brain.genes.double("priming.alpha"),
             limit: limit
         ) { row in row.tags }
     }

@@ -51,7 +51,8 @@ struct RestoreHandler: OperationHandling {
         let noteId = op["id"] as! String
         let now = context.now
         
-        guard let found = try TrashedNoteLookup(paths: scope.brain.paths).findTrashedFile(noteId) else {
+        guard let found = try TrashedNoteLookup(paths: scope.brain.paths).findTrashedFile(noteId)
+        else {
             throw OperationError.notInTrash(noteId)
         }
         

@@ -19,7 +19,7 @@ struct NoteOversizedRule: NoteLintRule {
     func check(_ note: NoteLintInput, _ index: LintCorpusIndex) -> [LintFinding] {
         guard note.doc.template == nil, !note.doc.locked else { return [] }
         
-        let threshold = index.config.getInt("lint.oversized_words", default: 2000)
+        let threshold = index.oversizedWords
         let words = sectionEdit.wordCount(note.body)
         
         guard words >= threshold else { return [] }

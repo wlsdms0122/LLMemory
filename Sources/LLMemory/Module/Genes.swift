@@ -16,7 +16,7 @@ import Foundation
 //
 // A caller that must read a value it is itself writing reads the row
 // (FetchGeneValueTransaction), not this.
-public final class Genes: @unchecked Sendable {
+public struct Genes: Sendable {
     public struct Gene: Sendable {
         // MARK: - Property
         public let id: String
@@ -86,24 +86,25 @@ public final class Genes: @unchecked Sendable {
              summary: "익명 활성화의 시간창 추정 gap (관측 정책 — 기록에 영구 반영)")
     ]
 
-    // This brain's copy of committed genome state. Its only writer is the
-    // committed-state loader, which runs at boot and at the end of every
-    // write scope, so it is never ahead of the database.
-    private var cache: [String: Double] = [:]
-
-    // A candidate value that belongs to one execution, not to the brain. The
-    // shadow replay re-runs a logged query under a value the genome does not
-    // hold, and a task-local is the only place that value can live without
-    // being visible to whoever else is reading this brain at the time.
-    @TaskLocal private static var candidates: [String: Double] = [:]
+    // This brain's committed genome state, warmed at boot and at the end of
+    // every write scope, so it is never ahead of the database.
+    private let cache: ParameterCache
 
     // The configuration this brain falls back to for a gene the genome has
     // no row for.
     private let config: Config
 
+    // A candidate value that belongs to one execution rather than to the
+    // brain. It is held here, in the value the execution was handed, so it
+    // cannot be read by anyone who was not handed it — the shadow replay
+    // borrows a genome, it does not change one.
+    private let candidates: [String: Double]
+
     // MARK: - Initializer
-    init(config: Config) {
+    init(cache: ParameterCache, config: Config, candidates: [String: Double] = [:]) {
+        self.cache = cache
         self.config = config
+        self.candidates = candidates
     }
 
     // MARK: - Public
@@ -120,7 +121,7 @@ public final class Genes: @unchecked Sendable {
             return config.getDouble(id, default: 0)
         }
 
-        return resolve(gene, stored: cache[id]).value
+        return resolve(gene, stored: cache.geneValue(id)).value
     }
 
     public func int(_ id: String) -> Int {
@@ -130,7 +131,7 @@ public final class Genes: @unchecked Sendable {
     public func source(_ id: String) -> String {
         guard let gene = Self.gene(id) else { return "config" }
 
-        return resolve(gene, stored: cache[id]).source
+        return resolve(gene, stored: cache.geneValue(id)).source
     }
 
     // Whether the catalog admits this value, answered once. Every caller
@@ -158,16 +159,15 @@ public final class Genes: @unchecked Sendable {
         return nil
     }
 
-    func warm(_ values: [String: Double]) {
-        cache = values
-    }
-
-    static func withCandidate<T>(
-        _ id: String,
-        _ value: Double,
-        _ body: () throws -> T
-    ) rethrows -> T {
-        try $candidates.withValue(candidates.merging([id: value]) { _, new in new }, operation: body)
+    // The same genome answering one gene differently. Whoever holds this
+    // value sees the candidate; whoever holds the original does not, which is
+    // what keeps a replay from leaking into the brain it is measuring.
+    func shadowing(_ id: String, _ value: Double) -> Genes {
+        Genes(
+            cache: cache,
+            config: config,
+            candidates: candidates.merging([id: value]) { _, new in new }
+        )
     }
 
     // The one place a gene value is resolved, so "which value?" and "where
@@ -176,7 +176,7 @@ public final class Genes: @unchecked Sendable {
     // reports committed state and must not consult a cache to do it. A
     // candidate belongs to this execution and outranks both.
     func resolve(_ gene: Gene, stored: Double?) -> (value: Double, source: String) {
-        if let candidate = Self.candidates[gene.id] { return (candidate, "shadow") }
+        if let candidate = candidates[gene.id] { return (candidate, "shadow") }
 
         if let stored { return (stored, "genome") }
 

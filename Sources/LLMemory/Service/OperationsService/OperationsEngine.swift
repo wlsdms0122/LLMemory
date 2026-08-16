@@ -369,12 +369,13 @@ public struct OperationsEngine: Sendable {
         affected: [URL],
         backups: [(URL, String?)]
     ) -> String? {
+        let trashLookup = TrashedNoteLookup(paths: paths)
         var violations: [String] = []
         
         for path in affected {
             if path.pathExtension != "md" { continue }
             
-            let noteId = TrashedNoteLookup(paths: paths).trashStemId(path)
+            let noteId = trashLookup.trashStemId(path)
             let body: String
             do {
                 guard let read = try noteFiles.readNoteIfPresent(at: path) else { continue }
@@ -601,7 +602,9 @@ public struct OperationsEngine: Sendable {
             if let text { return text }
         }
         
-        for (url, text) in backups where TrashedNoteLookup(paths: paths).trashStemId(url) == nid {
+        let trashLookup = TrashedNoteLookup(paths: paths)
+
+        for (url, text) in backups where trashLookup.trashStemId(url) == nid {
             if let text { return text }
         }
         

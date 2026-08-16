@@ -33,5 +33,13 @@ public struct GRDBReadScope {
         try transaction.perform(db, brain)
     }
 
+    // The same handle over a brain whose genome answers one gene differently
+    // — what the shadow replay re-runs a logged query against. The borrowed
+    // value reaches exactly the transactions run through this scope and
+    // nothing else, which a binding could not promise.
+    func shadowing(gene: String, value: Double) -> GRDBReadScope {
+        GRDBReadScope(db, brain.shadowing(gene: gene, value: value))
+    }
+
     // MARK: - Private
 }

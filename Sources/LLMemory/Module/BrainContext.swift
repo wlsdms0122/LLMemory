@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // One brain, as everything about it that is not its database: where its files
 // live, what its configuration says, what its genes are set to. They share a
@@ -18,7 +19,7 @@ import Foundation
 // forgot to bind got whichever Session had been constructed most recently —
 // an answer that was right in every test and unjustifiable in principle. A
 // value that arrives in a signature cannot be the wrong brain.
-public final class BrainContext: @unchecked Sendable {
+public struct BrainContext: Sendable {
     // MARK: - Property
     let paths: Paths
     let config: Config
@@ -26,15 +27,95 @@ public final class BrainContext: @unchecked Sendable {
 
     var home: URL { paths.brainRoot }
 
+    // Both caches belong to this brain, so re-reading them belongs here too.
+    // While Config owned it, the call had to be handed the other cache
+    // (`config.reloadCommitted(storage, genes:)`) and nothing but the idiom
+    // stopped two brains' halves being paired — the same "wrong brain
+    // answered" failure the task-local used to allow, wearing a signature.
+    private let cache: ParameterCache
+
     // MARK: - Initializer
     init(home: String) {
-        let config = Config()
+        let cache = ParameterCache()
+        let config = Config(cache: cache)
 
+        self.cache = cache
         paths = Paths(home: home)
         self.config = config
-        genes = Genes(config: config)
+        genes = Genes(cache: cache, config: config)
+    }
+
+    private init(paths: Paths, config: Config, genes: Genes, cache: ParameterCache) {
+        self.paths = paths
+        self.config = config
+        self.genes = genes
+        self.cache = cache
     }
 
     // MARK: - Public
+    // Re-read both caches from committed state. Run at boot and at the end of
+    // every write scope, which is what keeps "the process holds what the
+    // database holds" true rather than aspirational.
+    //
+    // Swap-only: a failed read leaves the existing values in place. Nothing
+    // writes these caches inside a transaction, so they can only be behind
+    // committed state, never ahead of it — an unreadable database is a reason
+    // to keep the last committed values, not to drop to defaults.
+    //
+    // The three failures below are how a brain answers before it exists: a
+    // Session is constructed against a directory the migration has not reached
+    // yet, and bootstrap re-runs this once it has. Every other failure means a
+    // database that was readable a moment ago no longer is, and the process is
+    // about to serve values it can no longer justify — so it says so.
+    func reloadCommitted(_ storage: GRDBStorage) {
+        do {
+            try loadCommitted(storage)
+        } catch DBError.notInitialized, DBError.pendingMigrations, DBError.superseded {
+            return
+        } catch {
+            FileHandle.standardError.write(
+                Data("llmemory: parameter cache is stale — reload failed: \(error)\n".utf8)
+            )
+        }
+    }
+
+    // The same brain with one gene answered differently — what a shadow
+    // replay runs against. It is a separate value rather than a binding, so
+    // the borrowed number reaches exactly the work that was handed it.
+    func shadowing(gene: String, value: Double) -> BrainContext {
+        BrainContext(
+            paths: paths,
+            config: config,
+            genes: genes.shadowing(gene, value),
+            cache: cache
+        )
+    }
+
+    // Plants a value the database does not hold, so a test can prove a reader
+    // consults the row rather than the cache.
+    func plantStaleConfigValue(_ key: String, value: String) {
+        cache.plantConfigValue(Config.prefix + key, value)
+    }
+
     // MARK: - Private
+    // One snapshot for both caches — config rows and genome values come from
+    // the same read transaction, then swap in together.
+    private func loadCommitted(_ storage: GRDBStorage) throws {
+        let queue = try storage.connect()
+        let (rows, genomeValues) = try queue.read { db in
+            (
+                try MetaRecord
+                    .filter(Column("key").like("\(Config.prefix)%"))
+                    .fetchAll(db),
+                try FetchGenomeValuesTransaction().perform(db)
+            )
+        }
+        var fresh: [String: String] = [:]
+
+        for row in rows {
+            fresh[row.key] = row.value ?? Config.nilSentinel
+        }
+
+        cache.warm(config: fresh, genes: genomeValues)
+    }
 }

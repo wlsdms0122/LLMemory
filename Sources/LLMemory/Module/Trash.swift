@@ -20,8 +20,6 @@ public struct Trash: Sendable {
 
     private let frontmatter = Frontmatter()
 
-    private let noteFiles = Notes()
-
     // MARK: - Initializer
     init(paths: Paths) {
         self.paths = paths
@@ -59,7 +57,7 @@ public struct Trash: Sendable {
     public func file(_ source: URL, reason: String, now: Int) throws -> URL? {
         guard FileManager.default.fileExists(atPath: source.path) else { return nil }
 
-        let relativePath = try noteFiles.relativeToBrainRoot(source, paths)
+        let relativePath = try paths.requireRelative(of: source)
         var (doc, body) = try frontmatter.parse(try String(contentsOf: source, encoding: .utf8))
         doc.trashedAt = now
         doc.trashedReason = reason.unicodeScalarPrefix(200)
@@ -78,7 +76,7 @@ public struct Trash: Sendable {
 
     // Where a file would land, for the snapshot that has to be able to put it back.
     public func destination(of source: URL) -> URL? {
-        guard let relativePath = try? noteFiles.relativeToBrainRoot(source, paths) else { return nil }
+        guard let relativePath = try? paths.requireRelative(of: source) else { return nil }
 
         return try? resolvePath(relativePath)
     }
