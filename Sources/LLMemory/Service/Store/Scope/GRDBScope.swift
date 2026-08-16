@@ -14,17 +14,11 @@ import GRDB
 // boundary.
 public struct GRDBScope {
     // MARK: - Property
-    // The brain this scope was opened on. A transaction that reads a
-    // parameter takes it from here, in its signature, instead of resolving
-    // whichever brain the process saw last.
-    let brain: BrainContext
-
     private let db: Database
 
     // MARK: - Initializer
-    init(_ db: Database, _ brain: BrainContext) {
+    init(_ db: Database) {
         self.db = db
-        self.brain = brain
     }
 
     public enum SavepointOutcome {
@@ -48,24 +42,6 @@ public struct GRDBScope {
         }
 
         return result
-    }
-
-    @discardableResult
-    public func run<T: GRDBBrainTransaction>(_ transaction: T) throws -> T.Result {
-        var result: T.Result!
-
-        try db.inSavepoint {
-            result = try transaction.perform(db, brain)
-
-            return .commit
-        }
-
-        return result
-    }
-
-    @discardableResult
-    public func run<T: GRDBBrainReadTransaction>(_ transaction: T) throws -> T.Result {
-        try transaction.perform(db, brain)
     }
 
     // A read transaction has nothing to roll back — the atomicity marker
@@ -113,7 +89,7 @@ public struct GRDBScope {
 
     // A write scope may always be viewed as a read scope — read cores take
     // GRDBReadScope and write orchestrators downgrade to call them.
-    public var readOnly: GRDBReadScope { GRDBReadScope(db, brain) }
+    public var readOnly: GRDBReadScope { GRDBReadScope(db) }
 
     // MARK: - Private
 }

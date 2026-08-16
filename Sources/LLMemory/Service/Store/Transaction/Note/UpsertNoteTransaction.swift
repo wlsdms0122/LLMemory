@@ -11,8 +11,11 @@ import GRDB
 // notes-row transactions — the core catalog row, its FTS projection,
 // reference links, and lifecycle provenance. File-level note reading stays
 // in NoteFile.
-struct UpsertNoteTransaction: GRDBBrainTransaction {
+struct UpsertNoteTransaction: GRDBTransaction {
     // MARK: - Property
+    // The address the file was resolved to. It arrives resolved: a file's
+    // location is its id, and that grammar is not the store's.
+    let noteId: String
     let file: URL
     let fields: FrontmatterDocument
     let body: String
@@ -24,7 +27,15 @@ struct UpsertNoteTransaction: GRDBBrainTransaction {
     private let noteFile = NoteFile()
 
     // MARK: - Initializer
-    init(file: URL, fields: FrontmatterDocument, body: String, raw: String? = nil, now: Int) {
+    init(
+        noteId: String,
+        file: URL,
+        fields: FrontmatterDocument,
+        body: String,
+        raw: String? = nil,
+        now: Int
+    ) {
+        self.noteId = noteId
         self.file = file
         self.fields = fields
         self.body = body
@@ -34,19 +45,10 @@ struct UpsertNoteTransaction: GRDBBrainTransaction {
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database, _ brain: BrainContext) throws -> String {
-        // The file's location is the id. Whatever the caller carried in `fields`
-        // is not consulted here — there is one source, so there is nothing to
-        // reconcile and no way for a row to point somewhere its file is not.
-        guard let noteId = brain.layout.id(ofFile: file), !noteId.isEmpty else {
-            throw NotesError.notALiveNote(
-                path: brain.layout.relative(of: file) ?? file.path,
-                reason: brain.layout.liveNoteRejection(of: file)
-                    ?? brain.layout.addressRejection(of: file)
-                    ?? "not addressable"
-            )
-        }
-
+    func perform(_ db: Database) throws -> String {
+        // Whatever the caller carried in `fields` is not consulted for the id
+        // — there is one source, so there is nothing to reconcile and no way
+        // for a row to point somewhere its file is not.
         let priority = fields.priority.isEmpty ? "lazy" : fields.priority
 
         guard ["eager", "lazy"].contains(priority) else {

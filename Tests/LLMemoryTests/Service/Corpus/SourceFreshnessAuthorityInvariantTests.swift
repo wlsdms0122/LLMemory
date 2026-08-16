@@ -63,7 +63,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         let path = try Self.writeNote(home.layout, "fresh-1", sources: [source])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
         
         let baselineMtime = try Self.mtime(source)
         
@@ -75,7 +75,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         #expect(abs(try Self.mtime(source).timeIntervalSince(baselineMtime)) < 0.000_001,
             "probe setup: mtime was not restored")
         
-        let result = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db, home.brain), home.brain) }
+        let result = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db), home.brain) }
         
         #expect(result.stillFresh == 0, "verify declared a note fresh without looking at its content")
         #expect(result.becameStale == 1, "content drift under a restored mtime went undetected")
@@ -97,16 +97,16 @@ struct SourceFreshnessAuthorityInvariantTests {
         let path = try Self.writeNote(home.layout, "fresh-2", sources: [source])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
         
         let baselineMtime = try Self.mtime(source)
         
-        _ = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db, home.brain), home.brain) }
+        _ = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db), home.brain) }
         
         try "beta".write(to: source, atomically: true, encoding: .utf8)
         try Self.setMtime(source, baselineMtime)
         
-        _ = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db, home.brain), home.brain) }
+        _ = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db), home.brain) }
         
         // When
         let stale = try queue.read { db in
@@ -127,18 +127,18 @@ struct SourceFreshnessAuthorityInvariantTests {
         let path = try Self.writeNote(home.layout, "fresh-3", sources: [source])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
         try "beta".write(to: source, atomically: true, encoding: .utf8)
         
         // When
-        let drifted = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db, home.brain), home.brain) }
+        let drifted = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db), home.brain) }
         
         // Then
         #expect(drifted.becameStale == 1)
         
         try "alpha".write(to: source, atomically: true, encoding: .utf8)
         
-        let recovered = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db, home.brain), home.brain) }
+        let recovered = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db), home.brain) }
         
         #expect(recovered.recovered == 1, "restoring the original content did not clear source_stale")
     }
@@ -155,10 +155,10 @@ struct SourceFreshnessAuthorityInvariantTests {
         let path = try Self.writeNote(home.layout, "fresh-4", sources: [first, second])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
+        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
         try FileManager.default.removeItem(at: second)
         
-        _ = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db, home.brain), home.brain) }
+        _ = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db), home.brain) }
         
         // When
         let stale = try queue.read { db in

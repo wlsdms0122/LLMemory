@@ -89,6 +89,22 @@ public struct BrainContext: Sendable {
         try notePath(scope.readOnly, nid)
     }
 
+    // The id of a note file this brain can index, or a refusal that says
+    // which rule it broke. The address is the location, so this is the one
+    // place a file becomes an id — the store is handed the answer.
+    func requireNoteId(of file: URL) throws -> String {
+        guard let noteId = layout.id(ofFile: file), !noteId.isEmpty else {
+            throw NotesError.notALiveNote(
+                path: layout.relative(of: file) ?? file.path,
+                reason: layout.liveNoteRejection(of: file)
+                    ?? layout.addressRejection(of: file)
+                    ?? "not addressable"
+            )
+        }
+
+        return noteId
+    }
+
     // The same brain with one gene answered differently — what a shadow
     // replay runs against. It is a separate value rather than a binding, so
     // the borrowed number reaches exactly the work that was handed it.

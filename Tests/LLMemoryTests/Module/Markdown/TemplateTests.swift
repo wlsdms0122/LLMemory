@@ -408,7 +408,7 @@ struct TemplateTests {
         
         try (text + "# C\nguidance C.\n").write(to: templateFile, atomically: true, encoding: .utf8)
         
-        _ = try home.storage.writeLock { try queue.write { db in try ReindexNoteFileTransaction(path: templateFile).perform(db, home.brain) } }
+        _ = try home.storage.writeLock { try queue.write { db in try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: templateFile), path: templateFile).perform(db) } }
         
         let result = OperationsEngine.apply(home.storage, home.brain, ["ops": [[
             "op": "delete_note", "id": "doc-d", "reason": "drift cleanup"
@@ -440,7 +440,7 @@ struct TemplateTests {
         ]], "rationale": "t"]).status == "ok")
         
         let queue = try home.storage.connect()
-        let members = Set(try queue.read { db in try detector.clusters(GRDBReadScope(db, home.brain)) }.flatMap { cluster in cluster.members.map(\.id) })
+        let members = Set(try queue.read { db in try detector.clusters(GRDBReadScope(db)) }.flatMap { cluster in cluster.members.map(\.id) })
         
         #expect(members.contains("cl-n1"))
         #expect(members.contains("cl-n2"))

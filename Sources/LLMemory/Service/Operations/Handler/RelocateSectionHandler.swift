@@ -143,13 +143,13 @@ struct RelocateSectionHandler: OperationHandling {
             atomically: true,
             encoding: .utf8
         )
-        try scope.run(ReindexNoteFileTransaction(path: srcPath))
-        try scope.run(ReindexNoteFileTransaction(path: dstPath))
+        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: srcPath), path: srcPath))
+        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: dstPath), path: dstPath))
         
         let now = context.now
         
-        try scope.run(StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false))
-        try scope.run(StampNoteLifecycleTransaction(nid: toId, now: now, isNew: false))
+        try scope.run(StampNoteLifecycleTransaction(nid: fromId, file: context.brain.layout.file(forId: fromId), now: now, isNew: false))
+        try scope.run(StampNoteLifecycleTransaction(nid: toId, file: context.brain.layout.file(forId: toId), now: now, isNew: false))
         try bookkeeper.recordEdit(
             scope,
             nid: fromId,

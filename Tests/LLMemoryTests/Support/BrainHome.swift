@@ -38,7 +38,7 @@ extension BrainHome {
     // The production shape — a read scope handed in, never hand-assembled
     // at the call site. Raw `read` stays for SQL probes.
     func readScope<T>(_ body: (GRDBReadScope) throws -> T) throws -> T {
-        try database().read { db in try body(GRDBReadScope(db, session.context)) }
+        try database().read { db in try body(GRDBReadScope(db)) }
     }
 
     func write<T>(_ body: (Database) throws -> T) throws -> T {
@@ -197,7 +197,13 @@ extension BrainHome {
     }
 
     func reindexFile(at file: URL) throws {
-        try write { database in _ = try ReindexNoteFileTransaction(path: file).perform(database, session.context) }
+        try write { database in
+            _ = try ReindexNoteFileTransaction(
+                noteId: try brain.requireNoteId(of: file),
+                path: file
+            )
+                .perform(database)
+        }
     }
 
     func reindexNote(id: String) throws {

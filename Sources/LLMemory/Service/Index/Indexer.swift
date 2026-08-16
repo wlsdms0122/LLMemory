@@ -200,7 +200,11 @@ public struct Indexer: Sendable {
             do {
                 try db.inSavepoint {
                     do {
-                        let noteId = try ReindexNoteFileTransaction(path: path).perform(db, brain)
+                        let noteId = try ReindexNoteFileTransaction(
+                            noteId: try brain.requireNoteId(of: path),
+                            path: path
+                        )
+                            .perform(db)
 
                         reindexed = (noteId, brain.layout.relative(of: path) ?? path.path)
 
@@ -273,12 +277,15 @@ public struct Indexer: Sendable {
                 return
             }
 
-            try UpsertNoteTransaction(file: note.file,
+            try UpsertNoteTransaction(
+                noteId: try brain.requireNoteId(of: note.file),
+                file: note.file,
                 fields: note.fields,
                 body: note.body,
                 raw: note.raw,
                 now: now
-            ).perform(db, brain)
+            )
+                .perform(db)
             changed += 1
         }
 

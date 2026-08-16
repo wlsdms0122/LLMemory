@@ -64,7 +64,7 @@ struct RevalidateHandler: OperationHandling {
         doc.invalidatedReason = nil
         
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-        try scope.run(ReindexNoteFileTransaction(path: path))
+        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
         try scope.run(SetNoteStaleTransaction(nid: noteId, stale: false))
         try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
             kind: "revalidated",

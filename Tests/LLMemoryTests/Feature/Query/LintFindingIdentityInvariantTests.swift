@@ -151,7 +151,7 @@ struct LintFindingIdentityInvariantTests {
             .write(to: file, atomically: true, encoding: .utf8)
         
         _ = try home.storage.writeLock {
-            try home.database().write { database in try ReindexNoteFileTransaction(path: file).perform(database, home.brain) }
+            try home.database().write { database in try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: file), path: file).perform(database) }
         }
         
         // When

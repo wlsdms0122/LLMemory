@@ -65,7 +65,7 @@ struct InvalidateHandler: OperationHandling {
         }
         
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-        try scope.run(ReindexNoteFileTransaction(path: path))
+        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
         try scope.run(SetNoteStaleTransaction(nid: noteId, stale: true))
         try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
             kind: "invalidated",

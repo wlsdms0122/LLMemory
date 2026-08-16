@@ -218,9 +218,9 @@ struct SplitNoteHandler: OperationHandling {
                 atomically: true,
                 encoding: .utf8
             )
-            try scope.run(ReindexNoteFileTransaction(path: childPath))
+            try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: childPath), path: childPath))
             try scope.run(InheritSourceObservationTransaction(from: fromId, to: childId))
-            try scope.run(StampNoteLifecycleTransaction(nid: childId, now: now, isNew: true))
+            try scope.run(StampNoteLifecycleTransaction(nid: childId, file: context.brain.layout.file(forId: childId), now: now, isNew: true))
             
             written.append(childPath)
             newIds.append(childId)
@@ -244,8 +244,8 @@ struct SplitNoteHandler: OperationHandling {
                 atomically: true,
                 encoding: .utf8
             )
-            try scope.run(ReindexNoteFileTransaction(path: srcPath))
-            try scope.run(StampNoteLifecycleTransaction(nid: fromId, now: now, isNew: false))
+            try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: srcPath), path: srcPath))
+            try scope.run(StampNoteLifecycleTransaction(nid: fromId, file: context.brain.layout.file(forId: fromId), now: now, isNew: false))
         } else {
             _ = try scope.run(FlagInboundReferrersTransaction(
                 targetId: fromId,

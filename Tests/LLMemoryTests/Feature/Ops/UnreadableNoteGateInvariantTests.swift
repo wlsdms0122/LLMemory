@@ -94,7 +94,7 @@ struct UnreadableNoteGateInvariantTests {
         _ = try corrupt(id: "il1-bad", body: "garbage, no frontmatter\n")
         
         // When
-        let issues = try home.read { database in try CheckCorpusIntegrityL1Transaction().perform(database, home.brain).issues }
+        let issues = try home.read { database in try CorpusReconciler().checkFilesPresent(GRDBReadScope(database), home.brain).issues }
         
         // Then
         #expect(issues.contains { issue in issue.contains("il1-bad") && issue.contains("unreadable") },
@@ -115,7 +115,7 @@ struct UnreadableNoteGateInvariantTests {
             try home.database().write { database -> (orphansPruned: Int, refilled: Int, unreadable: [String]) in
                 try database.execute(sql: "DELETE FROM notes_fts WHERE id IN ('fts-ok','fts-bad')")
                 
-                return try PruneFtsOrphansTransaction().perform(database, home.brain)
+                return try CorpusReconciler().reconcileSearchIndex(GRDBScope(database), home.brain)
             }
         }
         
@@ -312,7 +312,7 @@ struct UnreadableNoteGateInvariantTests {
     private func stampLifecycle(of noteId: String) throws {
         try home.storage.writeLock {
             try home.database().write { database in
-                try StampNoteLifecycleTransaction(nid: noteId, now: 1, isNew: false).perform(database, home.brain)
+                try StampNoteLifecycleTransaction(nid: noteId, file: home.brain.layout.file(forId: noteId), now: 1, isNew: false).perform(database)
             }
         }
     }

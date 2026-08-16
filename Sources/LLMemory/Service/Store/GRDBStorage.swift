@@ -210,7 +210,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         defer { context.reloadCommitted(self) }
 
         return try await connection.write { db in
-            try body(GRDBScope(db, self.context))
+            try body(GRDBScope(db))
         }
     }
 
@@ -219,7 +219,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     @discardableResult
     public func read<T: Sendable>(_ body: @escaping @Sendable (GRDBReadScope) throws -> T) async throws -> T {
         try await connect().read { db in
-            try body(GRDBReadScope(db, self.context))
+            try body(GRDBReadScope(db))
         }
     }
 

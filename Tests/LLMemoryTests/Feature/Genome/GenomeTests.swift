@@ -42,19 +42,18 @@ struct GenomeTests {
         #expect(home.brain.genes.double("related.expand_hops") == baseline)
     }
 
-    @Test("a shadowing scope hands the borrowed value to its own work and to nothing else")
-    func shadowValueTravelsWithTheScope() throws {
+    @Test("a shadowed brain tunes only the work it was handed to, and never its own")
+    func shadowValueTravelsWithTheTuning() throws {
         // Given
         let baseline = home.genes.double("related.expand_hops")
 
-        // Then
-        try home.readScope { scope in
-            let shadow = scope.shadowing(gene: "related.expand_hops", value: baseline + 1)
+        // When
+        let shadow = home.brain.shadowing(gene: "related.expand_hops", value: baseline + 1)
 
-            #expect(shadow.brain.genes.double("related.expand_hops") == baseline + 1)
-            #expect(scope.brain.genes.double("related.expand_hops") == baseline,
-                "the scope it was derived from must still read the brain's own value")
-        }
+        // Then
+        #expect(RetrievalTuning(shadow.genes).expandHops == Int(baseline) + 1)
+        #expect(RetrievalTuning(home.brain.genes).expandHops == Int(baseline),
+            "the brain it was derived from must still read its own value")
     }
 
     @Test("a gene with no row reads as wild-type, config beats wild-type, and a genome row beats both")
@@ -72,7 +71,7 @@ struct GenomeTests {
         
         // When — the genome itself carries a value.
         try home.write { database in
-            _ = try GRDBScope(database, home.brain).run(
+            _ = try GRDBScope(database).run(
                 ApplyGeneValueTransaction(
                     geneId: "priming.alpha", value: 1.2, cause: "set_gene",
                     requireMutable: false, ts: 1, configured: nil
@@ -143,7 +142,7 @@ struct GenomeTests {
     func lockedGeneGuard() throws {
         try home.write { database in
             #expect(throws: GenomeWriteError.self) {
-                try GRDBScope(database, home.brain).run(
+                try GRDBScope(database).run(
                     ApplyGeneValueTransaction(
                         geneId: "links.decay_factor", value: 0.8,
                         cause: "homeostasis:test", requireMutable: true, ts: 1, configured: nil
@@ -177,7 +176,7 @@ struct GenomeTests {
             _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             // When
-            let report = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
+            let report = try home.consolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(report.evaluated)
@@ -189,7 +188,7 @@ struct GenomeTests {
         
         // When — a second tick over the same history.
         try home.write { database in
-            let again = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
+            let again = try home.consolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(again.windowsProcessed == 0, "a window must not be counted twice")
@@ -224,7 +223,7 @@ struct GenomeTests {
             _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             // When
-            let report = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
+            let report = try home.consolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(!report.evaluated)
@@ -246,7 +245,7 @@ struct GenomeTests {
         let base = home.now - 50_000
         
         try home.write { database in
-            _ = try GRDBScope(database, home.brain).run(
+            _ = try GRDBScope(database).run(
                 ApplyGeneValueTransaction(
                     geneId: "related.expand_hops", value: 0, cause: "set_gene",
                     detail: "test setup", requireMutable: false, ts: home.now, configured: nil
@@ -263,7 +262,7 @@ struct GenomeTests {
             _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             // When
-            let report = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
+            let report = try home.consolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(report.evaluated)
@@ -282,7 +281,7 @@ struct GenomeTests {
             
             _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
-            let report = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
+            let report = try home.consolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(report.adjustedGene == nil, "wild-type is the ceiling — restoration does not overshoot")
@@ -314,7 +313,7 @@ struct GenomeTests {
             _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             // When — below the minimum sample.
-            let first = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
+            let first = try home.consolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(!first.evaluated)
@@ -332,7 +331,7 @@ struct GenomeTests {
             
             _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
-            let second = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
+            let second = try home.consolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(second.evaluated)
@@ -344,7 +343,7 @@ struct GenomeTests {
         
         // When — nothing new since.
         try home.write { database in
-            let third = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
+            let third = try home.consolidateService.homeostasisTick(GRDBScope(database), now: home.now)
             
             // Then
             #expect(third.sampleSeen == 0)

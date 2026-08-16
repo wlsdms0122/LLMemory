@@ -111,7 +111,7 @@ struct RenameTagHandler: OperationHandling {
         for noteId in affectedIds {
             guard let path = try context.brain.notePath(scope, noteId) else { continue }
             
-            try scope.run(ReindexNoteFileTransaction(path: path))
+            try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
         }
         
         if addAlias {

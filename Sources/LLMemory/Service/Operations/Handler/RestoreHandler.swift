@@ -75,7 +75,7 @@ struct RestoreHandler: OperationHandling {
             encoding: .utf8
         )
         try FileManager.default.removeItem(at: trashFile)
-        try scope.run(ReindexNoteFileTransaction(path: destination))
+        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: destination), path: destination))
         try scope.run(TouchNoteUsageTransaction(noteId: noteId, now: now))
         try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
             kind: "restored",

@@ -8,9 +8,11 @@
 import Foundation
 import GRDB
 
-struct StampNoteLifecycleTransaction: GRDBBrainTransaction {
+struct StampNoteLifecycleTransaction: GRDBTransaction {
     // MARK: - Property
     let nid: String
+    // Where the note's body is — the caller resolved it from the same id.
+    let file: URL
     let now: Int
     let isNew: Bool
 
@@ -19,26 +21,25 @@ struct StampNoteLifecycleTransaction: GRDBBrainTransaction {
     private let noteFile = NoteFile()
 
     // MARK: - Initializer
-    init(nid: String, now: Int, isNew: Bool) {
+    init(nid: String, file: URL, now: Int, isNew: Bool) {
         self.nid = nid
+        self.file = file
         self.now = now
         self.isNew = isNew
     }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws {
+    func perform(_ db: Database) throws {
         guard try NoteExistsTransaction(nid: nid).perform(db) else {
             throw NotesError.stampedFileVanished(nid: nid, path: "(no notes row)")
         }
 
-        let relativePath = brain.layout.relativeFile(forId: nid)
         let previousCreated = (try Int.fetchOne(
             db,
             sql: "SELECT created_at FROM note_usage WHERE note_id = ?",
             arguments: [nid]
         )) ?? 0
-        let path = brain.layout.brainRoot.appendingPathComponent(relativePath)
-        let (_, body) = try noteFile.requireNote(at: path)
+        let (_, body) = try noteFile.requireNote(at: file)
         let wordCount = sectionEdit.wordCount(body)
         let sectionCount = sectionEdit.sectionCount(body)
         var created = previousCreated != 0 ? previousCreated : now

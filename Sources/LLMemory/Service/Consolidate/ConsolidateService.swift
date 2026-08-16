@@ -43,6 +43,8 @@ public struct ConsolidateService: ConsolidateServiceable {
 
     private var detector: CandidateDetector { CandidateDetector(brain: brain) }
 
+    private let corpus = CorpusReconciler()
+
     // MARK: - Initializer
     init(storage: GRDBStorage, brain: BrainContext, keywords: any KeywordExtracting) {
         self.storage = storage
@@ -110,7 +112,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     public func integrate() async throws -> IntegrateResult {
         try await storage.run { scope in
             var result = try integrate(scope)
-            let integrity = try scope.run(CheckCorpusIntegrityL1Transaction())
+            let integrity = try corpus.checkFilesPresent(scope.readOnly, brain)
             result.integrityL1 = IntegrateResult.IntegrityReport(
                 checked: integrity.checked,
                 issues: integrity.issues
@@ -211,7 +213,7 @@ public struct ConsolidateService: ConsolidateServiceable {
             )
         )
 
-        let ftsPrune = try scope.run(PruneFtsOrphansTransaction())
+        let ftsPrune = try corpus.reconcileSearchIndex(scope, brain)
 
         // Best-effort passes run as savepointed attempts — a failure rolls
         // its own statements back and is reported by name instead of being

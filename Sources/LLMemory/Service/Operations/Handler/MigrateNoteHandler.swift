@@ -22,6 +22,8 @@ struct MigrateNoteHandler: OperationHandling {
     
     private let frontmatter = Frontmatter()
     
+    private let citationRewriter = CitationRewriter()
+    
     // MARK: - Initializer
     // MARK: - Public
     func validate(
@@ -86,7 +88,7 @@ struct MigrateNoteHandler: OperationHandling {
             ? try scope.run(FetchNoteEntityHitsTransaction(noteId: targetId))
             : []
         
-        try scope.run(ReindexNoteFileTransaction(path: newPath))
+        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: newPath), path: newPath))
         
         var rewritten: [String] = []
         
@@ -104,13 +106,10 @@ struct MigrateNoteHandler: OperationHandling {
             
             // After the new id exists, so the rewritten citations resolve
             // to it on reindex rather than dangling for an instant.
-            rewritten = try scope.run(RewriteInboundCitationsTransaction(
-                from: targetId,
-                to: newId
-            ))
+            rewritten = try citationRewriter.rewrite(scope, context.brain, from: targetId, to: newId)
         }
         
-        try scope.run(StampNoteLifecycleTransaction(nid: newId, now: now, isNew: false))
+        try scope.run(StampNoteLifecycleTransaction(nid: newId, file: context.brain.layout.file(forId: newId), now: now, isNew: false))
         
         let citations = rewritten.isEmpty
             ? ""

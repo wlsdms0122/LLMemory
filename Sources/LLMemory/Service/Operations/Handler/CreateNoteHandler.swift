@@ -139,8 +139,8 @@ struct CreateNoteHandler: OperationHandling {
         try composer.mergeFields(&doc, schema.undeclaredFields(in: op))
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
         
-        try scope.run(ReindexNoteFileTransaction(path: path))
-        try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: true))
+        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
+        try scope.run(StampNoteLifecycleTransaction(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: true))
         try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
             kind: "created",
             reason: op["rationale"] as? String,

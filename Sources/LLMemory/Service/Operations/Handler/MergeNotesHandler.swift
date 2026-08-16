@@ -118,8 +118,8 @@ struct MergeNotesHandler: OperationHandling {
             atomically: true,
             encoding: .utf8
         )
-        try scope.run(ReindexNoteFileTransaction(path: intoPath))
-        try scope.run(StampNoteLifecycleTransaction(nid: intoId, now: now, isNew: false))
+        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: intoPath), path: intoPath))
+        try scope.run(StampNoteLifecycleTransaction(nid: intoId, file: context.brain.layout.file(forId: intoId), now: now, isNew: false))
         
         for fromId in fromIds {
             _ = try scope.run(FlagInboundReferrersTransaction(

@@ -8,19 +8,21 @@
 import Foundation
 import GRDB
 
-struct ReindexNotesTransaction: GRDBBrainTransaction {
+struct ReindexNotesTransaction: GRDBTransaction {
     // MARK: - Property
+    let brain: BrainContext
     let filePaths: [String]
 
     private let indexer = Indexer()
 
     // MARK: - Initializer
-    init(filePaths: [String]) {
+    init(brain: BrainContext, filePaths: [String]) {
+        self.brain = brain
         self.filePaths = filePaths
     }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws -> [Indexer.ReindexOutcome] {
+    func perform(_ db: Database) throws -> [Indexer.ReindexOutcome] {
         try indexer.reindexFiles(db, brain, filePaths: filePaths)
     }
 

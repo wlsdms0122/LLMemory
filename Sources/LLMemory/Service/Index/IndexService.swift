@@ -37,6 +37,7 @@ public struct IndexService: IndexServiceable {
 
             return try scope.run(
                 ReconcileIndexTransaction(
+                    brain: brain,
                     scan: scan,
                     rebuild: rebuild,
                     now: Int(Date().timeIntervalSince1970)
@@ -49,14 +50,14 @@ public struct IndexService: IndexServiceable {
         filePaths: [String]
     ) async throws -> [Indexer.ReindexOutcome] {
         try await storage.run { scope in
-            try scope.run(ReindexNotesTransaction(filePaths: filePaths))
+            try scope.run(ReindexNotesTransaction(brain: brain, filePaths: filePaths))
         }
     }
 
     public func check(
         level: Indexer.IntegrityLevel
     ) async throws -> (ok: Bool, msgs: [String]) {
-        try await storage.read { scope in try scope.run(CheckIntegrityTransaction(level: level)) }
+        try await storage.read { scope in try scope.run(CheckIntegrityTransaction(brain: brain, level: level)) }
     }
 
     public func buildVectors() async throws -> VectorBuildResult {

@@ -89,11 +89,11 @@ struct SetFrontmatterHandler: OperationHandling {
         
         try composer.mergeFields(&doc, fields)
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-        try scope.run(ReindexNoteFileTransaction(path: path))
+        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
         
         let now = context.now
         
-        try scope.run(StampNoteLifecycleTransaction(nid: noteId, now: now, isNew: false))
+        try scope.run(StampNoteLifecycleTransaction(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: false))
         
         let keys = fields.keys.sorted().joined(separator: ",")
         

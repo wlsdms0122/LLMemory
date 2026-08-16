@@ -8,27 +8,24 @@
 import Foundation
 import GRDB
 
-struct ReindexNoteFileTransaction: GRDBBrainTransaction {
+struct ReindexNoteFileTransaction: GRDBTransaction {
     // MARK: - Property
+    // The address the file was resolved to — the caller has already refused
+    // anything that is not a live note of this brain.
+    let noteId: String
     let path: URL
 
     private let frontmatter = Frontmatter()
 
     // MARK: - Initializer
-    init(path: URL) {
+    init(noteId: String, path: URL) {
+        self.noteId = noteId
         self.path = path
     }
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database, _ brain: BrainContext) throws -> String {
-        if let rejection = brain.layout.liveNoteRejection(of: path) {
-            throw NotesError.notALiveNote(
-                path: brain.layout.relative(of: path) ?? path.path,
-                reason: rejection
-            )
-        }
-
+    func perform(_ db: Database) throws -> String {
         let now = Int(Date().timeIntervalSince1970)
 
         var text = try String(contentsOf: path, encoding: .utf8)
@@ -40,8 +37,15 @@ struct ReindexNoteFileTransaction: GRDBBrainTransaction {
             try text.write(to: path, atomically: true, encoding: .utf8)
         }
 
-        return try UpsertNoteTransaction(file: path, fields: fields, body: body, raw: text, now: now)
-            .perform(db, brain)
+        return try UpsertNoteTransaction(
+            noteId: noteId,
+            file: path,
+            fields: fields,
+            body: body,
+            raw: text,
+            now: now
+        )
+            .perform(db)
     }
 
     // MARK: - Private
