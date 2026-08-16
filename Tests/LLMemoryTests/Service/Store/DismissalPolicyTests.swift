@@ -19,7 +19,7 @@ struct DismissalsTests {
     
     private let indexer = Indexer()
 
-    private let detector = CandidateDetector()
+    private var detector: CandidateDetector { CandidateDetector(brain: home.brain) }
 
     // MARK: - Initializer
     init() throws {
@@ -119,7 +119,7 @@ struct DismissalsTests {
         #expect(dismiss("big-5").status == "ok")
         
         // Then
-        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("zephyrquark", keywords: FrequencyKeywordExtractor())).perform(database, home.brain) }
+        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("zephyrquark", keywords: FrequencyKeywordExtractor()), primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).perform(database) }
         
         #expect(!(try splitCandidateIds().contains("big-5")))
         #expect(hits.contains { hit in hit.id == "big-5" }, "a dismissal must not affect search")

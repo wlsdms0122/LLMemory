@@ -8,35 +8,36 @@
 import Foundation
 import GRDB
 
-struct ExpandLinksTransaction: GRDBBrainReadTransaction {
+struct ExpandLinksTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteIds: [String]
     let hops: Int
-    let minWeight: Double?
     let limit: Int
     let kind: LinkKind?
+    let minWeight: Double
+    let siblingDiscount: Double
 
     // MARK: - Initializer
     init(
         noteIds: [String],
         hops: Int = 1,
-        minWeight: Double? = nil,
         limit: Int = 10,
-        kind: LinkKind? = nil
+        kind: LinkKind? = nil,
+        minWeight: Double,
+        siblingDiscount: Double
     ) {
         self.noteIds = noteIds
         self.hops = hops
-        self.minWeight = minWeight
         self.limit = limit
         self.kind = kind
+        self.minWeight = minWeight
+        self.siblingDiscount = siblingDiscount
     }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws -> [ExpandedNote] {
-        let siblingDiscount = brain.genes.double("links.sibling_rank_weight")
+    func perform(_ db: Database) throws -> [ExpandedNote] {
         guard !noteIds.isEmpty else { return [] }
 
-        let floor = minWeight ?? brain.genes.double("links.neighbor_floor")
         var seen: [String: (note: ExpandedNote, rankWeight: Double)] = [:]
         var frontier = Set(noteIds)
         var visited = Set(noteIds)
@@ -60,7 +61,7 @@ struct ExpandLinksTransaction: GRDBBrainReadTransaction {
             arguments.append(contentsOf: frontierIds as [DatabaseValueConvertible?])
             arguments.append(contentsOf: frontierIds as [DatabaseValueConvertible?])
             arguments.append(contentsOf: frontierIds as [DatabaseValueConvertible?])
-            arguments.append(floor)
+            arguments.append(minWeight)
 
             if let kind {
                 sql += " AND l.kind = ?"
@@ -84,7 +85,6 @@ struct ExpandLinksTransaction: GRDBBrainReadTransaction {
                             id: noteId,
                             title: row["title"],
                             summary: row["summary"] as String?,
-                            path: brain.layout.relativeFile(forId: row["id"] as String),
                             weight: row["weight"],
                             rankWeight: rankWeight
                         ),

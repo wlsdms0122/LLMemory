@@ -89,7 +89,7 @@ struct VectorsTests {
         _ = try home.database().write { db in try BuildVectorsTransaction(dimension: home.config.getInt("vectors.dim", default: 48)).perform(db) }
         
         // When
-        let hits = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vec-a0"], limit: 8).perform(db, home.brain) }
+        let hits = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vec-a0"], limit: 8).perform(db) }
         
         // Then
         #expect(!hits.isEmpty)
@@ -106,7 +106,7 @@ struct VectorsTests {
         home.createNote(id: "vec-x2")
         
         // When
-        let hits = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vec-x1"], limit: 5).perform(db, home.brain) }
+        let hits = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vec-x1"], limit: 5).perform(db) }
         
         // Then
         #expect(hits.isEmpty)
@@ -169,7 +169,7 @@ struct VectorsTests {
         _ = try home.database().write { db in try BuildVectorsTransaction(dimension: home.config.getInt("vectors.dim", default: 48)).perform(db) }
         
         // When
-        let hits = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vg-act-0"], limit: 5).perform(db, home.brain) }
+        let hits = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vg-act-0"], limit: 5).perform(db) }
         
         // Then
         #expect(hits.count == 4)
@@ -201,7 +201,7 @@ struct VectorsTests {
         }
         
         // When
-        let got = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vt-n0"], limit: 3).perform(db, home.brain) }.map { hit in hit.id }
+        let got = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vt-n0"], limit: 3).perform(db) }.map { hit in hit.id }
         
         // Then
         #expect(got == ["vt-n1", "vt-n2", "vt-n3"],

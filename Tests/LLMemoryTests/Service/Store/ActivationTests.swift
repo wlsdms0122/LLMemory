@@ -43,13 +43,13 @@ struct ActivationTests {
         try home.database().write { database in
             try recordRetrieval(database, timestamp: base, sessionId: nil, hitIds: ["n1"])
             try recordRetrieval(database, timestamp: base + 60, sessionId: nil, hitIds: ["n2"])
-            try recordRetrieval(database, timestamp: base + 60 + Activation.windowGapSec(home.brain) + 1,
+            try recordRetrieval(database, timestamp: base + 60 + home.activationTuning.windowGapSec + 1,
                 sessionId: nil, hitIds: ["n1"])
             try recordRetrieval(database, timestamp: base, sessionId: "task-a", hitIds: ["n1"])
             try recordRetrieval(database, timestamp: base + 90_000, sessionId: "task-a", hitIds: ["n2"])
         
         // When
-            let result = try DeriveActivityWindowsTransaction(now: base + 100_000).perform(database, home.brain)
+            let result = try DeriveActivityWindowsTransaction(now: base + 100_000, windowGapSec: home.activationTuning.windowGapSec).perform(database)
         
         // Then
             #expect(result.eventsConsumed == 5)
@@ -77,12 +77,12 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: 2_000_000, sessionId: nil, hitIds: ["n1"])
         
         // When
-            let first = try DeriveActivityWindowsTransaction(now: 2_000_100).perform(database, home.brain)
+            let first = try DeriveActivityWindowsTransaction(now: 2_000_100, windowGapSec: home.activationTuning.windowGapSec).perform(database)
         
         // Then
             #expect(first.eventsConsumed == 1)
             
-            let second = try DeriveActivityWindowsTransaction(now: 2_000_200).perform(database, home.brain)
+            let second = try DeriveActivityWindowsTransaction(now: 2_000_200, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             #expect(second.eventsConsumed == 0)
             
@@ -130,7 +130,7 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: now - 60, sessionId: nil,
                 hitIds: ["transfer-flow", "unrelated-note"])
             
-            _ = try DeriveActivityWindowsTransaction(now: now).perform(database, home.brain)
+            _ = try DeriveActivityWindowsTransaction(now: now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
         }
         
         // When
@@ -184,18 +184,18 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: now - 10, sessionId: "turn-1:capture",
                 hitIds: ["snapshot-only-note"])
             
-            _ = try DeriveActivityWindowsTransaction(now: now).perform(database, home.brain)
+            _ = try DeriveActivityWindowsTransaction(now: now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
         
         // When
             // A labeled mark attaches to the window with that label, and to no other.
             let ok = try MarkNotesUsedTransaction(ids: ["answer-note"], response: nil,
-                sessionLabel: SessionId("turn-1"), now: now).perform(database, home.brain)
+                sessionLabel: SessionId("turn-1"), now: now, lookbackSec: home.activationTuning.usedLookbackSec).perform(database)
         
         // Then
             #expect(ok.first?.signal == "reported")
             #expect(throws: Activation.UsedError.self) {
                 _ = try MarkNotesUsedTransaction(ids: ["snapshot-only-note"], response: nil,
-                    sessionLabel: SessionId("turn-1"), now: now).perform(database, home.brain)
+                    sessionLabel: SessionId("turn-1"), now: now, lookbackSec: home.activationTuning.usedLookbackSec).perform(database)
             }
         }
     }
@@ -210,7 +210,7 @@ struct ActivationTests {
         try home.database().write { database in
             try recordRetrieval(database, timestamp: now - 30, sessionId: "w1", hitIds: ["n1"])
             
-            _ = try DeriveActivityWindowsTransaction(now: now).perform(database, home.brain)
+            _ = try DeriveActivityWindowsTransaction(now: now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
         }
         
         // When

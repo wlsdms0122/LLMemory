@@ -8,24 +8,34 @@
 import Foundation
 import GRDB
 
-struct FetchSimilarNotesTransaction: GRDBBrainReadTransaction {
+struct FetchSimilarNotesTransaction: GRDBReadTransaction {
     // MARK: - Property
     let keywords: [String]
     let limit: Int
     let includeStale: Bool
     let sessionId: SessionId?
-
+    let primingWindowMin: Int
+    let primingAlpha: Double
 
     // MARK: - Initializer
-    init(keywords: [String], limit: Int, includeStale: Bool = false, sessionId: SessionId? = nil) {
+    init(
+        keywords: [String],
+        limit: Int,
+        includeStale: Bool = false,
+        sessionId: SessionId? = nil,
+        primingWindowMin: Int,
+        primingAlpha: Double
+    ) {
         self.keywords = keywords
         self.limit = limit
         self.includeStale = includeStale
         self.sessionId = sessionId
+        self.primingWindowMin = primingWindowMin
+        self.primingAlpha = primingAlpha
     }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws -> [SimilarNote] {
+    func perform(_ db: Database) throws -> [SimilarNote] {
         guard let expression = FTSMatch.cues(keywords).expression else { return [] }
 
         var sql = """
@@ -45,7 +55,7 @@ struct FetchSimilarNotesTransaction: GRDBBrainReadTransaction {
         let prior = TagPriorRerank.prior(
             db,
             sessionId: sessionId,
-            windowMin: brain.genes.int("priming.window_min"),
+            windowMin: primingWindowMin,
             now: now
         )
 
@@ -64,7 +74,6 @@ struct FetchSimilarNotesTransaction: GRDBBrainReadTransaction {
                 id: row["id"],
                 title: row["title"],
                 summary: row["summary"] as String?,
-                path: brain.layout.relativeFile(forId: row["id"] as String),
                 tags: tags,
                 section: section
             )
@@ -73,7 +82,7 @@ struct FetchSimilarNotesTransaction: GRDBBrainReadTransaction {
         return TagPriorRerank.apply(
             pool,
             prior: prior,
-            alpha: brain.genes.double("priming.alpha"),
+            alpha: primingAlpha,
             limit: limit
         ) { note in note.tags }
     }

@@ -8,25 +8,31 @@
 import Foundation
 import GRDB
 
-struct FetchLinkNeighborsTransaction: GRDBBrainReadTransaction {
+struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let noteId: String
-    let minWeight: Double?
     let limit: Int
     let kind: String?
+    let minWeight: Double
+    let siblingDiscount: Double
 
     // MARK: - Initializer
-    init(noteId: String, minWeight: Double? = nil, limit: Int = 5, kind: String? = nil) {
+    init(
+        noteId: String,
+        limit: Int = 5,
+        kind: String? = nil,
+        minWeight: Double,
+        siblingDiscount: Double
+    ) {
         self.noteId = noteId
-        self.minWeight = minWeight
         self.limit = limit
         self.kind = kind
+        self.minWeight = minWeight
+        self.siblingDiscount = siblingDiscount
     }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws -> [LinkNeighbor] {
-        let siblingDiscount = brain.genes.double("links.sibling_rank_weight")
-        let floor = minWeight ?? brain.genes.double("links.neighbor_floor")
+    func perform(_ db: Database) throws -> [LinkNeighbor] {
         var sql = """
             SELECT n.id, n.title, n.summary, l.kind, l.weight,
                    \(LinkRanking.weightSQL("l", siblingDiscount: siblingDiscount)) AS rank_w
@@ -35,7 +41,7 @@ struct FetchLinkNeighborsTransaction: GRDBBrainReadTransaction {
             WHERE (l.src = ? OR l.dst = ?) AND l.weight >= ?
               AND \(Policy.surface())
             """
-        var arguments: [DatabaseValueConvertible?] = [noteId, noteId, noteId, floor]
+        var arguments: [DatabaseValueConvertible?] = [noteId, noteId, noteId, minWeight]
 
         if let kind {
             sql += " AND l.kind = ?"
@@ -52,7 +58,6 @@ struct FetchLinkNeighborsTransaction: GRDBBrainReadTransaction {
                 id: row["id"],
                 title: row["title"],
                 summary: row["summary"] as String?,
-                path: brain.layout.relativeFile(forId: row["id"] as String),
                 kind: row["kind"],
                 weight: row["weight"]
             )

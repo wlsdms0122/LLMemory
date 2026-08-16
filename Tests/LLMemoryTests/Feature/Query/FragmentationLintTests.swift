@@ -208,7 +208,7 @@ struct FragmentationLintTests {
         #expect(result.status == "ok", "\(result.error)")
         
         // When
-        let families = try home.readScope { scope in try NoteFamilyIndex().families(scope) }
+        let families = try home.readScope { scope in try NoteFamilyIndex().families(scope, minFamily: home.lintTuning.fragmentMinFamily) }
         
         // Then
         #expect(families.contains { family in

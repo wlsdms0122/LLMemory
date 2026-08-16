@@ -16,7 +16,7 @@ struct TagNearDuplicateRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope) throws -> [LintFinding] {
+    func check(_ scope: GRDBReadScope, _ tuning: LintTuning) throws -> [LintFinding] {
         let counts = try scope.run(FetchTagUsageTransaction())
         var findings: [LintFinding] = []
         

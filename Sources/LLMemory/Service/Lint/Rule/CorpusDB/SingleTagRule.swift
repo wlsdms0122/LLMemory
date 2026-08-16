@@ -17,7 +17,7 @@ struct SingleTagRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope) throws -> [LintFinding] {
+    func check(_ scope: GRDBReadScope, _ tuning: LintTuning) throws -> [LintFinding] {
         try scope.run(FetchFragmentationRowsTransaction())
             .filter { row in
                 !(row.linkN == 0 && row.entN == 0 && row.tagN <= 1) && row.tagN <= 1

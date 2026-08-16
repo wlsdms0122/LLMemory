@@ -17,19 +17,24 @@ import GRDB
 // front. Expansions degrade rather than fail, so a missing vector index costs
 // the caller its extra hits and nothing else.
 //
-// How the text is read is the caller's choice and arrives as a contract; how
-// wide the fetches reach is the brain's, and is read from the gene catalog
-// here rather than taken as a parameter. A parameter beside them would give
-// "which limit did this replay use?" two answers, and the shadow replay
-// (which swaps a gene value and re-runs) is exactly the caller that would
-// make the two disagree.
-struct BuildFramingSnapshotTransaction: GRDBBrainReadTransaction {
+// How the text is read and how wide the fetches reach are both the caller's,
+// and both arrive as parameters. The shadow replay — which re-runs a query
+// under one swapped gene value — is the caller that makes this matter: it now
+// says which numbers it replayed with instead of handing down a brain that
+// answers differently than the one the baseline used.
+struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
     // MARK: - Property
     let text: String
     let linkKind: LinkKind?
     let sessionId: SessionId?
     let keywords: any KeywordExtracting
     let entities: any EntityHinting
+    let similarLimit: Int
+    let expandHops: Int
+    let neighborFloor: Double
+    let siblingDiscount: Double
+    let primingWindowMin: Int
+    let primingAlpha: Double
 
     // MARK: - Initializer
     init(
@@ -37,27 +42,39 @@ struct BuildFramingSnapshotTransaction: GRDBBrainReadTransaction {
         linkKind: LinkKind? = nil,
         sessionId: SessionId? = nil,
         keywords: any KeywordExtracting,
-        entities: any EntityHinting
+        entities: any EntityHinting,
+        similarLimit: Int,
+        expandHops: Int,
+        neighborFloor: Double,
+        siblingDiscount: Double,
+        primingWindowMin: Int,
+        primingAlpha: Double
     ) {
         self.text = text
         self.linkKind = linkKind
         self.sessionId = sessionId
         self.keywords = keywords
         self.entities = entities
+        self.similarLimit = similarLimit
+        self.expandHops = expandHops
+        self.neighborFloor = neighborFloor
+        self.siblingDiscount = siblingDiscount
+        self.primingWindowMin = primingWindowMin
+        self.primingAlpha = primingAlpha
     }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws -> FramingSnapshot {
-        let similarLimit = brain.genes.int("related.similar_limit")
-        let expandHops = brain.genes.int("related.expand_hops")
+    func perform(_ db: Database) throws -> FramingSnapshot {
         let cues = keywords.keywords(in: text, limit: RetrievalCue.limit)
         let entityHints = entities.hints(in: text)
         let similarNotes = try FetchSimilarNotesTransaction(
             keywords: cues,
             limit: similarLimit,
-            sessionId: sessionId
+            sessionId: sessionId,
+            primingWindowMin: primingWindowMin,
+            primingAlpha: primingAlpha
         )
-            .perform(db, brain)
+            .perform(db)
         let similarTagSet = Set(similarNotes.flatMap { note in note.tags })
         let topTagCounts = try FetchTopTagsTransaction().perform(db)
         let cooccurrences = try FetchTagCooccurrenceTransaction(tags: similarTagSet.sorted())
@@ -73,9 +90,11 @@ struct BuildFramingSnapshotTransaction: GRDBBrainReadTransaction {
                 linked = try ExpandLinksTransaction(
                     noteIds: similarNotes.map { note in note.id },
                     hops: expandHops,
-                    kind: linkKind
+                    kind: linkKind,
+                    minWeight: neighborFloor,
+                    siblingDiscount: siblingDiscount
                 )
-                    .perform(db, brain)
+                    .perform(db)
             } catch {
                 degraded.append("linked: \(error)")
             }
@@ -93,7 +112,7 @@ struct BuildFramingSnapshotTransaction: GRDBBrainReadTransaction {
                     limit: similarLimit,
                     excludeIds: already
                 )
-                    .perform(db, brain)
+                    .perform(db)
             } catch {
                 degraded.append("vector_linked: \(error)")
             }

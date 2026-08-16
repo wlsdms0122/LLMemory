@@ -13,7 +13,6 @@ public struct ExpandedNote: Sendable {
     public let id: String
     public let title: String
     public let summary: String?
-    public let path: String
     public let weight: Double
     public let rankWeight: Double
 

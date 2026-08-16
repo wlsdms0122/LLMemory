@@ -121,7 +121,7 @@ struct QuerySearch: AsyncParsableCommand {
                     title: row.title,
                     summary: row.summary,
                     section: row.section,
-                    path: verbose ? row.path : nil,
+                    path: verbose ? NoteAddress.relativeFile(forId: row.id) : nil,
                     tags: verbose
                         ? ((row.tagsCSV ?? "").isEmpty
                             ? []
@@ -136,7 +136,7 @@ struct QuerySearch: AsyncParsableCommand {
                     title: note.title,
                     summary: note.summary,
                     weight: note.weight,
-                    path: verbose ? note.path : nil
+                    path: verbose ? NoteAddress.relativeFile(forId: note.id) : nil
                 )
             }
         )

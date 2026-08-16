@@ -11,7 +11,7 @@ import Foundation
 // — what the parent of `a.b.c` is does not depend on where the files live,
 // and saying so here keeps the questions that do need a home in one place
 // rather than mixed in with the ones that never did.
-enum NoteAddress {
+public enum NoteAddress {
     // MARK: - Property
     // An id is labels joined by dots, and the dots are directory separators.
     static let idRegex = try! NSRegularExpression(
@@ -24,6 +24,13 @@ enum NoteAddress {
     // ones is how two fields of the same response come to disagree.
     static func labels(of id: String) -> [String] {
         id.split(separator: ".").map(String.init)
+    }
+
+    // Where the note lives, spelled relative to the brain root. The dots are
+    // directory separators, so this needs no home — a home only turns it
+    // absolute, which is BrainLayout's job.
+    public static func relativeFile(forId id: String) -> String {
+        "cortex/" + labels(of: id).joined(separator: "/") + ".md"
     }
 
     // The ancestor of `id` that is `depth` labels long, or nil if the id is

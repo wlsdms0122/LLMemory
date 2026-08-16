@@ -13,7 +13,6 @@ struct LinkNeighbor {
     let id: String
     let title: String
     let summary: String?
-    let path: String
     let kind: String
     let weight: Double
 

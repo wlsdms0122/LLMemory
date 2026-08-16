@@ -14,7 +14,7 @@ struct CandidateDiscoveryTests {
     // MARK: - Property
     private let home: MemoryHome
     
-    private let detector = CandidateDetector()
+    private var detector: CandidateDetector { CandidateDetector(brain: home.brain) }
 
     // MARK: - Initializer
     init() throws {

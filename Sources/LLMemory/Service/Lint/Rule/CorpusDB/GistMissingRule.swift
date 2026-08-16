@@ -16,8 +16,8 @@ struct GistMissingRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope) throws -> [LintFinding] {
-        try families.families(scope).compactMap { family in
+    func check(_ scope: GRDBReadScope, _ tuning: LintTuning) throws -> [LintFinding] {
+        try families.families(scope, minFamily: tuning.fragmentMinFamily).compactMap { family in
             guard !family.hasIndex, let stem = family.stem else { return nil }
             
             return .init(

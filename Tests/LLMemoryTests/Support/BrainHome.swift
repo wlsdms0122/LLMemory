@@ -54,7 +54,18 @@ extension BrainHome {
     // rather than widening the contract until the test fits through it.
     var retrievalService: RetrievalService { RetrievalService(storage: storage, brain: brain, keywords: FrequencyKeywordExtractor(), entities: PatternEntityHinter()) }
 
-    var lintScanner: LintScanner { LintScanner(rules: LintRuleRegistry()) }
+    var lintScanner: LintScanner { LintScanner(rules: LintRuleRegistry(), brain: brain) }
+
+    var candidateDetector: CandidateDetector { CandidateDetector(brain: brain) }
+
+    // The tuning a transaction would otherwise have read off the brain — the
+    // production values, so a test that does not care about a threshold gets
+    // the same one the service would have passed.
+    var retrievalTuning: RetrievalTuning { RetrievalTuning(brain.genes) }
+
+    var activationTuning: ActivationTuning { ActivationTuning(brain) }
+
+    var lintTuning: LintTuning { LintTuning(brain.config) }
 
     var lintService: LintService { LintService(storage: storage, brain: brain, scanner: lintScanner) }
 

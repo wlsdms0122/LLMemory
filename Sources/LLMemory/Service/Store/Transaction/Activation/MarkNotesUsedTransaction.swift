@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct MarkNotesUsedTransaction: GRDBBrainTransaction {
+struct MarkNotesUsedTransaction: GRDBTransaction {
     struct UsedOutcome {
         // MARK: - Property
         let noteId: String
@@ -25,19 +25,27 @@ struct MarkNotesUsedTransaction: GRDBBrainTransaction {
     let response: String?
     let sessionLabel: SessionId?
     let now: Int
+    let lookbackSec: Int
 
     // MARK: - Initializer
-    init(ids: [String], response: String?, sessionLabel: SessionId? = nil, now: Int) {
+    init(
+        ids: [String],
+        response: String?,
+        sessionLabel: SessionId? = nil,
+        now: Int,
+        lookbackSec: Int
+    ) {
         self.ids = ids
         self.response = response
         self.sessionLabel = sessionLabel
         self.now = now
+        self.lookbackSec = lookbackSec
     }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws -> [UsedOutcome] {
+    func perform(_ db: Database) throws -> [UsedOutcome] {
         var outcomes: [UsedOutcome] = []
-        let cutoff = now - Activation.usedLookbackSec(brain)
+        let cutoff = now - lookbackSec
 
         for id in ids {
             let hit: Row?

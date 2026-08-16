@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct SearchNotesFTSTransaction: GRDBBrainReadTransaction {
+struct SearchNotesFTSTransaction: GRDBReadTransaction {
     // MARK: - Property
     let match: FTSMatch
     let tags: [String]
@@ -17,6 +17,8 @@ struct SearchNotesFTSTransaction: GRDBBrainReadTransaction {
     let excludeTags: [String]?
     let sinceTs: Int?
     let sessionId: SessionId?
+    let primingWindowMin: Int
+    let primingAlpha: Double
 
     // MARK: - Initializer
     init(
@@ -26,7 +28,9 @@ struct SearchNotesFTSTransaction: GRDBBrainReadTransaction {
         includeStale: Bool = false,
         excludeTags: [String]? = nil,
         sinceTs: Int? = nil,
-        sessionId: SessionId? = nil
+        sessionId: SessionId? = nil,
+        primingWindowMin: Int,
+        primingAlpha: Double
     ) {
         self.match = match
         self.tags = tags
@@ -35,10 +39,12 @@ struct SearchNotesFTSTransaction: GRDBBrainReadTransaction {
         self.excludeTags = excludeTags
         self.sinceTs = sinceTs
         self.sessionId = sessionId
+        self.primingWindowMin = primingWindowMin
+        self.primingAlpha = primingAlpha
     }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws -> [SearchRow] {
+    func perform(_ db: Database) throws -> [SearchRow] {
         guard let expression = match.expression else { return [] }
 
         var sql = SearchRow.projectionSQL + """
@@ -69,7 +75,7 @@ struct SearchNotesFTSTransaction: GRDBBrainReadTransaction {
         let prior = TagPriorRerank.prior(
             db,
             sessionId: sessionId,
-            windowMin: brain.genes.int("priming.window_min"),
+            windowMin: primingWindowMin,
             now: now
         )
 
@@ -85,9 +91,9 @@ struct SearchNotesFTSTransaction: GRDBBrainReadTransaction {
         }
 
         return TagPriorRerank.apply(
-            rows.map { row in SearchRow(row, brain.layout) },
+            rows.map { row in SearchRow(row) },
             prior: prior,
-            alpha: brain.genes.double("priming.alpha"),
+            alpha: primingAlpha,
             limit: limit
         ) { row in row.tags }
     }

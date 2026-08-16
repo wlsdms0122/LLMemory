@@ -122,11 +122,10 @@ struct BrainLayout: Sendable {
     }
 
     // The brain-relative spelling of the same address — what output surfaces
-    // show and what callers used to read off the removed column.
+    // show and what callers used to read off the removed column. It needs no
+    // home, so the grammar owns it and this only forwards.
     func relativeFile(forId id: String) -> String {
-        let file = file(forId: id)
-
-        return relative(of: file) ?? file.path
+        NoteAddress.relativeFile(forId: id)
     }
 
     // Strictly the inverse of file(forId:), verified rather than assumed. A dot

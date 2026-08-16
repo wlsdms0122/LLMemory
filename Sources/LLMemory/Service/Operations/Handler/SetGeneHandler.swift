@@ -59,7 +59,8 @@ struct SetGeneHandler: OperationHandling {
                     cause: "set_gene",
                     detail: reason,
                     requireMutable: false,
-                    ts: now
+                    ts: now,
+                    configured: context.brain.config.double(id)
                 )
             )
             
@@ -71,7 +72,12 @@ struct SetGeneHandler: OperationHandling {
         }
         
         let old = try scope.run(
-            RevertGeneValueTransaction(geneId: id, cause: "set_gene", ts: now)
+            RevertGeneValueTransaction(
+                geneId: id,
+                cause: "set_gene",
+                ts: now,
+                configured: context.brain.config.double(id)
+            )
         )
         
         return ["status": "ok", "ids": [id], "note": "gene \(id): \(old) → wild-type"]

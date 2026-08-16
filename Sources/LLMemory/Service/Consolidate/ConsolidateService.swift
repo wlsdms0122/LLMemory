@@ -41,7 +41,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     // from this brain each time they are needed.
     var enrichment: EnrichmentTuning { EnrichmentTuning(brain.config) }
 
-    private let detector = CandidateDetector()
+    private var detector: CandidateDetector { CandidateDetector(brain: brain) }
 
     // MARK: - Initializer
     init(storage: GRDBStorage, brain: BrainContext, keywords: any KeywordExtracting) {
@@ -124,7 +124,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     public func homeostasis() async throws -> HomeostasisReport {
         let now = Int(Date().timeIntervalSince1970)
         let report = try await storage.run { scope in
-            _ = try scope.run(DeriveActivityWindowsTransaction(now: now))
+            _ = try scope.run(DeriveActivityWindowsTransaction(now: now, windowGapSec: ActivationTuning(brain).windowGapSec))
 
             let report = try homeostasisTick(scope, now: now)
 
@@ -191,7 +191,7 @@ public struct ConsolidateService: ConsolidateServiceable {
         let now = Int(Date().timeIntervalSince1970)
         let retentionSec = brain.config.getInt("events.retention_days", default: 30) * 24 * 60 * 60
 
-        _ = try scope.run(DeriveActivityWindowsTransaction(now: now))
+        _ = try scope.run(DeriveActivityWindowsTransaction(now: now, windowGapSec: ActivationTuning(brain).windowGapSec))
 
         let eventsCompacted = try scope.run(
             CompactOldEventsTransaction(now: now, retentionSec: retentionSec)
@@ -392,7 +392,8 @@ public struct ConsolidateService: ConsolidateServiceable {
                         cause: "homeostasis:expand_landing",
                         detail: "rate=\(String(format: "%.4f", landingRate)) n=\(sampleSeen)",
                         requireMutable: true,
-                        ts: now
+                        ts: now,
+                        configured: brain.config.double(gene)
                     )
                 )
                 adjustedGene = gene

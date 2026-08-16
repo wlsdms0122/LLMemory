@@ -13,6 +13,11 @@ import Foundation
 struct LintScanner: LintScanning {
     // MARK: - Property
     let rules: LintRuleRegistry
+
+    // The brain being inspected — its config sets the thresholds the rules
+    // judge by, and its layout says where a note id lives. Taken here rather
+    // than off the scope: a scope is a database handle.
+    let brain: BrainContext
     
     private let engine = LintEngine()
     
@@ -23,10 +28,23 @@ struct LintScanner: LintScanning {
     private let frontmatter = Frontmatter()
     
     private let dismissalPolicy = DismissalPolicy()
+
+    // The thresholds this brain judges by, resolved once per scanner.
+    private var tuning: LintTuning { LintTuning(brain.config) }
+
+    // One spelling of the corpus read, so a single-note lint and a full pass
+    // score against the same thresholds.
+    private var corpusIndexTransaction: FetchLintCorpusIndexTransaction {
+        FetchLintCorpusIndexTransaction(
+            oversizedWords: tuning.oversizedWords,
+            growthMinDatedSections: tuning.growthMinDatedSections
+        )
+    }
     
     // MARK: - Initializer
-    init(rules: LintRuleRegistry) {
+    init(rules: LintRuleRegistry, brain: BrainContext) {
         self.rules = rules
+        self.brain = brain
     }
     
     // MARK: - Public
@@ -93,11 +111,11 @@ struct LintScanner: LintScanning {
     }
     
     func lintNote(_ scope: GRDBReadScope, nid: String) throws -> [LintIssue] {
-        checked(try lintNote(scope, nid: nid, index: scope.run(FetchLintCorpusIndexTransaction())))
+        checked(try lintNote(scope, nid: nid, index: scope.run(corpusIndexTransaction)))
     }
     
     func lintAll(_ scope: GRDBReadScope) throws -> [LintIssue] {
-        let index = try scope.run(FetchLintCorpusIndexTransaction())
+        let index = try scope.run(corpusIndexTransaction)
         var issues: [LintIssue] = []
         
         for nid in index.ids.sorted() {
@@ -105,7 +123,7 @@ struct LintScanner: LintScanning {
         }
         
         for rule in rules.corpusDBRules {
-            issues.append(contentsOf: try rule.check(scope).map { finding in
+            issues.append(contentsOf: try rule.check(scope, tuning).map { finding in
                 corpusIssue(code: rule.code, severity: rule.severity.rawValue, finding)
             })
         }
@@ -166,7 +184,7 @@ struct LintScanner: LintScanning {
                 
                 return dismissalPolicy.gate(
                     dismissal,
-                    config: scope.brain.config,
+                    config: brain.config,
                     currentWords: shape.words,
                     currentSections: shape.sections,
                     globalGeneration: generation
@@ -238,8 +256,8 @@ struct LintScanner: LintScanning {
             return [LintIssue("error", "missing", "note not in db: \(nid)", .note(nid))]
         }
         
-        let relativePath = scope.brain.layout.relativeFile(forId: nid)
-        let path = scope.brain.layout.file(forId: nid)
+        let relativePath = brain.layout.relativeFile(forId: nid)
+        let path = brain.layout.file(forId: nid)
         
         if !FileManager.default.fileExists(atPath: path.path) {
             return [LintIssue("error", "file-missing", "file does not exist: \(relativePath)", .note(nid))]

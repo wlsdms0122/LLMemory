@@ -49,7 +49,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(match: .text("log masking transformer", keywords: FrequencyKeywordExtractor())).perform(database, home.brain)
+            try SearchNotesFTSTransaction(match: .text("log masking transformer", keywords: FrequencyKeywordExtractor()), primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).perform(database)
         }
         
         // Then
@@ -64,7 +64,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(match: .raw("transfer NOT giro")).perform(database, home.brain)
+            try SearchNotesFTSTransaction(match: .raw("transfer NOT giro"), primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).perform(database)
         }
         
         // Then
@@ -83,7 +83,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(match: .text("quixotic pool", keywords: FrequencyKeywordExtractor()), limit: 40).perform(database, home.brain)
+            try SearchNotesFTSTransaction(match: .text("quixotic pool", keywords: FrequencyKeywordExtractor()), limit: 40, primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).perform(database)
         }
         
         // Then
@@ -105,7 +105,7 @@ struct SearchTests {
         // Then
         try home.read { database in
             #expect(throws: FTSMatchError.self) {
-                _ = try SearchNotesFTSTransaction(match: .raw("transfer \"")).perform(database, home.brain)
+                _ = try SearchNotesFTSTransaction(match: .raw("transfer \""), primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).perform(database)
             }
         }
     }
@@ -116,7 +116,7 @@ struct SearchTests {
         #expect(create(id: "safe-note", title: "transfer", body: "## A\ntransfer\n").status == "ok")
         
         // When
-        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("transfer \"", keywords: FrequencyKeywordExtractor())).perform(database, home.brain) }
+        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("transfer \"", keywords: FrequencyKeywordExtractor()), primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).perform(database) }
         
         // Then
         #expect(hits.contains { hit in hit.id == "safe-note" })
@@ -134,8 +134,8 @@ struct SearchTests {
 
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(match: .text("nothing to do with it", keywords: FixedKeywords()))
-                .perform(database, home.brain)
+            try SearchNotesFTSTransaction(match: .text("nothing to do with it", keywords: FixedKeywords()), primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha)
+                .perform(database)
         }
 
         // Then

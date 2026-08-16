@@ -75,7 +75,7 @@ struct GenomeTests {
             _ = try GRDBScope(database, home.brain).run(
                 ApplyGeneValueTransaction(
                     geneId: "priming.alpha", value: 1.2, cause: "set_gene",
-                    requireMutable: false, ts: 1
+                    requireMutable: false, ts: 1, configured: nil
                 )
             )
         }
@@ -146,7 +146,7 @@ struct GenomeTests {
                 try GRDBScope(database, home.brain).run(
                     ApplyGeneValueTransaction(
                         geneId: "links.decay_factor", value: 0.8,
-                        cause: "homeostasis:test", requireMutable: true, ts: 1
+                        cause: "homeostasis:test", requireMutable: true, ts: 1, configured: nil
                     )
                 )
             }
@@ -174,7 +174,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database, home.brain)
+            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             // When
             let report = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
@@ -221,7 +221,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database, home.brain)
+            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             // When
             let report = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
@@ -249,7 +249,7 @@ struct GenomeTests {
             _ = try GRDBScope(database, home.brain).run(
                 ApplyGeneValueTransaction(
                     geneId: "related.expand_hops", value: 0, cause: "set_gene",
-                    detail: "test setup", requireMutable: false, ts: home.now
+                    detail: "test setup", requireMutable: false, ts: home.now, configured: nil
                 )
             )
             
@@ -260,7 +260,7 @@ struct GenomeTests {
                 try recordRetrieval(database, timestamp: timestamp + 30, hitIds: ["landed-expand"], command: "get")
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database, home.brain)
+            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             // When
             let report = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
@@ -280,7 +280,7 @@ struct GenomeTests {
                 try recordRetrieval(database, timestamp: timestamp + 30, hitIds: ["landed-expand"], command: "get")
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database, home.brain)
+            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             let report = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
             
@@ -311,7 +311,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database, home.brain)
+            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             // When — below the minimum sample.
             let first = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
@@ -330,7 +330,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now).perform(database, home.brain)
+            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             let second = try home.consolidateService.homeostasisTick(GRDBScope(database, home.brain), now: home.now)
             
@@ -359,14 +359,14 @@ struct GenomeTests {
         try home.write { database in
             try recordRetrieval(database, timestamp: 3_000_000, hitIds: ["n1"])
             
-            _ = try DeriveActivityWindowsTransaction(now: 3_000_100).perform(database, home.brain)
+            _ = try DeriveActivityWindowsTransaction(now: 3_000_100, windowGapSec: home.activationTuning.windowGapSec).perform(database)
         }
         
         // When — the cache is rewound the way a second process would see it.
         home.brain.plantStaleConfigValue("activation.derive_watermark", value: "0")
         
         try home.write { database in
-            let result = try DeriveActivityWindowsTransaction(now: 3_000_200).perform(database, home.brain)
+            let result = try DeriveActivityWindowsTransaction(now: 3_000_200, windowGapSec: home.activationTuning.windowGapSec).perform(database)
             
             // Then
             #expect(result.eventsConsumed == 0, "the cursor is read from the row, not from the cache")

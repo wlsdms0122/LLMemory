@@ -31,7 +31,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let map = try FetchNoteCatalogTransaction(ids: ["cat-a", "nope"]).perform(db, home.brain)
+            let map = try FetchNoteCatalogTransaction(ids: ["cat-a", "nope"]).perform(db)
         
         // Then
             #expect(map["cat-a"] != nil)
@@ -53,7 +53,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let empty = try FetchNoteCatalogTransaction(ids: []).perform(db, home.brain)
+            let empty = try FetchNoteCatalogTransaction(ids: []).perform(db)
         
         // Then
             #expect(empty.isEmpty)
@@ -76,7 +76,7 @@ struct ReadsTests {
         
         // When
         try queue.read { db in
-            let note = try FetchNoteCatalogTransaction(ids: ["cat-hit"]).perform(db, home.brain)["cat-hit"]
+            let note = try FetchNoteCatalogTransaction(ids: ["cat-hit"]).perform(db)["cat-hit"]
         
         // Then
             #expect(note?.hitCount == 7)

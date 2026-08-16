@@ -18,6 +18,10 @@ import Foundation
 // hold one without either owning it.
 public struct CandidateDetector: Sendable {
     // MARK: - Property
+    // The brain being judged — its config and genes set the thresholds, and
+    // its layout says where a note id lives. A scope cannot answer either.
+    let brain: BrainContext
+
     private let sectionEdit = SectionEdit()
     private let noteFile = NoteFile()
     private let vectorMath = VectorMath()
@@ -47,11 +51,15 @@ public struct CandidateDetector: Sendable {
     private static let wordRegex = try! NSRegularExpression(pattern: #"[A-Za-z0-9가-힣]{3,}"#)
     
     // MARK: - Initializer
+    init(brain: BrainContext) {
+        self.brain = brain
+    }
+
     // MARK: - Public
     func splitCandidates(_ scope: GRDBReadScope, limit: Int = 20) throws -> [SplitCandidate] {
-        let minWords = scope.brain.config.getInt("split.min_words", default: 400)
-        let minSections = scope.brain.config.getInt("split.min_sections", default: 4)
-        let minTagDiversity = scope.brain.config.getInt("split.min_tag_diversity", default: 3)
+        let minWords = brain.config.getInt("split.min_words", default: 400)
+        let minSections = brain.config.getInt("split.min_sections", default: 4)
+        let minTagDiversity = brain.config.getInt("split.min_tag_diversity", default: 3)
         let rows = try scope.run(
             FetchSplitShapeRowsTransaction(minWords: minWords, minSections: minSections)
         )
@@ -64,7 +72,7 @@ public struct CandidateDetector: Sendable {
             
             let verdict = dismissalPolicy.gate(
                 dismissals[row.id],
-                config: scope.brain.config,
+                config: brain.config,
                 currentWords: row.wordCount,
                 currentSections: row.sectionCount,
                 globalGeneration: generation
@@ -191,7 +199,7 @@ public struct CandidateDetector: Sendable {
         
         let linkRows = try scope.run(FetchLinkNeighborRowsTransaction(
                 nid: noteId,
-                siblingDiscount: scope.brain.genes.double("links.sibling_rank_weight")
+                siblingDiscount: brain.genes.double("links.sibling_rank_weight")
             ))
         
         if !linkRows.isEmpty {
@@ -235,7 +243,7 @@ public struct CandidateDetector: Sendable {
         maxSize: Int? = nil,
         limit: Int = 20
     ) throws -> [CandidateCluster] {
-        let cap = maxSize ?? scope.brain.config.getInt("candidates.cluster.max_size", default: 12)
+        let cap = maxSize ?? brain.config.getInt("candidates.cluster.max_size", default: 12)
         let edges = try scope.run(FetchClusterEdgesTransaction())
         
         var parent: [String: String] = [:]
@@ -315,8 +323,8 @@ public struct CandidateDetector: Sendable {
         vecCos: Double? = nil,
         ftsBm25: Double? = nil
     ) throws -> [MissingEdge] {
-        let cosineThreshold = vecCos ?? scope.brain.genes.double("candidates.missing_edge.vec_cos")
-        let bm25Threshold = ftsBm25 ?? scope.brain.genes.double("candidates.missing_edge.fts_bm25")
+        let cosineThreshold = vecCos ?? brain.genes.double("candidates.missing_edge.vec_cos")
+        let bm25Threshold = ftsBm25 ?? brain.genes.double("candidates.missing_edge.fts_bm25")
         var linked = Set<String>()
         var degree: [String: Int] = [:]
         
@@ -451,7 +459,7 @@ public struct CandidateDetector: Sendable {
         var ftsTokensById: [String: Set<String>] = [:]
         
         for row in rows {
-            let bodyPath = scope.brain.layout.brainRoot.appendingPathComponent(row.path)
+            let bodyPath = brain.layout.brainRoot.appendingPathComponent(row.path)
             let body: String
             do {
                 body = try noteFile.requireNote(at: bodyPath).body

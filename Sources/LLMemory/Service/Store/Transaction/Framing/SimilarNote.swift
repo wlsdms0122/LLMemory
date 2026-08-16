@@ -13,7 +13,6 @@ public struct SimilarNote: Sendable {
     public let id: String
     public let title: String
     public let summary: String?
-    public let path: String
     public let tags: [String]
     public let section: String?
 

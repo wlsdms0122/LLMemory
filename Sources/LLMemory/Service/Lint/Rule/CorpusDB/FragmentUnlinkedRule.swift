@@ -16,10 +16,10 @@ struct FragmentUnlinkedRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope) throws -> [LintFinding] {
+    func check(_ scope: GRDBReadScope, _ tuning: LintTuning) throws -> [LintFinding] {
         var findings: [LintFinding] = []
         
-        for family in try families.families(scope) {
+        for family in try families.families(scope, minFamily: tuning.fragmentMinFamily) {
             let unlinked = try families.unlinkedMembers(scope, family)
             
             guard !unlinked.isEmpty else { continue }

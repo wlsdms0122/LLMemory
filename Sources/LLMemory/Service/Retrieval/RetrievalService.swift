@@ -19,7 +19,11 @@ public struct RetrievalService: RetrievalServiceable {
     let keywords: any KeywordExtracting
     let entities: any EntityHinting
 
-    private let detector = CandidateDetector()
+    private var detector: CandidateDetector { CandidateDetector(brain: brain) }
+
+    // How far this brain's genes say retrieval reaches. Named in one place;
+    // the transactions take the numbers.
+    var tuning: RetrievalTuning { RetrievalTuning(brain.genes) }
 
     // MARK: - Initializer
     init(
@@ -134,7 +138,9 @@ public struct RetrievalService: RetrievalServiceable {
                 includeStale: includeStale,
                 excludeTags: excludeTags,
                 sinceTs: sinceTs,
-                sessionId: sessionId
+                sessionId: sessionId,
+                primingWindowMin: tuning.primingWindowMin,
+                primingAlpha: tuning.primingAlpha
             )
         )
         var extra: [ExpandedNote] = []
@@ -144,7 +150,9 @@ public struct RetrievalService: RetrievalServiceable {
                 ExpandLinksTransaction(
                     noteIds: rows.map { row in row.id },
                     hops: 1,
-                    limit: expand
+                    limit: expand,
+                    minWeight: tuning.neighborFloor,
+                    siblingDiscount: tuning.siblingDiscount
                 )
             )) ?? []
         }
@@ -185,7 +193,13 @@ public struct RetrievalService: RetrievalServiceable {
                 linkKind: kind,
                 sessionId: sessionId,
                 keywords: keywords,
-                entities: entities
+                entities: entities,
+                similarLimit: tuning.similarLimit,
+                expandHops: tuning.expandHops,
+                neighborFloor: tuning.neighborFloor,
+                siblingDiscount: tuning.siblingDiscount,
+                primingWindowMin: tuning.primingWindowMin,
+                primingAlpha: tuning.primingAlpha
             )
         )
 
@@ -193,7 +207,7 @@ public struct RetrievalService: RetrievalServiceable {
 
         if includeBodies {
             for note in snapshot.similar {
-                let path = brain.layout.brainRoot.appendingPathComponent(note.path)
+                let path = brain.layout.file(forId: note.id)
 
                 if let body = try? String(contentsOf: path, encoding: .utf8) {
                     bodies[note.id] = body

@@ -22,7 +22,7 @@ struct CutTotalOrderInvariantTests {
 
     private let frontmatter = Frontmatter()
 
-    private let detector = CandidateDetector()
+    private var detector: CandidateDetector { CandidateDetector(brain: home.brain) }
 
     // MARK: - Initializer
     init() throws {
@@ -181,7 +181,7 @@ struct CutTotalOrderInvariantTests {
         }
         
         // When
-        let rows = try home.read { database in try SearchNotesFTSTransaction(match: .text("zebra", keywords: FrequencyKeywordExtractor()), limit: 3).perform(database, home.brain) }
+        let rows = try home.read { database in try SearchNotesFTSTransaction(match: .text("zebra", keywords: FrequencyKeywordExtractor()), limit: 3, primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).perform(database) }
         
         // Then
         #expect(rows.map(\.id) == ["se-n1", "se-n2", "se-n3"])

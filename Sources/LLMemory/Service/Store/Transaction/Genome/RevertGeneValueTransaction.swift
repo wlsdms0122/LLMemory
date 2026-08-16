@@ -11,28 +11,33 @@ import GRDB
 // Drops this brain's value for a gene so it answers as wild-type again,
 // recording what it was. The counterpart of ApplyGeneValueTransaction and
 // scoped the same way — the revert belongs to the caller's unit of work.
-struct RevertGeneValueTransaction: GRDBBrainTransaction {
+struct RevertGeneValueTransaction: GRDBTransaction {
     // MARK: - Property
     let geneId: String
     let cause: String
     let ts: Int
 
+    // What this brain's configuration says for the gene, if it says anything.
+    // The old value falls back through it to the wild type.
+    let configured: Double?
+
     // MARK: - Initializer
-    init(geneId: String, cause: String, ts: Int) {
+    init(geneId: String, cause: String, ts: Int, configured: Double?) {
         self.geneId = geneId
         self.cause = cause
         self.ts = ts
+        self.configured = configured
     }
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database, _ brain: BrainContext) throws -> Double {
+    func perform(_ db: Database) throws -> Double {
         if let rejection = Genes.rejection(geneId, value: nil) { throw rejection }
 
         guard let gene = Genes.gene(geneId) else { throw GenomeWriteError.unknownGene(geneId) }
 
         let old = try FetchGeneValueTransaction(geneId: geneId).perform(db)
-            ?? brain.config.getDouble(geneId, default: gene.wildType)
+            ?? configured ?? gene.wildType
 
         try ResetGeneTransaction(
             geneId: geneId,

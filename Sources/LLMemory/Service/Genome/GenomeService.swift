@@ -101,12 +101,13 @@ public struct GenomeService: GenomeServiceable {
         let baselineValue = brain.genes.double(gene)
         let logged = try scope.run(FetchLoggedRetrievalQueriesTransaction(limit: limit))
 
-        // The scope is a parameter, not a capture: the candidate run is the
-        // same replay against a scope whose brain answers one gene
-        // differently, so the borrowed value reaches these transactions and
-        // no others.
+        // The tuning is a parameter, not a capture: the candidate run is the
+        // same replay under numbers resolved from a brain that answers one
+        // gene differently, so the borrowed value reaches these transactions
+        // and no others — and it does so as the number they actually used.
         func replayIds(
             _ scope: GRDBReadScope,
+            _ tuning: RetrievalTuning,
             _ loggedQuery: FetchLoggedRetrievalQueriesTransaction.LoggedQuery
         ) throws -> [String] {
             switch loggedQuery.replay {
@@ -116,7 +117,9 @@ public struct GenomeService: GenomeServiceable {
                         match: .text(loggedQuery.text, keywords: keywords),
                         tags: tags,
                         limit: limit,
-                        sessionId: loggedQuery.sessionId
+                        sessionId: loggedQuery.sessionId,
+                        primingWindowMin: tuning.primingWindowMin,
+                        primingAlpha: tuning.primingAlpha
                     )
                 )
                     .map { hit in hit.id }
@@ -127,7 +130,13 @@ public struct GenomeService: GenomeServiceable {
                         text: loggedQuery.text,
                         sessionId: loggedQuery.sessionId,
                         keywords: keywords,
-                        entities: entities
+                        entities: entities,
+                        similarLimit: tuning.similarLimit,
+                        expandHops: tuning.expandHops,
+                        neighborFloor: tuning.neighborFloor,
+                        siblingDiscount: tuning.siblingDiscount,
+                        primingWindowMin: tuning.primingWindowMin,
+                        primingAlpha: tuning.primingAlpha
                     )
                 )
 
@@ -141,8 +150,12 @@ public struct GenomeService: GenomeServiceable {
         var changed = 0
 
         for loggedQuery in logged {
-            let baseline = try replayIds(scope, loggedQuery)
-            let candidate = try replayIds(scope.shadowing(gene: gene, value: value), loggedQuery)
+            let baseline = try replayIds(scope, RetrievalTuning(brain.genes), loggedQuery)
+            let candidate = try replayIds(
+                scope,
+                RetrievalTuning(brain.shadowing(gene: gene, value: value).genes),
+                loggedQuery
+            )
 
             if baseline != candidate {
                 changed += 1

@@ -42,7 +42,7 @@ struct Container: Sendable {
         let entities: any EntityHinting = PatternEntityHinter()
         let retrieval = RetrievalService(storage: storage, brain: brain, keywords: keywords, entities: entities)
         let genome = GenomeService(storage: storage, brain: brain, keywords: keywords, entities: entities)
-        let scanner = LintScanner(rules: LintRuleRegistry())
+        let scanner = LintScanner(rules: LintRuleRegistry(), brain: brain)
         let lint = LintService(storage: storage, brain: brain, scanner: scanner)
 
         self.retrieval = retrieval

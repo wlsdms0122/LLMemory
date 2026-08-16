@@ -17,7 +17,6 @@ import GRDB
 struct CatalogNote: Sendable {
     // MARK: - Property
     let id: String
-    let path: String
     let title: String
     let summary: String?
     let priority: String

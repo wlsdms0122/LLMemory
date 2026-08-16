@@ -8,5 +8,5 @@
 import Foundation
 
 protocol CorpusDBLintRule: LintRuleMeta {
-    func check(_ scope: GRDBReadScope) throws -> [LintFinding]
+    func check(_ scope: GRDBReadScope, _ tuning: LintTuning) throws -> [LintFinding]
 }

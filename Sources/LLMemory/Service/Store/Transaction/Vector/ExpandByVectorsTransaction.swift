@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct ExpandByVectorsTransaction: GRDBBrainReadTransaction {
+struct ExpandByVectorsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let seedIds: [String]
     let limit: Int
@@ -24,7 +24,7 @@ struct ExpandByVectorsTransaction: GRDBBrainReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws -> [VectorHit] {
+    func perform(_ db: Database) throws -> [VectorHit] {
         guard !seedIds.isEmpty else { return [] }
 
         let vectors = try FetchNoteVectorsTransaction().perform(db)
@@ -86,7 +86,6 @@ struct ExpandByVectorsTransaction: GRDBBrainReadTransaction {
                 id: hit.id,
                 title: row["title"],
                 summary: row["summary"] as String?,
-                path: brain.layout.relativeFile(forId: row["id"] as String),
                 score: hit.score
             )
         }

@@ -35,7 +35,7 @@ struct TemplateTests {
 
     private let template = Template()
 
-    private let detector = CandidateDetector()
+    private var detector: CandidateDetector { CandidateDetector(brain: home.brain) }
 
     // MARK: - Initializer
     init() throws {

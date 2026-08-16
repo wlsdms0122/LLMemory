@@ -13,7 +13,6 @@ public struct VectorHit: Sendable {
     public let id: String
     public let title: String
     public let summary: String?
-    public let path: String
     public let score: Double
 
     // MARK: - Initializer

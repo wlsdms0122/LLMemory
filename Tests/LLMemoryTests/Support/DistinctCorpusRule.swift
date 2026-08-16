@@ -18,7 +18,7 @@ struct DistinctCorpusRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope) throws -> [LintFinding] {
+    func check(_ scope: GRDBReadScope, _ tuning: LintTuning) throws -> [LintFinding] {
         [
             .init("one", target: .corpus("tag-pair:a|b"), key: "pair:a|b"),
             .init("two", target: .corpus("tag-pair:c|d"), key: "pair:c|d")

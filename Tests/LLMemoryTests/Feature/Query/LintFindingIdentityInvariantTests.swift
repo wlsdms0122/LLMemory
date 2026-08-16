@@ -124,11 +124,11 @@ struct LintFindingIdentityInvariantTests {
     func duplicateCorpusIdentitiesAreReportedNotFatal() throws {
         // When
         let collided = try home.readScope { scope in
-            try LintScanner(rules: LintRuleRegistry(corpusDBRules: [CollidingCorpusRule()]))
+            try LintScanner(rules: LintRuleRegistry(corpusDBRules: [CollidingCorpusRule()]), brain: home.brain)
                 .lintAll(scope)
         }
         let clean = try home.readScope { scope in
-            try LintScanner(rules: LintRuleRegistry(corpusDBRules: [DistinctCorpusRule()]))
+            try LintScanner(rules: LintRuleRegistry(corpusDBRules: [DistinctCorpusRule()]), brain: home.brain)
                 .lintAll(scope)
         }
         

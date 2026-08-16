@@ -38,7 +38,8 @@ struct MarkUsedHandler: OperationHandling {
         
         if ids.count != raw.count { return "ids must all be strings" }
         
-        let cutoff = context.now - Activation.usedLookbackSec(context.brain)
+        let lookbackSec = ActivationTuning(context.brain).usedLookbackSec
+        let cutoff = context.now - lookbackSec
         let label = context.sessionId
         let surfaced = try scope.run(
             NotesSurfacedRecentlyTransaction(noteIds: ids, cutoff: cutoff, label: label)
@@ -47,7 +48,7 @@ struct MarkUsedHandler: OperationHandling {
         if let missing = ids.first(where: { id in !surfaced.contains(id) }) {
             return "note '\(missing)' was not surfaced in any recent activity window"
                 + (label.map { session in " of session '\(session.rawValue)'" } ?? "")
-                + " (lookback \(Activation.usedLookbackSec(context.brain))s) — cannot mark unobserved usage"
+                + " (lookback \(lookbackSec)s) — cannot mark unobserved usage"
         }
         
         return nil
@@ -65,13 +66,17 @@ struct MarkUsedHandler: OperationHandling {
         // events) and the marking below see the same universe. The
         // notSurfaced throw inside is a backstop, not a second gate: it
         // shares the context's now/session with validation.
-        _ = try scope.run(DeriveActivityWindowsTransaction(now: context.now))
+        _ = try scope.run(DeriveActivityWindowsTransaction(
+            now: context.now,
+            windowGapSec: ActivationTuning(context.brain).windowGapSec
+        ))
         
         let outcomes = try scope.run(MarkNotesUsedTransaction(
             ids: ids,
             response: op["response"] as? String,
             sessionLabel: context.sessionId,
-            now: context.now
+            now: context.now,
+            lookbackSec: ActivationTuning(context.brain).usedLookbackSec
         ))
         let marked = outcomes.filter { outcome in outcome.matched }
         let failed = outcomes.filter { outcome in !outcome.matched }

@@ -24,7 +24,7 @@ extension OperationsEngine {
         do {
             let json = try Self.encodePayload(payload)
             let engine = OperationsEngine(
-                lint: LintScanner(rules: LintRuleRegistry()),
+                lint: LintScanner(rules: LintRuleRegistry(), brain: brain),
                 keywords: FrequencyKeywordExtractor(),
                 brain: brain
             )
@@ -65,7 +65,7 @@ extension OperationsEngine {
         do {
             let json = try Self.encodePayload(payload)
             let engine = OperationsEngine(
-                lint: LintScanner(rules: LintRuleRegistry()),
+                lint: LintScanner(rules: LintRuleRegistry(), brain: brain),
                 keywords: FrequencyKeywordExtractor(),
                 brain: brain
             )

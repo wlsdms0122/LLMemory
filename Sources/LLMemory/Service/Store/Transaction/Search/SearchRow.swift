@@ -27,7 +27,6 @@ public struct SearchRow: Sendable {
     // cut does not fall where SQLite happened to reach first.
     static let aggregationSQL = " GROUP BY n.id ORDER BY best_rank, n.id LIMIT ?"
 
-    public let path: String
     public let id: String
     public let title: String
     public let summary: String?
@@ -40,8 +39,7 @@ public struct SearchRow: Sendable {
     }
 
     // MARK: - Initializer
-    init(_ row: Row, _ layout: BrainLayout) {
-        path = layout.relativeFile(forId: row["id"] as String)
+    init(_ row: Row) {
         id = row["id"]
         title = row["title"]
         summary = row["summary"] as String?

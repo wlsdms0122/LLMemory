@@ -215,7 +215,7 @@ struct QueryRelated: AsyncParsableCommand {
                     summary: note.summary,
                     section: note.section,
                     tags: full ? note.tags : nil,
-                    path: full ? note.path : nil,
+                    path: full ? NoteAddress.relativeFile(forId: note.id) : nil,
                     body: result.bodies[note.id]
                 )
             },
@@ -225,7 +225,7 @@ struct QueryRelated: AsyncParsableCommand {
                     title: note.title,
                     summary: note.summary,
                     weight: note.weight,
-                    path: full ? note.path : nil,
+                    path: full ? NoteAddress.relativeFile(forId: note.id) : nil,
                     rankWeight: full ? note.rankWeight : nil
                 )
             },
@@ -235,7 +235,7 @@ struct QueryRelated: AsyncParsableCommand {
                     title: note.title,
                     summary: note.summary,
                     cosine: note.score,
-                    path: full ? note.path : nil
+                    path: full ? NoteAddress.relativeFile(forId: note.id) : nil
                 )
             },
             topTags: topTags.map { tag in TagCount(tag: tag.0, count: tag.1) },

@@ -50,6 +50,14 @@ struct Config: Sendable {
         return Double(raw) ?? defaultValue
     }
 
+    // What the file says, or nothing — for callers that own a fallback the
+    // config layer has no business knowing, such as a gene's wild type.
+    func double(_ key: String) -> Double? {
+        guard let raw = fetch(key) else { return nil }
+
+        return Double(raw)
+    }
+
     func getString(_ key: String, default defaultValue: String) -> String {
         fetch(key) ?? defaultValue
     }

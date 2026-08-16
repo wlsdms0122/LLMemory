@@ -153,7 +153,7 @@ struct LinksTests {
         }
         
         // When
-        let expanded = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["exp-hub"], limit: 3).perform(db, home.brain) }.map(\.id)
+        let expanded = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["exp-hub"], limit: 3, minWeight: home.retrievalTuning.neighborFloor, siblingDiscount: home.retrievalTuning.siblingDiscount).perform(db) }.map(\.id)
         
         // Then
         #expect(expanded == ["exp-n1", "exp-n2", "exp-n3"], "a tie must cut by id ascending — got \(expanded)")
@@ -168,7 +168,7 @@ struct LinksTests {
         try home.linkNotes("sib-assoc", "sib-hub", kind: "cooccur", weight: 0.6)
         
         // When
-        let expanded = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["sib-hub"], limit: 3).perform(db, home.brain) }.map(\.id)
+        let expanded = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["sib-hub"], limit: 3, minWeight: home.retrievalTuning.neighborFloor, siblingDiscount: home.retrievalTuning.siblingDiscount).perform(db) }.map(\.id)
         
         // Then
         #expect(expanded.first == "sib-assoc",

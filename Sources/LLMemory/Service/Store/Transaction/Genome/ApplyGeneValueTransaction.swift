@@ -16,7 +16,7 @@ import GRDB
 // ops batch that is rejected later must not leave a gene changed. A service
 // method taking a scope would say the same thing while pretending the work
 // belongs a tier up.
-struct ApplyGeneValueTransaction: GRDBBrainTransaction {
+struct ApplyGeneValueTransaction: GRDBTransaction {
     // MARK: - Property
     let geneId: String
     let value: Double
@@ -25,6 +25,11 @@ struct ApplyGeneValueTransaction: GRDBBrainTransaction {
     let requireMutable: Bool
     let ts: Int
 
+    // What this brain's configuration says for the gene, if it says anything.
+    // The old value falls back through it to the wild type, and reading a
+    // config file is not something a database transaction does.
+    let configured: Double?
+
     // MARK: - Initializer
     init(
         geneId: String,
@@ -32,7 +37,8 @@ struct ApplyGeneValueTransaction: GRDBBrainTransaction {
         cause: String,
         detail: String? = nil,
         requireMutable: Bool,
-        ts: Int
+        ts: Int,
+        configured: Double?
     ) {
         self.geneId = geneId
         self.value = value
@@ -40,11 +46,12 @@ struct ApplyGeneValueTransaction: GRDBBrainTransaction {
         self.detail = detail
         self.requireMutable = requireMutable
         self.ts = ts
+        self.configured = configured
     }
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database, _ brain: BrainContext) throws -> (old: Double, new: Double) {
+    func perform(_ db: Database) throws -> (old: Double, new: Double) {
         if let rejection = Genes.rejection(geneId, value: value, requireMutable: requireMutable) {
             throw rejection
         }
@@ -52,7 +59,7 @@ struct ApplyGeneValueTransaction: GRDBBrainTransaction {
         guard let gene = Genes.gene(geneId) else { throw GenomeWriteError.unknownGene(geneId) }
 
         let old = try FetchGeneValueTransaction(geneId: geneId).perform(db)
-            ?? brain.config.getDouble(geneId, default: gene.wildType)
+            ?? configured ?? gene.wildType
 
         try SetGeneTransaction(
             geneId: geneId,
