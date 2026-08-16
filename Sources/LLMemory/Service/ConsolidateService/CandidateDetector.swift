@@ -7,6 +7,15 @@
 
 import Foundation
 
+// The restructuring detector — what counts as a candidate (split shapes,
+// stale flags, clusters, missing edges, near-duplicates) is decided here,
+// and the candidate transactions only fetch the rows it judges.
+//
+// It is not a service. An XxxService instance is an effectful surface over
+// storage — it owns the async doors and the container wires it. This is
+// stateless judgement over a scope somebody else opened, which is why both
+// Consolidate (dispatching batches) and Retrieval (scoring neighbors) can
+// hold one without either owning it.
 public struct CandidateDetector: Sendable {
     // MARK: - Property
     private let sectionEdit = SectionEdit()

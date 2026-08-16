@@ -11,9 +11,9 @@ import Foundation
 // until a person decides. Nothing here knows why a note is going; the reason is
 // recorded on the note and the caller supplies it.
 //
-// It lives in the Module tier because it is filesystem and markdown and nothing
-// else: ops trash notes a person deleted, and update trashes notes the release
-// stopped shipping, and neither is more entitled to the mechanism than the other.
+// It is filesystem and markdown and nothing else, and it belongs to no one
+// caller: ops trashes notes a person deleted, update trashes notes the release
+// stopped shipping, and neither is more entitled to the mechanism.
 public struct Trash: Sendable {
     // MARK: - Property
     private let path: Path

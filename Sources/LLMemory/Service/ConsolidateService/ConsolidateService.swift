@@ -53,7 +53,7 @@ public struct ConsolidateService: ConsolidateServiceable {
         // unknown kind is a caller bug, not an empty result.
         let resolved = try kinds.map { raw in
             guard let kind = CandidateDetector.Kind(rawValue: raw) else {
-                throw CandidatesError.unknownKind(raw)
+                throw CandidateError.unknownKind(raw)
             }
 
             return kind

@@ -9,7 +9,7 @@ import Foundation
 
 // The genome surface vocabulary — flat top-level models with a domain
 // prefix (owner call: a caller must not need the service's name to spell
-// a return type). Errors are flat too, like CandidatesError.
+// a return type). Errors are flat too, like CandidateError.
 public enum GenomeWriteError: Error, CustomStringConvertible {
     case unknownGene(String)
     case outOfBounds(String, Double, Genes.Gene)
