@@ -24,18 +24,18 @@ struct SearchTests {
     // MARK: - Test
     @Test("a plain query becomes an OR over its tokens, so any one of them can match")
     func matchExprTokenizesToOR() {
-        #expect(Search.ftsMatchExpr("alpha beta", raw: false, keywords: FrequencyKeywords()) == "\"alpha\" OR \"beta\"")
+        #expect(FTSMatch.text("alpha beta", keywords: FrequencyKeywords()).expression == "\"alpha\" OR \"beta\"")
     }
     
     @Test("a raw query is handed to FTS5 verbatim, operators and all")
     func matchExprRawPassesVerbatim() {
-        #expect(Search.ftsMatchExpr("transfer NOT giro", raw: true, keywords: FrequencyKeywords()) == "transfer NOT giro")
+        #expect(FTSMatch.raw("transfer NOT giro").expression == "transfer NOT giro")
     }
     
     @Test("a query with no tokens is nil rather than an expression that matches everything")
     func matchExprEmptyIsNil() {
-        #expect(Search.ftsMatchExpr("   ", raw: false, keywords: FrequencyKeywords()) == nil)
-        #expect(Search.ftsMatchExpr("", raw: true, keywords: FrequencyKeywords()) == nil)
+        #expect(FTSMatch.text("   ", keywords: FrequencyKeywords()).expression == nil)
+        #expect(FTSMatch.raw("").expression == nil)
     }
     
     @Test("a multi-keyword query matches a note carrying any keyword, not the phrase")
@@ -49,7 +49,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(query: "log masking transformer", keywords: FrequencyKeywords()).perform(database)
+            try SearchNotesFTSTransaction(match: .text("log masking transformer", keywords: FrequencyKeywords())).perform(database)
         }
         
         // Then
@@ -64,7 +64,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(query: "transfer NOT giro", raw: true, keywords: FrequencyKeywords()).perform(database)
+            try SearchNotesFTSTransaction(match: .raw("transfer NOT giro")).perform(database)
         }
         
         // Then
@@ -83,7 +83,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(query: "quixotic pool", limit: 40, keywords: FrequencyKeywords()).perform(database)
+            try SearchNotesFTSTransaction(match: .text("quixotic pool", keywords: FrequencyKeywords()), limit: 40).perform(database)
         }
         
         // Then
@@ -92,9 +92,9 @@ struct SearchTests {
     
     @Test("the fetch pool is wide enough to rerank, and exactly the limit when there is nothing to rerank")
     func fetchPoolSizeFollowsTheRerankNeed() {
-        #expect(Search.fetchPoolSize(limit: 40, needsRerank: true) >= 40)
-        #expect(Search.fetchPoolSize(limit: 5, needsRerank: true) == 15)
-        #expect(Search.fetchPoolSize(limit: 40, needsRerank: false) == 40)
+        #expect(TagPriorRerank.poolSize(limit: 40, needsRerank: true) >= 40)
+        #expect(TagPriorRerank.poolSize(limit: 5, needsRerank: true) == 15)
+        #expect(TagPriorRerank.poolSize(limit: 40, needsRerank: false) == 40)
     }
     
     @Test("a malformed raw query throws a named error instead of leaking the SQLite one")
@@ -104,8 +104,8 @@ struct SearchTests {
         
         // Then
         try home.read { database in
-            #expect(throws: Search.SearchError.self) {
-                _ = try SearchNotesFTSTransaction(query: "transfer \"", raw: true, keywords: FrequencyKeywords()).perform(database)
+            #expect(throws: FTSMatchError.self) {
+                _ = try SearchNotesFTSTransaction(match: .raw("transfer \"")).perform(database)
             }
         }
     }
@@ -116,7 +116,7 @@ struct SearchTests {
         #expect(create(id: "safe-note", title: "transfer", body: "## A\ntransfer\n").status == "ok")
         
         // When
-        let hits = try home.read { database in try SearchNotesFTSTransaction(query: "transfer \"", keywords: FrequencyKeywords()).perform(database) }
+        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("transfer \"", keywords: FrequencyKeywords())).perform(database) }
         
         // Then
         #expect(hits.contains { hit in hit.id == "safe-note" })
@@ -134,7 +134,7 @@ struct SearchTests {
 
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(query: "nothing to do with it", keywords: FixedKeywords())
+            try SearchNotesFTSTransaction(match: .text("nothing to do with it", keywords: FixedKeywords()))
                 .perform(database)
         }
 

@@ -105,11 +105,10 @@ public struct GenomeService: GenomeServiceable {
             case let .search(tags, limit):
                 return try scope.run(
                     SearchNotesFTSTransaction(
-                        query: loggedQuery.text,
+                        match: .text(loggedQuery.text, keywords: keywords),
                         tags: tags,
                         limit: limit,
-                        sessionId: loggedQuery.sessionId,
-                        keywords: keywords
+                        sessionId: loggedQuery.sessionId
                     )
                 )
                     .map { hit in hit.id }

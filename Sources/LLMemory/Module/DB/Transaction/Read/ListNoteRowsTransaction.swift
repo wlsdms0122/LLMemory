@@ -28,7 +28,7 @@ struct ListNoteRowsTransaction: GRDBReadTransaction {
             arguments.append(priority)
         }
 
-        let (tagClause, tagArguments) = try Search.tagClause(db, tags: filter.tags)
+        let (tagClause, tagArguments) = try TagFilter.clause(db, tags: filter.tags)
 
         if !tagClause.isEmpty {
             clauses.append(tagClause)

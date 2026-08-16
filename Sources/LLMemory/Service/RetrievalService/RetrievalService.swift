@@ -125,15 +125,13 @@ public struct RetrievalService: RetrievalServiceable {
     ) throws -> (rows: [SearchRow], extra: [ExpandedNote], record: RetrievalRecord) {
         let rows = try scope.run(
             SearchNotesFTSTransaction(
-                query: query,
+                match: raw ? .raw(query) : .text(query, keywords: keywords),
                 tags: tags,
                 limit: limit,
                 includeStale: includeStale,
                 excludeTags: excludeTags,
                 sinceTs: sinceTs,
-                sessionId: sessionId,
-                raw: raw,
-                keywords: keywords
+                sessionId: sessionId
             )
         )
         var extra: [ExpandedNote] = []

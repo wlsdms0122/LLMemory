@@ -135,7 +135,7 @@ struct SectionAttributionTests {
     }
     
     private func search(_ query: String) throws -> [SearchRow] {
-        try home.read { database in try SearchNotesFTSTransaction(query: query, keywords: FrequencyKeywords()).perform(database) }
+        try home.read { database in try SearchNotesFTSTransaction(match: .text(query, keywords: FrequencyKeywords())).perform(database) }
     }
     
     private func hit(for query: String, in noteId: String) throws -> SearchRow? {

@@ -26,7 +26,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [SimilarNote] {
-        guard let matchExpr = Search.matchExpression(cues: keywords) else { return [] }
+        guard let expression = FTSMatch.cues(keywords).expression else { return [] }
 
         var sql = """
                 SELECT n.id, n.title, n.summary,
@@ -35,31 +35,17 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
                 FROM notes_fts f JOIN notes n ON n.id = f.id
                 WHERE notes_fts MATCH ?
                 """
-        var arguments: [DatabaseValueConvertible?] = [matchExpr]
+        var arguments: [DatabaseValueConvertible?] = [expression]
 
         if !includeStale {
             sql += " AND \(Policy.fresh())"
         }
 
         let now = Int(Date().timeIntervalSince1970)
-        let prior: [String: Double]
+        let prior = TagPriorRerank.prior(db, sessionId: sessionId, now: now)
 
-        if let sessionId {
-            let windowMin = Genes.int("priming.window_min")
-            prior = (try? ComputeTagPriorTransaction(
-                sessionId: sessionId,
-                windowSec: windowMin * 60,
-                now: now
-            )
-                .perform(db)) ?? [:]
-        } else {
-            prior = [:]
-        }
-
-        let needsRerank = !prior.isEmpty
-        let fetchLimit = Search.fetchPoolSize(limit: limit, needsRerank: needsRerank)
-        sql += Search.noteAggregationSQL
-        arguments.append(fetchLimit)
+        sql += SearchRow.aggregationSQL
+        arguments.append(TagPriorRerank.poolSize(limit: limit, needsRerank: !prior.isEmpty))
 
         let rows = try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
         let pool: [SimilarNote] = rows.map { row in
@@ -79,9 +65,7 @@ struct FetchSimilarNotesTransaction: GRDBReadTransaction {
             )
         }
 
-        if !needsRerank { return pool }
-
-        return Search.rerank(pool, prior: prior, limit: limit) { note in note.tags }
+        return TagPriorRerank.apply(pool, prior: prior, limit: limit) { note in note.tags }
     }
 
     // MARK: - Private

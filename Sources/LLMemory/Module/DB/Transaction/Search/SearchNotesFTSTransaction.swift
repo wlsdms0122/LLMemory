@@ -10,105 +10,80 @@ import GRDB
 
 struct SearchNotesFTSTransaction: GRDBReadTransaction {
     // MARK: - Property
-    let query: String
+    let match: FTSMatch
     let tags: [String]
     let limit: Int
     let includeStale: Bool
     let excludeTags: [String]?
     let sinceTs: Int?
     let sessionId: SessionId?
-    let raw: Bool
-    let keywords: any KeywordExtracting
-
 
     // MARK: - Initializer
     init(
-        query: String,
+        match: FTSMatch,
         tags: [String] = [],
         limit: Int = 5,
         includeStale: Bool = false,
         excludeTags: [String]? = nil,
         sinceTs: Int? = nil,
-        sessionId: SessionId? = nil,
-        raw: Bool = false,
-        keywords: any KeywordExtracting
+        sessionId: SessionId? = nil
     ) {
-        self.query = query
+        self.match = match
         self.tags = tags
         self.limit = limit
         self.includeStale = includeStale
         self.excludeTags = excludeTags
         self.sinceTs = sinceTs
         self.sessionId = sessionId
-        self.raw = raw
-        self.keywords = keywords
     }
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [SearchRow] {
-        guard let matchExpr = Search.ftsMatchExpr(query, raw: raw, keywords: keywords) else { return [] }
-        
-        var sql = Search.rowSQL + """
+        guard let expression = match.expression else { return [] }
+
+        var sql = SearchRow.projectionSQL + """
              FROM notes_fts f JOIN notes n ON n.id = f.id
              LEFT JOIN note_usage u ON u.note_id = n.id
              WHERE notes_fts MATCH ?
             """
-        var arguments: [DatabaseValueConvertible?] = [matchExpr]
-        
+        var arguments: [DatabaseValueConvertible?] = [expression]
+
         for (clause, tagArguments) in [
-            try Search.tagClause(db, tags: tags),
-            try Search.tagClause(db, tags: excludeTags ?? [], negated: true)
+            try TagFilter.clause(db, tags: tags),
+            try TagFilter.clause(db, tags: excludeTags ?? [], negated: true)
         ] where !clause.isEmpty {
             sql += " AND \(clause)"
             arguments.append(contentsOf: tagArguments)
         }
-        
-        let now = Int(Date().timeIntervalSince1970)
-        
+
         if let sinceTs {
             sql += " AND COALESCE(u.last_retrieved_at, 0) >= ?"
             arguments.append(sinceTs)
         }
-        
-        sql += Search.staleClause(includeStale)
-        
-        let prior: [String: Double]
-        if let sessionId {
-            let windowMin = Genes.int("priming.window_min")
-            prior = (try? ComputeTagPriorTransaction(
-                sessionId: sessionId,
-                windowSec: windowMin * 60,
-                now: now
-            )
-                .perform(db)) ?? [:]
-        } else {
-            prior = [:]
+
+        if !includeStale {
+            sql += " AND \(Policy.fresh())"
         }
-        
-        let needsRerank = !prior.isEmpty
-        let fetchLimit = Search.fetchPoolSize(limit: limit, needsRerank: needsRerank)
-        sql += Search.noteAggregationSQL
-        
+
+        let now = Int(Date().timeIntervalSince1970)
+        let prior = TagPriorRerank.prior(db, sessionId: sessionId, now: now)
+
+        sql += SearchRow.aggregationSQL
+        arguments.append(TagPriorRerank.poolSize(limit: limit, needsRerank: !prior.isEmpty))
+
+        let rows: [Row]
+
         do {
-            arguments.append(fetchLimit)
-            
-            let rawRows: [SearchRow]
-            do {
-                rawRows = try Search.fetchRows(db, sql: sql, arguments: arguments)
-            } catch {
-                if raw { throw Search.SearchError.invalidRawQuery(matchExpr) }
-                
-                throw error
-            }
-            
-            if !needsRerank {
-                return Array(rawRows.prefix(limit))
-            }
-            
-            return Search.rerank(rawRows, prior: prior, limit: limit) { row in
-                (row.tagsCSV ?? "").split(separator: ",").map(String.init)
-            }
+            rows = try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
+        } catch {
+            throw match.rejection(expression) ?? error
         }
+
+        return TagPriorRerank.apply(
+            rows.map(SearchRow.init),
+            prior: prior,
+            limit: limit
+        ) { row in row.tags }
     }
 
     // MARK: - Private
