@@ -230,7 +230,7 @@ struct EnrichmentReviewTests {
         try home.storage.writeLock {
             try queue.write { db in
                 try db.execute(sql: "DELETE FROM note_links WHERE kind = ?",
-                    arguments: [Links.kindAssoc])
+                    arguments: [LinkKind.assoc.rawValue])
                 
                 _ = try FlagEnrichmentDisagreementsTransaction(now: now + 1).perform(db)
             }

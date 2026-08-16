@@ -57,40 +57,18 @@ struct NoteArtifactsInvariantTests {
         
         for (table, _) in NoteArtifacts.tableSplitPolicy {
             #expect(cascade.contains(table), "tableSplitPolicy '\(table)' is not a real cascade table")
-            #expect(table != "note_links", "note_links is classified by kind (linkKindSplitPolicy), not as a table")
+            #expect(table != "note_links",
+                "note_links is classified by kind (NoteArtifacts.splitPolicy), not as a table")
         }
-        
-        #expect(Set(NoteArtifacts.linkKindSplitPolicy.keys) == Links.allKinds,
-            "linkKindSplitPolicy must classify exactly Links.allKinds — a new kind needs a split decision")
     }
     
     @Test("every artifact a rebuild is allowed to discard has something that regenerates it")
     func everyRebuildKindHasARegenerator() {
         // Then
-        #expect(NoteArtifacts.reconstructableLinkKinds == [Links.kindReference])
+        #expect(NoteArtifacts.reconstructableLinkKinds == [LinkKind.reference.rawValue])
     }
     
-    @Test("every artifact declares whether it should block a delete")
-    func everyKindHasDeleteGuardDecision() {
-        // Then
-        #expect(Links.deleteBlockingKinds.union(Links.deleteNonBlockingKinds) == Links.allKinds,
-            "every Links.allKinds member must be classified blocking or non-blocking for delete_note")
-        #expect(Links.deleteBlockingKinds.isDisjoint(with: Links.deleteNonBlockingKinds),
-            "a kind cannot be both blocking and non-blocking")
-        #expect(NoteArtifacts.reconstructableLinkKinds.isSubset(of: Links.allKinds))
-        #expect(NoteArtifacts.reconstructableLinkKinds.contains(Links.kindReference))
-    }
-    
-    @Test("every artifact declares whether it is directional, so an undirected one is not stored twice")
-    func allKindsAreDirectionClassified() {
-        // Then
-        #expect(Links.undirectedKinds.union(Links.directedKinds) == Links.allKinds,
-            "every Links.allKinds member must be classified directed or undirected")
-        #expect(Links.undirectedKinds.isDisjoint(with: Links.directedKinds),
-            "a kind cannot be both directed and undirected")
-    }
-    
-    @Test("every declared disposition names a table that actually exists")
+        @Test("every declared disposition names a table that actually exists")
     func dispositionEntriesAreRealCascadeTables() throws {
         // When
         let queue = try home.storage.connect()

@@ -47,20 +47,20 @@ struct RefreshReferenceLinksTransaction: GRDBTransaction {
 
         try db.execute(
             sql: "DELETE FROM note_links WHERE src = ? AND kind = ?",
-            arguments: [nid, Links.kindReference]
+            arguments: [nid, LinkKind.reference.rawValue]
         )
         try db.execute(sql: """
             INSERT OR IGNORE INTO note_links (src, dst, kind, weight, created_at, last_activated_at)
             SELECT m.src, n.id, ?, 1.0, ?, ?
             FROM note_ref_markers m JOIN notes n ON n.id = m.marker
             WHERE m.src = ?
-            """, arguments: [Links.kindReference, now, now, nid])
+            """, arguments: [LinkKind.reference.rawValue, now, now, nid])
         try db.execute(sql: """
             INSERT OR IGNORE INTO note_links (src, dst, kind, weight, created_at, last_activated_at)
             SELECT m.src, ?, ?, 1.0, ?, ?
             FROM note_ref_markers m JOIN notes s ON s.id = m.src
             WHERE m.marker = ? AND m.src != ?
-            """, arguments: [nid, Links.kindReference, now, now, nid, nid])
+            """, arguments: [nid, LinkKind.reference.rawValue, now, now, nid, nid])
     }
 
     // MARK: - Private

@@ -30,7 +30,7 @@ struct FlagEnrichmentDisagreementsTransaction: GRDBTransaction {
         let floor = Config.getDouble("enrich.disagree_floor", default: 0.15)
         let edges = try Row.fetchAll(db, sql: """
             SELECT src, dst, provenance FROM note_links WHERE kind = ?
-            """, arguments: [Links.kindAssoc])
+            """, arguments: [LinkKind.assoc.rawValue])
         var flagged = Set<String>()
 
         for edge in edges {

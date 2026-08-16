@@ -457,7 +457,7 @@ struct FragmentationLintTests {
             try Int.fetchOne(
                 database,
                 sql: "SELECT COUNT(*) FROM note_links WHERE kind = ?",
-                arguments: [Links.kindSibling]
+                arguments: [LinkKind.sibling.rawValue]
             ) ?? 0
         }
     }

@@ -60,28 +60,33 @@ public struct NoteArtifacts: Sendable {
         "note_lifecycle_events": .drop
     ]
     
-    static let linkKindSplitPolicy: [String: SplitPolicy] = [
-        Links.kindAssoc: .route,
-        Links.kindMergeAncestor: .drop,
-        Links.kindSupersedes: .drop,
-        Links.kindPromotedTo: .drop,
-        Links.kindCooccur: .autoRedistribute,
-        Links.kindReference: .rebuild,
-        Links.kindSibling: .autoCopy
-    ]
-    
     static let reconstructableLinkKinds: Set<String> = Set(
-        Self.linkKindSplitPolicy.filter { entry in entry.value == .rebuild }.map { entry in entry.key }
+        LinkKind.rawValues { kind in splitPolicy(for: kind) == .rebuild }
     )
     
     static let routeLinkKinds: Set<String> = Set(
-        Self.linkKindSplitPolicy
-            .filter { entry in entry.value == .route || entry.value == .routeRevalidate }
-            .map { entry in entry.key }
+        LinkKind.rawValues { kind in
+            let policy = splitPolicy(for: kind)
+            
+            return policy == .route || policy == .routeRevalidate
+        }
     )
     
     // MARK: - Initializer
     // MARK: - Public
+    // What becomes of an edge of this kind when the note under it splits.
+    // A switch rather than a table: a new kind is a new split decision, and
+    // this is where not having made it stops compiling.
+    static func splitPolicy(for kind: LinkKind) -> SplitPolicy {
+        switch kind {
+        case .assoc: .route
+        case .mergeAncestor, .supersedes, .promotedTo: .drop
+        case .cooccur: .autoRedistribute
+        case .reference: .rebuild
+        case .sibling: .autoCopy
+        }
+    }
+    
     func stage(_ table: String) -> String { "_rb_saved_\(table)" }
     
     func notReconstructableClause(

@@ -28,27 +28,29 @@ struct RedirectLinksForMergeTransaction: GRDBTransaction {
             """, arguments: [fromId, fromId])
 
         for row in rows {
-            let kind: String = row["kind"]
+            let rawKind: String = row["kind"]
 
-            if NoteArtifacts.reconstructableLinkKinds.contains(kind) { continue }
+            if NoteArtifacts.reconstructableLinkKinds.contains(rawKind) { continue }
 
+            // A kind this binary does not recognise still has to be carried
+            // over: every row of the merged-away note is deleted at the end,
+            // so one left behind is one destroyed. It moves as a directed
+            // edge, which is what an unclassified edge already behaved as.
+            // index verify is where an unknown kind gets reported as one.
+            let kind = LinkKind(rawValue: rawKind)
             let newSrc = (row["src"] as String) == fromId ? intoId : (row["src"] as String)
             let newDst = (row["dst"] as String) == fromId ? intoId : (row["dst"] as String)
 
-            guard let (source, destination) = Links.normalize(
-                src: newSrc,
-                dst: newDst,
-                kind: kind
-            ) else {
-                continue
-            }
+            guard newSrc != newDst else { continue }
+
+            let (source, destination) = kind?.endpoints(src: newSrc, dst: newDst) ?? (newSrc, newDst)
 
             let weight: Double = row["weight"]
             let createdAt: Int = row["created_at"]
             let lastActivatedAt: Int = row["last_activated_at"]
             let provenance: String? = row["provenance"]
 
-            if Links.undirectedKinds.contains(kind) {
+            if kind?.isUndirected == true {
                 try db.execute(sql: """
                     INSERT INTO note_links (src, dst, kind, weight, created_at, last_activated_at, provenance)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -56,7 +58,7 @@ struct RedirectLinksForMergeTransaction: GRDBTransaction {
                       weight = MIN(?, weight + excluded.weight),
                       last_activated_at = MAX(last_activated_at, excluded.last_activated_at)
                     """, arguments: [
-                        source, destination, kind, min(weight, cap),
+                        source, destination, rawKind, min(weight, cap),
                         createdAt, lastActivatedAt, provenance, cap
                     ])
             } else {
@@ -64,7 +66,7 @@ struct RedirectLinksForMergeTransaction: GRDBTransaction {
                     INSERT OR IGNORE INTO note_links (src, dst, kind, weight, created_at, last_activated_at, provenance)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, arguments: [
-                        source, destination, kind, weight,
+                        source, destination, rawKind, weight,
                         createdAt, lastActivatedAt, provenance
                     ])
             }

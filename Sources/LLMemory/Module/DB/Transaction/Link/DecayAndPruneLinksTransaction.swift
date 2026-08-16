@@ -23,9 +23,9 @@ struct DecayAndPruneLinksTransaction: GRDBTransaction {
     func perform(_ db: Database) throws -> (decayed: Int, pruned: Int) {
         let factor = self.factor ?? Genes.double("links.decay_factor")
         let floor = self.floor ?? Genes.double("links.prune_floor")
-        let kindPlaceholders = Array(repeating: "?", count: Links.learnedKinds.count)
-            .joined(separator: ",")
-        let kinds = Array(Links.learnedKinds) as [DatabaseValueConvertible?]
+        let learned = LinkKind.rawValues { kind in kind.isLearned }
+        let kindPlaceholders = Array(repeating: "?", count: learned.count).joined(separator: ",")
+        let kinds = learned as [DatabaseValueConvertible?]
 
         try db.execute(
             sql: "UPDATE note_links SET weight = weight * ? WHERE kind IN (\(kindPlaceholders))",

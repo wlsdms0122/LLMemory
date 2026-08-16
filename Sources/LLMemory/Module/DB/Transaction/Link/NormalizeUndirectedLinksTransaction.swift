@@ -19,7 +19,7 @@ struct NormalizeUndirectedLinksTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws {
-        let kinds = Array(Links.undirectedKinds)
+        let kinds = LinkKind.rawValues { kind in kind.isUndirected }
         let placeholders = kinds.map { _ in "?" }.joined(separator: ", ")
         let swapArguments = StatementArguments(kinds + [nodeId, nodeId])
 

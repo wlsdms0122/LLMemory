@@ -19,11 +19,11 @@ struct FetchDeliberateNeighborsTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [String] {
-        let deliberate = Links.deleteBlockingKinds
+        let deliberate = LinkKind.rawValues { kind in kind.blocksDelete }
         let kindPlaceholders = Array(repeating: "?", count: deliberate.count)
             .joined(separator: ",")
         let arguments: [DatabaseValueConvertible?] = [noteId, noteId, noteId]
-            + (Array(deliberate) as [DatabaseValueConvertible?])
+            + (deliberate as [DatabaseValueConvertible?])
 
         return try String.fetchAll(db, sql: """
             SELECT CASE WHEN src = ? THEN dst ELSE src END AS other FROM note_links

@@ -26,7 +26,7 @@ import GRDB
 struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
     // MARK: - Property
     let text: String
-    let linkKind: String?
+    let linkKind: LinkKind?
     let sessionId: SessionId?
     let keywords: any KeywordExtracting
     let entities: any EntityHinting
@@ -34,7 +34,7 @@ struct BuildFramingSnapshotTransaction: GRDBReadTransaction {
     // MARK: - Initializer
     init(
         text: String,
-        linkKind: String? = nil,
+        linkKind: LinkKind? = nil,
         sessionId: SessionId? = nil,
         keywords: any KeywordExtracting,
         entities: any EntityHinting

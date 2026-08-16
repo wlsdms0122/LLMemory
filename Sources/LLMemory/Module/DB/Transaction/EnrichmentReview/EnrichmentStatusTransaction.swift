@@ -26,7 +26,7 @@ struct EnrichmentStatusTransaction: GRDBReadTransaction {
             SELECT COUNT(*) AS total,
                    COALESCE(SUM(CASE WHEN weight >= ? THEN 1 ELSE 0 END), 0) AS active
             FROM note_links WHERE kind = ?
-            """, arguments: [floor, Links.kindAssoc])
+            """, arguments: [floor, LinkKind.assoc.rawValue])
         let assocTotal = assocRow?["total"] as Int? ?? 0
         let assocActive = assocRow?["active"] as Int? ?? 0
         let assocDormant = assocTotal - assocActive

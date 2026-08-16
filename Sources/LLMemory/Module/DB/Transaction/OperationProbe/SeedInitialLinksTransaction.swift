@@ -41,7 +41,7 @@ struct SeedInitialLinksTransaction: GRDBTransaction {
         if rows.isEmpty { return }
 
         let now = Int(Date().timeIntervalSince1970)
-        let kind = Links.kindCooccur
+        let kind = LinkKind.cooccur
         let newTotal = tags.count
 
         for row in rows {
@@ -49,11 +49,7 @@ struct SeedInitialLinksTransaction: GRDBTransaction {
             let shared: Int = row["shared"]
             let otherTotal: Int = row["other_total"] as Int? ?? 0
 
-            guard let (source, destination) = Links.normalize(
-                src: nid,
-                dst: candidateId,
-                kind: kind
-            ) else {
+            guard let (source, destination) = kind.endpoints(src: nid, dst: candidateId) else {
                 continue
             }
 
@@ -66,7 +62,7 @@ struct SeedInitialLinksTransaction: GRDBTransaction {
                 ON CONFLICT(src, dst, kind) DO UPDATE SET
                   weight = MIN(1.0, weight + excluded.weight),
                   last_activated_at = excluded.last_activated_at
-                """, arguments: [source, destination, kind, weight, now, now])
+                """, arguments: [source, destination, kind.rawValue, weight, now, now])
         }
     }
 

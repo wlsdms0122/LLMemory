@@ -75,7 +75,7 @@ struct PruneAtomicityInvariantTests {
         try database.execute(sql: """
             INSERT INTO note_links (src, dst, kind, weight, created_at, last_activated_at)
             VALUES ('patom-a', 'patom-b', ?, ?, ?, ?)
-            """, arguments: [Links.kindAssoc, weight, home.now, home.now])
+            """, arguments: [LinkKind.assoc.rawValue, weight, home.now, home.now])
     }
     
     private static func linkWeight(_ database: Database) throws -> Double? {

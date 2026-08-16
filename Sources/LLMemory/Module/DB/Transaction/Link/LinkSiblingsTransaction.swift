@@ -27,11 +27,7 @@ struct LinkSiblingsTransaction: GRDBTransaction {
 
         for (index, left) in sorted.enumerated() {
             for right in sorted.dropFirst(index + 1) {
-                guard let (src, dst) = Links.normalize(
-                    src: left,
-                    dst: right,
-                    kind: Links.kindSibling
-                ) else {
+                guard let (src, dst) = LinkKind.sibling.endpoints(src: left, dst: right) else {
                     continue
                 }
 
@@ -39,7 +35,7 @@ struct LinkSiblingsTransaction: GRDBTransaction {
                     INSERT OR IGNORE INTO note_links
                       (src, dst, kind, weight, created_at, last_activated_at)
                     VALUES (?, ?, ?, ?, ?, ?)
-                    """, arguments: [src, dst, Links.kindSibling, 1.0, now, now])
+                    """, arguments: [src, dst, LinkKind.sibling.rawValue, 1.0, now, now])
             }
         }
     }

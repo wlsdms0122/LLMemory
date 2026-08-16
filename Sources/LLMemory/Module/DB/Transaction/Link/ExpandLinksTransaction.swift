@@ -14,7 +14,7 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
     let hops: Int
     let minWeight: Double?
     let limit: Int
-    let kind: String?
+    let kind: LinkKind?
 
     // MARK: - Initializer
     init(
@@ -22,7 +22,7 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
         hops: Int = 1,
         minWeight: Double? = nil,
         limit: Int = 10,
-        kind: String? = nil
+        kind: LinkKind? = nil
     ) {
         self.noteIds = noteIds
         self.hops = hops
@@ -48,7 +48,7 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
                 .joined(separator: ",")
             var sql = """
                 SELECT n.id, n.title, n.summary, l.weight,
-                       \(Links.rankWeightSQL("l")) AS rank_w
+                       \(LinkRanking.weightSQL("l")) AS rank_w
                 FROM note_links l
                 JOIN notes n ON n.id = CASE WHEN l.src IN (\(placeholders)) THEN l.dst ELSE l.src END
                 WHERE (l.src IN (\(placeholders)) OR l.dst IN (\(placeholders)))
@@ -63,7 +63,7 @@ struct ExpandLinksTransaction: GRDBReadTransaction {
 
             if let kind {
                 sql += " AND l.kind = ?"
-                arguments.append(kind)
+                arguments.append(kind.rawValue)
             }
 
             let rows = try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))

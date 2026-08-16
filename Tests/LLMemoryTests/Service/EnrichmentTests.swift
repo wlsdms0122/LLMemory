@@ -746,13 +746,13 @@ struct EnrichmentTests {
         #expect(abs(weight - 0.454) < 0.001)
         #expect((row?["provenance"] as String?) == "test:capture")
         
-        let assocExpanded = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["enr-pl-a"], hops: 1, kind: Links.kindAssoc).perform(db) }
+        let assocExpanded = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["enr-pl-a"], hops: 1, kind: .assoc).perform(db) }
         
         #expect(!assocExpanded.contains { hit in hit.id == "enr-pl-b" })
         
-        _ = try home.database().write { db in try StrengthenLinksTransaction(pairs: [("enr-pl-a", "enr-pl-b")], kind: Links.kindAssoc, step: 0.3).perform(db) }
+        _ = try home.database().write { db in try StrengthenLinksTransaction(pairs: [("enr-pl-a", "enr-pl-b")], kind: .assoc, step: 0.3).perform(db) }
         
-        let after = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["enr-pl-a"], hops: 1, kind: Links.kindAssoc).perform(db) }
+        let after = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["enr-pl-a"], hops: 1, kind: .assoc).perform(db) }
         
         #expect(after.contains { hit in hit.id == "enr-pl-b" })
     }

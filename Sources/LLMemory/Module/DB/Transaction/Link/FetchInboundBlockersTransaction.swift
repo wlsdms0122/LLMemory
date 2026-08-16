@@ -21,8 +21,8 @@ struct FetchInboundBlockersTransaction: GRDBReadTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws -> [String] {
-        let directed = Array(Links.deleteBlockingKinds.intersection(Links.directedKinds))
-        let symmetric = Array(Links.deleteBlockingKinds.intersection(Links.undirectedKinds))
+        let directed = LinkKind.rawValues { kind in kind.blocksDelete && !kind.isUndirected }
+        let symmetric = LinkKind.rawValues { kind in kind.blocksDelete && kind.isUndirected }
         let directedPlaceholders = directed.map { _ in "?" }.joined(separator: ",")
         let symmetricPlaceholders = symmetric.map { _ in "?" }.joined(separator: ",")
         var arguments: [DatabaseValueConvertible?] = [noteId]

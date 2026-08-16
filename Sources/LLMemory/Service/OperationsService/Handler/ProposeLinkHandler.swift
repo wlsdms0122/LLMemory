@@ -40,7 +40,7 @@ struct ProposeLinkHandler: OperationHandling {
         if let rawKind = op["kind"] {
             let kind = rawKind as? String ?? ""
             
-            if kind != Links.kindAssoc {
+            if kind != LinkKind.assoc.rawValue {
                 return "invalid kind: \(kind) (propose_link only supports 'assoc')"
             }
         }
@@ -72,8 +72,6 @@ struct ProposeLinkHandler: OperationHandling {
         let now = context.now
         let src = op["src"] as! String
         let dst = op["dst"] as! String
-        let kind = (op["kind"] as? String)
-            .flatMap { value in value.isEmpty ? nil : value } ?? Links.kindAssoc
         let provenance = (op["provenance"] as? String)
             .flatMap { value in value.isEmpty ? nil : value }
         let confidence = number.value(of: op["confidence"]) ?? 1.0
@@ -82,14 +80,14 @@ struct ProposeLinkHandler: OperationHandling {
         let ceiling = neighborFloor - 0.02
         let weight = min(ceiling, base + max(0, ceiling - base) * confidence)
         
-        guard let (source, destination) = Links.normalize(src: src, dst: dst, kind: kind) else {
+        // validate() refused every other kind, so there is only this one left.
+        guard let (source, destination) = LinkKind.assoc.endpoints(src: src, dst: dst) else {
             return ["status": "ok", "ids": [], "note": "skipped self-loop \(src)"]
         }
         
         try scope.run(UpsertAssocLinkTransaction(
             src: source,
             dst: destination,
-            kind: kind,
             weight: weight,
             now: now,
             provenance: provenance
@@ -98,7 +96,7 @@ struct ProposeLinkHandler: OperationHandling {
         return [
             "status": "ok",
             "ids": [source, destination],
-            "note": "proposed \(kind) edge \(source)→\(destination) (weight \(String(format: "%.2f", weight)), dormant)"
+            "note": "proposed \(LinkKind.assoc.rawValue) edge \(source)→\(destination) (weight \(String(format: "%.2f", weight)), dormant)"
         ]
     }
     

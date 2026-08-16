@@ -11,14 +11,14 @@ import GRDB
 struct StrengthenLinksTransaction: GRDBTransaction {
     // MARK: - Property
     let pairs: [(String, String)]
-    let kind: String
+    let kind: LinkKind
     let step: Double?
     let cap: Double?
 
     // MARK: - Initializer
     init(
         pairs: [(String, String)],
-        kind: String = Links.kindCooccur,
+        kind: LinkKind = .cooccur,
         step: Double? = nil,
         cap: Double? = nil
     ) {
@@ -38,11 +38,7 @@ struct StrengthenLinksTransaction: GRDBTransaction {
         var strengthened = 0
 
         for (src, dst) in pairs {
-            guard let (source, destination) = Links.normalize(
-                src: src,
-                dst: dst,
-                kind: kind
-            ) else {
+            guard let (source, destination) = kind.endpoints(src: src, dst: dst) else {
                 continue
             }
 
@@ -54,7 +50,7 @@ struct StrengthenLinksTransaction: GRDBTransaction {
                       weight = MIN(?, weight + excluded.weight),
                       last_activated_at = excluded.last_activated_at
                     """, arguments: [
-                        source, destination, kind, min(stepValue, cap), now, now, cap
+                        source, destination, kind.rawValue, min(stepValue, cap), now, now, cap
                     ])
             } else {
                 try db.execute(sql: """
@@ -63,7 +59,7 @@ struct StrengthenLinksTransaction: GRDBTransaction {
                     ON CONFLICT(src, dst, kind) DO UPDATE SET
                       weight = weight + excluded.weight,
                       last_activated_at = excluded.last_activated_at
-                    """, arguments: [source, destination, kind, stepValue, now, now])
+                    """, arguments: [source, destination, kind.rawValue, stepValue, now, now])
             }
 
             strengthened += 1

@@ -28,7 +28,7 @@ struct FetchLinkNeighborsTransaction: GRDBReadTransaction {
         let floor = minWeight ?? Genes.double("links.neighbor_floor")
         var sql = """
             SELECT n.id, n.title, n.summary, l.kind, l.weight,
-                   \(Links.rankWeightSQL("l")) AS rank_w
+                   \(LinkRanking.weightSQL("l")) AS rank_w
             FROM note_links l
             JOIN notes n ON n.id = CASE WHEN l.src = ? THEN l.dst ELSE l.src END
             WHERE (l.src = ? OR l.dst = ?) AND l.weight >= ?

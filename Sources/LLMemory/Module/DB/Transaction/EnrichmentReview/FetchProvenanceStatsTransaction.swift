@@ -19,7 +19,7 @@ struct FetchProvenanceStatsTransaction: GRDBReadTransaction {
         let edges = try Row.fetchAll(db, sql: """
             SELECT src, dst, COALESCE(provenance, '(none)') AS prov
             FROM note_links WHERE kind = ?
-            """, arguments: [Links.kindAssoc])
+            """, arguments: [LinkKind.assoc.rawValue])
 
         guard !edges.isEmpty else { return [] }
 

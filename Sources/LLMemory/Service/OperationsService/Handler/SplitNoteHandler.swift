@@ -286,7 +286,13 @@ struct SplitNoteHandler: OperationHandling {
         
         func redistribute(_ edges: [LinkEdge], outbound: Bool) throws {
             for edge in edges where edge.other != fromId {
-                switch NoteArtifacts.linkKindSplitPolicy[edge.kind] ?? .autoRedistribute {
+                // An edge whose kind this binary does not know redistributes
+                // like a learned one — the reading that neither rebuilds it
+                // from a source it has no reader for nor throws it away.
+                let policy = LinkKind(rawValue: edge.kind)
+                    .map { kind in NoteArtifacts.splitPolicy(for: kind) }
+
+                switch policy ?? .autoRedistribute {
                 case .rebuild, .drop:
                     continue
                 

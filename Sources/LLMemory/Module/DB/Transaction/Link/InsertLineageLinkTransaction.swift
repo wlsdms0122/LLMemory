@@ -12,11 +12,11 @@ struct InsertLineageLinkTransaction: GRDBTransaction {
     // MARK: - Property
     let src: String
     let dst: String
-    let kind: String
+    let kind: LinkKind
     let now: Int
 
     // MARK: - Initializer
-    init(src: String, dst: String, kind: String, now: Int) {
+    init(src: String, dst: String, kind: LinkKind, now: Int) {
         self.src = src
         self.dst = dst
         self.kind = kind
@@ -25,13 +25,13 @@ struct InsertLineageLinkTransaction: GRDBTransaction {
 
     // MARK: - Public
     func perform(_ db: Database) throws {
-        guard let (source, destination) = Links.normalize(src: src, dst: dst, kind: kind) else { return }
+        guard let (source, destination) = kind.endpoints(src: src, dst: dst) else { return }
 
         try db.execute(sql: """
             INSERT OR IGNORE INTO note_links
               (src, dst, kind, weight, created_at, last_activated_at)
             VALUES (?, ?, ?, ?, ?, ?)
-            """, arguments: [source, destination, kind, 1.0, now, now])
+            """, arguments: [source, destination, kind.rawValue, 1.0, now, now])
     }
 
     // MARK: - Private

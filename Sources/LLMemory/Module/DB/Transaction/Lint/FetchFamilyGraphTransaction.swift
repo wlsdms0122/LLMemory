@@ -18,7 +18,7 @@ struct FetchFamilyGraphTransaction: GRDBReadTransaction {
         let links = try Row.fetchAll(
             db,
             sql: "SELECT src, dst FROM note_links WHERE kind = ?",
-            arguments: [Links.kindSibling]
+            arguments: [LinkKind.sibling.rawValue]
         )
             .map { row in (src: row["src"] as String, dst: row["dst"] as String) }
 

@@ -570,7 +570,7 @@ public struct Indexer: Sendable {
 
         let linkKinds = try String.fetchAll(db, sql: "SELECT DISTINCT kind FROM note_links")
 
-        for kind in linkKinds where !Links.allKinds.contains(kind) {
+        for kind in linkKinds where LinkKind(rawValue: kind) == nil {
             messages.append("L3\tinvalid-link-kind\t\(kind)")
             ok = false
         }

@@ -43,9 +43,9 @@ struct RebirthLinksTransaction: GRDBTransaction {
         arguments.append(contentsOf: ids as [DatabaseValueConvertible?])
         arguments.append(contentsOf: ids as [DatabaseValueConvertible?])
 
-        let kindPlaceholders = Array(repeating: "?", count: Links.learnedKinds.count)
-            .joined(separator: ",")
-        arguments.append(contentsOf: Array(Links.learnedKinds) as [DatabaseValueConvertible?])
+        let learned = LinkKind.rawValues { kind in kind.isLearned }
+        let kindPlaceholders = Array(repeating: "?", count: learned.count).joined(separator: ",")
+        arguments.append(contentsOf: learned as [DatabaseValueConvertible?])
 
         let rows = try Row.fetchAll(db, sql: """
             SELECT src, dst, kind, weight FROM note_links

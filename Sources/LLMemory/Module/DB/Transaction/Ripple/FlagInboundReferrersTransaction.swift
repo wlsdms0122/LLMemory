@@ -28,7 +28,7 @@ struct FlagInboundReferrersTransaction: GRDBTransaction {
     func perform(_ db: Database) throws -> Int {
         let referrers = try String.fetchAll(db, sql: """
             SELECT DISTINCT src FROM note_links WHERE dst = ? AND src != ? AND kind = ?
-            """, arguments: [targetId, targetId, Links.kindReference])
+            """, arguments: [targetId, targetId, LinkKind.reference.rawValue])
 
         for referrer in referrers {
             try AddRippleFlagTransaction(noteId: referrer, kind: "stale_ref", reason: reason, now: now)

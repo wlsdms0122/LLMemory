@@ -12,16 +12,14 @@ struct UpsertAssocLinkTransaction: GRDBTransaction {
     // MARK: - Property
     let src: String
     let dst: String
-    let kind: String
     let weight: Double
     let now: Int
     let provenance: String?
 
     // MARK: - Initializer
-    init(src: String, dst: String, kind: String, weight: Double, now: Int, provenance: String?) {
+    init(src: String, dst: String, weight: Double, now: Int, provenance: String?) {
         self.src = src
         self.dst = dst
-        self.kind = kind
         self.weight = weight
         self.now = now
         self.provenance = provenance
@@ -34,7 +32,7 @@ struct UpsertAssocLinkTransaction: GRDBTransaction {
             VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(src, dst, kind) DO UPDATE SET
               last_activated_at = excluded.last_activated_at
-            """, arguments: [src, dst, kind, weight, now, now, provenance])
+            """, arguments: [src, dst, LinkKind.assoc.rawValue, weight, now, now, provenance])
     }
 
     // MARK: - Private

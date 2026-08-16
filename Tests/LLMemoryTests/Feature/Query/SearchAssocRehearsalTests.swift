@@ -32,7 +32,7 @@ struct SearchAssocRehearsalTests {
         _ = try home.database().write { db in
             try StrengthenLinksTransaction(
                 pairs: [("areh-a", "areh-b")],
-                kind: Links.kindAssoc,
+                kind: .assoc,
                 step: 0.5,
                 cap: 1.0
             )
@@ -68,7 +68,7 @@ struct SearchAssocRehearsalTests {
             try Double.fetchOne(database, sql: """
                 SELECT weight FROM note_links WHERE kind = ? AND
                   ((src = ? AND dst = ?) OR (src = ? AND dst = ?))
-                """, arguments: [Links.kindAssoc, first, second, second, first])
+                """, arguments: [LinkKind.assoc.rawValue, first, second, second, first])
         }
     }
 }

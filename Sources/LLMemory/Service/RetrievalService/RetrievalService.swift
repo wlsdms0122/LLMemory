@@ -63,7 +63,7 @@ public struct RetrievalService: RetrievalServiceable {
 
     public func related(
         text: String,
-        kind: String?,
+        kind: LinkKind?,
         sessionId: SessionId?,
         includeBodies: Bool
     ) async throws -> RelatedResult {
@@ -174,7 +174,7 @@ public struct RetrievalService: RetrievalServiceable {
     func related(
         _ scope: GRDBReadScope,
         text: String,
-        kind: String?,
+        kind: LinkKind?,
         sessionId: SessionId?,
         includeBodies: Bool
     ) throws -> (result: RelatedResult, record: RetrievalRecord) {

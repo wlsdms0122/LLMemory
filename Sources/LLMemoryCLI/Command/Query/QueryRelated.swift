@@ -147,7 +147,7 @@ struct QueryRelated: AsyncParsableCommand {
                 text                  free-form input (preferred)
                 user_input            concatenated when `text` is empty
                 agent_output          concatenated when `text` is empty
-                kind                  optional link-kind hint
+                kind                  optional link-kind hint (one of LinkKind)
                 include_bodies        bool; inline note body for each similar
                 include_candidates    bool; include local merge candidates
                 candidates_limit      int
@@ -182,7 +182,19 @@ struct QueryRelated: AsyncParsableCommand {
             text = parts.joined(separator: "\n")
         }
         
-        let kind = payload["kind"] as? String
+        let rawKind = payload["kind"] as? String
+        let kind = try rawKind.map { raw in
+            guard let kind = LinkKind(rawValue: raw) else {
+                throw ValidationError(
+                    """
+                    unknown link kind: \(raw) \
+                    (expected \(LinkKind.allCases.map(\.rawValue).sorted().joined(separator: " | ")))
+                    """
+                )
+            }
+            
+            return kind
+        }
         let includeBodies = (payload["include_bodies"] as? Bool) ?? false
         let result = try await brain.query.related(
             text: text,

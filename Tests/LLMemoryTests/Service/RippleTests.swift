@@ -29,9 +29,9 @@ struct RippleTests {
     func flagInboundReferrersFlagsOnlyInboundReference() throws {
         // Given
         try seedThreeNotes()
-        try link("tmp-ripple-b", "tmp-ripple-a", kind: Links.kindReference)
-        try link("tmp-ripple-a", "tmp-ripple-c", kind: Links.kindReference)
-        try link("tmp-ripple-a", "tmp-ripple-c", kind: Links.kindCooccur)
+        try link("tmp-ripple-b", "tmp-ripple-a", kind: LinkKind.reference.rawValue)
+        try link("tmp-ripple-a", "tmp-ripple-c", kind: LinkKind.reference.rawValue)
+        try link("tmp-ripple-a", "tmp-ripple-c", kind: LinkKind.cooccur.rawValue)
         
         // When
         let flagged = try home.database().write { database in
@@ -54,7 +54,7 @@ struct RippleTests {
     func rippleCandidatesReturned() throws {
         // Given
         try seedThreeNotes()
-        try link("tmp-ripple-b", "tmp-ripple-a", kind: Links.kindReference)
+        try link("tmp-ripple-b", "tmp-ripple-a", kind: LinkKind.reference.rawValue)
         try flagReferrers(of: "tmp-ripple-a")
         
         // When
@@ -68,8 +68,8 @@ struct RippleTests {
     func rippleCandidatesExcludeStaleNotes() throws {
         // Given
         try seedThreeNotes()
-        try link("tmp-ripple-b", "tmp-ripple-a", kind: Links.kindReference)
-        try link("tmp-ripple-c", "tmp-ripple-a", kind: Links.kindReference)
+        try link("tmp-ripple-b", "tmp-ripple-a", kind: LinkKind.reference.rawValue)
+        try link("tmp-ripple-c", "tmp-ripple-a", kind: LinkKind.reference.rawValue)
         try flagReferrers(of: "tmp-ripple-a")
         
         try home.database().write { database in

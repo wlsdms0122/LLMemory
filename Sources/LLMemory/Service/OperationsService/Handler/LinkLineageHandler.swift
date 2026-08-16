@@ -34,10 +34,11 @@ struct LinkLineageHandler: OperationHandling {
         _ context: HandlerContext,
         _ scope: GRDBReadScope
     ) throws -> String? {
-        let kind = op["kind"] as? String ?? ""
+        let rawKind = op["kind"] as? String ?? ""
+        let lineage = LinkKind.rawValues { kind in kind.isLineage }
         
-        guard Links.lineageKinds.contains(kind) else {
-            return "invalid lineage kind: \(kind) (expected \(Links.lineageKinds.sorted().joined(separator: " | ")))"
+        guard lineage.contains(rawKind) else {
+            return "invalid lineage kind: \(rawKind) (expected \(lineage.sorted().joined(separator: " | ")))"
         }
         
         let src = op["src"] as? String ?? ""
@@ -60,18 +61,24 @@ struct LinkLineageHandler: OperationHandling {
         let now = context.now
         let src = op["src"] as! String
         let dst = op["dst"] as! String
-        let kind = op["kind"] as! String
+        // validate() refused every spelling that is not a lineage kind.
+        let kind = LinkKind(rawValue: op["kind"] as! String)!
         
         try scope.run(InsertLineageLinkTransaction(src: src, dst: dst, kind: kind, now: now))
         
         let reason = op["reason"] as? String
         
-        try scope.run(RecordNoteLifecycleEventTransaction(nid: src, kind: kind, reason: reason, now: now))
+        try scope.run(RecordNoteLifecycleEventTransaction(
+            nid: src,
+            kind: kind.rawValue,
+            reason: reason,
+            now: now
+        ))
         
         return [
             "status": "ok",
             "ids": [src, dst],
-            "note": "recorded \(kind): \(src) → \(dst)"
+            "note": "recorded \(kind.rawValue): \(src) → \(dst)"
         ]
     }
     

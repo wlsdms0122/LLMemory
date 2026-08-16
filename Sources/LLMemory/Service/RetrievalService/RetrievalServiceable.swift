@@ -30,7 +30,7 @@ protocol RetrievalServiceable: Sendable {
 
     func related(
         text: String,
-        kind: String?,
+        kind: LinkKind?,
         sessionId: SessionId?,
         includeBodies: Bool
     ) async throws -> RelatedResult
