@@ -86,14 +86,6 @@ final class Config: @unchecked Sendable {
         try MetaRecord(key: prefix + key, value: "\(value)").upsert(db)
     }
 
-    // Drops both caches so one fixture's values cannot outlive its brain.
-    // Nothing on the live path clears a cache: a cache that follows committed
-    // state is replaced by the next load, never emptied in between.
-    func discardCache(genes: Genes) {
-        cache.removeAll()
-        genes.invalidateCache()
-    }
-
     // Plants a value the database does not hold, so a test can prove a reader
     // consults the row rather than this cache.
     func plantStaleCacheValue(_ key: String, value: String) {

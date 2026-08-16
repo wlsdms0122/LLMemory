@@ -162,8 +162,6 @@ public final class Genes: @unchecked Sendable {
         cache = values
     }
 
-    func invalidateCache() { cache.removeAll() }
-
     static func withCandidate<T>(
         _ id: String,
         _ value: Double,

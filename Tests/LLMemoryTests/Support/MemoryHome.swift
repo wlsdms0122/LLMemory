@@ -9,14 +9,11 @@ import Foundation
 import GRDB
 @testable import LLMemory
 
+// One brain in a temporary directory, torn down with the test. Nothing is
+// shared between two of them — paths, caches and the connection all belong to
+// the Session — so tests that each build one do not have to take turns.
 final class MemoryHome: BrainHome, @unchecked Sendable {
     // MARK: - Property
-    // One fixture at a time. Brains no longer share process state — each home
-    // owns its paths, caches and connection — but the fixtures still share a
-    // temporary directory tree and the flock beneath it, so serialising them
-    // keeps a test that throws half-way from stranding another one.
-    private static let exclusion = NSLock()
-    
     let url: URL
     // One clock reading per fixture. Tests that each called their own Date() could straddle a second
     // boundary and compare timestamps that were never meant to differ.
@@ -45,43 +42,31 @@ final class MemoryHome: BrainHome, @unchecked Sendable {
             .appendingPathComponent("\(prefix)-\(UUID().uuidString)")
         now = Int(Date().timeIntervalSince1970)
         
-        Self.exclusion.lock()
-        
-        do {
-            let fileManager = FileManager.default
-            
-            try fileManager.createDirectory(
-                at: url.appendingPathComponent("data"),
-                withIntermediateDirectories: true
-            )
-            try fileManager.createDirectory(
-                at: url.appendingPathComponent("cortex"),
-                withIntermediateDirectories: true
-            )
-            
-            session = Session(home: url.path)
-            
-            try session.storage.initialize()
+        let fileManager = FileManager.default
 
-            _ = try session.storage.connect()
-            
-            // The Session warmed against a database that did not exist yet.
-            session.rewarm()
-        } catch {
-            Self.exclusion.unlock()
-            
-            throw error
-        }
+        try fileManager.createDirectory(
+            at: url.appendingPathComponent("data"),
+            withIntermediateDirectories: true
+        )
+        try fileManager.createDirectory(
+            at: url.appendingPathComponent("cortex"),
+            withIntermediateDirectories: true
+        )
+
+        session = Session(home: url.path)
+
+        try session.storage.initialize()
+
+        _ = try session.storage.connect()
+
+        // The Session warmed against a database that did not exist yet.
+        session.rewarm()
     }
     
     deinit {
         try? FileManager.default.removeItem(at: url)
         
         session.storage.disconnect()
-        
-        session.context.config.discardCache(genes: session.context.genes)
-        
-        Self.exclusion.unlock()
     }
     
     // MARK: - Public
