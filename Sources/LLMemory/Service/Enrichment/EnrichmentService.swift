@@ -15,6 +15,10 @@ public struct EnrichmentService: EnrichmentServiceable {
     let storage: GRDBStorage
     let brain: BrainContext
 
+    // The enrichment keys and defaults have one owner; this resolves them
+    // from this brain each time they are needed.
+    private var enrichment: EnrichmentTuning { EnrichmentTuning(brain.config) }
+
     // MARK: - Initializer
     init(storage: GRDBStorage, brain: BrainContext) {
         self.storage = storage
@@ -26,7 +30,8 @@ public struct EnrichmentService: EnrichmentServiceable {
         try await storage.read { scope in try scope.run(
                 EnrichmentStatusTransaction(
                     neighborFloor: brain.genes.double("links.neighbor_floor"),
-                    enrichment: EnrichmentTuning(brain.config)
+                    disagreeFloor: enrichment.disagreeFloor,
+                    modelAlarmRate: enrichment.modelAlarmRate
                 )
             )
         }

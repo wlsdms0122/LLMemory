@@ -17,6 +17,10 @@ public struct IndexService: IndexServiceable {
 
     private let indexer = Indexer()
 
+    // The enrichment keys and defaults have one owner; this resolves them
+    // from this brain each time they are needed.
+    private var enrichment: EnrichmentTuning { EnrichmentTuning(brain.config) }
+
     // MARK: - Initializer
     init(storage: GRDBStorage, brain: BrainContext, keywords: any KeywordExtracting) {
         self.storage = storage
@@ -77,7 +81,8 @@ public struct IndexService: IndexServiceable {
                 ValidateTermsTransaction(
                     rejectStale: rejectStale,
                     keywords: keywords,
-                    enrichment: EnrichmentTuning(brain.config)
+                    roundtripTopK: enrichment.roundtripTopK,
+                    idfDFCeiling: enrichment.idfDFCeiling
                 )
             ) }
     }

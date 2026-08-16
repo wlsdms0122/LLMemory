@@ -11,12 +11,14 @@ import GRDB
 struct EnrichmentStatusTransaction: GRDBReadTransaction {
     // MARK: - Property
     let neighborFloor: Double
-    let enrichment: EnrichmentTuning
+    let disagreeFloor: Double
+    let modelAlarmRate: Double
 
     // MARK: - Initializer
-    init(neighborFloor: Double, enrichment: EnrichmentTuning) {
+    init(neighborFloor: Double, disagreeFloor: Double, modelAlarmRate: Double) {
         self.neighborFloor = neighborFloor
-        self.enrichment = enrichment
+        self.disagreeFloor = disagreeFloor
+        self.modelAlarmRate = modelAlarmRate
     }
 
     // MARK: - Public
@@ -64,11 +66,11 @@ struct EnrichmentStatusTransaction: GRDBReadTransaction {
             noteCount: noteCount,
             vectorCount: vectorCount,
             provenanceStats: try FetchProvenanceStatsTransaction(
-                disagreeFloor: enrichment.disagreeFloor
+                disagreeFloor: disagreeFloor
             )
                 .perform(db),
             reviewFlagged: reviewFlagged,
-            modelAlarmRate: enrichment.modelAlarmRate
+            modelAlarmRate: modelAlarmRate
         )
     }
 

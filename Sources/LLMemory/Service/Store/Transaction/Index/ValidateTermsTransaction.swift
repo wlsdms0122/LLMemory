@@ -12,13 +12,20 @@ struct ValidateTermsTransaction: GRDBTransaction {
     // MARK: - Property
     let rejectStale: Bool
     let keywords: any KeywordExtracting
-    let enrichment: EnrichmentTuning
+    let roundtripTopK: Int
+    let idfDFCeiling: Double
 
     // MARK: - Initializer
-    init(rejectStale: Bool, keywords: any KeywordExtracting, enrichment: EnrichmentTuning) {
+    init(
+        rejectStale: Bool,
+        keywords: any KeywordExtracting,
+        roundtripTopK: Int,
+        idfDFCeiling: Double
+    ) {
         self.rejectStale = rejectStale
         self.keywords = keywords
-        self.enrichment = enrichment
+        self.roundtripTopK = roundtripTopK
+        self.idfDFCeiling = idfDFCeiling
     }
 
     // MARK: - Public
@@ -26,8 +33,8 @@ struct ValidateTermsTransaction: GRDBTransaction {
         let pass = try ValidatePendingTermsTransaction(
             noteIds: nil,
             keywords: keywords,
-            roundtripTopK: enrichment.roundtripTopK,
-            idfDFCeiling: enrichment.idfDFCeiling
+            roundtripTopK: roundtripTopK,
+            idfDFCeiling: idfDFCeiling
         )
             .perform(db)
         let staleRejected = rejectStale ? try RejectStalePendingTermsTransaction().perform(db) : 0

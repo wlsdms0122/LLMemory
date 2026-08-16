@@ -29,7 +29,9 @@ struct LintScanner: LintScanning {
     
     private let dismissalPolicy = DismissalPolicy()
 
-    // The thresholds this brain judges by, resolved once per scanner.
+    // The thresholds this brain judges by. Read from the cache each time
+    // rather than held: a scanner outlives the scope it was built in, and a
+    // held value would score a later pass against a bar the brain has left.
     private var tuning: LintTuning { LintTuning(brain.config) }
 
     // One spelling of the corpus read, so a single-note lint and a full pass

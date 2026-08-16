@@ -55,7 +55,11 @@ struct EnrichmentReviewTests {
         
         // When
         let queue = try home.storage.connect()
-        let status = try queue.read { db in try EnrichmentStatusTransaction(neighborFloor: home.genes.double("links.neighbor_floor"), enrichment: EnrichmentTuning(home.config)).perform(db) }
+        let status = try queue.read { db in try EnrichmentStatusTransaction(
+                neighborFloor: home.genes.double("links.neighbor_floor"),
+                disagreeFloor: EnrichmentTuning(home.config).disagreeFloor,
+                modelAlarmRate: EnrichmentTuning(home.config).modelAlarmRate
+            ).perform(db) }
         
         // Then
         #expect(status.assocTotal == 1)
@@ -147,7 +151,11 @@ struct EnrichmentReviewTests {
         _ = try home.database().write { db in try BuildVectorsTransaction(dimension: home.config.getInt("vectors.dim", default: 48)).perform(db) }
         
         let queue = try home.storage.connect()
-        let status = try queue.read { db in try EnrichmentStatusTransaction(neighborFloor: home.genes.double("links.neighbor_floor"), enrichment: EnrichmentTuning(home.config)).perform(db) }
+        let status = try queue.read { db in try EnrichmentStatusTransaction(
+                neighborFloor: home.genes.double("links.neighbor_floor"),
+                disagreeFloor: EnrichmentTuning(home.config).disagreeFloor,
+                modelAlarmRate: EnrichmentTuning(home.config).modelAlarmRate
+            ).perform(db) }
         
         #expect(status.vectorCount == 2, "only surface notes get a vector row")
         #expect(status.noteCount == 2, "denominator must count the surface population, not off-surface notes")
