@@ -34,7 +34,7 @@ public final class Session {
         self.context = context
         self.home = context.home
         self.storage = GRDBStorage(
-            databaseURL: context.path.db,
+            databaseURL: context.layout.db,
             migrations: Self.migrations,
             context: context
         )

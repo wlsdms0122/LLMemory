@@ -62,7 +62,7 @@ struct RelatedFailLoudTests {
         }
 
         // Restore the ledger so the fixture can tear the home down through a working connection.
-        let raw = try DatabaseQueue(path: home.path.db.path)
+        let raw = try DatabaseQueue(path: home.layout.db.path)
 
         try raw.write { database in
             try database.execute(

@@ -246,7 +246,7 @@ struct TemplateTests {
     private func body(_ home: MemoryHome, _ id: String) throws -> String {
         let queue = try home.storage.connect()
         let relative = try queue.read { db in
-            try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id = ?", arguments: [id]).map { _ in home.path.relativeFile(forId: id) }
+            try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id = ?", arguments: [id]).map { _ in home.layout.relativeFile(forId: id) }
         }
         let text = try String(contentsOf: home.url.appendingPathComponent(relative!), encoding: .utf8)
         
@@ -401,7 +401,7 @@ struct TemplateTests {
         
         let queue = try home.storage.connect()
         let relative = try queue.read { db in
-            try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id='tpl-ab'").map { _ in home.path.relativeFile(forId: "tpl-ab") }
+            try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id='tpl-ab'").map { _ in home.layout.relativeFile(forId: "tpl-ab") }
         }
         let templateFile = home.url.appendingPathComponent(relative!)
         let text = try String(contentsOf: templateFile, encoding: .utf8)

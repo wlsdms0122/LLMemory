@@ -31,13 +31,13 @@ struct StampNoteLifecycleTransaction: GRDBBrainTransaction {
             throw NotesError.stampedFileVanished(nid: nid, path: "(no notes row)")
         }
 
-        let relativePath = brain.path.relativeFile(forId: nid)
+        let relativePath = brain.layout.relativeFile(forId: nid)
         let previousCreated = (try Int.fetchOne(
             db,
             sql: "SELECT created_at FROM note_usage WHERE note_id = ?",
             arguments: [nid]
         )) ?? 0
-        let path = brain.path.brainRoot.appendingPathComponent(relativePath)
+        let path = brain.layout.brainRoot.appendingPathComponent(relativePath)
         let (_, body) = try noteFile.requireNote(at: path)
         let wordCount = sectionEdit.wordCount(body)
         let sectionCount = sectionEdit.sectionCount(body)

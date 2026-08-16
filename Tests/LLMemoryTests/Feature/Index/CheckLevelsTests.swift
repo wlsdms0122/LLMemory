@@ -92,7 +92,7 @@ struct CheckLevelsTests {
     // MARK: - Private
     // Written straight to disk so the note exists as a file without ever reaching the index.
     private func writeUnindexedNote(id: String) throws {
-        let directory = home.path.notes
+        let directory = home.layout.notes
         
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try """

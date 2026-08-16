@@ -88,10 +88,10 @@ struct CreateNoteHandler: OperationHandling {
             return "id collision: \(noteId) (use patch_section to update)"
         }
         
-        let path = scope.brain.path.file(forId: noteId)
+        let path = scope.brain.layout.file(forId: noteId)
         
         if FileManager.default.fileExists(atPath: path.path) {
-            let relativePath = scope.brain.path.relative(of: path) ?? path.path
+            let relativePath = scope.brain.layout.relative(of: path) ?? path.path
             
             return "path already exists: \(relativePath) (use patch_section)"
         }
@@ -106,7 +106,7 @@ struct CreateNoteHandler: OperationHandling {
     ) throws -> [String: Any] {
         let now = context.now
         let noteId = op["id"] as! String
-        let path = scope.brain.path.file(forId: noteId)
+        let path = scope.brain.layout.file(forId: noteId)
         
         try FileManager.default.createDirectory(
             at: path.deletingLastPathComponent(),
@@ -152,7 +152,7 @@ struct CreateNoteHandler: OperationHandling {
             "status": "ok",
             "path": path.path,
             "ids": [noteId],
-            "note": "created at \(scope.brain.path.relativeFile(forId: noteId))"
+            "note": "created at \(scope.brain.layout.relativeFile(forId: noteId))"
         ]
     }
     
@@ -161,7 +161,7 @@ struct CreateNoteHandler: OperationHandling {
     }
     
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
-        (op["id"] as? String).map { id in [scope.brain.path.file(forId: id)] } ?? []
+        (op["id"] as? String).map { id in [scope.brain.layout.file(forId: id)] } ?? []
     }
     
     // MARK: - Private

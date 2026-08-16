@@ -189,7 +189,7 @@ struct SplitNoteHandler: OperationHandling {
             remaining = rest
             
             let childId = child["id"] as! String
-            let childPath = scope.brain.path.file(forId: childId)
+            let childPath = scope.brain.layout.file(forId: childId)
             
             try FileManager.default.createDirectory(
                 at: childPath.deletingLastPathComponent(),
@@ -253,7 +253,7 @@ struct SplitNoteHandler: OperationHandling {
                 now: now
             ))
             try scope.run(DeleteNoteRowTransaction(nid: fromId))
-            try Trash(path: scope.brain.path).file(
+            try Trash(layout: scope.brain.layout).file(
                 srcPath,
                 reason: "split into \(newIds.joined(separator: ", "))",
                 now: now
@@ -415,12 +415,12 @@ struct SplitNoteHandler: OperationHandling {
         if let fromId = op["from_id"] as? String, let src = try scope.run(FetchNotePathTransaction(nid: fromId)) {
             paths.append(src)
             
-            if let trashPath = Trash(path: scope.brain.path).destination(of: src) { paths.append(trashPath) }
+            if let trashPath = Trash(layout: scope.brain.layout).destination(of: src) { paths.append(trashPath) }
         }
         
         for child in (op["into"] as? [[String: Any]]) ?? [] {
             if let childId = child["id"] as? String {
-                paths.append(scope.brain.path.file(forId: childId))
+                paths.append(scope.brain.layout.file(forId: childId))
             }
         }
         

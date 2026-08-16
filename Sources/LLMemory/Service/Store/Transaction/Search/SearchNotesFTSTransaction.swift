@@ -85,7 +85,7 @@ struct SearchNotesFTSTransaction: GRDBBrainReadTransaction {
         }
 
         return TagPriorRerank.apply(
-            rows.map { row in SearchRow(row, brain.path) },
+            rows.map { row in SearchRow(row, brain.layout) },
             prior: prior,
             alpha: brain.genes.double("priming.alpha"),
             limit: limit

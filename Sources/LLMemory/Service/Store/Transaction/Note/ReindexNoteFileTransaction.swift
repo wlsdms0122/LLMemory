@@ -22,9 +22,9 @@ struct ReindexNoteFileTransaction: GRDBBrainTransaction {
     // MARK: - Public
     @discardableResult
     func perform(_ db: Database, _ brain: BrainContext) throws -> String {
-        if let rejection = brain.path.liveNoteRejection(of: path) {
+        if let rejection = brain.layout.liveNoteRejection(of: path) {
             throw NotesError.notALiveNote(
-                path: brain.path.relative(of: path) ?? path.path,
+                path: brain.layout.relative(of: path) ?? path.path,
                 reason: rejection
             )
         }

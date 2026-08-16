@@ -17,9 +17,9 @@ final class CLIBrain {
     
     let url: URL
     
-    var homePath: String { url.path }
+    var path: String { url.path }
 
-    var path: Path { Path(home: url.path) }
+    var layout: BrainLayout { BrainLayout(home: url.path) }
     
     // MARK: - Initializer
     init(prefix: String = "llmemory-cli-test", seeded: Bool = true, seed: Bool = true) throws {
@@ -46,7 +46,7 @@ final class CLIBrain {
     // MARK: - Public
     @discardableResult
     func run(_ arguments: [String], standardInput: String? = nil) -> CLIResult {
-        runner.run(arguments + ["--home", homePath], standardInput: standardInput)
+        runner.run(arguments + ["--home", path], standardInput: standardInput)
     }
     
     @discardableResult
@@ -68,7 +68,7 @@ final class CLIBrain {
     }
 
     func noteURL(id: String) -> URL {
-        file(path.relativeFile(forId: id))
+        file(layout.relativeFile(forId: id))
     }
     
     // MARK: - Private

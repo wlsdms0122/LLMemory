@@ -38,11 +38,11 @@ struct UpsertNoteTransaction: GRDBBrainTransaction {
         // The file's location is the id. Whatever the caller carried in `fields`
         // is not consulted here — there is one source, so there is nothing to
         // reconcile and no way for a row to point somewhere its file is not.
-        guard let noteId = brain.path.id(ofFile: file), !noteId.isEmpty else {
+        guard let noteId = brain.layout.id(ofFile: file), !noteId.isEmpty else {
             throw NotesError.notALiveNote(
-                path: brain.path.relative(of: file) ?? file.path,
-                reason: brain.path.liveNoteRejection(of: file)
-                    ?? brain.path.addressRejection(of: file)
+                path: brain.layout.relative(of: file) ?? file.path,
+                reason: brain.layout.liveNoteRejection(of: file)
+                    ?? brain.layout.addressRejection(of: file)
                     ?? "not addressable"
             )
         }

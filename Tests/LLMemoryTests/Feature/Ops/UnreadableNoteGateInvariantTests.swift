@@ -17,7 +17,7 @@ struct UnreadableNoteGateInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
-    private var trashLookup: TrashedNoteLookup { TrashedNoteLookup(path: home.path) }
+    private var trashLookup: TrashedNoteLookup { TrashedNoteLookup(layout: home.layout) }
 
     private let noteFile = NoteFile()
 
@@ -182,7 +182,7 @@ struct UnreadableNoteGateInvariantTests {
         let file = try corrupt(id: "sg-note", body: "garbage\n")
         
         // When
-        let violation = home.operationsEngine.checkSectionInvariants(home.path, affected: [file], backups: [(file, nil)])
+        let violation = home.operationsEngine.checkSectionInvariants(home.layout, affected: [file], backups: [(file, nil)])
         
         // Then
         #expect(violation?.contains("sg-note") == true, "unexpected: \(violation ?? "nil")")
@@ -195,7 +195,7 @@ struct UnreadableNoteGateInvariantTests {
         let absent = home.url.appendingPathComponent("cortex/deleted.md")
         
         // Then
-        #expect(home.operationsEngine.checkSectionInvariants(home.path, affected: [absent], backups: [(absent, nil)]) == nil)
+        #expect(home.operationsEngine.checkSectionInvariants(home.layout, affected: [absent], backups: [(absent, nil)]) == nil)
     }
     
     @Test("the lifecycle stamp refuses to record a shape it could not measure")

@@ -190,7 +190,7 @@ public struct RetrievalService: RetrievalServiceable {
 
         if includeBodies {
             for note in snapshot.similar {
-                let path = scope.brain.path.brainRoot.appendingPathComponent(note.path)
+                let path = scope.brain.layout.brainRoot.appendingPathComponent(note.path)
 
                 if let body = try? String(contentsOf: path, encoding: .utf8) {
                     bodies[note.id] = body

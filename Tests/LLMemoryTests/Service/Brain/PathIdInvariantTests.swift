@@ -28,16 +28,16 @@ struct PathIdInvariantTests {
     // MARK: - Test
     @Test("a dot in the id is a directory separator, and the last label is the file")
     func idSpellsThePath() {
-        #expect(home.path.relativeFile(forId: "principles") == "cortex/principles.md")
-        #expect(home.path.relativeFile(forId: "a.b") == "cortex/a/b.md")
-        #expect(home.path.relativeFile(forId: "journal.2026.08.bkios-545")
+        #expect(home.layout.relativeFile(forId: "principles") == "cortex/principles.md")
+        #expect(home.layout.relativeFile(forId: "a.b") == "cortex/a/b.md")
+        #expect(home.layout.relativeFile(forId: "journal.2026.08.bkios-545")
             == "cortex/journal/2026/08/bkios-545.md")
     }
 
     @Test("reading the address back off the file returns the id it was built from")
     func pathAndIdAreInverses() {
         for id in ["principles", "a.b", "a.b.c.d", "journal.2026.08.bkios-545"] {
-            #expect(home.path.id(ofFile: home.path.file(forId: id)) == id, "round trip broke for \(id)")
+            #expect(home.layout.id(ofFile: home.layout.file(forId: id)) == id, "round trip broke for \(id)")
         }
     }
 
@@ -69,8 +69,8 @@ struct PathIdInvariantTests {
         }
 
         // Then — only one of them has an address, and the other is named, not skipped.
-        #expect(home.path.id(ofFile: proper) == "a.b.c")
-        #expect(home.path.id(ofFile: dotted) == nil, "two files resolved to one address")
+        #expect(home.layout.id(ofFile: proper) == "a.b.c")
+        #expect(home.layout.id(ofFile: dotted) == nil, "two files resolved to one address")
 
         let result = try indexer.buildLocked(home.database(), home.brain, rebuild: false)
         let ids = try home.read { database in
@@ -236,7 +236,7 @@ struct PathIdInvariantTests {
 
         // Then
         #expect(!text.contains("\nid:"), "the note wrote its address down a second time")
-        #expect(home.path.id(ofFile: file) == "x.y.z", "the location is where the id comes from")
+        #expect(home.layout.id(ofFile: file) == "x.y.z", "the location is where the id comes from")
 
         let indexed = try home.read { database in
             try String.fetchAll(database, sql: "SELECT id FROM notes WHERE id = 'x.y.z'")

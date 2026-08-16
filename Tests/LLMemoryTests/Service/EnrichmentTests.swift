@@ -427,7 +427,7 @@ struct EnrichmentTests {
             "content": "## a\nb\n", "entities": ["BAR-9"]]]).status == "ok")
         
         let path = try home.read { db in
-            home.path.relativeFile(forId: "rc-note")
+            home.layout.relativeFile(forId: "rc-note")
         }
         
         try home.write { db in

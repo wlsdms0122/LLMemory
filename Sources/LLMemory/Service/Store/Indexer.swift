@@ -109,7 +109,7 @@ public struct Indexer: Sendable {
 
     // The corpus scan — file I/O and parsing, no connection involved.
     func scanPending(_ brain: BrainContext) -> Scan {
-        let files = brain.path.scanNotes()
+        let files = brain.layout.scanNotes()
         var scannedRels = Set<String>()
         var pending: [PendingNote] = []
         var fileErrors: [String] = []
@@ -117,13 +117,13 @@ public struct Indexer: Sendable {
         for file in files {
             let relativePath: String
             do {
-                relativePath = try brain.path.requireRelative(of: file)
+                relativePath = try brain.layout.requireRelative(of: file)
             } catch {
                 fileErrors.append("\(file.path): \(error)")
                 continue
             }
 
-            if let rejection = brain.path.addressRejection(of: file) {
+            if let rejection = brain.layout.addressRejection(of: file) {
                 fileErrors.append("\(relativePath): \(rejection)")
                 continue
             }
@@ -174,7 +174,7 @@ public struct Indexer: Sendable {
             var path = URL(fileURLWithPath: (filePath as NSString).expandingTildeInPath)
 
             if !path.path.hasPrefix("/") {
-                path = brain.path.brainRoot.appendingPathComponent(filePath)
+                path = brain.layout.brainRoot.appendingPathComponent(filePath)
             }
 
             path = path.standardizedFileURL.resolvingSymlinksInPath()
@@ -184,11 +184,11 @@ public struct Indexer: Sendable {
                 continue
             }
 
-            if brain.path.relative(of: path) == nil {
+            if brain.layout.relative(of: path) == nil {
                 outcomes.append(
                     ReindexOutcome(
                         filePath: filePath,
-                        result: .failure("outside brain home \(brain.path.brainRoot.path)")
+                        result: .failure("outside brain home \(brain.layout.brainRoot.path)")
                     )
                 )
                 continue
@@ -202,7 +202,7 @@ public struct Indexer: Sendable {
                     do {
                         let noteId = try ReindexNoteFileTransaction(path: path).perform(db, brain)
 
-                        reindexed = (noteId, brain.path.relative(of: path) ?? path.path)
+                        reindexed = (noteId, brain.layout.relative(of: path) ?? path.path)
 
                         return .commit
                     } catch {
@@ -256,7 +256,7 @@ public struct Indexer: Sendable {
         for row in existingRows {
             let id: String = row["id"]
 
-            existingByPath[brain.path.relativeFile(forId: id)] = (id, row["content_hash"])
+            existingByPath[brain.layout.relativeFile(forId: id)] = (id, row["content_hash"])
         }
 
         // `seen` is claimed before the upsert on purpose: a file that fails to
@@ -266,7 +266,7 @@ public struct Indexer: Sendable {
         // No duplicate check: two files are two locations, and two locations are
         // two addresses. Nothing can claim an id that another file already has.
         func reconcileOne(_ note: PendingNote) throws {
-            if let noteId = brain.path.id(ofFile: note.file) { seen.insert(noteId) }
+            if let noteId = brain.layout.id(ofFile: note.file) { seen.insert(noteId) }
 
             if let previous = existingByPath[note.rel],
                 previous.hash == note.contentHash && !rebuild {
@@ -355,9 +355,9 @@ public struct Indexer: Sendable {
         // disagreement surfaces as a mismatch rather than as two ghosts.
         var filesById: [String: URL] = [:]
 
-        for file in brain.path.scanNotes() {
-            guard let id = brain.path.id(ofFile: file) else {
-                messages.append("L1\tunaddressable\t\(brain.path.relative(of: file) ?? file.path)")
+        for file in brain.layout.scanNotes() {
+            guard let id = brain.layout.id(ofFile: file) else {
+                messages.append("L1\tunaddressable\t\(brain.layout.relative(of: file) ?? file.path)")
                 ok = false
                 continue
             }

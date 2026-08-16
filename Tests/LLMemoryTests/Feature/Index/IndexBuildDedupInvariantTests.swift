@@ -146,7 +146,7 @@ struct IndexBuildDedupInvariantTests {
     
     private func pendingNote(at url: URL) throws -> Indexer.PendingNote {
         let resolved = url.resolvingSymlinksInPath().standardizedFileURL
-        let relativePath = resolved.path.replacingOccurrences(of: home.path.brainRoot.path + "/", with: "")
+        let relativePath = resolved.path.replacingOccurrences(of: home.layout.brainRoot.path + "/", with: "")
         let text = try String(contentsOf: resolved, encoding: .utf8)
         let (fields, body) = try frontmatter.parse(text)
         

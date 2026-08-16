@@ -24,7 +24,7 @@ final class MemoryHome: BrainHome, @unchecked Sendable {
     // through a scope.
     var brain: BrainContext { session.context }
 
-    var path: Path { session.context.path }
+    var layout: BrainLayout { session.context.layout }
 
     var genes: Genes { session.context.genes }
 

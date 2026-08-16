@@ -84,7 +84,7 @@ struct ExpandLinksTransaction: GRDBBrainReadTransaction {
                             id: noteId,
                             title: row["title"],
                             summary: row["summary"] as String?,
-                            path: brain.path.relativeFile(forId: row["id"] as String),
+                            path: brain.layout.relativeFile(forId: row["id"] as String),
                             weight: row["weight"],
                             rankWeight: rankWeight
                         ),

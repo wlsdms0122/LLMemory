@@ -42,7 +42,7 @@ struct OpsCommandTests {
             """)
         
         // Then
-        let trashed = FileManager.default.enumerator(atPath: brain.homePath + "/cortex/.trash")?
+        let trashed = FileManager.default.enumerator(atPath: brain.path + "/cortex/.trash")?
             .compactMap { element in element as? String } ?? []
         let fetched = brain.run(["query", "get", "flow.transfer-flow", "--json"])
         

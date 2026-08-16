@@ -238,8 +238,8 @@ struct LintScanner: LintScanning {
             return [LintIssue("error", "missing", "note not in db: \(nid)", .note(nid))]
         }
         
-        let relativePath = scope.brain.path.relativeFile(forId: nid)
-        let path = scope.brain.path.file(forId: nid)
+        let relativePath = scope.brain.layout.relativeFile(forId: nid)
+        let path = scope.brain.layout.file(forId: nid)
         
         if !FileManager.default.fileExists(atPath: path.path) {
             return [LintIssue("error", "file-missing", "file does not exist: \(relativePath)", .note(nid))]

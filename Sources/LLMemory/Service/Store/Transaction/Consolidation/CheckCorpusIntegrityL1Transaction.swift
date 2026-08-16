@@ -18,8 +18,8 @@ struct CheckCorpusIntegrityL1Transaction: GRDBBrainReadTransaction {
     func perform(_ db: Database, _ brain: BrainContext) throws -> (checked: Int, issues: [String]) {
         let ids = try String.fetchAll(db, sql: "SELECT id FROM notes ORDER BY id")
         let issues = try ids.compactMap { id -> String? in
-            let path = brain.path.file(forId: id)
-            let relative = brain.path.relative(of: path) ?? path.path
+            let path = brain.layout.file(forId: id)
+            let relative = brain.layout.relative(of: path) ?? path.path
             
             do {
                 guard try noteFile.readNoteIfPresent(at: path) != nil else {

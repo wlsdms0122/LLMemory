@@ -147,7 +147,7 @@ struct IndexOrphanPopulationInvariantTests {
     @discardableResult
     private func move(id: String, to relativePath: String) throws -> URL {
         let source = try home.indexedPath(of: id)
-        let destination = home.path.cortexRoot.appendingPathComponent(relativePath)
+        let destination = home.layout.cortexRoot.appendingPathComponent(relativePath)
         
         try FileManager.default.createDirectory(
             at: destination.deletingLastPathComponent(),

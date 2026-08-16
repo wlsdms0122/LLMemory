@@ -21,7 +21,7 @@ struct SeedTests {
 
     private let frontmatter = Frontmatter()
 
-    private var seeding: Seeding { Seeding(path: home.path) }
+    private var seeding: Seeding { Seeding(layout: home.layout) }
 
     // MARK: - Initializer
     init() throws {
@@ -107,7 +107,7 @@ struct SeedTests {
 
         for seed in Seed.notes {
             // When
-            let planted = brain.file(home.path.relativeFile(forId: seed.id))
+            let planted = brain.file(home.layout.relativeFile(forId: seed.id))
             let result = brain.run(["query", "get", seed.id, "--json"])
 
             // Then
@@ -138,7 +138,7 @@ struct SeedTests {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-seed-edit")
         let seed = try firstSeed()
-        let file = brain.file(home.path.relativeFile(forId: seed.id))
+        let file = brain.file(home.layout.relativeFile(forId: seed.id))
 
         try (seed.markdown + "\nlocal addition.\n").write(to: file, atomically: true, encoding: .utf8)
 
@@ -161,7 +161,7 @@ struct SeedTests {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-seed-delete")
         let seed = try firstSeed()
-        let file = brain.file(home.path.relativeFile(forId: seed.id))
+        let file = brain.file(home.layout.relativeFile(forId: seed.id))
 
         try FileManager.default.removeItem(at: file)
 
@@ -187,7 +187,7 @@ struct SeedTests {
         #expect(home.createNote(id: "tech.mine", content: "## A\nmine\n").status == "ok")
 
         for seed in Seed.notes {
-            try home.reindexFile(at: home.path.file(forId: seed.id))
+            try home.reindexFile(at: home.layout.file(forId: seed.id))
         }
 
         // When
@@ -222,7 +222,7 @@ struct SeedTests {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-seed-conflict", seeded: false, seed: false)
         let seed = try firstSeed()
-        let file = brain.file(home.path.relativeFile(forId: seed.id))
+        let file = brain.file(home.layout.relativeFile(forId: seed.id))
         let mine = """
         ---
         title: mine
@@ -275,7 +275,7 @@ struct SeedTests {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-seed-allornothing", seeded: false, seed: false)
         let seed = try firstSeed()
-        let file = brain.file(home.path.relativeFile(forId: seed.id))
+        let file = brain.file(home.layout.relativeFile(forId: seed.id))
 
         try FileManager.default.createDirectory(
             at: file.deletingLastPathComponent(),
@@ -304,7 +304,7 @@ struct SeedTests {
 
         for other in Seed.notes where other.id != seed.id {
             #expect(!FileManager.default.fileExists(
-                atPath: brain.file(home.path.relativeFile(forId: other.id)).path
+                atPath: brain.file(home.layout.relativeFile(forId: other.id)).path
             ), "\(other.id) was planted while another seed was in conflict")
         }
     }
@@ -316,7 +316,7 @@ struct SeedTests {
     func aRetiredSeedIsTrashedAndReported() throws {
         // Given — a note that claims to be a seeded copy at an id nothing ships.
         let brain = try CLIBrain(prefix: "llmemory-seed-retire")
-        let retired = brain.file(home.path.relativeFile(forId: "innate.gone"))
+        let retired = brain.file(home.layout.relativeFile(forId: "innate.gone"))
 
         try FileManager.default.createDirectory(
             at: retired.deletingLastPathComponent(),
@@ -371,7 +371,7 @@ struct SeedTests {
     func retirementIsConfirmedAgainstTheFile() throws {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-seed-retire-claim")
-        let file = brain.file(home.path.relativeFile(forId: "innate.gone"))
+        let file = brain.file(home.layout.relativeFile(forId: "innate.gone"))
 
         try FileManager.default.createDirectory(
             at: file.deletingLastPathComponent(),
@@ -423,7 +423,7 @@ struct SeedTests {
         // Given
         let brain = try CLIBrain(prefix: "llmemory-seed-none", seeded: false, seed: false)
         let seed = try firstSeed()
-        let file = brain.file(home.path.relativeFile(forId: seed.id))
+        let file = brain.file(home.layout.relativeFile(forId: seed.id))
 
         #expect(!FileManager.default.fileExists(atPath: file.path), "--no-seed must not plant")
 
@@ -451,7 +451,7 @@ struct SeedTests {
         let seed = try firstSeed()
         let authored = brain.noteURL(id: "tech.di-container")
         let before = try String(contentsOf: authored, encoding: .utf8)
-        let beneath = brain.file(home.path.relativeFile(forId: "\(seed.id).mine"))
+        let beneath = brain.file(home.layout.relativeFile(forId: "\(seed.id).mine"))
 
         try FileManager.default.createDirectory(
             at: beneath.deletingLastPathComponent(),
@@ -530,7 +530,7 @@ struct SeedTests {
         _ = seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
 
         let seed = try firstSeed()
-        let file = home.path.file(forId: seed.id)
+        let file = home.layout.file(forId: seed.id)
         let forked = seed.markdown.replacingOccurrences(of: "locked: true", with: "locked: false")
             + "\n## Local fork\nauthored by a person\n"
 
@@ -550,7 +550,7 @@ struct SeedTests {
     // at exactly the brain-relative path its id spells. Going through Path rather
     // than repeating the mapping here makes that sameness the thing under test.
     private func seedFile(_ id: String) -> URL {
-        source.file("document/\(home.path.relativeFile(forId: id))")
+        source.file("document/\(home.layout.relativeFile(forId: id))")
     }
 
     private func firstSeed() throws -> Seed.Note {

@@ -200,7 +200,7 @@ struct CutTotalOrderInvariantTests {
                     VALUES (?, ?, '', 'lazy', ?, ?)
                     """, arguments: [noteId, noteId, wordCount, sectionCount])
                 
-                let file = home.url.appendingPathComponent(home.path.relativeFile(forId: noteId))
+                let file = home.url.appendingPathComponent(home.layout.relativeFile(forId: noteId))
                 
                 try FileManager.default.createDirectory(
                     at: file.deletingLastPathComponent(),

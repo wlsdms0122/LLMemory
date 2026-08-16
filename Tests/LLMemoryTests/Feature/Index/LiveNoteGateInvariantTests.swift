@@ -83,7 +83,7 @@ struct LiveNoteGateInvariantTests {
         // Given
         _ = try trashNote(id: "live-3")
         
-        let cortex = home.path.notes
+        let cortex = home.layout.notes
         let fileManager = FileManager.default
         
         try fileManager.createDirectory(
@@ -106,7 +106,7 @@ struct LiveNoteGateInvariantTests {
         }
         
         // When
-        let walked = Set(home.path.scanNotes().map { url in url.standardized.path })
+        let walked = Set(home.layout.scanNotes().map { url in url.standardized.path })
         let enumerator = fileManager.enumerator(at: cortex, includingPropertiesForKeys: [.isRegularFileKey])!
         
         // Then
@@ -115,7 +115,7 @@ struct LiveNoteGateInvariantTests {
             
             let resolved = url.standardized
             
-            guard home.path.liveNoteRejection(of: resolved) == nil else { continue }
+            guard home.layout.liveNoteRejection(of: resolved) == nil else { continue }
             
             #expect(walked.contains(resolved.path),
                 "the gate admits a file the walk never discovers: \(resolved.path)")
@@ -124,16 +124,16 @@ struct LiveNoteGateInvariantTests {
         // No file name under cortex/ is reserved — only a non-note extension and
         // the trash are refused, so README.md and _draft.md are ordinary notes.
         for relativePath in ["flow/notes.txt", ".trash/live-3.md"] {
-            #expect(home.path.liveNoteRejection(of: cortex.appendingPathComponent(relativePath)) != nil,
+            #expect(home.layout.liveNoteRejection(of: cortex.appendingPathComponent(relativePath)) != nil,
                 "the gate admits \(relativePath)")
         }
         
         for relativePath in ["flow/README.md", "flow/_draft.md"] {
-            #expect(home.path.liveNoteRejection(of: cortex.appendingPathComponent(relativePath)) == nil,
+            #expect(home.layout.liveNoteRejection(of: cortex.appendingPathComponent(relativePath)) == nil,
                 "the gate still treats \(relativePath) as reserved")
         }
         
-        #expect(home.path.liveNoteRejection(of: cortex.appendingPathComponent("tech/plain.md")) == nil,
+        #expect(home.layout.liveNoteRejection(of: cortex.appendingPathComponent("tech/plain.md")) == nil,
             "the gate refuses an ordinary note")
     }
     
@@ -148,7 +148,7 @@ struct LiveNoteGateInvariantTests {
         
         #expect(deleted.status == "ok", "setup: delete failed — \(deleted.error)")
         
-        let trashed = home.path.trash.appendingPathComponent("\(id).md")
+        let trashed = home.layout.trash.appendingPathComponent("\(id).md")
         
         guard FileManager.default.fileExists(atPath: trashed.path) else {
             throw TestFailure("setup: no trashed file at \(trashed.path)")

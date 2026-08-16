@@ -111,7 +111,7 @@ extension BrainHome {
 
         guard known != nil else { throw TestFailure("no indexed path for \(id)") }
 
-        return url.appendingPathComponent(session.context.path.relativeFile(forId: id))
+        return url.appendingPathComponent(session.context.layout.relativeFile(forId: id))
     }
 
     func bodyText(of id: String) throws -> String {
@@ -136,7 +136,7 @@ extension BrainHome {
         body: String,
         entities: [String] = []
     ) throws -> URL {
-        let file = url.appendingPathComponent(session.context.path.relativeFile(forId: id))
+        let file = url.appendingPathComponent(session.context.layout.relativeFile(forId: id))
 
         try FileManager.default.createDirectory(
             at: file.deletingLastPathComponent(),

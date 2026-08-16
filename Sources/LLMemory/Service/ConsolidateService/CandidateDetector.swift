@@ -448,7 +448,7 @@ public struct CandidateDetector: Sendable {
         var ftsTokensById: [String: Set<String>] = [:]
         
         for row in rows {
-            let bodyPath = scope.brain.path.brainRoot.appendingPathComponent(row.path)
+            let bodyPath = scope.brain.layout.brainRoot.appendingPathComponent(row.path)
             let body: String
             do {
                 body = try noteFile.requireNote(at: bodyPath).body

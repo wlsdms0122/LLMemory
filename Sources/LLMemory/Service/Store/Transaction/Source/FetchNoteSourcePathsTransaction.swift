@@ -23,7 +23,7 @@ struct FetchNoteSourcePathsTransaction: GRDBBrainReadTransaction {
     func perform(_ db: Database, _ brain: BrainContext) throws -> [String] {
         guard try NoteExistsTransaction(nid: noteId).perform(db) else { return [] }
 
-        return try noteFile.requireNote(at: brain.path.file(forId: noteId)).doc.source
+        return try noteFile.requireNote(at: brain.layout.file(forId: noteId)).doc.source
     }
 
     // MARK: - Private

@@ -23,7 +23,7 @@ struct FetchNoteTransaction: GRDBBrainReadTransaction {
     func perform(_ db: Database, _ brain: BrainContext) throws -> (URL, FrontmatterDocument, String)? {
         guard try NoteExistsTransaction(nid: nid).perform(db) else { return nil }
 
-        let path = brain.path.file(forId: nid)
+        let path = brain.layout.file(forId: nid)
         let text = try String(contentsOf: path, encoding: .utf8)
         let (fields, body) = try frontmatter.parse(text)
 

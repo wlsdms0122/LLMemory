@@ -86,9 +86,9 @@ struct SessionBindingTests {
         try second.storage.initialize()
 
         // Then
-        #expect(home.path.brainRoot == home.session.home)
-        #expect(second.session.context.path.brainRoot == second.session.home)
-        #expect(home.path.brainRoot != second.session.home, "two homes, two roots")
+        #expect(home.layout.brainRoot == home.session.home)
+        #expect(second.session.context.layout.brainRoot == second.session.home)
+        #expect(home.layout.brainRoot != second.session.home, "two homes, two roots")
         #expect(home.config.getString("binding-probe", default: "") == "mine")
         #expect(second.session.context.config.getString("binding-probe", default: "") == "",
             "a second brain has its own cache, not a share of this one's")

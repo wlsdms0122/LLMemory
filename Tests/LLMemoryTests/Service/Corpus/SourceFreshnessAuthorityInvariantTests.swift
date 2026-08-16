@@ -21,8 +21,8 @@ struct SourceFreshnessAuthorityInvariantTests {
     }
     
     // MARK: - Test
-    private static func writeNote(_ path: Path, _ id: String, sources: [URL]) throws -> URL {
-        let directory = path.notes
+    private static func writeNote(_ layout: BrainLayout, _ id: String, sources: [URL]) throws -> URL {
+        let directory = layout.notes
         
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         
@@ -60,7 +60,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         
         try "alpha".write(to: source, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote(home.path, "fresh-1", sources: [source])
+        let path = try Self.writeNote(home.layout, "fresh-1", sources: [source])
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
@@ -94,7 +94,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         
         try "alpha".write(to: source, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote(home.path, "fresh-2", sources: [source])
+        let path = try Self.writeNote(home.layout, "fresh-2", sources: [source])
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
@@ -124,7 +124,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         
         try "alpha".write(to: source, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote(home.path, "fresh-3", sources: [source])
+        let path = try Self.writeNote(home.layout, "fresh-3", sources: [source])
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
@@ -152,7 +152,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         try "alpha".write(to: first, atomically: true, encoding: .utf8)
         try "beta".write(to: second, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote(home.path, "fresh-4", sources: [first, second])
+        let path = try Self.writeNote(home.layout, "fresh-4", sources: [first, second])
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }

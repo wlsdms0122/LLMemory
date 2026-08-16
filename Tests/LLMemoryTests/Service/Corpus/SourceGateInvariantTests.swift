@@ -40,8 +40,8 @@ struct SourceGateInvariantTests {
     }
     
     @discardableResult
-    private static func writeNote(_ path: Path, _ id: String, source: String) throws -> URL {
-        let directory = path.notes
+    private static func writeNote(_ layout: BrainLayout, _ id: String, source: String) throws -> URL {
+        let directory = layout.notes
         
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         
@@ -60,7 +60,7 @@ struct SourceGateInvariantTests {
         
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote(home.path, "gate-1", source: "[\"\(grounding.path)\"]")
+        let path = try Self.writeNote(home.layout, "gate-1", source: "[\"\(grounding.path)\"]")
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
@@ -99,7 +99,7 @@ struct SourceGateInvariantTests {
         
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote(home.path, "gate-2", source: "[\"\(grounding.path)\"]")
+        let path = try Self.writeNote(home.layout, "gate-2", source: "[\"\(grounding.path)\"]")
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
@@ -126,7 +126,7 @@ struct SourceGateInvariantTests {
         
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote(home.path, "gate-6", source: "[\"\(grounding.path)\"]")
+        let path = try Self.writeNote(home.layout, "gate-6", source: "[\"\(grounding.path)\"]")
         try home.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
         
         let hashBefore = try home.read { db in
@@ -182,7 +182,7 @@ struct SourceGateInvariantTests {
         
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote(home.path, "gate-3", source: "[\"\(grounding.path)\"]")
+        let path = try Self.writeNote(home.layout, "gate-3", source: "[\"\(grounding.path)\"]")
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
@@ -214,7 +214,7 @@ struct SourceGateInvariantTests {
         
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
-        let path = try Self.writeNote(home.path, "gate-4", source: "[\"\(grounding.path)\"]")
+        let path = try Self.writeNote(home.layout, "gate-4", source: "[\"\(grounding.path)\"]")
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
@@ -254,7 +254,7 @@ struct SourceGateInvariantTests {
         // Then
         #expect(result.status == "ok", "valid mixed shapes rejected: \(result.error)")
         
-        let path = home.path.notes.appendingPathComponent("gate-5.md")
+        let path = home.layout.notes.appendingPathComponent("gate-5.md")
         let (document, _) = try frontmatter.parse(try String(contentsOf: path, encoding: .utf8))
         
         #expect(document.source == ["/abs/a.swift", "/abs/b.swift"])

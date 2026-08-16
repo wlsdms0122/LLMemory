@@ -135,7 +135,7 @@ struct MergeNotesHandler: OperationHandling {
         try scope.run(SyncNoteEnrichTransaction(noteId: intoId))
         
         for path in fromPaths {
-            try Trash(path: scope.brain.path).file(path, reason: "merged into \(intoId)", now: now)
+            try Trash(layout: scope.brain.layout).file(path, reason: "merged into \(intoId)", now: now)
         }
         
         return [
@@ -165,7 +165,7 @@ struct MergeNotesHandler: OperationHandling {
             if let path = try scope.run(FetchNotePathTransaction(nid: fromId)) {
                 paths.append(path)
                 
-                if let trashPath = Trash(path: scope.brain.path).destination(of: path) { paths.append(trashPath) }
+                if let trashPath = Trash(layout: scope.brain.layout).destination(of: path) { paths.append(trashPath) }
             }
         }
         

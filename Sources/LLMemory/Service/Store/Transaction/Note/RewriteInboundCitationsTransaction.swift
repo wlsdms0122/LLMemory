@@ -40,7 +40,7 @@ struct RewriteInboundCitationsTransaction: GRDBBrainTransaction {
         var rewritten: [String] = []
 
         for src in referrers.sorted() {
-            let file = brain.path.file(forId: src)
+            let file = brain.layout.file(forId: src)
             // Not `try?`. With no alias table, a citation this loop fails to
             // rewrite is a reference that breaks — reporting success while
             // leaving one behind is the exact state the design forbids, so an

@@ -209,7 +209,7 @@ struct TransactionTests {
     }
     
     private func noteFile(_ id: String) -> URL {
-        home.path.notes.appendingPathComponent("\(id).md")
+        home.layout.notes.appendingPathComponent("\(id).md")
     }
     
     private func createOp(id: String) -> [String: Any] {

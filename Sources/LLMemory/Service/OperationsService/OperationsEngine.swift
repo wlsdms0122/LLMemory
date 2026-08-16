@@ -195,7 +195,7 @@ public struct OperationsEngine: Sendable {
                 }
                 
                 if let sectionError = checkSectionInvariants(
-                    scope.brain.path,
+                    scope.brain.layout,
                     affected: affected,
                     backups: backups
                 ) {
@@ -365,11 +365,11 @@ public struct OperationsEngine: Sendable {
     }
     
     func checkSectionInvariants(
-        _ path: Path,
+        _ layout: BrainLayout,
         affected: [URL],
         backups: [(URL, String?)]
     ) -> String? {
-        let trashLookup = TrashedNoteLookup(path: path)
+        let trashLookup = TrashedNoteLookup(layout: layout)
         var violations: [String] = []
         
         for url in affected {
@@ -394,7 +394,7 @@ public struct OperationsEngine: Sendable {
             
             var existingPaths = Set<String>()
             
-            if let preText = preImage(url, path, nid: noteId, backups: backups),
+            if let preText = preImage(url, layout, nid: noteId, backups: backups),
                 let (_, preBody) = try? frontmatter.parse(preText) {
                 existingPaths = Set(
                     sectionEdit.findPathCollisions(preBody).map { collision in
@@ -520,7 +520,7 @@ public struct OperationsEngine: Sendable {
         let urls = try handler.touches(op, scope)
         
         for url in urls {
-            guard let noteId = scope.brain.path.id(ofFile: url) else { continue }
+            guard let noteId = scope.brain.layout.id(ofFile: url) else { continue }
             
             if try scope.run(NoteLockedTransaction(nid: noteId)) {
                 return "note is locked (human-only) — edit the file directly, not via ops: \(noteId)"
@@ -594,7 +594,7 @@ public struct OperationsEngine: Sendable {
     
     private func preImage(
         _ url: URL,
-        _ path: Path,
+        _ layout: BrainLayout,
         nid: String,
         backups: [(URL, String?)]
     ) -> String? {
@@ -602,7 +602,7 @@ public struct OperationsEngine: Sendable {
             if let text { return text }
         }
         
-        let trashLookup = TrashedNoteLookup(path: path)
+        let trashLookup = TrashedNoteLookup(layout: layout)
 
         for (candidate, text) in backups where trashLookup.trashStemId(candidate) == nid {
             if let text { return text }
@@ -628,7 +628,7 @@ public struct OperationsEngine: Sendable {
         for path in affected where path.pathExtension == "md" {
             enqueue(path)
             
-            if let noteId = scope.brain.path.id(ofFile: path) { affectedIds.append(noteId) }
+            if let noteId = scope.brain.layout.id(ofFile: path) { affectedIds.append(noteId) }
         }
         
         var violations: [String] = []
@@ -639,7 +639,7 @@ public struct OperationsEngine: Sendable {
                     FetchTemplateDependentNoteIdsTransaction(templateIds: affectedIds)
                 )
                 
-                for noteId in dependents { enqueue(scope.brain.path.file(forId: noteId)) }
+                for noteId in dependents { enqueue(scope.brain.layout.file(forId: noteId)) }
             } catch {
                 violations.append("template reverse-dependency lookup failed: \(error)")
             }
@@ -655,14 +655,14 @@ public struct OperationsEngine: Sendable {
                 
                 (doc, body) = read
             } catch {
-                let noteId = scope.brain.path.id(ofFile: path) ?? path.lastPathComponent
+                let noteId = scope.brain.layout.id(ofFile: path) ?? path.lastPathComponent
                 violations.append("\(noteId): unreadable, template frame unverifiable: \(error)")
                 continue
             }
             
             guard let templateId = doc.template, !templateId.isEmpty else { continue }
             
-            let noteId = scope.brain.path.id(ofFile: path) ?? path.lastPathComponent
+            let noteId = scope.brain.layout.id(ofFile: path) ?? path.lastPathComponent
             
             guard let frame = (try? scope.run(LoadTemplateFrameTransaction(templateId: templateId))) ?? nil else {
                 violations.append("\(noteId): unknown template '\(templateId)'")
