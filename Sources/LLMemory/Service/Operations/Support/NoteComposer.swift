@@ -16,15 +16,21 @@ struct NoteComposer {
     
     private let template = Template()
     
+    private let frames = TemplateFrames()
+    
     // MARK: - Initializer
     // MARK: - Public
-    func composeCreateBody(_ op: [String: Any], _ scope: GRDBReadScope) throws -> String {
+    func composeCreateBody(
+        _ op: [String: Any],
+        _ scope: GRDBReadScope,
+        _ brain: BrainContext
+    ) throws -> String {
         let raw = op["content"] as? String ?? ""
         var content = String(raw.reversed().drop(while: { character in character.isWhitespace }).reversed())
         let templateId = (op["template"] as? String).flatMap { value in value.isEmpty ? nil : value }
         
         if let templateId, content.isEmpty,
-            let frame = try scope.run(LoadTemplateFrameTransaction(templateId: templateId)) {
+            let frame = try frames.frame(scope, brain, templateId: templateId) {
             content = template.scaffold(frame)
         }
         

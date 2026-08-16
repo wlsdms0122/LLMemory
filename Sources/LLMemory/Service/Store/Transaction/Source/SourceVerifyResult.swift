@@ -8,9 +8,9 @@
 import Foundation
 import GRDB
 
-// note_source transactions — projection, rebase, and drift verification of
-// a note's declared source files. Hashing mechanics live in
-// SourceFingerprint; these own the rows.
+// What one pass of SourceVerifier saw. The counts are of notes, not of
+// files: a note whose declaration itself changed was rebased rather than
+// judged, so it appears under rechecked and never under becameStale.
 public struct SourceVerifyResult: Sendable {
     // MARK: - Property
     public var total: Int

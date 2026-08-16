@@ -307,7 +307,7 @@ struct LintScanner: LintScanning {
         }
         
         for rule in rules.noteDBRules {
-            issues.append(contentsOf: try rule.check(scope, note: note).map { finding in
+            issues.append(contentsOf: try rule.check(scope, brain, note: note).map { finding in
                 LintIssue(
                     rule.severity.rawValue,
                     rule.code,

@@ -27,7 +27,7 @@ struct BodyProjection {
         switch name {
         case "create_note":
             if let noteId = op["id"] as? String, !noteId.isEmpty {
-                context.stagedBodies[noteId] = try composer.composeCreateBody(op, scope)
+                context.stagedBodies[noteId] = try composer.composeCreateBody(op, scope, context.brain)
                 context.opaqueBodyIds.remove(noteId)
             }
             
@@ -101,7 +101,7 @@ struct BodyProjection {
     ) throws -> String? {
         if let staged = context.stagedBodies[noteId] { return staged }
         
-        guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)) else { return nil }
+        guard let path = try context.brain.notePath(scope, noteId) else { return nil }
         
         return (try? noteFile.readNoteIfPresent(at: path))??.body
     }

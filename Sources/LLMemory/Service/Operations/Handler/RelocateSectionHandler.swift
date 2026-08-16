@@ -88,9 +88,9 @@ struct RelocateSectionHandler: OperationHandling {
         let fromId = op["from_id"] as! String
         let toId = op["to_id"] as! String
         
-        guard let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
+        guard let srcPath = try context.brain.notePath(scope, fromId),
             FileManager.default.fileExists(atPath: srcPath.path),
-            let dstPath = try scope.run(FetchNotePathTransaction(nid: toId)),
+            let dstPath = try context.brain.notePath(scope, toId),
             FileManager.default.fileExists(atPath: dstPath.path)
         else {
             throw OperationError.noteFileMissing(op: "relocate_section", id: "\(fromId) or \(toId)")
@@ -179,11 +179,11 @@ struct RelocateSectionHandler: OperationHandling {
         var paths: [URL] = []
         
         if let fromId = op["from_id"] as? String,
-            let path = try scope.run(FetchNotePathTransaction(nid: fromId)) {
+            let path = try context.brain.notePath(scope, fromId) {
             paths.append(path)
         }
         
-        if let toId = op["to_id"] as? String, let path = try scope.run(FetchNotePathTransaction(nid: toId)) {
+        if let toId = op["to_id"] as? String, let path = try context.brain.notePath(scope, toId) {
             paths.append(path)
         }
         

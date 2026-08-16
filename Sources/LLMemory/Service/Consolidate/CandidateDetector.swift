@@ -126,13 +126,13 @@ public struct CandidateDetector: Sendable {
     }
     
     func neighbors(_ scope: GRDBReadScope, noteId: String, k: Int = 10) throws -> [NeighborScore] {
-        guard let anchor = try scope.run(FetchNoteAnchorTransaction(nid: noteId)) else {
+        guard let title = try scope.run(FetchNoteAnchorTransaction(nid: noteId)) else {
             throw NotesError.unknownIds([noteId])
         }
         
-        let body = try noteFile.requireNote(at: anchor.path).body
+        let body = try noteFile.requireNote(at: brain.layout.file(forId: noteId)).body
         
-        return try neighbors(scope, noteId: noteId, tokens: tokenize("\(anchor.title) \(body)"), k: k)
+        return try neighbors(scope, noteId: noteId, tokens: tokenize("\(title) \(body)"), k: k)
     }
 
     // The scoring core — private, so every outside caller passes the anchor
@@ -459,7 +459,7 @@ public struct CandidateDetector: Sendable {
         var ftsTokensById: [String: Set<String>] = [:]
         
         for row in rows {
-            let bodyPath = brain.layout.brainRoot.appendingPathComponent(row.path)
+            let bodyPath = brain.layout.file(forId: row.id)
             let body: String
             do {
                 body = try noteFile.requireNote(at: bodyPath).body
@@ -542,7 +542,7 @@ public struct CandidateDetector: Sendable {
     
     // MARK: - Private
     private func sectionSketch(_ scope: GRDBReadScope, nid: String) throws -> [SectionSketch] {
-        guard let path = try scope.run(FetchNotePathTransaction(nid: nid)) else {
+        guard let path = try brain.notePath(scope, nid) else {
             return []
         }
         let (_, body) = try noteFile.requireNote(at: path)
@@ -660,12 +660,11 @@ public struct CandidateDetector: Sendable {
         limit: Int,
         maxBm25: Double
     ) throws -> [(String, Double)] {
-        guard let anchor = try scope.run(FetchNoteAnchorTransaction(nid: noteId)) else {
+        guard let title = try scope.run(FetchNoteAnchorTransaction(nid: noteId)) else {
             return []
         }
         
-        let title = anchor.title
-        let body = try noteFile.requireNote(at: anchor.path).body
+        let body = try noteFile.requireNote(at: brain.layout.file(forId: noteId)).body
         let searchText = "\(title) \(body)"
         let nsSearchText = searchText as NSString
         var tokens = Set<String>()

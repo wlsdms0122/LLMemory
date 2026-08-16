@@ -78,6 +78,17 @@ public struct BrainContext: Sendable {
         }
     }
 
+    // Where a note this brain actually has lives. Existence is the only
+    // thing the database is asked — the location is the id — so this pairs
+    // the one question a store can answer with the one it cannot.
+    func notePath(_ scope: GRDBReadScope, _ nid: String) throws -> URL? {
+        try scope.run(NoteExistsTransaction(nid: nid)) ? layout.file(forId: nid) : nil
+    }
+
+    func notePath(_ scope: GRDBScope, _ nid: String) throws -> URL? {
+        try notePath(scope.readOnly, nid)
+    }
+
     // The same brain with one gene answered differently — what a shadow
     // replay runs against. It is a separate value rather than a binding, so
     // the borrowed number reaches exactly the work that was handed it.

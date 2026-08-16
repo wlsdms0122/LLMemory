@@ -113,7 +113,7 @@ struct CreateNoteHandler: OperationHandling {
             withIntermediateDirectories: true
         )
         
-        let body = try composer.composeCreateBody(op, scope.readOnly)
+        let body = try composer.composeCreateBody(op, scope.readOnly, context.brain)
         var doc = FrontmatterDocument(
             title: op["title"] as? String ?? "",
             priority: op["priority"] as? String ?? "lazy",

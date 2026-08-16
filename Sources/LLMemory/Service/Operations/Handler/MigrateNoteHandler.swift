@@ -61,7 +61,7 @@ struct MigrateNoteHandler: OperationHandling {
         let newId = (op["new_id"] as? String) ?? targetId
         let newPath = context.brain.layout.file(forId: newId)
         
-        guard let srcPath = try scope.run(FetchNotePathTransaction(nid: targetId)),
+        guard let srcPath = try context.brain.notePath(scope, targetId),
             FileManager.default.fileExists(atPath: srcPath.path)
         else {
             throw OperationError.noteFileMissing(op: "migrate_note", id: targetId)
@@ -142,7 +142,7 @@ struct MigrateNoteHandler: OperationHandling {
     ) throws -> [URL] {
         var paths: [URL] = []
         
-        if let noteId = op["id"] as? String, let src = try scope.run(FetchNotePathTransaction(nid: noteId)) {
+        if let noteId = op["id"] as? String, let src = try context.brain.notePath(scope, noteId) {
             paths.append(src)
         }
         

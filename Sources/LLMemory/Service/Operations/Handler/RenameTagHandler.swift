@@ -68,7 +68,7 @@ struct RenameTagHandler: OperationHandling {
         let affectedIds = try scope.run(FetchNotesWithTagTransaction(tag: fromTag))
         
         for noteId in affectedIds {
-            guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
+            guard let path = try context.brain.notePath(scope, noteId),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw OperationError.noteFileMissing(op: "rename_tag", id: noteId)
@@ -109,7 +109,7 @@ struct RenameTagHandler: OperationHandling {
         // vocab delete is FK-blocked until reprojection clears the old
         // tag's rows.
         for noteId in affectedIds {
-            guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)) else { continue }
+            guard let path = try context.brain.notePath(scope, noteId) else { continue }
             
             try scope.run(ReindexNoteFileTransaction(path: path))
         }
@@ -133,7 +133,7 @@ struct RenameTagHandler: OperationHandling {
     ) throws -> [URL] {
         let ids = try scope.run(FetchNotesWithTagTransaction(tag: op["from_tag"] as! String))
         
-        return try ids.compactMap { noteId in try scope.run(FetchNotePathTransaction(nid: noteId)) }
+        return try ids.compactMap { noteId in try context.brain.notePath(scope, noteId) }
     }
     
     // MARK: - Private

@@ -76,7 +76,7 @@ struct MergeNotesHandler: OperationHandling {
         let intoId = op["into_id"] as! String
         let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
         
-        guard let intoPath = try scope.run(FetchNotePathTransaction(nid: intoId)),
+        guard let intoPath = try context.brain.notePath(scope, intoId),
             FileManager.default.fileExists(atPath: intoPath.path)
         else {
             throw OperationError.noteFileMissing(op: "merge_notes", id: intoId)
@@ -105,7 +105,7 @@ struct MergeNotesHandler: OperationHandling {
         var fromPaths: [URL] = []
         
         for fromId in fromIds {
-            if let path = try scope.run(FetchNotePathTransaction(nid: fromId)),
+            if let path = try context.brain.notePath(scope, fromId),
                 FileManager.default.fileExists(atPath: path.path) {
                 fromPaths.append(path)
             }
@@ -159,14 +159,14 @@ struct MergeNotesHandler: OperationHandling {
     ) throws -> [URL] {
         var paths: [URL] = []
         
-        if let intoId = op["into_id"] as? String, let path = try scope.run(FetchNotePathTransaction(nid: intoId)) {
+        if let intoId = op["into_id"] as? String, let path = try context.brain.notePath(scope, intoId) {
             paths.append(path)
         }
         
         let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
         
         for fromId in fromIds {
-            if let path = try scope.run(FetchNotePathTransaction(nid: fromId)) {
+            if let path = try context.brain.notePath(scope, fromId) {
                 paths.append(path)
                 
                 if let trashPath = Trash(layout: context.brain.layout).destination(of: path) { paths.append(trashPath) }

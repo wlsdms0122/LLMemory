@@ -66,7 +66,7 @@ struct SourceGateInvariantTests {
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: path).perform(db, home.brain) }
         try "alpha changed".write(to: grounding, atomically: true, encoding: .utf8)
         
-        _ = try queue.write { db in try VerifySourcesTransaction().perform(db, home.brain) }
+        _ = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db, home.brain), home.brain) }
         
         // When
         let staleBefore = try queue.read { db in
@@ -79,7 +79,7 @@ struct SourceGateInvariantTests {
         try Self.note(id: "gate-1", source: "[\(grounding.path)]")
             .write(to: path, atomically: true, encoding: .utf8)
         
-        let result = try queue.write { db in try VerifySourcesTransaction().perform(db, home.brain) }
+        let result = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db, home.brain), home.brain) }
         
         #expect(result.unreadable.count == 1 && result.unreadable[0].contains("gate-1"),
             "the skip was not reported: \(result.unreadable)")
@@ -106,7 +106,7 @@ struct SourceGateInvariantTests {
         try FileManager.default.removeItem(at: path)
         
         // When
-        let result = try queue.write { db in try VerifySourcesTransaction().perform(db, home.brain) }
+        let result = try queue.write { db in try SourceVerifier().verifyAll(GRDBScope(db, home.brain), home.brain) }
         
         // Then
         #expect(result.unreadable.count == 1 && result.unreadable[0].contains("gate-2"),

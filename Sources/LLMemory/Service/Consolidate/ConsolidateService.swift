@@ -197,7 +197,7 @@ public struct ConsolidateService: ConsolidateServiceable {
             CompactOldEventsTransaction(now: now, retentionSec: retentionSec)
         ).compacted
         let tagSummary = try scope.run(FetchTagReportTransaction())
-        let sourceVerify = try scope.run(VerifySourcesTransaction(now: now))
+        let sourceVerify = try SourceVerifier().verifyAll(scope, brain, now: now)
 
         let prunedTags = try scope.run(PruneUnusedVocabTagsTransaction())
         let prunedRippleFlags = try scope.run(

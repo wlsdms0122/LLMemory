@@ -57,7 +57,7 @@ struct SetFrontmatterHandler: OperationHandling {
         do {
             var probe = FrontmatterDocument()
             
-            if let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
+            if let path = try context.brain.notePath(scope, noteId),
                 let read = try noteFile.readNoteIfPresent(at: path) {
                 probe = read.doc
             }
@@ -77,7 +77,7 @@ struct SetFrontmatterHandler: OperationHandling {
     ) throws -> [String: Any] {
         let noteId = op["id"] as! String
         
-        guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
+        guard let path = try context.brain.notePath(scope, noteId),
             FileManager.default.fileExists(atPath: path.path)
         else {
             throw OperationError.noteFileMissing(op: "set_frontmatter", id: noteId)
@@ -113,7 +113,7 @@ struct SetFrontmatterHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> [URL] {
         guard let noteId = op["id"] as? String,
-            let path = try scope.run(FetchNotePathTransaction(nid: noteId))
+            let path = try context.brain.notePath(scope, noteId)
         else {
             return []
         }

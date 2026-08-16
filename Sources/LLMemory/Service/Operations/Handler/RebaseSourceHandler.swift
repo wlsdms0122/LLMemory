@@ -50,7 +50,7 @@ struct RebaseSourceHandler: OperationHandling {
         
         try scope.run(RebaseNoteSourceTransaction(
             noteId: noteId,
-            paths: try scope.run(FetchNoteSourcePathsTransaction(noteId: noteId)),
+            paths: try SourceVerifier().declaredPaths(scope.readOnly, context.brain, noteId: noteId),
             now: now
         ))
         try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,

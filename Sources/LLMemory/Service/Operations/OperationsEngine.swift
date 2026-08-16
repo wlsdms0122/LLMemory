@@ -23,6 +23,8 @@ public struct OperationsEngine: Sendable {
     private let noteFile = NoteFile()
     
     private let template = Template()
+
+    private let frames = TemplateFrames()
     
     let keywords: any KeywordExtracting
     // The enrichment keys and defaults have one owner; this resolves them
@@ -681,7 +683,7 @@ public struct OperationsEngine: Sendable {
             
             let noteId = brain.layout.id(ofFile: path) ?? path.lastPathComponent
             
-            guard let frame = (try? scope.run(LoadTemplateFrameTransaction(templateId: templateId))) ?? nil else {
+            guard let frame = (try? frames.frame(scope, brain, templateId: templateId)) ?? nil else {
                 violations.append("\(noteId): unknown template '\(templateId)'")
                 continue
             }

@@ -117,7 +117,7 @@ struct SplitNoteHandler: OperationHandling {
             normalized[index]["sections"] = normalizedSections
         }
         
-        if let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
+        if let srcPath = try context.brain.notePath(scope, fromId),
             let raw = try? String(contentsOf: srcPath, encoding: .utf8) {
             let (_, srcBody) = try frontmatter.parse(raw)
             
@@ -156,7 +156,7 @@ struct SplitNoteHandler: OperationHandling {
     ) throws -> [String: Any] {
         let fromId = op["from_id"] as! String
         
-        guard let srcPath = try scope.run(FetchNotePathTransaction(nid: fromId)),
+        guard let srcPath = try context.brain.notePath(scope, fromId),
             FileManager.default.fileExists(atPath: srcPath.path)
         else {
             throw OperationError.noteFileMissing(op: "split_note", id: fromId)
@@ -416,7 +416,7 @@ struct SplitNoteHandler: OperationHandling {
     ) throws -> [URL] {
         var paths: [URL] = []
         
-        if let fromId = op["from_id"] as? String, let src = try scope.run(FetchNotePathTransaction(nid: fromId)) {
+        if let fromId = op["from_id"] as? String, let src = try context.brain.notePath(scope, fromId) {
             paths.append(src)
             
             if let trashPath = Trash(layout: context.brain.layout).destination(of: src) { paths.append(trashPath) }

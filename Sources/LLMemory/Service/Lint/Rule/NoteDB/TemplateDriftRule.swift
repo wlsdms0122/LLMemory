@@ -14,12 +14,14 @@ struct TemplateDriftRule: NoteDBLintRule {
     
     private let template = Template()
     
+    private let frames = TemplateFrames()
+    
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope, note: NoteLintInput) throws -> [LintFinding] {
+    func check(_ scope: GRDBReadScope, _ brain: BrainContext, note: NoteLintInput) throws -> [LintFinding] {
         guard let templateId = note.doc.template, !templateId.isEmpty else { return [] }
         
-        guard let frame = try scope.run(LoadTemplateFrameTransaction(templateId: templateId)) else {
+        guard let frame = try frames.frame(scope, brain, templateId: templateId) else {
             return [.init("template note '\(templateId)' not found — cannot validate frame")]
         }
         

@@ -66,7 +66,7 @@ public struct IndexService: IndexServiceable {
     }
 
     public func verifySources() async throws -> SourceVerifyResult {
-        try await storage.run { scope in try scope.run(VerifySourcesTransaction()) }
+        try await storage.run { scope in try SourceVerifier().verifyAll(scope, brain) }
     }
 
     public func validateTerms(

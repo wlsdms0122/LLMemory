@@ -54,7 +54,7 @@ struct DeleteNoteHandler: OperationHandling {
         let noteId = op["id"] as! String
         let now = context.now
         
-        guard let src = try scope.run(FetchNotePathTransaction(nid: noteId)) else {
+        guard let src = try context.brain.notePath(scope, noteId) else {
             throw OperationError.unknownNote(noteId)
         }
         
@@ -88,7 +88,7 @@ struct DeleteNoteHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> [URL] {
         guard let noteId = op["id"] as? String,
-            let src = try scope.run(FetchNotePathTransaction(nid: noteId))
+            let src = try context.brain.notePath(scope, noteId)
         else {
             return []
         }

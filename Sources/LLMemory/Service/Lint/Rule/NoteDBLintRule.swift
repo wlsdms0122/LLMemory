@@ -8,5 +8,5 @@
 import Foundation
 
 protocol NoteDBLintRule: LintRuleMeta {
-    func check(_ scope: GRDBReadScope, note: NoteLintInput) throws -> [LintFinding]
+    func check(_ scope: GRDBReadScope, _ brain: BrainContext, note: NoteLintInput) throws -> [LintFinding]
 }

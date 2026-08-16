@@ -17,7 +17,7 @@ struct EnrichThinRule: NoteDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope, note: NoteLintInput) throws -> [LintFinding] {
+    func check(_ scope: GRDBReadScope, _ brain: BrainContext, note: NoteLintInput) throws -> [LintFinding] {
         let haystack = "\(note.doc.title)\n\(note.body)"
         
         guard hasHangul(haystack) else { return [] }

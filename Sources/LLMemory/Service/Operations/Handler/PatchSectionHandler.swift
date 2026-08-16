@@ -97,7 +97,7 @@ struct PatchSectionHandler: OperationHandling {
     ) throws -> [String: Any] {
         let noteId = op["id"] as! String
         
-        guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
+        guard let path = try context.brain.notePath(scope, noteId),
             FileManager.default.fileExists(atPath: path.path)
         else {
             throw OperationError.noteFileMissing(op: "patch_section", id: noteId)
@@ -147,7 +147,7 @@ struct PatchSectionHandler: OperationHandling {
         _ scope: GRDBReadScope
     ) throws -> [URL] {
         guard let noteId = op["id"] as? String,
-            let path = try scope.run(FetchNotePathTransaction(nid: noteId))
+            let path = try context.brain.notePath(scope, noteId)
         else {
             return []
         }
