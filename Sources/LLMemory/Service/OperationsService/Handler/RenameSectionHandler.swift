@@ -20,7 +20,7 @@ struct RenameSectionHandler: OperationHandling {
     )
     
     private let noteExistence = NoteExistence()
-    private let writeEffects = NoteWriteEffects()
+    private let writeEffects = NoteWriteBookkeeper()
     
     private let sectionEdit = SectionEdit()
     

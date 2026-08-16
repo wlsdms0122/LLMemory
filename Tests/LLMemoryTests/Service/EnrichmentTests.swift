@@ -324,7 +324,7 @@ struct EnrichmentTests {
         #expect(provenance == "test:capture", "routed alias lost its provenance")
     }
     
-    // NoteArtifacts generalization — not just alias, but all non-restorable authored artifacts
+    // NoteArtifactPolicy generalization — not just alias, but all non-restorable authored artifacts
     @Test("renaming a note carries its authored artifacts to the new id")
     func migrateReparentsAuthoredArtifacts() throws {
         // When
@@ -427,7 +427,7 @@ struct EnrichmentTests {
             "content": "## a\nb\n", "entities": ["BAR-9"]]]).status == "ok")
         
         let path = try home.read { db in
-            home.paths.relativeFile(forId: "rc-note")
+            home.path.relativeFile(forId: "rc-note")
         }
         
         try home.write { db in

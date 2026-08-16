@@ -13,7 +13,7 @@ struct BodyProjection {
     
     private let sectionEdit = SectionEdit()
     
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
     
     // MARK: - Initializer
     // MARK: - Public
@@ -103,6 +103,6 @@ struct BodyProjection {
         
         guard let path = try scope.run(FetchNotePathTransaction(nid: noteId)) else { return nil }
         
-        return (try? noteFiles.readNoteIfPresent(at: path))??.body
+        return (try? noteFile.readNoteIfPresent(at: path))??.body
     }
 }

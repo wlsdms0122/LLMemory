@@ -17,13 +17,13 @@ import Foundation
 // anything else that needs to look.
 struct TrashedNoteLookup {
     // MARK: - Property
-    private let paths: Paths
+    private let path: Path
 
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
 
     // MARK: - Initializer
-    init(paths: Paths) {
-        self.paths = paths
+    init(path: Path) {
+        self.path = path
     }
 
     // MARK: - Public
@@ -41,7 +41,7 @@ struct TrashedNoteLookup {
     // under .trash/ read the same way — leaf label alone would only be the last
     // label of a dotted address.
     func trashStemId(_ url: URL) -> String {
-        guard let relative = paths.relative(of: url) else { return trashName(url).nid }
+        guard let relative = path.relative(of: url) else { return trashName(url).nid }
         
         var labels = relative.split(separator: "/").map(String.init)
         
@@ -56,28 +56,28 @@ struct TrashedNoteLookup {
 
     func findTrashedFile(
         _ nid: String
-    ) throws -> (url: URL, doc: FrontmatterDoc, body: String)? {
+    ) throws -> (url: URL, doc: FrontmatterDocument, body: String)? {
         let fileManager = FileManager.default
         
-        guard fileManager.fileExists(atPath: paths.trash.path) else { return nil }
+        guard fileManager.fileExists(atPath: path.trash.path) else { return nil }
         
         guard let iterator = fileManager.enumerator(
-            at: paths.trash,
+            at: path.trash,
             includingPropertiesForKeys: nil
         ) else {
             return nil
         }
         
-        var best: (url: URL, doc: FrontmatterDoc, body: String, key: (Int, Int))?
+        var best: (url: URL, doc: FrontmatterDocument, body: String, key: (Int, Int))?
         var unreadable: [String] = []
         
         for case let url as URL in iterator {
             guard url.pathExtension == "md" else { continue }
             
-            let doc: FrontmatterDoc
+            let doc: FrontmatterDocument
             let body: String
             do {
-                guard let read = try noteFiles.readNoteIfPresent(at: url) else { continue }
+                guard let read = try noteFile.readNoteIfPresent(at: url) else { continue }
                 
                 (doc, body) = read
             } catch let error as NoteUnreadable {

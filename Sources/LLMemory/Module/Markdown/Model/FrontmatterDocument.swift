@@ -1,5 +1,5 @@
 //
-//  FrontmatterDoc.swift
+//  FrontmatterDocument.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/15/26.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct FrontmatterDoc: Equatable, Encodable, Sendable {
+struct FrontmatterDocument: Equatable, Encodable, Sendable {
     private struct DynamicKey: CodingKey {
         // MARK: - Property
         let stringValue: String

@@ -24,7 +24,7 @@ struct SearchTests {
     // MARK: - Test
     @Test("a plain query becomes an OR over its tokens, so any one of them can match")
     func matchExprTokenizesToOR() {
-        #expect(FTSMatch.text("alpha beta", keywords: FrequencyKeywords()).expression == "\"alpha\" OR \"beta\"")
+        #expect(FTSMatch.text("alpha beta", keywords: FrequencyKeywordExtractor()).expression == "\"alpha\" OR \"beta\"")
     }
     
     @Test("a raw query is handed to FTS5 verbatim, operators and all")
@@ -34,7 +34,7 @@ struct SearchTests {
     
     @Test("a query with no tokens is nil rather than an expression that matches everything")
     func matchExprEmptyIsNil() {
-        #expect(FTSMatch.text("   ", keywords: FrequencyKeywords()).expression == nil)
+        #expect(FTSMatch.text("   ", keywords: FrequencyKeywordExtractor()).expression == nil)
         #expect(FTSMatch.raw("").expression == nil)
     }
     
@@ -49,7 +49,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(match: .text("log masking transformer", keywords: FrequencyKeywords())).perform(database, home.brain)
+            try SearchNotesFTSTransaction(match: .text("log masking transformer", keywords: FrequencyKeywordExtractor())).perform(database, home.brain)
         }
         
         // Then
@@ -83,7 +83,7 @@ struct SearchTests {
         
         // When
         let hits = try home.read { database in
-            try SearchNotesFTSTransaction(match: .text("quixotic pool", keywords: FrequencyKeywords()), limit: 40).perform(database, home.brain)
+            try SearchNotesFTSTransaction(match: .text("quixotic pool", keywords: FrequencyKeywordExtractor()), limit: 40).perform(database, home.brain)
         }
         
         // Then
@@ -116,7 +116,7 @@ struct SearchTests {
         #expect(create(id: "safe-note", title: "transfer", body: "## A\ntransfer\n").status == "ok")
         
         // When
-        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("transfer \"", keywords: FrequencyKeywords())).perform(database, home.brain) }
+        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("transfer \"", keywords: FrequencyKeywordExtractor())).perform(database, home.brain) }
         
         // Then
         #expect(hits.contains { hit in hit.id == "safe-note" })

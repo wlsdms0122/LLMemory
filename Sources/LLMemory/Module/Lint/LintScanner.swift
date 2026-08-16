@@ -22,7 +22,7 @@ struct LintScanner: LintScanning {
     
     private let frontmatter = Frontmatter()
     
-    private let dismissalPolicy = Dismissals()
+    private let dismissalPolicy = DismissalPolicy()
     
     // MARK: - Initializer
     init(rules: LintRuleRegistry) {
@@ -238,14 +238,14 @@ struct LintScanner: LintScanning {
             return [LintIssue("error", "missing", "note not in db: \(nid)", .note(nid))]
         }
         
-        let relativePath = scope.brain.paths.relativeFile(forId: nid)
-        let path = scope.brain.paths.file(forId: nid)
+        let relativePath = scope.brain.path.relativeFile(forId: nid)
+        let path = scope.brain.path.file(forId: nid)
         
         if !FileManager.default.fileExists(atPath: path.path) {
             return [LintIssue("error", "file-missing", "file does not exist: \(relativePath)", .note(nid))]
         }
         
-        let document: FrontmatterDoc
+        let document: FrontmatterDocument
         let body: String
         let text: String
         do {

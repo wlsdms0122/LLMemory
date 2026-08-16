@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 struct PruneFtsOrphansTransaction: GRDBBrainTransaction {
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
 
     // MARK: - Initializer
     init() { }
@@ -39,10 +39,10 @@ struct PruneFtsOrphansTransaction: GRDBBrainTransaction {
             
             let title: String = row["title"]
             let summary: String? = row["summary"]
-            let path = brain.paths.file(forId: noteId)
+            let path = brain.path.file(forId: noteId)
             let body: String
             do {
-                guard let read = try noteFiles.readNoteIfPresent(at: path) else { continue }
+                guard let read = try noteFile.readNoteIfPresent(at: path) else { continue }
                 
                 body = read.body
             } catch let error as NoteUnreadable {

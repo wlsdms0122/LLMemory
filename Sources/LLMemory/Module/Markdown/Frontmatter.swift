@@ -29,7 +29,7 @@ struct Frontmatter: Sendable {
     
     // MARK: - Initializer
     // MARK: - Public
-    func parse(_ text: String) throws -> (FrontmatterDoc, String) {
+    func parse(_ text: String) throws -> (FrontmatterDocument, String) {
         let nsText = text as NSString
         
         guard let match = Self.frontmatterRegex.firstMatch(
@@ -41,7 +41,7 @@ struct Frontmatter: Sendable {
         
         let frontmatterText = nsText.substring(with: match.range(at: 1))
         let body = nsText.substring(with: match.range(at: 2))
-        var doc = FrontmatterDoc()
+        var doc = FrontmatterDocument()
         
         for line in frontmatterText.unicodeLines() {
             let nsLine = line as NSString
@@ -138,7 +138,7 @@ struct Frontmatter: Sendable {
         return (doc, body)
     }
     
-    func dump(_ doc: FrontmatterDoc) -> String {
+    func dump(_ doc: FrontmatterDocument) -> String {
         var lines: [String] = []
         
         lines.append("---")

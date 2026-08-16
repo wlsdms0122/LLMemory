@@ -31,7 +31,7 @@ struct NoteComposer {
         return content + "\n"
     }
     
-    func mergeFields(_ doc: inout FrontmatterDoc, _ fields: [String: Any]) throws {
+    func mergeFields(_ doc: inout FrontmatterDocument, _ fields: [String: Any]) throws {
         func string(_ key: String, _ value: Any) throws -> String {
             guard let string = value as? String else {
                 throw FieldTypeError(field: key, expected: "string", got: value)
@@ -113,11 +113,11 @@ struct NoteComposer {
                 doc.entities = entities.isEmpty ? nil : entities
             
             default:
-                guard OpVocabulary.frontmatterReserved.contains(key) == false else {
+                guard OperationVocabulary.frontmatterReserved.contains(key) == false else {
                     throw ReservedFieldError(field: key)
                 }
                 
-                guard OpVocabulary.extraKeyRegex.firstMatch(
+                guard OperationVocabulary.extraKeyRegex.firstMatch(
                     in: key,
                     range: NSRange(location: 0, length: (key as NSString).length)
                 ) != nil else {

@@ -1,5 +1,5 @@
 //
-//  NoteArtifacts.swift
+//  NoteArtifactPolicy.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/15/26.
@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-public struct NoteArtifacts: Sendable {
+public struct NoteArtifactPolicy: Sendable {
     enum Disposition {
         case reconstructable
         case preserved

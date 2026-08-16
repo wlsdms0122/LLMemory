@@ -10,7 +10,7 @@ import Foundation
 public struct OperationSchema: Sendable, Encodable {
     // MARK: - Property
     public let summary: String
-    public let fields: [OpField]
+    public let fields: [OperationField]
     public let example: String
     
     public var requiredNames: [String] { fields.filter(\.required).map(\.name) }

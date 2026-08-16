@@ -49,14 +49,14 @@ extension BrainHome {
     // only what a production collaborator calls — so a test that wants the
     // sync core inside an open scope assembles the implementation itself
     // rather than widening the contract until the test fits through it.
-    var retrievalService: RetrievalService { RetrievalService(storage: storage, keywords: FrequencyKeywords(), entities: PatternEntityHints()) }
+    var retrievalService: RetrievalService { RetrievalService(storage: storage, keywords: FrequencyKeywordExtractor(), entities: PatternEntityHinter()) }
 
     var lintScanner: LintScanner { LintScanner(rules: LintRuleRegistry()) }
 
     var lintService: LintService { LintService(storage: storage, scanner: lintScanner) }
 
     var genomeService: GenomeService {
-        GenomeService(storage: storage, keywords: FrequencyKeywords(), entities: PatternEntityHints())
+        GenomeService(storage: storage, keywords: FrequencyKeywordExtractor(), entities: PatternEntityHinter())
     }
 
     var notesService: NotesService {
@@ -64,10 +64,10 @@ extension BrainHome {
     }
 
     var consolidateService: ConsolidateService {
-        ConsolidateService(storage: storage, keywords: FrequencyKeywords())
+        ConsolidateService(storage: storage, keywords: FrequencyKeywordExtractor())
     }
 
-    var operationsEngine: OperationsEngine { OperationsEngine(lint: lintScanner, keywords: FrequencyKeywords()) }
+    var operationsEngine: OperationsEngine { OperationsEngine(lint: lintScanner, keywords: FrequencyKeywordExtractor()) }
 
     @discardableResult
     func apply(_ operations: [[String: Any]], rationale: String = "test") -> OperationsResult {
@@ -111,7 +111,7 @@ extension BrainHome {
 
         guard known != nil else { throw TestFailure("no indexed path for \(id)") }
 
-        return url.appendingPathComponent(session.context.paths.relativeFile(forId: id))
+        return url.appendingPathComponent(session.context.path.relativeFile(forId: id))
     }
 
     func bodyText(of id: String) throws -> String {
@@ -136,7 +136,7 @@ extension BrainHome {
         body: String,
         entities: [String] = []
     ) throws -> URL {
-        let file = url.appendingPathComponent(session.context.paths.relativeFile(forId: id))
+        let file = url.appendingPathComponent(session.context.path.relativeFile(forId: id))
 
         try FileManager.default.createDirectory(
             at: file.deletingLastPathComponent(),

@@ -51,7 +51,7 @@ public struct Index {
     init(session: Session, service: any IndexServiceable) {
         self.session = session
         self.service = service
-        seeding = Seeding(paths: session.context.paths)
+        seeding = Seeding(path: session.context.path)
     }
     
     public func build(rebuild: Bool = false) async throws -> Indexer.BuildResult {
@@ -81,12 +81,12 @@ public struct Index {
     
     public func initialize(seed: Bool = true, force: Bool = false) throws -> InitResult {
         let fileManager = FileManager.default
-        let dataExisted = fileManager.fileExists(atPath: session.context.paths.dataDirectory.path)
-        let cortexExisted = fileManager.fileExists(atPath: session.context.paths.cortexRoot.path)
-        let dbExisted = fileManager.fileExists(atPath: session.context.paths.db.path)
+        let dataExisted = fileManager.fileExists(atPath: session.context.path.dataDirectory.path)
+        let cortexExisted = fileManager.fileExists(atPath: session.context.path.cortexRoot.path)
+        let dbExisted = fileManager.fileExists(atPath: session.context.path.db.path)
         
-        try fileManager.createDirectory(at: session.context.paths.dataDirectory, withIntermediateDirectories: true)
-        try fileManager.createDirectory(at: session.context.paths.cortexRoot, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: session.context.path.dataDirectory, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: session.context.path.cortexRoot, withIntermediateDirectories: true)
         
         // Planted inside the bootstrap: after the migration, before the build.
         var seeding: Seeding.Result?
@@ -95,13 +95,13 @@ public struct Index {
         }
 
         try Guide.markdown.write(
-            to: session.context.paths.brainRoot.appendingPathComponent("README.md"),
+            to: session.context.path.brainRoot.appendingPathComponent("README.md"),
             atomically: true,
             encoding: .utf8
         )
         
         return InitResult(
-            homePath: session.context.paths.brainRoot.path,
+            homePath: session.context.path.brainRoot.path,
             dataExisted: dataExisted,
             cortexExisted: cortexExisted,
             dbExisted: dbExisted,
@@ -123,13 +123,13 @@ public struct Index {
         }
 
         try Guide.markdown.write(
-            to: session.context.paths.brainRoot.appendingPathComponent("README.md"),
+            to: session.context.path.brainRoot.appendingPathComponent("README.md"),
             atomically: true,
             encoding: .utf8
         )
         
         return UpdateResult(
-            homePath: session.context.paths.brainRoot.path,
+            homePath: session.context.path.brainRoot.path,
             seeding: seeding,
             indexed: result.count,
             changed: result.changed,

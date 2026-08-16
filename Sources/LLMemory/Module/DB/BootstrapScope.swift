@@ -49,7 +49,7 @@ public struct BootstrapScope {
                 .perform(database)
         }
 
-        return try Trash(paths: context.paths).file(file, reason: trashReason, now: now)
+        return try Trash(path: context.path).file(file, reason: trashReason, now: now)
     }
 
     // MARK: - Private

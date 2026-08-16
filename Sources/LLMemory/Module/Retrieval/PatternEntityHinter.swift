@@ -1,5 +1,5 @@
 //
-//  PatternEntityHints.swift
+//  PatternEntityHinter.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct PatternEntityHints: EntityHinting {
+public struct PatternEntityHinter: EntityHinting {
     // MARK: - Property
     private static let ticketRegex = try! NSRegularExpression(pattern: #"\b[A-Z][A-Z0-9]+-\d+\b"#)
     private static let titleCaseRegex = try! NSRegularExpression(

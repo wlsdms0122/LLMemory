@@ -17,7 +17,7 @@ struct IndexBuildDedupInvariantTests {
     
     private let frontmatter = Frontmatter()
 
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
 
     private let indexer = Indexer()
 
@@ -146,7 +146,7 @@ struct IndexBuildDedupInvariantTests {
     
     private func pendingNote(at url: URL) throws -> Indexer.PendingNote {
         let resolved = url.resolvingSymlinksInPath().standardizedFileURL
-        let relativePath = resolved.path.replacingOccurrences(of: home.paths.brainRoot.path + "/", with: "")
+        let relativePath = resolved.path.replacingOccurrences(of: home.path.brainRoot.path + "/", with: "")
         let text = try String(contentsOf: resolved, encoding: .utf8)
         let (fields, body) = try frontmatter.parse(text)
         
@@ -154,7 +154,7 @@ struct IndexBuildDedupInvariantTests {
             file: resolved,
             rel: relativePath,
             raw: text,
-            contentHash: noteFiles.contentHash(text),
+            contentHash: noteFile.contentHash(text),
             fields: fields,
             body: body
         )

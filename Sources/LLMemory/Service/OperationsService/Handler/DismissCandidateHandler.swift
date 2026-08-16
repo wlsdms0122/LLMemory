@@ -34,7 +34,7 @@ struct DismissCandidateHandler: OperationHandling {
     
     private let noteExistence = NoteExistence()
     
-    private let dismissalPolicy = Dismissals()
+    private let dismissalPolicy = DismissalPolicy()
     
     // MARK: - Initializer
     // MARK: - Public
@@ -99,9 +99,9 @@ struct DismissCandidateHandler: OperationHandling {
             }
             
             if hasTarget { return nil }
-        } else if !Dismissals.dismissibleKinds.contains(kind) {
+        } else if !DismissalPolicy.dismissibleKinds.contains(kind) {
             return "invalid candidate kind: \(kind) (dismissible: "
-                + "\(Dismissals.dismissibleKinds.sorted().joined(separator: " | ")) | lint:<warn-code>)"
+                + "\(DismissalPolicy.dismissibleKinds.sorted().joined(separator: " | ")) | lint:<warn-code>)"
         } else if hasTarget {
             return "`target` is for corpus-scope lint warns only — '\(kind)' is a note candidate, use `id`"
         }

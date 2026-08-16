@@ -28,7 +28,7 @@ struct FetchNoteAnchorTransaction: GRDBBrainReadTransaction {
             return nil
         }
 
-        return (title: title, path: brain.paths.file(forId: nid))
+        return (title: title, path: brain.path.file(forId: nid))
     }
 
     // MARK: - Private

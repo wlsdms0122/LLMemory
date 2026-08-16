@@ -27,7 +27,7 @@ struct RefreshReferenceLinksTransaction: GRDBTransaction {
         let range = NSRange(location: 0, length: nsBody.length)
         var candidates = Set<String>()
 
-        for regex in [Notes.backtickIdRegex, Notes.wikilinkRegex] {
+        for regex in [NoteFile.backtickIdRegex, NoteFile.wikilinkRegex] {
             regex.enumerateMatches(in: body, range: range) { match, _, _ in
                 guard let match else { return }
 

@@ -17,11 +17,11 @@ struct UnreadableNoteGateInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
-    private var trashLookup: TrashedNoteLookup { TrashedNoteLookup(paths: home.paths) }
+    private var trashLookup: TrashedNoteLookup { TrashedNoteLookup(path: home.path) }
 
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
 
-    private let detectors = Candidates()
+    private let detector = CandidateDetector()
 
     // MARK: - Initializer
     init() throws {
@@ -42,10 +42,10 @@ struct UnreadableNoteGateInvariantTests {
         try "no frontmatter at all\n".write(to: unreadable, atomically: true, encoding: .utf8)
         
         // Then
-        #expect(try noteFiles.readNoteIfPresent(at: absent) == nil, "absence is an answer, not an error")
-        #expect(throws: (any Error).self) { try noteFiles.requireNote(at: absent) }
-        #expect(throws: (any Error).self) { try noteFiles.readNoteIfPresent(at: unreadable) }
-        #expect(throws: (any Error).self) { try noteFiles.requireNote(at: unreadable) }
+        #expect(try noteFile.readNoteIfPresent(at: absent) == nil, "absence is an answer, not an error")
+        #expect(throws: (any Error).self) { try noteFile.requireNote(at: absent) }
+        #expect(throws: (any Error).self) { try noteFile.readNoteIfPresent(at: unreadable) }
+        #expect(throws: (any Error).self) { try noteFile.requireNote(at: unreadable) }
     }
     
     @Test("a template edit is refused when a document it governs cannot be read")
@@ -182,7 +182,7 @@ struct UnreadableNoteGateInvariantTests {
         let file = try corrupt(id: "sg-note", body: "garbage\n")
         
         // When
-        let violation = home.operationsEngine.checkSectionInvariants(home.paths, affected: [file], backups: [(file, nil)])
+        let violation = home.operationsEngine.checkSectionInvariants(home.path, affected: [file], backups: [(file, nil)])
         
         // Then
         #expect(violation?.contains("sg-note") == true, "unexpected: \(violation ?? "nil")")
@@ -195,7 +195,7 @@ struct UnreadableNoteGateInvariantTests {
         let absent = home.url.appendingPathComponent("cortex/deleted.md")
         
         // Then
-        #expect(home.operationsEngine.checkSectionInvariants(home.paths, affected: [absent], backups: [(absent, nil)]) == nil)
+        #expect(home.operationsEngine.checkSectionInvariants(home.path, affected: [absent], backups: [(absent, nil)]) == nil)
     }
     
     @Test("the lifecycle stamp refuses to record a shape it could not measure")
@@ -228,7 +228,7 @@ struct UnreadableNoteGateInvariantTests {
         
         // Then
         #expect(throws: (any Error).self) {
-            try home.readScope { scope in try detectors.neighbors(scope, noteId: "an-note", k: 3) }
+            try home.readScope { scope in try detector.neighbors(scope, noteId: "an-note", k: 3) }
         }
     }
     
@@ -245,7 +245,7 @@ struct UnreadableNoteGateInvariantTests {
         
         // When
         try home.readScope { scope in
-            let split = try detectors.splitCandidates(scope)
+            let split = try detector.splitCandidates(scope)
             
             // Then
             #expect(split.contains { candidate in candidate.id == "sw-ok" },
@@ -253,9 +253,9 @@ struct UnreadableNoteGateInvariantTests {
             #expect(!split.contains { candidate in candidate.id == "sw-bad" },
                 "an unreadable note was sketched anyway")
             
-            _ = try detectors.clusters(scope)
-            _ = try detectors.missingEdges(scope)
-            _ = try detectors.nearDuplicates(scope)
+            _ = try detector.clusters(scope)
+            _ = try detector.missingEdges(scope)
+            _ = try detector.nearDuplicates(scope)
         }
     }
     

@@ -36,8 +36,8 @@ struct IndexVerifySources: AsyncParsableCommand {
         commandName: "sources",
         abstract: "Recompute source fingerprints and flag drift.",
         discussion: """
-            Reads each note's frontmatter `source:` paths, hashes their
-            current contents, and compares with the stored baseline. Notes
+            Reads each note's frontmatter `source:` path, hashes their
+            current contents, and compares with the stored baseline. NoteFile
             whose sources changed get source_stale=1.
             
             Drift signals review — it does not auto-invalidate content. Run

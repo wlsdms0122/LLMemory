@@ -1,5 +1,5 @@
 //
-//  Paths.swift
+//  Path.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -10,7 +10,7 @@ import Foundation
 // Where one brain keeps its files. Every value here is relative to a home,
 // which is what separates it from NoteAddress: the grammar of an id needs no
 // brain, and the location of the note it names needs nothing else.
-struct Paths: Sendable {
+struct Path: Sendable {
     // MARK: - Property
     let brainRoot: URL
 

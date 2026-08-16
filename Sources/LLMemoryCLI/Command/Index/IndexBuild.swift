@@ -111,7 +111,7 @@ struct IndexBuild: AsyncParsableCommand {
             come back. Use it after bulk hand-edits or schema-level resyncs.
             --path syncs only the given file(s) — single-note sync, for when a
             note was hand-edited. --path and --rebuild are mutually exclusive.
-            Paths are relative to the working directory or absolute.
+            Path are relative to the working directory or absolute.
             
             EXAMPLES
                 llmemory index build --home brain

@@ -8,7 +8,7 @@
 import Foundation
 import Storage
 
-// Notes-domain service — body reads (whole, sections, budget, toc, frame),
+// Note-domain service — body reads (whole, sections, budget, toc, frame),
 // enumeration, history, and structure. Body reads
 // derive a retrieval record; RetrievalService applies it.
 public struct NotesService: NotesServiceable {
@@ -149,14 +149,14 @@ public struct NotesService: NotesServiceable {
                 continue
             }
 
-            let path = scope.brain.paths.file(forId: id)
+            let path = scope.brain.path.file(forId: id)
             let text = try String(contentsOf: path, encoding: .utf8)
             let (doc, body) = try frontmatter.parse(text)
 
             found.append(
                 NoteView(
                     id: id,
-                    path: scope.brain.paths.relative(of: path) ?? path.path,
+                    path: scope.brain.path.relative(of: path) ?? path.path,
                     frontmatter: NoteFrontmatter(doc),
                     body: body,
                     hitCount: record.hitCount,

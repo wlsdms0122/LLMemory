@@ -35,7 +35,7 @@ struct RenameTagHandler: OperationHandling {
         
         let nsToTag = toTag as NSString
         
-        if OpVocabulary.tagRegex.firstMatch(
+        if OperationVocabulary.tagRegex.firstMatch(
             in: toTag,
             range: NSRange(location: 0, length: nsToTag.length)
         ) == nil {

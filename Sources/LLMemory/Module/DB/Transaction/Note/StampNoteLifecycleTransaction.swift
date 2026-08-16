@@ -16,7 +16,7 @@ struct StampNoteLifecycleTransaction: GRDBBrainTransaction {
 
     private let sectionEdit = SectionEdit()
 
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
 
     // MARK: - Initializer
     init(nid: String, now: Int, isNew: Bool) {
@@ -31,14 +31,14 @@ struct StampNoteLifecycleTransaction: GRDBBrainTransaction {
             throw NotesError.stampedFileVanished(nid: nid, path: "(no notes row)")
         }
 
-        let relativePath = brain.paths.relativeFile(forId: nid)
+        let relativePath = brain.path.relativeFile(forId: nid)
         let previousCreated = (try Int.fetchOne(
             db,
             sql: "SELECT created_at FROM note_usage WHERE note_id = ?",
             arguments: [nid]
         )) ?? 0
-        let path = brain.paths.brainRoot.appendingPathComponent(relativePath)
-        let (_, body) = try noteFiles.requireNote(at: path)
+        let path = brain.path.brainRoot.appendingPathComponent(relativePath)
+        let (_, body) = try noteFile.requireNote(at: path)
         let wordCount = sectionEdit.wordCount(body)
         let sectionCount = sectionEdit.sectionCount(body)
         var created = previousCreated != 0 ? previousCreated : now

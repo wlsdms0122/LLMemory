@@ -18,7 +18,7 @@ public struct RetrievalService: RetrievalServiceable {
     let keywords: any KeywordExtracting
     let entities: any EntityHinting
 
-    private let detectors = Candidates()
+    private let detector = CandidateDetector()
 
     // MARK: - Initializer
     init(
@@ -190,7 +190,7 @@ public struct RetrievalService: RetrievalServiceable {
 
         if includeBodies {
             for note in snapshot.similar {
-                let path = scope.brain.paths.brainRoot.appendingPathComponent(note.path)
+                let path = scope.brain.path.brainRoot.appendingPathComponent(note.path)
 
                 if let body = try? String(contentsOf: path, encoding: .utf8) {
                     bodies[note.id] = body
@@ -217,7 +217,7 @@ public struct RetrievalService: RetrievalServiceable {
         k: Int,
         sessionId: SessionId? = nil
     ) throws -> (scores: [NeighborScore], record: RetrievalRecord?) {
-        let scores = try detectors.neighbors(scope, noteId: id, k: k)
+        let scores = try detector.neighbors(scope, noteId: id, k: k)
         let record: RetrievalRecord? = scores.isEmpty ? nil : .init(
             sessionId: sessionId,
             payload: EventPayload(command: .neighbors, [

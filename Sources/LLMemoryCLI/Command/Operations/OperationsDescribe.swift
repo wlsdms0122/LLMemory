@@ -14,7 +14,7 @@ struct OperationsDescribe: ParsableCommand {
         // MARK: - Property
         let name: String
         let summary: String
-        let fields: [OpField]
+        let fields: [OperationField]
         let example: String
         
         // MARK: - Initializer
@@ -77,7 +77,7 @@ struct OperationsDescribe: ParsableCommand {
                 4
             )
             
-            func fieldLine(_ field: OpField) -> String {
+            func fieldLine(_ field: OperationField) -> String {
                 let padding = String(
                     repeating: " ",
                     count: max(0, nameWidth - field.name.displayWidth)

@@ -21,11 +21,11 @@ import GRDB
 // value that arrives in a signature cannot be the wrong brain.
 public struct BrainContext: Sendable {
     // MARK: - Property
-    let paths: Paths
+    let path: Path
     let config: Config
     let genes: Genes
 
-    var home: URL { paths.brainRoot }
+    var home: URL { path.brainRoot }
 
     // Both caches belong to this brain, so re-reading them belongs here too.
     // While Config owned it, the call had to be handed the other cache
@@ -40,13 +40,13 @@ public struct BrainContext: Sendable {
         let config = Config(cache: cache)
 
         self.cache = cache
-        paths = Paths(home: home)
+        path = Path(home: home)
         self.config = config
         genes = Genes(cache: cache, config: config)
     }
 
-    private init(paths: Paths, config: Config, genes: Genes, cache: ParameterCache) {
-        self.paths = paths
+    private init(path: Path, config: Config, genes: Genes, cache: ParameterCache) {
+        self.path = path
         self.config = config
         self.genes = genes
         self.cache = cache
@@ -84,7 +84,7 @@ public struct BrainContext: Sendable {
     // the borrowed number reaches exactly the work that was handed it.
     func shadowing(gene: String, value: Double) -> BrainContext {
         BrainContext(
-            paths: paths,
+            path: path,
             config: config,
             genes: genes.shadowing(gene, value),
             cache: cache

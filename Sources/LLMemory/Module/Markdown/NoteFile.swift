@@ -1,5 +1,5 @@
 //
-//  Notes.swift
+//  NoteFile.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -10,7 +10,7 @@ import CryptoKit
 
 // File-level note mechanics — parsing, hashing, path mapping. Row and FTS
 // projections are note transactions.
-struct Notes: Sendable {
+struct NoteFile: Sendable {
     // MARK: - Property
     // Markers carry dots now that an id does. Widening only adds marker rows —
     // an edge still needs an exact match against a real id, so a config key
@@ -32,7 +32,7 @@ struct Notes: Sendable {
         return String(digest.map { byte in String(format: "%02x", byte) }.joined().prefix(16))
     }
     
-    func requireNote(at url: URL) throws -> (doc: FrontmatterDoc, body: String) {
+    func requireNote(at url: URL) throws -> (doc: FrontmatterDocument, body: String) {
         guard let read = try readNoteIfPresent(at: url) else {
             throw NoteUnreadable(path: url.path, reason: "file does not exist")
         }
@@ -40,7 +40,7 @@ struct Notes: Sendable {
         return read
     }
     
-    func readNoteIfPresent(at url: URL) throws -> (doc: FrontmatterDoc, body: String)? {
+    func readNoteIfPresent(at url: URL) throws -> (doc: FrontmatterDocument, body: String)? {
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         
         do {

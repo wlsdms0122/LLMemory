@@ -13,7 +13,7 @@ import Foundation
 //
 // The Service tier's line: an XxxService instance is an effectful surface
 // over storage (owns the async doors, gets wired by the container); a
-// policy namespace like Candidates/Lint is pure judgment vocabulary over a
+// policy namespace like CandidateDetector/Lint is pure judgment vocabulary over a
 // scope — stateless, shared by whichever services need it (Consolidate
 // dispatches batches, Retrieval scores neighbors).
 public enum CandidatesError: Error, CustomStringConvertible {

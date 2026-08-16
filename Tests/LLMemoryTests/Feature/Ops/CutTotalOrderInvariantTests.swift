@@ -18,11 +18,11 @@ struct CutTotalOrderInvariantTests {
     // MARK: - Property
     private let home: MemoryHome
     
-    private let writeEffects = NoteWriteEffects()
+    private let writeEffects = NoteWriteBookkeeper()
 
     private let frontmatter = Frontmatter()
 
-    private let detectors = Candidates()
+    private let detector = CandidateDetector()
 
     // MARK: - Initializer
     init() throws {
@@ -80,7 +80,7 @@ struct CutTotalOrderInvariantTests {
         }
         
         // When
-        let rows = try home.readScope { scope in try detectors.reconsolidateCandidates(scope, limit: 3) }
+        let rows = try home.readScope { scope in try detector.reconsolidateCandidates(scope, limit: 3) }
         
         // Then
         #expect(rows.map(\.id) == ["fl-n1", "fl-n2", "fl-n3"])
@@ -95,7 +95,7 @@ struct CutTotalOrderInvariantTests {
         try seedTags(ids: ids) { _ in ["ta", "tb", "tc"] }
         
         // When
-        let rows = try home.readScope { scope in try detectors.splitCandidates(scope, limit: 3) }
+        let rows = try home.readScope { scope in try detector.splitCandidates(scope, limit: 3) }
         
         // Then
         #expect(rows.map(\.id) == ["sp-n1", "sp-n2", "sp-n3"])
@@ -158,7 +158,7 @@ struct CutTotalOrderInvariantTests {
         }
         
         // When
-        let clusters = try home.readScope { scope in try detectors.clusters(scope) }
+        let clusters = try home.readScope { scope in try detector.clusters(scope) }
         
         // Then
         #expect(clusters.count == 1)
@@ -181,7 +181,7 @@ struct CutTotalOrderInvariantTests {
         }
         
         // When
-        let rows = try home.read { database in try SearchNotesFTSTransaction(match: .text("zebra", keywords: FrequencyKeywords()), limit: 3).perform(database, home.brain) }
+        let rows = try home.read { database in try SearchNotesFTSTransaction(match: .text("zebra", keywords: FrequencyKeywordExtractor()), limit: 3).perform(database, home.brain) }
         
         // Then
         #expect(rows.map(\.id) == ["se-n1", "se-n2", "se-n3"])
@@ -200,13 +200,13 @@ struct CutTotalOrderInvariantTests {
                     VALUES (?, ?, '', 'lazy', ?, ?)
                     """, arguments: [noteId, noteId, wordCount, sectionCount])
                 
-                let file = home.url.appendingPathComponent(home.paths.relativeFile(forId: noteId))
+                let file = home.url.appendingPathComponent(home.path.relativeFile(forId: noteId))
                 
                 try FileManager.default.createDirectory(
                     at: file.deletingLastPathComponent(),
                     withIntermediateDirectories: true
                 )
-                try (frontmatter.dump(FrontmatterDoc(title: noteId))
+                try (frontmatter.dump(FrontmatterDocument(title: noteId))
                     + "## A\nx\n## B\ny\n").write(to: file, atomically: true, encoding: .utf8)
             }
         }

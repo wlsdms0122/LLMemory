@@ -14,7 +14,7 @@ struct CandidateDiscoveryTests {
     // MARK: - Property
     private let home: MemoryHome
     
-    private let detectors = Candidates()
+    private let detector = CandidateDetector()
 
     // MARK: - Initializer
     init() throws {
@@ -29,7 +29,7 @@ struct CandidateDiscoveryTests {
         
         // When
         let clusters = try home.readScope { scope in
-            try detectors.clusters(scope, minSize: 2, maxSize: 50, limit: 20)
+            try detector.clusters(scope, minSize: 2, maxSize: 50, limit: 20)
         }
         
         // Then
@@ -45,7 +45,7 @@ struct CandidateDiscoveryTests {
         
         // When
         let capped = try home.readScope { scope in
-            try detectors.clusters(scope, maxSize: 3, limit: 20)
+            try detector.clusters(scope, maxSize: 3, limit: 20)
         }
         
         // Then
@@ -65,7 +65,7 @@ struct CandidateDiscoveryTests {
         
         // When
         let duplicates = try home.readScope { scope in
-            try detectors.nearDuplicates(scope, limit: 20)
+            try detector.nearDuplicates(scope, limit: 20)
         }
         
         // Then
@@ -103,21 +103,21 @@ struct CandidateDiscoveryTests {
     @Test("neighbors refuses an anchor that does not exist rather than returning nothing")
     func neighborsRefusesAnUnknownAnchor() throws {
         #expect(throws: (any Error).self) {
-            try home.readScope { scope in try detectors.neighbors(scope, noteId: "nonexistent-xyz", k: 5) }
+            try home.readScope { scope in try detector.neighbors(scope, noteId: "nonexistent-xyz", k: 5) }
         }
     }
     
     @Test("near_duplicate is a retrieval kind the CLI accepts")
     func nearDuplicateKindRegistered() {
-        #expect(Candidates.retrievalKinds.contains("near_duplicate"))
-        #expect(Candidates.validKinds.contains("near_duplicate"))
+        #expect(CandidateDetector.retrievalKinds.contains("near_duplicate"))
+        #expect(CandidateDetector.validKinds.contains("near_duplicate"))
     }
     
     @Test("missing_edge replaced graph_isolates — the retired kind is gone, not aliased")
     func missingEdgeKindRegistered() {
-        #expect(Candidates.retrievalKinds.contains("missing_edge"))
-        #expect(Candidates.validKinds.contains("missing_edge"))
-        #expect(!Candidates.validKinds.contains("graph_isolates"))
+        #expect(CandidateDetector.retrievalKinds.contains("missing_edge"))
+        #expect(CandidateDetector.validKinds.contains("missing_edge"))
+        #expect(!CandidateDetector.validKinds.contains("graph_isolates"))
     }
     
     // MARK: - Private
@@ -134,7 +134,7 @@ struct CandidateDiscoveryTests {
     
     private func missingEdgeHoldsTheSeededPair() throws -> Bool {
         try home.readScope { scope in
-            let edges = try detectors.missingEdges(scope, limit: 20, ftsBm25: 0.0)
+            let edges = try detector.missingEdges(scope, limit: 20, ftsBm25: 0.0)
             
             return edges.contains { edge in Set([edge.a.id, edge.b.id]) == ["me-a", "me-b"] }
         }

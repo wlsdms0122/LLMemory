@@ -16,18 +16,18 @@ import Foundation
 // stopped shipping, and neither is more entitled to the mechanism than the other.
 public struct Trash: Sendable {
     // MARK: - Property
-    private let paths: Paths
+    private let path: Path
 
     private let frontmatter = Frontmatter()
 
     // MARK: - Initializer
-    init(paths: Paths) {
-        self.paths = paths
+    init(path: Path) {
+        self.path = path
     }
 
     // MARK: - Public
     public func pathFor(_ relativePath: String) throws -> URL {
-        paths.trash.appendingPathComponent(try relativeToNotes(relativePath))
+        path.trash.appendingPathComponent(try relativeToNotes(relativePath))
     }
 
     // A name already taken in the trash means an earlier note went by the same
@@ -57,7 +57,7 @@ public struct Trash: Sendable {
     public func file(_ source: URL, reason: String, now: Int) throws -> URL? {
         guard FileManager.default.fileExists(atPath: source.path) else { return nil }
 
-        let relativePath = try paths.requireRelative(of: source)
+        let relativePath = try path.requireRelative(of: source)
         var (doc, body) = try frontmatter.parse(try String(contentsOf: source, encoding: .utf8))
         doc.trashedAt = now
         doc.trashedReason = reason.unicodeScalarPrefix(200)
@@ -76,15 +76,15 @@ public struct Trash: Sendable {
 
     // Where a file would land, for the snapshot that has to be able to put it back.
     public func destination(of source: URL) -> URL? {
-        guard let relativePath = try? paths.requireRelative(of: source) else { return nil }
+        guard let relativePath = try? path.requireRelative(of: source) else { return nil }
 
         return try? resolvePath(relativePath)
     }
 
     // MARK: - Private
     private func relativeToNotes(_ relativePath: String) throws -> String {
-        let absolutePath = paths.brainRoot.appendingPathComponent(relativePath).path
-        let notesPrefix = paths.notes.path + "/"
+        let absolutePath = path.brainRoot.appendingPathComponent(relativePath).path
+        let notesPrefix = path.notes.path + "/"
 
         guard absolutePath.hasPrefix(notesPrefix) else {
             throw NSError(domain: "Trash", code: 10, userInfo: [

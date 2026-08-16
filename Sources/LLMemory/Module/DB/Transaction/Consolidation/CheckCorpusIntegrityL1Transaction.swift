@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 struct CheckCorpusIntegrityL1Transaction: GRDBBrainReadTransaction {
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
 
     // MARK: - Initializer
     init() { }
@@ -18,11 +18,11 @@ struct CheckCorpusIntegrityL1Transaction: GRDBBrainReadTransaction {
     func perform(_ db: Database, _ brain: BrainContext) throws -> (checked: Int, issues: [String]) {
         let ids = try String.fetchAll(db, sql: "SELECT id FROM notes ORDER BY id")
         let issues = try ids.compactMap { id -> String? in
-            let path = brain.paths.file(forId: id)
-            let relative = brain.paths.relative(of: path) ?? path.path
+            let path = brain.path.file(forId: id)
+            let relative = brain.path.relative(of: path) ?? path.path
             
             do {
-                guard try noteFiles.readNoteIfPresent(at: path) != nil else {
+                guard try noteFile.readNoteIfPresent(at: path) != nil else {
                     return "missing: \(id) → \(relative)"
                 }
                 

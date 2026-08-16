@@ -47,7 +47,7 @@ struct IndexOrphanPopulationInvariantTests {
         #expect(result.errors.contains { error in error.contains("opx") },
             "a parse failure must surface in errors")
         #expect(survived == (1, 1),
-            "the parse failure cascaded into Notes.delete — non-recoverable state was lost")
+            "the parse failure cascaded into note deletion — non-recoverable state was lost")
     }
     
     @Test("a rebuild aborts when any file fails to parse rather than committing a lossy snapshot")
@@ -147,7 +147,7 @@ struct IndexOrphanPopulationInvariantTests {
     @discardableResult
     private func move(id: String, to relativePath: String) throws -> URL {
         let source = try home.indexedPath(of: id)
-        let destination = home.paths.cortexRoot.appendingPathComponent(relativePath)
+        let destination = home.path.cortexRoot.appendingPathComponent(relativePath)
         
         try FileManager.default.createDirectory(
             at: destination.deletingLastPathComponent(),

@@ -13,7 +13,7 @@ struct ReparentNoteArtifactsTransaction: GRDBTransaction {
     let from: String
     let to: String
 
-    private let noteArtifacts = NoteArtifacts()
+    private let artifactPolicy = NoteArtifactPolicy()
 
     // MARK: - Initializer
     init(from: String, to: String) {
@@ -25,7 +25,7 @@ struct ReparentNoteArtifactsTransaction: GRDBTransaction {
     func perform(_ db: Database) throws {
         guard self.from != to else { return }
         
-        for table in NoteArtifacts.identityTables + NoteArtifacts.historyTables {
+        for table in NoteArtifactPolicy.identityTables + NoteArtifactPolicy.historyTables {
             try db.execute(sql: "DELETE FROM \(table) WHERE note_id = ?", arguments: [to])
             try db.execute(
                 sql: "UPDATE \(table) SET note_id = ? WHERE note_id = ?",
@@ -33,7 +33,7 @@ struct ReparentNoteArtifactsTransaction: GRDBTransaction {
             )
         }
         
-        try noteArtifacts.moveAuthoredLinks(db, from: self.from, to: to)
+        try artifactPolicy.moveAuthoredLinks(db, from: self.from, to: to)
     }
 
     // MARK: - Private

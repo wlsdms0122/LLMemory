@@ -45,7 +45,7 @@ enum FTSMatch {
     // MARK: - Public
     // Free text becomes cues by whichever reader the caller was given.
     static func text(_ text: String, keywords: any KeywordExtracting) -> FTSMatch {
-        .cues(keywords.keywords(in: text, limit: RetrievalCues.limit))
+        .cues(keywords.keywords(in: text, limit: RetrievalCue.limit))
     }
 
     // Why a query SQLite refused is only answerable for an expression the

@@ -58,16 +58,16 @@ public struct Seeding: Sendable {
         // MARK: - Private
     }
 
-    private let paths: Paths
+    private let path: Path
 
     private let frontmatter = Frontmatter()
 
     private let trash: Trash
 
     // MARK: - Initializer
-    init(paths: Paths) {
-        self.paths = paths
-        trash = Trash(paths: paths)
+    init(path: Path) {
+        self.path = path
+        trash = Trash(path: path)
     }
 
     // MARK: - Public
@@ -105,7 +105,7 @@ public struct Seeding: Sendable {
         }
 
         for (seed, claimant) in claimants {
-            let canonical = paths.file(forId: seed.id)
+            let canonical = path.file(forId: seed.id)
 
             switch claimant {
             case .identical:
@@ -166,7 +166,7 @@ public struct Seeding: Sendable {
         let shipped = Set(Seed.notes.map { note in note.id })
 
         for id in seeded.sorted() where !shipped.contains(id) {
-            let file = paths.file(forId: id)
+            let file = path.file(forId: id)
 
             // Confirmed against the file, not taken from the row: what is there
             // now may no longer be the copy the catalog remembers.
@@ -205,7 +205,7 @@ public struct Seeding: Sendable {
     }
 
     private func claimant(of seed: Seed.Note) -> Claimant {
-        let canonical = paths.file(forId: seed.id)
+        let canonical = path.file(forId: seed.id)
 
         guard FileManager.default.fileExists(atPath: canonical.path) else { return .absent }
 

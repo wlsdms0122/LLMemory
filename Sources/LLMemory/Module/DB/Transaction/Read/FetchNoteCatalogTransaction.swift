@@ -34,7 +34,7 @@ struct FetchNoteCatalogTransaction: GRDBBrainReadTransaction {
         for row in rows {
             catalog[row["id"] as String] = CatalogNote(
                 id: row["id"],
-                path: brain.paths.relativeFile(forId: row["id"] as String),
+                path: brain.path.relativeFile(forId: row["id"] as String),
                 title: row["title"],
                 summary: row["summary"] as String?,
                 priority: row["priority"],

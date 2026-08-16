@@ -161,7 +161,7 @@ struct FrontmatterBareListTests {
         // Given
         // No id: it is not a frontmatter field. The round trip is over what the
         // file actually carries, and the address is carried by the file itself.
-        var document = FrontmatterDoc()
+        var document = FrontmatterDocument()
         
         document.title = "t"
         document.priority = "eager"

@@ -40,7 +40,7 @@ public struct Operations {
     // Catalog reads are code-owned and connection-free; they live on the facade
     // so the CLI has one entry per domain. Constructing Brain for them costs a
     // silently-tolerated warm attempt — lightening the constructor rides the
-    // Paths/Config globals debt.
+    // Path/Config globals debt.
     public func operationNames() -> [String] {
         service.operationNames()
     }

@@ -12,7 +12,7 @@ struct FetchNoteSourcePathsTransaction: GRDBBrainReadTransaction {
     // MARK: - Property
     let noteId: String
 
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
 
     // MARK: - Initializer
     init(noteId: String) {
@@ -23,7 +23,7 @@ struct FetchNoteSourcePathsTransaction: GRDBBrainReadTransaction {
     func perform(_ db: Database, _ brain: BrainContext) throws -> [String] {
         guard try NoteExistsTransaction(nid: noteId).perform(db) else { return [] }
 
-        return try noteFiles.requireNote(at: brain.paths.file(forId: noteId)).doc.source
+        return try noteFile.requireNote(at: brain.path.file(forId: noteId)).doc.source
     }
 
     // MARK: - Private

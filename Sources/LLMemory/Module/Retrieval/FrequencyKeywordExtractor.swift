@@ -1,5 +1,5 @@
 //
-//  FrequencyKeywords.swift
+//  FrequencyKeywordExtractor.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/15/26.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct FrequencyKeywords: KeywordExtracting {
+public struct FrequencyKeywordExtractor: KeywordExtracting {
     // MARK: - Property
     private static let stopwords: Set<String> = [
         "그리고", "하지만", "그런데", "그래서", "그러면", "이게", "저게", "이거",

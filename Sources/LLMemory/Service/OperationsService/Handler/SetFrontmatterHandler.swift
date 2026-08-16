@@ -20,11 +20,11 @@ struct SetFrontmatterHandler: OperationHandling {
     
     private let composer = NoteComposer()
     private let noteExistence = NoteExistence()
-    private let writeEffects = NoteWriteEffects()
+    private let writeEffects = NoteWriteBookkeeper()
     
     private let frontmatter = Frontmatter()
     
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
     
     // MARK: - Initializer
     // MARK: - Public
@@ -50,15 +50,15 @@ struct SetFrontmatterHandler: OperationHandling {
         }
         
         if let priority = fields["priority"] as? String,
-            !OpVocabulary.validPriority.contains(priority) {
+            !OperationVocabulary.validPriority.contains(priority) {
             return "invalid priority: \(priority)"
         }
         
         do {
-            var probe = FrontmatterDoc()
+            var probe = FrontmatterDocument()
             
             if let path = try scope.run(FetchNotePathTransaction(nid: noteId)),
-                let read = try noteFiles.readNoteIfPresent(at: path) {
+                let read = try noteFile.readNoteIfPresent(at: path) {
                 probe = read.doc
             }
             

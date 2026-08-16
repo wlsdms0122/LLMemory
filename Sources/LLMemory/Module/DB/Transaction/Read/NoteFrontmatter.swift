@@ -10,10 +10,10 @@ import GRDB
 
 public struct NoteFrontmatter: Encodable, Sendable {
     // MARK: - Property
-    private let doc: FrontmatterDoc
+    private let doc: FrontmatterDocument
 
     // MARK: - Initializer
-    init(_ doc: FrontmatterDoc) {
+    init(_ doc: FrontmatterDocument) {
         self.doc = doc
     }
 

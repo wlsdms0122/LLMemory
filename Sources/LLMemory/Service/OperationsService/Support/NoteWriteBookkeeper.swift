@@ -1,5 +1,5 @@
 //
-//  NoteWriteEffects.swift
+//  NoteWriteBookkeeper.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/15/26.
@@ -11,7 +11,7 @@ import Foundation
 // happened, and the links a new note starts life with. Separated from the
 // write itself because every op does its own writing and all of them owe
 // these.
-struct NoteWriteEffects {
+struct NoteWriteBookkeeper {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public

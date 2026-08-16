@@ -35,7 +35,7 @@ struct FetchSurfaceNoteRowsTransaction: GRDBBrainReadTransaction {
                 id: row["id"],
                 title: row["title"],
                 summary: row["summary"] as String?,
-                path: brain.paths.relativeFile(forId: row["id"] as String)
+                path: brain.path.relativeFile(forId: row["id"] as String)
             )
         }
     }

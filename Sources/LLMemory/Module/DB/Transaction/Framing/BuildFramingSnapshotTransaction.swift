@@ -50,7 +50,7 @@ struct BuildFramingSnapshotTransaction: GRDBBrainReadTransaction {
     func perform(_ db: Database, _ brain: BrainContext) throws -> FramingSnapshot {
         let similarLimit = brain.genes.int("related.similar_limit")
         let expandHops = brain.genes.int("related.expand_hops")
-        let cues = keywords.keywords(in: text, limit: RetrievalCues.limit)
+        let cues = keywords.keywords(in: text, limit: RetrievalCue.limit)
         let entityHints = entities.hints(in: text)
         let similarNotes = try FetchSimilarNotesTransaction(
             keywords: cues,

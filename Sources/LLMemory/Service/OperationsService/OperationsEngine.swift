@@ -20,7 +20,7 @@ public struct OperationsEngine: Sendable {
     
     private let frontmatter = Frontmatter()
     
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
     
     private let template = Template()
     
@@ -195,7 +195,7 @@ public struct OperationsEngine: Sendable {
                 }
                 
                 if let sectionError = checkSectionInvariants(
-                    scope.brain.paths,
+                    scope.brain.path,
                     affected: affected,
                     backups: backups
                 ) {
@@ -365,20 +365,20 @@ public struct OperationsEngine: Sendable {
     }
     
     func checkSectionInvariants(
-        _ paths: Paths,
+        _ path: Path,
         affected: [URL],
         backups: [(URL, String?)]
     ) -> String? {
-        let trashLookup = TrashedNoteLookup(paths: paths)
+        let trashLookup = TrashedNoteLookup(path: path)
         var violations: [String] = []
         
-        for path in affected {
-            if path.pathExtension != "md" { continue }
+        for url in affected {
+            if url.pathExtension != "md" { continue }
             
-            let noteId = trashLookup.trashStemId(path)
+            let noteId = trashLookup.trashStemId(url)
             let body: String
             do {
-                guard let read = try noteFiles.readNoteIfPresent(at: path) else { continue }
+                guard let read = try noteFile.readNoteIfPresent(at: url) else { continue }
                 
                 body = read.body
             } catch {
@@ -394,7 +394,7 @@ public struct OperationsEngine: Sendable {
             
             var existingPaths = Set<String>()
             
-            if let preText = preImage(path, paths, nid: noteId, backups: backups),
+            if let preText = preImage(url, path, nid: noteId, backups: backups),
                 let (_, preBody) = try? frontmatter.parse(preText) {
                 existingPaths = Set(
                     sectionEdit.findPathCollisions(preBody).map { collision in
@@ -520,7 +520,7 @@ public struct OperationsEngine: Sendable {
         let urls = try handler.touches(op, scope)
         
         for url in urls {
-            guard let noteId = scope.brain.paths.id(ofFile: url) else { continue }
+            guard let noteId = scope.brain.path.id(ofFile: url) else { continue }
             
             if try scope.run(NoteLockedTransaction(nid: noteId)) {
                 return "note is locked (human-only) — edit the file directly, not via ops: \(noteId)"
@@ -593,18 +593,18 @@ public struct OperationsEngine: Sendable {
     }
     
     private func preImage(
-        _ path: URL,
-        _ paths: Paths,
+        _ url: URL,
+        _ path: Path,
         nid: String,
         backups: [(URL, String?)]
     ) -> String? {
-        for (url, text) in backups where url.path == path.path {
+        for (candidate, text) in backups where candidate.path == url.path {
             if let text { return text }
         }
         
-        let trashLookup = TrashedNoteLookup(paths: paths)
+        let trashLookup = TrashedNoteLookup(path: path)
 
-        for (url, text) in backups where trashLookup.trashStemId(url) == nid {
+        for (candidate, text) in backups where trashLookup.trashStemId(candidate) == nid {
             if let text { return text }
         }
         
@@ -628,7 +628,7 @@ public struct OperationsEngine: Sendable {
         for path in affected where path.pathExtension == "md" {
             enqueue(path)
             
-            if let noteId = scope.brain.paths.id(ofFile: path) { affectedIds.append(noteId) }
+            if let noteId = scope.brain.path.id(ofFile: path) { affectedIds.append(noteId) }
         }
         
         var violations: [String] = []
@@ -639,7 +639,7 @@ public struct OperationsEngine: Sendable {
                     FetchTemplateDependentNoteIdsTransaction(templateIds: affectedIds)
                 )
                 
-                for noteId in dependents { enqueue(scope.brain.paths.file(forId: noteId)) }
+                for noteId in dependents { enqueue(scope.brain.path.file(forId: noteId)) }
             } catch {
                 violations.append("template reverse-dependency lookup failed: \(error)")
             }
@@ -648,21 +648,21 @@ public struct OperationsEngine: Sendable {
         for path in toCheck {
             if path.path.contains("/.trash/") { continue }
             
-            let doc: FrontmatterDoc
+            let doc: FrontmatterDocument
             let body: String
             do {
-                guard let read = try noteFiles.readNoteIfPresent(at: path) else { continue }
+                guard let read = try noteFile.readNoteIfPresent(at: path) else { continue }
                 
                 (doc, body) = read
             } catch {
-                let noteId = scope.brain.paths.id(ofFile: path) ?? path.lastPathComponent
+                let noteId = scope.brain.path.id(ofFile: path) ?? path.lastPathComponent
                 violations.append("\(noteId): unreadable, template frame unverifiable: \(error)")
                 continue
             }
             
             guard let templateId = doc.template, !templateId.isEmpty else { continue }
             
-            let noteId = scope.brain.paths.id(ofFile: path) ?? path.lastPathComponent
+            let noteId = scope.brain.path.id(ofFile: path) ?? path.lastPathComponent
             
             guard let frame = (try? scope.run(LoadTemplateFrameTransaction(templateId: templateId))) ?? nil else {
                 violations.append("\(noteId): unknown template '\(templateId)'")

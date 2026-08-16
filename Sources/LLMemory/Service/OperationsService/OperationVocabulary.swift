@@ -1,5 +1,5 @@
 //
-//  OpVocabulary.swift
+//  OperationVocabulary.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -11,7 +11,7 @@ import Foundation
 // opposed to the free text it may carry. Nothing here is behaviour, so it is a
 // constant table and stays one: a handler reads the accepted set, it does not
 // negotiate with it.
-public enum OpVocabulary {
+public enum OperationVocabulary {
     // MARK: - Property
     public static let tagRegex = try! NSRegularExpression(pattern: #"^[a-z0-9][a-z0-9-]*$"#)
     public static let headingMarkerRegex = try! NSRegularExpression(pattern: #"^(#{1,6})\s+(.+?)\s*$"#)

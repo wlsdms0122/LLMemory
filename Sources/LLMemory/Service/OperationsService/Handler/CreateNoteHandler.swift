@@ -30,7 +30,7 @@ struct CreateNoteHandler: OperationHandling {
     private let composer = NoteComposer()
     private let noteExistence = NoteExistence()
     private let sourceInput = NoteSourceInput()
-    private let writeEffects = NoteWriteEffects()
+    private let writeEffects = NoteWriteBookkeeper()
     
     private let frontmatter = Frontmatter()
     
@@ -70,14 +70,14 @@ struct CreateNoteHandler: OperationHandling {
         
         let priority = op["priority"] as? String ?? "lazy"
         
-        if !OpVocabulary.validPriority.contains(priority) { return "invalid priority: \(priority)" }
+        if !OperationVocabulary.validPriority.contains(priority) { return "invalid priority: \(priority)" }
         
         if let entities = op["entities"], !(entities is [Any]) { return "entities must be list" }
         
         if let rejection = sourceInput.sourceInputError(op["source"]) { return rejection }
         
         do {
-            var probe = FrontmatterDoc()
+            var probe = FrontmatterDocument()
             
             try composer.mergeFields(&probe, schema.undeclaredFields(in: op))
         } catch {
@@ -88,10 +88,10 @@ struct CreateNoteHandler: OperationHandling {
             return "id collision: \(noteId) (use patch_section to update)"
         }
         
-        let path = scope.brain.paths.file(forId: noteId)
+        let path = scope.brain.path.file(forId: noteId)
         
         if FileManager.default.fileExists(atPath: path.path) {
-            let relativePath = scope.brain.paths.relative(of: path) ?? path.path
+            let relativePath = scope.brain.path.relative(of: path) ?? path.path
             
             return "path already exists: \(relativePath) (use patch_section)"
         }
@@ -106,7 +106,7 @@ struct CreateNoteHandler: OperationHandling {
     ) throws -> [String: Any] {
         let now = context.now
         let noteId = op["id"] as! String
-        let path = scope.brain.paths.file(forId: noteId)
+        let path = scope.brain.path.file(forId: noteId)
         
         try FileManager.default.createDirectory(
             at: path.deletingLastPathComponent(),
@@ -114,7 +114,7 @@ struct CreateNoteHandler: OperationHandling {
         )
         
         let body = try composer.composeCreateBody(op, scope.readOnly)
-        var doc = FrontmatterDoc(
+        var doc = FrontmatterDocument(
             title: op["title"] as? String ?? "",
             priority: op["priority"] as? String ?? "lazy",
             summary: op["summary"] as? String ?? "",
@@ -152,7 +152,7 @@ struct CreateNoteHandler: OperationHandling {
             "status": "ok",
             "path": path.path,
             "ids": [noteId],
-            "note": "created at \(scope.brain.paths.relativeFile(forId: noteId))"
+            "note": "created at \(scope.brain.path.relativeFile(forId: noteId))"
         ]
     }
     
@@ -161,7 +161,7 @@ struct CreateNoteHandler: OperationHandling {
     }
     
     func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
-        (op["id"] as? String).map { id in [scope.brain.paths.file(forId: id)] } ?? []
+        (op["id"] as? String).map { id in [scope.brain.path.file(forId: id)] } ?? []
     }
     
     // MARK: - Private

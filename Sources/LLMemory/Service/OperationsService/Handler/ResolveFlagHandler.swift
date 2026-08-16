@@ -30,7 +30,7 @@ struct ResolveFlagHandler: OperationHandling {
     ) throws -> String? {
         let kind = op["kind"] as? String ?? ""
         
-        if !OpVocabulary.resolvableFlagKinds.contains(kind) { return "invalid flag kind: \(kind)" }
+        if !OperationVocabulary.resolvableFlagKinds.contains(kind) { return "invalid flag kind: \(kind)" }
         
         return try noteExistence.rejectionForUnknown(op["id"] as? String ?? "", context: context, scope: scope)
     }

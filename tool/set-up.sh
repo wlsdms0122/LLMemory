@@ -41,7 +41,7 @@ echo "generated Sources/LLMemory/Resource/Guide.swift"
 # document/cortex/ is the shipped subtree of a brain's cortex/, laid out exactly
 # as it will be planted — so a seed's id is read the one way every id is read,
 # off its location: `a/b.md` is `a.b`. Every path component must therefore be a
-# label, the same shape Paths.idRegex spells in Swift and migrate-legacy.sh in
+# label, the same shape NoteAddress.idRegex spells in Swift and migrate-legacy.sh in
 # python. Checking only for a dot would let `Knowledge_Fragmentation.md` through
 # and ship a seed that the brain's own lint calls an invalid id.
 #

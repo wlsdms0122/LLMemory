@@ -18,7 +18,7 @@ struct FrontmatterTests {
     @Test("parse and dump are idempotent — repeated rewrites do not accumulate blank lines")
     func roundTripDoesNotAccumulateBlankLines() throws {
         // Given
-        var document = FrontmatterDoc(
+        var document = FrontmatterDocument(
             title: "t",
             priority: "lazy", summary: "s", tags: ["tech"]
         )
@@ -43,7 +43,7 @@ struct FrontmatterTests {
     @Test("extra blank lines after the frontmatter heal on the next rewrite")
     func multipleBlanksHealOnRewrite() throws {
         // Given
-        let document = FrontmatterDoc(
+        let document = FrontmatterDocument(
             title: "t",
             priority: "lazy", summary: "s", tags: ["tech"]
         )
@@ -64,7 +64,7 @@ struct FrontmatterTests {
     @Test("a missing blank line after the frontmatter heals too — both directions converge")
     func noBlankAlsoHealsToCanonical() throws {
         // Given
-        let document = FrontmatterDoc(
+        let document = FrontmatterDocument(
             title: "t",
             priority: "lazy", summary: "s", tags: ["tech"]
         )

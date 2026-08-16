@@ -1,5 +1,5 @@
 //
-//  TransactionTests.swift
+//  OpsTransactionTests.swift
 //  LLMemoryTests
 //
 //  Created by JSilver on 8/8/26.
@@ -209,7 +209,7 @@ struct TransactionTests {
     }
     
     private func noteFile(_ id: String) -> URL {
-        home.paths.notes.appendingPathComponent("\(id).md")
+        home.path.notes.appendingPathComponent("\(id).md")
     }
     
     private func createOp(id: String) -> [String: Any] {

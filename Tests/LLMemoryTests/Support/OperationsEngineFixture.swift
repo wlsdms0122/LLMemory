@@ -22,7 +22,7 @@ extension OperationsEngine {
     ) -> OperationsResult {
         do {
             let json = try Self.encodePayload(payload)
-            let engine = OperationsEngine(lint: LintScanner(rules: LintRuleRegistry()), keywords: FrequencyKeywords())
+            let engine = OperationsEngine(lint: LintScanner(rules: LintRuleRegistry()), keywords: FrequencyKeywordExtractor())
 
             guard let decoded = engine.decodePayload(json) else {
                 return OperationsResult(
@@ -58,7 +58,7 @@ extension OperationsEngine {
     ) -> OperationsDryRunResult {
         do {
             let json = try Self.encodePayload(payload)
-            let engine = OperationsEngine(lint: LintScanner(rules: LintRuleRegistry()), keywords: FrequencyKeywords())
+            let engine = OperationsEngine(lint: LintScanner(rules: LintRuleRegistry()), keywords: FrequencyKeywordExtractor())
 
             guard let decoded = engine.decodePayload(json) else {
                 return OperationsDryRunResult(

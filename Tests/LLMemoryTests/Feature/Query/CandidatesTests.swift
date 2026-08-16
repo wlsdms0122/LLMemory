@@ -12,12 +12,12 @@ import GRDB
 
 // Candidate surfaces propose work to do. A note that is off the surface — stale, or deliberately
 // invalidated — must not be proposed, and an eager note must not be invalidated out from under the boot.
-@Suite("Candidates Tests", .serialized)
+@Suite("CandidateDetector Tests", .serialized)
 struct CandidatesTests {
     // MARK: - Property
     private let home: MemoryHome
     
-    private let detectors = Candidates()
+    private let detector = CandidateDetector()
 
     // MARK: - Initializer
     init() throws {
@@ -62,7 +62,7 @@ struct CandidatesTests {
         
         // When
         let hits = try home.readScope { scope in
-            try detectors.neighbors(scope, noteId: "nbr-seed", k: 10)
+            try detector.neighbors(scope, noteId: "nbr-seed", k: 10)
         }
         
         // Then
@@ -86,7 +86,7 @@ struct CandidatesTests {
         
         // When
         let duplicates = try home.readScope { scope in
-            try detectors.nearDuplicates(scope, limit: 50)
+            try detector.nearDuplicates(scope, limit: 50)
         }
         
         // Then
@@ -113,7 +113,7 @@ struct CandidatesTests {
         
         // When
         let edges = try home.readScope { scope in
-            try detectors.missingEdges(scope, limit: 20, perNote: 3, ftsBm25: -0.1)
+            try detector.missingEdges(scope, limit: 20, perNote: 3, ftsBm25: -0.1)
         }
         
         // Then

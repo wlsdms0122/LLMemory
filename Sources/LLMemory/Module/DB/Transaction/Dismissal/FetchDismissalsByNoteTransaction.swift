@@ -18,15 +18,15 @@ struct FetchDismissalsByNoteTransaction: GRDBReadTransaction {
     }
 
     // MARK: - Public
-    func perform(_ db: Database) throws -> [String: Dismissals.Dismissal] {
+    func perform(_ db: Database) throws -> [String: DismissalPolicy.Dismissal] {
         let rows = try Row.fetchAll(db, sql: """
             SELECT note_id, dismiss_count, word_count, section_count, generation
             FROM candidate_dismissals WHERE kind = ?
             """, arguments: [kind])
-        var dismissals: [String: Dismissals.Dismissal] = [:]
+        var dismissals: [String: DismissalPolicy.Dismissal] = [:]
         
         for row in rows {
-            dismissals[row["note_id"]] = Dismissals.Dismissal(
+            dismissals[row["note_id"]] = DismissalPolicy.Dismissal(
                 kind: kind,
                 dismissCount: row["dismiss_count"] as Int? ?? 1,
                 wordCount: row["word_count"] as Int? ?? 0,

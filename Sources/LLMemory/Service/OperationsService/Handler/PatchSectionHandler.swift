@@ -22,7 +22,7 @@ struct PatchSectionHandler: OperationHandling {
     )
     
     private let noteExistence = NoteExistence()
-    private let writeEffects = NoteWriteEffects()
+    private let writeEffects = NoteWriteBookkeeper()
     
     private let sectionEdit = SectionEdit()
     
@@ -37,8 +37,8 @@ struct PatchSectionHandler: OperationHandling {
     ) throws -> String? {
         let action = op["action"] as? String ?? ""
         
-        if !OpVocabulary.validPatchActions.contains(action) {
-            return "invalid action: \(action) (expected \(OpVocabulary.validPatchActions.sorted()))"
+        if !OperationVocabulary.validPatchActions.contains(action) {
+            return "invalid action: \(action) (expected \(OperationVocabulary.validPatchActions.sorted()))"
         }
         
         if action != "remove" && (op["content"] as? String ?? "").isEmpty {
@@ -69,7 +69,7 @@ struct PatchSectionHandler: OperationHandling {
                 
                 let nsLine = line as NSString
                 
-                if let match = OpVocabulary.headingMarkerRegex.firstMatch(
+                if let match = OperationVocabulary.headingMarkerRegex.firstMatch(
                     in: line,
                     range: NSRange(location: 0, length: nsLine.length)
                 ) {

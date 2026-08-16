@@ -34,11 +34,11 @@ struct NoteArtifactsInvariantTests {
         #expect(!cascade.isEmpty)
         
         for table in cascade {
-            #expect(NoteArtifacts.tableDisposition[table] != nil,
+            #expect(NoteArtifactPolicy.tableDisposition[table] != nil,
                 """
                     note-cascade table '\(table)' is unclassified — add it to \
-                    NoteArtifacts.tableDisposition as reconstructable, preserved or acceptedLoss. \
-                    A preserved one needs the snapshot and restore paths too.
+                    NoteArtifactPolicy.tableDisposition as reconstructable, preserved or acceptedLoss. \
+                    A preserved one needs the snapshot and restore path too.
                     """)
         }
     }
@@ -51,21 +51,21 @@ struct NoteArtifactsInvariantTests {
         
         // Then
         for table in cascade where table != "note_links" {
-            #expect(NoteArtifacts.tableSplitPolicy[table] != nil,
-                "cascade table '\(table)' has no SplitPolicy — classify it in NoteArtifacts.tableSplitPolicy")
+            #expect(NoteArtifactPolicy.tableSplitPolicy[table] != nil,
+                "cascade table '\(table)' has no SplitPolicy — classify it in NoteArtifactPolicy.tableSplitPolicy")
         }
         
-        for (table, _) in NoteArtifacts.tableSplitPolicy {
+        for (table, _) in NoteArtifactPolicy.tableSplitPolicy {
             #expect(cascade.contains(table), "tableSplitPolicy '\(table)' is not a real cascade table")
             #expect(table != "note_links",
-                "note_links is classified by kind (NoteArtifacts.splitPolicy), not as a table")
+                "note_links is classified by kind (NoteArtifactPolicy.splitPolicy), not as a table")
         }
     }
     
     @Test("every artifact a rebuild is allowed to discard has something that regenerates it")
     func everyRebuildKindHasARegenerator() {
         // Then
-        #expect(NoteArtifacts.reconstructableLinkKinds == [LinkKind.reference.rawValue])
+        #expect(NoteArtifactPolicy.reconstructableLinkKinds == [LinkKind.reference.rawValue])
     }
     
         @Test("every declared disposition names a table that actually exists")
@@ -75,7 +75,7 @@ struct NoteArtifactsInvariantTests {
         let cascade = Set(try queue.read { db in try FetchNoteCascadeTablesTransaction().perform(db) })
         
         // Then
-        for (table, _) in NoteArtifacts.tableDisposition {
+        for (table, _) in NoteArtifactPolicy.tableDisposition {
             #expect(cascade.contains(table), "tableDisposition names '\(table)', which is not a real cascade table")
         }
     }
@@ -106,7 +106,7 @@ struct NoteArtifactsInvariantTests {
             try db.execute(sql: "INSERT OR IGNORE INTO note_links (src,dst,kind,weight,created_at,last_activated_at) VALUES ('rt-a','rt-b','assoc',1.0,1,1)")
         }
         
-        let preserved = NoteArtifacts.tableDisposition.filter { entry in entry.value == .preserved }.map { entry in entry.key }
+        let preserved = NoteArtifactPolicy.tableDisposition.filter { entry in entry.value == .preserved }.map { entry in entry.key }
         let counts: ([String]) throws -> [String: Int] = { tables in
             try home.read { db in
                 var counted: [String: Int] = [:]

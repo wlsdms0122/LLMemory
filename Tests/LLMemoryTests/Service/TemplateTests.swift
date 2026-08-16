@@ -35,7 +35,7 @@ struct TemplateTests {
 
     private let template = Template()
 
-    private let detectors = Candidates()
+    private let detector = CandidateDetector()
 
     // MARK: - Initializer
     init() throws {
@@ -246,7 +246,7 @@ struct TemplateTests {
     private func body(_ home: MemoryHome, _ id: String) throws -> String {
         let queue = try home.storage.connect()
         let relative = try queue.read { db in
-            try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id = ?", arguments: [id]).map { _ in home.paths.relativeFile(forId: id) }
+            try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id = ?", arguments: [id]).map { _ in home.path.relativeFile(forId: id) }
         }
         let text = try String(contentsOf: home.url.appendingPathComponent(relative!), encoding: .utf8)
         
@@ -401,7 +401,7 @@ struct TemplateTests {
         
         let queue = try home.storage.connect()
         let relative = try queue.read { db in
-            try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id='tpl-ab'").map { _ in home.paths.relativeFile(forId: "tpl-ab") }
+            try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id='tpl-ab'").map { _ in home.path.relativeFile(forId: "tpl-ab") }
         }
         let templateFile = home.url.appendingPathComponent(relative!)
         let text = try String(contentsOf: templateFile, encoding: .utf8)
@@ -440,7 +440,7 @@ struct TemplateTests {
         ]], "rationale": "t"]).status == "ok")
         
         let queue = try home.storage.connect()
-        let members = Set(try queue.read { db in try detectors.clusters(GRDBReadScope(db, home.brain)) }.flatMap { cluster in cluster.members.map(\.id) })
+        let members = Set(try queue.read { db in try detector.clusters(GRDBReadScope(db, home.brain)) }.flatMap { cluster in cluster.members.map(\.id) })
         
         #expect(members.contains("cl-n1"))
         #expect(members.contains("cl-n2"))

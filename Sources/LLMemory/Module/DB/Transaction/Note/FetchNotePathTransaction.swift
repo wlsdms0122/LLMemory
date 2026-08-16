@@ -23,7 +23,7 @@ struct FetchNotePathTransaction: GRDBBrainReadTransaction {
     func perform(_ db: Database, _ brain: BrainContext) throws -> URL? {
         guard try NoteExistsTransaction(nid: nid).perform(db) else { return nil }
 
-        return brain.paths.file(forId: nid)
+        return brain.path.file(forId: nid)
     }
 
     // MARK: - Private

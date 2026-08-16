@@ -10,21 +10,21 @@ import GRDB
 
 // notes-row transactions — the core catalog row, its FTS projection,
 // reference links, and lifecycle provenance. File-level note reading stays
-// in the Notes module.
+// in the NoteFile module.
 struct UpsertNoteTransaction: GRDBBrainTransaction {
     // MARK: - Property
     let file: URL
-    let fields: FrontmatterDoc
+    let fields: FrontmatterDocument
     let body: String
     let raw: String?
     let now: Int
 
     private let sectionEdit = SectionEdit()
 
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
 
     // MARK: - Initializer
-    init(file: URL, fields: FrontmatterDoc, body: String, raw: String? = nil, now: Int) {
+    init(file: URL, fields: FrontmatterDocument, body: String, raw: String? = nil, now: Int) {
         self.file = file
         self.fields = fields
         self.body = body
@@ -38,11 +38,11 @@ struct UpsertNoteTransaction: GRDBBrainTransaction {
         // The file's location is the id. Whatever the caller carried in `fields`
         // is not consulted here — there is one source, so there is nothing to
         // reconcile and no way for a row to point somewhere its file is not.
-        guard let noteId = brain.paths.id(ofFile: file), !noteId.isEmpty else {
+        guard let noteId = brain.path.id(ofFile: file), !noteId.isEmpty else {
             throw NotesError.notALiveNote(
-                path: brain.paths.relative(of: file) ?? file.path,
-                reason: brain.paths.liveNoteRejection(of: file)
-                    ?? brain.paths.addressRejection(of: file)
+                path: brain.path.relative(of: file) ?? file.path,
+                reason: brain.path.liveNoteRejection(of: file)
+                    ?? brain.path.addressRejection(of: file)
                     ?? "not addressable"
             )
         }
@@ -62,7 +62,7 @@ struct UpsertNoteTransaction: GRDBBrainTransaction {
         let seedFlag = fields.seed ? 1 : 0
         let wordCount = sectionEdit.wordCount(body)
         let sectionCount = sectionEdit.sectionCount(body)
-        let contentHash = noteFiles.contentHash(
+        let contentHash = noteFile.contentHash(
             try raw ?? String(contentsOf: file, encoding: .utf8)
         )
 

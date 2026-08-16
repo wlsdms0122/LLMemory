@@ -21,8 +21,8 @@ struct FetchSplitRouteTargetsTransaction: GRDBReadTransaction {
     func perform(_ db: Database) throws -> [RouteArtifact] {
         var artifacts: [RouteArtifact] = []
         
-        if !NoteArtifacts.routeLinkKinds.isEmpty {
-            let kinds = Array(NoteArtifacts.routeLinkKinds)
+        if !NoteArtifactPolicy.routeLinkKinds.isEmpty {
+            let kinds = Array(NoteArtifactPolicy.routeLinkKinds)
             let placeholders = kinds.map { _ in "?" }.joined(separator: ", ")
             let rows = try Row.fetchAll(db, sql: """
                 SELECT kind, CASE WHEN src = ? THEN dst ELSE src END AS neighbor
@@ -42,7 +42,7 @@ struct FetchSplitRouteTargetsTransaction: GRDBReadTransaction {
             }
         }
         
-        let routeTables = NoteArtifacts.tableSplitPolicy
+        let routeTables = NoteArtifactPolicy.tableSplitPolicy
             .filter { entry in entry.value == .route || entry.value == .routeRevalidate }
             .keys
         
@@ -67,7 +67,7 @@ struct FetchSplitRouteTargetsTransaction: GRDBReadTransaction {
                 }
             
             default:
-                throw NSError(domain: "NoteArtifacts", code: 1, userInfo: [
+                throw NSError(domain: "NoteArtifactPolicy", code: 1, userInfo: [
                     NSLocalizedDescriptionKey:
                         "route-policy table '\(table)' has no identity handling in splitRouteTargets — add a case"
                 ])

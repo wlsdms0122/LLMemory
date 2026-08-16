@@ -95,7 +95,7 @@ struct AbsorbNoteArtifactsForMergeTransaction: GRDBTransaction {
             "candidate_dismissals", "note_source"
         ]
         
-        for table in NoteArtifacts.identityTables where !alreadyMerged.contains(table) {
+        for table in NoteArtifactPolicy.identityTables where !alreadyMerged.contains(table) {
             try db.execute(
                 sql: "UPDATE OR IGNORE \(table) SET note_id = ? WHERE note_id = ?",
                 arguments: [into, self.from]

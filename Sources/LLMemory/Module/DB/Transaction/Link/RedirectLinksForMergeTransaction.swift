@@ -30,7 +30,7 @@ struct RedirectLinksForMergeTransaction: GRDBTransaction {
         for row in rows {
             let rawKind: String = row["kind"]
 
-            if NoteArtifacts.reconstructableLinkKinds.contains(rawKind) { continue }
+            if NoteArtifactPolicy.reconstructableLinkKinds.contains(rawKind) { continue }
 
             // A kind this binary does not recognise still has to be carried
             // over: every row of the merged-away note is deleted at the end,

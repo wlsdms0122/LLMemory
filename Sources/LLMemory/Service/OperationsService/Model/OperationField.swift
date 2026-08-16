@@ -1,5 +1,5 @@
 //
-//  OpField.swift
+//  OperationField.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/15/26.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct OpField: Sendable, Encodable {
+public struct OperationField: Sendable, Encodable {
     enum CodingKeys: String, CodingKey {
         case name
         case required
@@ -20,16 +20,16 @@ public struct OpField: Sendable, Encodable {
     public let required: Bool
     public let description: String
     public let requiredUnless: String?
-    public let role: OpFieldRole
+    public let role: OperationFieldRole
     
     // MARK: - Initializer
     // MARK: - Public
     public static func required(
         _ name: String,
-        role: OpFieldRole = .plain,
+        role: OperationFieldRole = .plain,
         _ description: String
-    ) -> OpField {
-        OpField(
+    ) -> OperationField {
+        OperationField(
             name: name,
             required: true,
             description: description,
@@ -40,10 +40,10 @@ public struct OpField: Sendable, Encodable {
     
     public static func optional(
         _ name: String,
-        role: OpFieldRole = .plain,
+        role: OperationFieldRole = .plain,
         _ description: String
-    ) -> OpField {
-        OpField(
+    ) -> OperationField {
+        OperationField(
             name: name,
             required: false,
             description: description,
@@ -55,10 +55,10 @@ public struct OpField: Sendable, Encodable {
     public static func required(
         _ name: String,
         unless waiver: String,
-        role: OpFieldRole = .plain,
+        role: OperationFieldRole = .plain,
         _ description: String
-    ) -> OpField {
-        OpField(
+    ) -> OperationField {
+        OperationField(
             name: name,
             required: true,
             description: description,

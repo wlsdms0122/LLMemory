@@ -46,7 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_tag_aliases_canonical ON tag_aliases(canonical);
 -- ─────────────────────────────────────────────────────────
 -- notes = 마크다운(SSoT)의 *순수 투영* — `notes = f(cortex/*.md)`. 전 컬럼이 파일/
 -- frontmatter/본문에서 결정적으로 재생성됨 (rebuild 가 개념적으로 순수해진다). 비투영
--- brain-state(사용/활성/소스drift)는 아래 별도 테이블로 — NoteArtifacts 가 균일 보존.
+-- brain-state(사용/활성/소스drift)는 아래 별도 테이블로 — NoteArtifactPolicy 가 균일 보존.
 CREATE TABLE IF NOT EXISTS notes (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS tags (
 CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag);
 
 -- ─────────────────────────────────────────────────────────
--- note_extra — frontmatter 의 비-일급 필드(FrontmatterDoc.extra) 투영.
+-- note_extra — frontmatter 의 비-일급 필드(FrontmatterDocument.extra) 투영.
 -- 도메인이 필요로 하는 메타(예: journal 의 affect)를 코드에 필드로 박지 않고
 -- 노트가 스스로 들고 다니게 하는 자리. **파일이 SSoT** — 여기는 질의 가능한 거울일
 -- 뿐이라 타임스탬프도 두지 않는다 (파일이 재생산하지 못하는 값은 투영이 아니다).
@@ -198,7 +198,7 @@ CREATE INDEX IF NOT EXISTS idx_nrt_provenance ON note_retrieval_terms(provenance
 -- reference 엣지는 이 인덱스 ⋈ notes 의 물질화다: 마커를 쓴 시점에 대상이 없어도
 -- 행은 남고, 대상 노트가 나중에 생기면 그 노트의 업서트가 inbound 엣지를 완성한다
 -- (스캔/생성 순서 의존 소거 — 07-29). 대상 없는 행 = 미해결 인용(관측 가능).
--- 쓰기는 Notes.refreshReferenceLinks 단일 경로. 본문 파생이라 reconstructable.
+-- 쓰기는 NoteFile.refreshReferenceLinks 단일 경로. 본문 파생이라 reconstructable.
 -- ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS note_ref_markers (
   src TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
@@ -228,7 +228,7 @@ CREATE TABLE IF NOT EXISTS note_vectors (
 -- "한 섹션에 국한되지 않는 매치" 의 명시 표현.
 -- enrich 셀 = note_retrieval_terms 중 status='active' 인 alias/cue 를 개행으로
 -- 이어붙인 텍스트 — head row 에만 산다.
--- 쓰기는 Notes.reindexFTS 단일 경로 — raw INSERT 금지.
+-- 쓰기는 NoteFile.reindexFTS 단일 경로 — raw INSERT 금지.
 -- ─────────────────────────────────────────────────────────
 CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
   id UNINDEXED, section UNINDEXED, title, summary, body, enrich,
@@ -294,7 +294,7 @@ CREATE INDEX IF NOT EXISTS idx_entity_index_last_seen ON entity_index(last_seen_
 --   dismiss_count — 누적 기각 횟수. 재부상 역치가 이 값에 따라 깊어진다(ratchet).
 --   generation — 기각 시점의 전역 candidate_generation. 전역 격변(sensitization)이
 --                이 값을 bump 하면 더 낮은 generation 의 기각은 한 번 재개방된다.
--- 비투영 brain-state — NoteArtifacts.identityTables 로 rebuild/migrate/merge 생존.
+-- 비투영 brain-state — NoteArtifactPolicy.identityTables 로 rebuild/migrate/merge 생존.
 -- 판단(split/keep)은 LLM, 게이트 산술(언제 재부상)은 코드. 채널-특이적 — retrieval
 -- 엔 영향 0, 후보 쿼리만 게이트한다.
 -- ─────────────────────────────────────────────────────────
@@ -380,7 +380,7 @@ CREATE INDEX IF NOT EXISTS idx_candidate_dismissals_kind ON candidate_dismissals
 -- 카탈로그는 dismissible 이라 광고하는데 문은 닫혀 있는 상태가 된다.
 --   target_key — 스코프 안정 식별자. 사실 자체가 identity 다 (개수·순서 아님).
 --   재개방 게이트는 generation(sensitization) 뿐 — 노트 shape 는 코퍼스 사실의
---   증거가 아니므로 탈습관화 축이 없다 (Dismissals.corpusGate).
+--   증거가 아니므로 탈습관화 축이 없다 (DismissalPolicy.corpusGate).
 -- notes 에 FK 가 없으므로 rebuild 의 DELETE FROM notes cascade 를 그대로 생존한다.
 -- ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS corpus_dismissals (

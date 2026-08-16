@@ -25,8 +25,8 @@ struct SourceVerifyInvariantTests {
     // MARK: - Test
     
     // the baseline is an observation: only rebase (declaration change / ack) may move it
-    private static func writeSourcedNote(_ paths: Paths, _ id: String, source: URL, body: String = "# body") throws -> URL {
-        let directory = paths.notes
+    private static func writeSourcedNote(_ path: Path, _ id: String, source: URL, body: String = "# body") throws -> URL {
+        let directory = path.notes
         
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         
@@ -67,7 +67,7 @@ struct SourceVerifyInvariantTests {
         try "alpha".write(to: first, atomically: true, encoding: .utf8)
         try "beta".write(to: second, atomically: true, encoding: .utf8)
         
-        let noteDirectory = home.paths.notes
+        let noteDirectory = home.path.notes
         
         try FileManager.default.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -124,7 +124,7 @@ struct SourceVerifyInvariantTests {
         try fileManager.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_000_000)], ofItemAtPath: older.path)
         try fileManager.setAttributes([.modificationDate: Date(timeIntervalSince1970: 2_000_000)], ofItemAtPath: newer.path)
         
-        let noteDirectory = home.paths.notes
+        let noteDirectory = home.path.notes
         
         try fileManager.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -163,7 +163,7 @@ struct SourceVerifyInvariantTests {
     @Test("a reference that is not a file has nothing to drift from, so it is not tracked")
     func opaqueRefsAreNotDriftTracked() throws {
         // Given
-        let noteDirectory = home.paths.notes
+        let noteDirectory = home.path.notes
         
         try FileManager.default.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -210,7 +210,7 @@ struct SourceVerifyInvariantTests {
         
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
-        let noteDirectory = home.paths.notes
+        let noteDirectory = home.path.notes
         
         try FileManager.default.createDirectory(at: noteDirectory, withIntermediateDirectories: true)
         
@@ -259,7 +259,7 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote(home.paths, "src-keep", source: file)
+        let notePath = try Self.writeSourcedNote(home.path, "src-keep", source: file)
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
@@ -294,7 +294,7 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote(home.paths, "src-rb", source: file)
+        let notePath = try Self.writeSourcedNote(home.path, "src-rb", source: file)
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
@@ -331,7 +331,7 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote(home.paths, "src-ack", source: file)
+        let notePath = try Self.writeSourcedNote(home.path, "src-ack", source: file)
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
@@ -359,7 +359,7 @@ struct SourceVerifyInvariantTests {
         #expect(after?.stale == 0, "rebase must clear source_stale")
         #expect(after?.hash != before?.hash, "rebase must move the baseline to the current file")
         
-        let plainPath = home.paths.notes.appendingPathComponent("src-plain.md")
+        let plainPath = home.path.notes.appendingPathComponent("src-plain.md")
         
         try """
         ---
@@ -388,7 +388,7 @@ struct SourceVerifyInvariantTests {
         try "one".write(to: first, atomically: true, encoding: .utf8)
         try "two".write(to: second, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote(home.paths, "src-decl", source: first)
+        let notePath = try Self.writeSourcedNote(home.path, "src-decl", source: first)
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
@@ -421,7 +421,7 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote(home.paths, "src-sp", source: file,
+        let notePath = try Self.writeSourcedNote(home.path, "src-sp", source: file,
             body: "## A\nalpha\n## B\nbeta\n")
         let queue = try home.storage.connect()
         
@@ -461,7 +461,7 @@ struct SourceVerifyInvariantTests {
         try "one".write(to: first, atomically: true, encoding: .utf8)
         try "two".write(to: second, atomically: true, encoding: .utf8)
         
-        let intoPath = try Self.writeSourcedNote(home.paths, "src-mi", source: first)
+        let intoPath = try Self.writeSourcedNote(home.path, "src-mi", source: first)
         let queue = try home.storage.connect()
         
         // When
@@ -500,7 +500,7 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote(home.paths, "src-same", source: file)
+        let notePath = try Self.writeSourcedNote(home.path, "src-same", source: file)
         let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
@@ -532,7 +532,7 @@ struct SourceVerifyInvariantTests {
         
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
-        let notePath = try Self.writeSourcedNote(home.paths, "src-rs", source: file,
+        let notePath = try Self.writeSourcedNote(home.path, "src-rs", source: file,
             body: "## A\nalpha\n## B\nbeta\n")
         let queue = try home.storage.connect()
         

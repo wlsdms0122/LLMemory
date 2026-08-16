@@ -12,14 +12,14 @@ import GRDB
 
 // Reviewing a candidate and deciding to leave it alone has to be recordable, or the same finding is
 // re-judged every cycle. A dismissal is habituation: it goes quiet until the thing itself changes.
-@Suite("Dismissals Tests", .serialized)
+@Suite("DismissalPolicy Tests", .serialized)
 struct DismissalsTests {
     // MARK: - Property
     private let home: MemoryHome
     
     private let indexer = Indexer()
 
-    private let detectors = Candidates()
+    private let detector = CandidateDetector()
 
     // MARK: - Initializer
     init() throws {
@@ -119,7 +119,7 @@ struct DismissalsTests {
         #expect(dismiss("big-5").status == "ok")
         
         // Then
-        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("zephyrquark", keywords: FrequencyKeywords())).perform(database, home.brain) }
+        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("zephyrquark", keywords: FrequencyKeywordExtractor())).perform(database, home.brain) }
         
         #expect(!(try splitCandidateIds().contains("big-5")))
         #expect(hits.contains { hit in hit.id == "big-5" }, "a dismissal must not affect search")
@@ -366,7 +366,7 @@ struct DismissalsTests {
     
     private func splitCandidateIds() throws -> [String] {
         try home.readScope { scope in
-            try detectors.splitCandidates(scope, limit: 50).map(\.id)
+            try detector.splitCandidates(scope, limit: 50).map(\.id)
         }
     }
     

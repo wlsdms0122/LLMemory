@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 
 // Candidate-domain transactions — row access for the restructuring detector.
-// What counts as a candidate is Candidates' (Service tier) policy; these
+// What counts as a candidate is CandidateDetector's (Service tier) policy; these
 // only fetch, returning neutral rows.
 struct FetchSplitShapeRowsTransaction: GRDBReadTransaction {
     struct SplitShape {

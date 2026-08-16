@@ -29,14 +29,14 @@ public struct ConsolidateService: ConsolidateServiceable {
     }
 
     // Candidate-kind catalog — code-owned vocabulary for the surfacing CLI.
-    public let candidateRetrievalKinds = Candidates.retrievalKinds
-    public let candidateStructuralKinds = Candidates.structuralKinds
-    public var candidateValidKinds: [String] { Candidates.validKinds }
+    public let candidateRetrievalKinds = CandidateDetector.retrievalKinds
+    public let candidateStructuralKinds = CandidateDetector.structuralKinds
+    public var candidateValidKinds: [String] { CandidateDetector.validKinds }
 
     let storage: GRDBStorage
     let keywords: any KeywordExtracting
 
-    private let detectors = Candidates()
+    private let detector = CandidateDetector()
 
     // MARK: - Initializer
     init(storage: GRDBStorage, keywords: any KeywordExtracting) {
@@ -52,7 +52,7 @@ public struct ConsolidateService: ConsolidateServiceable {
         // The string→Kind conversion happens once, at the API boundary — an
         // unknown kind is a caller bug, not an empty result.
         let resolved = try kinds.map { raw in
-            guard let kind = Candidates.Kind(rawValue: raw) else {
+            guard let kind = CandidateDetector.Kind(rawValue: raw) else {
                 throw CandidatesError.unknownKind(raw)
             }
 
@@ -68,7 +68,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     // makes the switch exhaustive, so a new kind cannot be forgotten here.
     func candidateBatches(
         _ scope: GRDBReadScope,
-        kinds: [Candidates.Kind],
+        kinds: [CandidateDetector.Kind],
         limit: Int
     ) throws -> [String: CandidateBatch] {
         var batches: [String: CandidateBatch] = [:]
@@ -76,25 +76,25 @@ public struct ConsolidateService: ConsolidateServiceable {
         for kind in kinds {
             switch kind {
             case .split:
-                batches[kind.rawValue] = .split(try detectors.splitCandidates(scope, limit: limit))
+                batches[kind.rawValue] = .split(try detector.splitCandidates(scope, limit: limit))
 
             case .reconsolidate:
-                batches[kind.rawValue] = .flagged(try detectors.reconsolidateCandidates(scope, limit: limit))
+                batches[kind.rawValue] = .flagged(try detector.reconsolidateCandidates(scope, limit: limit))
 
             case .ripple:
-                batches[kind.rawValue] = .flagged(try detectors.rippleCandidates(scope, limit: limit))
+                batches[kind.rawValue] = .flagged(try detector.rippleCandidates(scope, limit: limit))
 
             case .enrichReview:
-                batches[kind.rawValue] = .flagged(try detectors.enrichReviewCandidates(scope, limit: limit))
+                batches[kind.rawValue] = .flagged(try detector.enrichReviewCandidates(scope, limit: limit))
 
             case .clusters:
-                batches[kind.rawValue] = .clusters(try detectors.clusters(scope, limit: limit))
+                batches[kind.rawValue] = .clusters(try detector.clusters(scope, limit: limit))
 
             case .missingEdge:
-                batches[kind.rawValue] = .missingEdge(try detectors.missingEdges(scope, limit: limit))
+                batches[kind.rawValue] = .missingEdge(try detector.missingEdges(scope, limit: limit))
 
             case .nearDuplicate:
-                batches[kind.rawValue] = .nearDuplicate(try detectors.nearDuplicates(scope, limit: limit))
+                batches[kind.rawValue] = .nearDuplicate(try detector.nearDuplicates(scope, limit: limit))
             }
         }
 

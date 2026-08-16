@@ -12,7 +12,7 @@ struct NoteLintInput {
     let nid: String
     // An `id:` the parser ignored, kept only so a rule can say it is there.
     let declaredId: String?
-    let doc: FrontmatterDoc
+    let doc: FrontmatterDocument
     let body: String
     let document: LintDocument
     

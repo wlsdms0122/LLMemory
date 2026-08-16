@@ -1,5 +1,5 @@
 //
-//  Dismissals.swift
+//  DismissalPolicy.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/15/26.
@@ -8,7 +8,7 @@
 import Foundation
 import GRDB
 
-struct Dismissals: Sendable {
+struct DismissalPolicy: Sendable {
     struct Dismissal {
         // MARK: - Property
         let kind: String

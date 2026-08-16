@@ -1,5 +1,5 @@
 //
-//  Candidates.swift
+//  CandidateDetector.swift
 //  LLMemory
 //
 //  Created by JSilver on 8/7/26.
@@ -7,12 +7,12 @@
 
 import Foundation
 
-public struct Candidates: Sendable {
+public struct CandidateDetector: Sendable {
     // MARK: - Property
     private let sectionEdit = SectionEdit()
-    private let noteFiles = Notes()
+    private let noteFile = NoteFile()
     private let vectorMath = VectorMath()
-    private let dismissalPolicy = Dismissals()
+    private let dismissalPolicy = DismissalPolicy()
 
     // The closed candidate vocabulary — the compiler owns exhaustiveness;
     // strings exist only at the API boundary.
@@ -113,7 +113,7 @@ public struct Candidates: Sendable {
             throw NotesError.unknownIds([noteId])
         }
         
-        let body = try noteFiles.requireNote(at: anchor.path).body
+        let body = try noteFile.requireNote(at: anchor.path).body
         
         return try neighbors(scope, noteId: noteId, tokens: tokenize("\(anchor.title) \(body)"), k: k)
     }
@@ -439,10 +439,10 @@ public struct Candidates: Sendable {
         var ftsTokensById: [String: Set<String>] = [:]
         
         for row in rows {
-            let bodyPath = scope.brain.paths.brainRoot.appendingPathComponent(row.path)
+            let bodyPath = scope.brain.path.brainRoot.appendingPathComponent(row.path)
             let body: String
             do {
-                body = try noteFiles.requireNote(at: bodyPath).body
+                body = try noteFile.requireNote(at: bodyPath).body
             } catch is NoteUnreadable {
                 continue
             }
@@ -525,7 +525,7 @@ public struct Candidates: Sendable {
         guard let path = try scope.run(FetchNotePathTransaction(nid: nid)) else {
             return []
         }
-        let (_, body) = try noteFiles.requireNote(at: path)
+        let (_, body) = try noteFile.requireNote(at: path)
         let sections = sectionEdit.splitSections(body)
         let lines = body.unicodeLines()
         var sketches: [SectionSketch] = []
@@ -645,7 +645,7 @@ public struct Candidates: Sendable {
         }
         
         let title = anchor.title
-        let body = try noteFiles.requireNote(at: anchor.path).body
+        let body = try noteFile.requireNote(at: anchor.path).body
         let searchText = "\(title) \(body)"
         let nsSearchText = searchText as NSString
         var tokens = Set<String>()

@@ -1,5 +1,5 @@
 //
-//  Genes.swift
+//  GenomeCommand.swift
 //  LLMemoryCLI
 //
 //  Created by JSilver on 8/7/26.

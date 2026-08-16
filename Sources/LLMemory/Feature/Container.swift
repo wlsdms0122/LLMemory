@@ -38,8 +38,8 @@ struct Container: Sendable {
         // everything that reads text for cues. Swapping either one is this
         // line and nothing else — which is the whole reason they are named by
         // what they answer rather than by how they answer it.
-        let keywords: any KeywordExtracting = FrequencyKeywords()
-        let entities: any EntityHinting = PatternEntityHints()
+        let keywords: any KeywordExtracting = FrequencyKeywordExtractor()
+        let entities: any EntityHinting = PatternEntityHinter()
         let retrieval = RetrievalService(storage: storage, keywords: keywords, entities: entities)
         let genome = GenomeService(storage: storage, keywords: keywords, entities: entities)
         let scanner = LintScanner(rules: LintRuleRegistry())
