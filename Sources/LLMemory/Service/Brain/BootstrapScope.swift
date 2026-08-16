@@ -8,10 +8,14 @@
 import Foundation
 import GRDB
 
-// The one window where init/update touch the corpus: after the migration, before
-// the index is rebuilt. It hands the tiers above the two things seeding needs —
-// what the brain already recorded, and the way a note leaves — without the
-// connection itself crossing the Module boundary.
+// The one window where init/update touch the corpus: after the migration,
+// before the index is rebuilt. It hands the tiers above the two things
+// seeding needs — what the brain already recorded, and the way a note leaves
+// — without the connection itself crossing the boundary.
+//
+// It sits with the brain rather than with the store because it is the seam,
+// not the mechanism: the removal it offers is a row transaction and a file
+// move, and only this side knows the second half exists.
 public struct BootstrapScope {
     // MARK: - Property
     private let queue: any DatabaseWriter
