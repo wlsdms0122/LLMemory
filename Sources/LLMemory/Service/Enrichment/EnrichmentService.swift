@@ -13,15 +13,23 @@ import Storage
 public struct EnrichmentService: EnrichmentServiceable {
     // MARK: - Property
     let storage: GRDBStorage
+    let brain: BrainContext
 
     // MARK: - Initializer
-    init(storage: GRDBStorage) {
+    init(storage: GRDBStorage, brain: BrainContext) {
         self.storage = storage
+        self.brain = brain
     }
 
     // MARK: - Public
     public func status() async throws -> EnrichmentStatus {
-        try await storage.read { scope in try scope.run(EnrichmentStatusTransaction()) }
+        try await storage.read { scope in try scope.run(
+                EnrichmentStatusTransaction(
+                    neighborFloor: brain.genes.double("links.neighbor_floor"),
+                    enrichment: EnrichmentTuning(brain.config)
+                )
+            )
+        }
     }
 
     // MARK: - Private

@@ -17,12 +17,17 @@ import GRDB
 extension OperationsEngine {
     static func apply(
         _ storage: GRDBStorage,
+        _ brain: BrainContext,
         _ payload: [String: Any],
         sessionId: SessionId? = nil
     ) -> OperationsResult {
         do {
             let json = try Self.encodePayload(payload)
-            let engine = OperationsEngine(lint: LintScanner(rules: LintRuleRegistry()), keywords: FrequencyKeywordExtractor())
+            let engine = OperationsEngine(
+                lint: LintScanner(rules: LintRuleRegistry()),
+                keywords: FrequencyKeywordExtractor(),
+                brain: brain
+            )
 
             guard let decoded = engine.decodePayload(json) else {
                 return OperationsResult(
@@ -54,11 +59,16 @@ extension OperationsEngine {
 
     static func dryRun(
         _ storage: GRDBStorage,
+        _ brain: BrainContext,
         _ payload: [String: Any]
     ) -> OperationsDryRunResult {
         do {
             let json = try Self.encodePayload(payload)
-            let engine = OperationsEngine(lint: LintScanner(rules: LintRuleRegistry()), keywords: FrequencyKeywordExtractor())
+            let engine = OperationsEngine(
+                lint: LintScanner(rules: LintRuleRegistry()),
+                keywords: FrequencyKeywordExtractor(),
+                brain: brain
+            )
 
             guard let decoded = engine.decodePayload(json) else {
                 return OperationsDryRunResult(

@@ -8,18 +8,18 @@
 import Foundation
 import GRDB
 
-struct StrengthenLinksTransaction: GRDBBrainTransaction {
+struct StrengthenLinksTransaction: GRDBTransaction {
     // MARK: - Property
     let pairs: [(String, String)]
     let kind: LinkKind
-    let step: Double?
+    let step: Double
     let cap: Double?
 
     // MARK: - Initializer
     init(
         pairs: [(String, String)],
         kind: LinkKind = .cooccur,
-        step: Double? = nil,
+        step: Double,
         cap: Double? = nil
     ) {
         self.pairs = pairs
@@ -30,10 +30,9 @@ struct StrengthenLinksTransaction: GRDBBrainTransaction {
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database, _ brain: BrainContext) throws -> Int {
+    func perform(_ db: Database) throws -> Int {
         guard !pairs.isEmpty else { return 0 }
 
-        let stepValue = step ?? brain.genes.double("links.strengthen_step")
         let now = Int(Date().timeIntervalSince1970)
         var strengthened = 0
 
@@ -50,7 +49,7 @@ struct StrengthenLinksTransaction: GRDBBrainTransaction {
                       weight = MIN(?, weight + excluded.weight),
                       last_activated_at = excluded.last_activated_at
                     """, arguments: [
-                        source, destination, kind.rawValue, min(stepValue, cap), now, now, cap
+                        source, destination, kind.rawValue, min(step, cap), now, now, cap
                     ])
             } else {
                 try db.execute(sql: """
@@ -59,7 +58,7 @@ struct StrengthenLinksTransaction: GRDBBrainTransaction {
                     ON CONFLICT(src, dst, kind) DO UPDATE SET
                       weight = weight + excluded.weight,
                       last_activated_at = excluded.last_activated_at
-                    """, arguments: [source, destination, kind.rawValue, stepValue, now, now])
+                    """, arguments: [source, destination, kind.rawValue, step, now, now])
             }
 
             strengthened += 1

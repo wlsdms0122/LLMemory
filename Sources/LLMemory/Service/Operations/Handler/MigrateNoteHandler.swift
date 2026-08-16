@@ -59,7 +59,7 @@ struct MigrateNoteHandler: OperationHandling {
     ) throws -> [String: Any] {
         let targetId = op["id"] as! String
         let newId = (op["new_id"] as? String) ?? targetId
-        let newPath = scope.brain.layout.file(forId: newId)
+        let newPath = context.brain.layout.file(forId: newId)
         
         guard let srcPath = try scope.run(FetchNotePathTransaction(nid: targetId)),
             FileManager.default.fileExists(atPath: srcPath.path)
@@ -135,7 +135,11 @@ struct MigrateNoteHandler: OperationHandling {
         return [:]
     }
     
-    func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
+    func touches(
+        _ op: [String: Any],
+        _ context: HandlerContext,
+        _ scope: GRDBReadScope
+    ) throws -> [URL] {
         var paths: [URL] = []
         
         if let noteId = op["id"] as? String, let src = try scope.run(FetchNotePathTransaction(nid: noteId)) {
@@ -144,12 +148,12 @@ struct MigrateNoteHandler: OperationHandling {
         
         guard let targetId = op["id"] as? String else { return paths }
         
-        paths.append(scope.brain.layout.file(forId: (op["new_id"] as? String) ?? targetId))
+        paths.append(context.brain.layout.file(forId: (op["new_id"] as? String) ?? targetId))
         
         // The notes that cite this id are rewritten by the write, so they
         // belong in the snapshot — a rollback has to put them back.
         for src in try scope.run(FetchCitingNoteIdsTransaction(marker: targetId)) {
-            paths.append(scope.brain.layout.file(forId: src))
+            paths.append(context.brain.layout.file(forId: src))
         }
         
         return paths

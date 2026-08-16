@@ -8,18 +8,19 @@
 import Foundation
 import GRDB
 
-struct FetchLinkNeighborRowsTransaction: GRDBBrainReadTransaction {
+struct FetchLinkNeighborRowsTransaction: GRDBReadTransaction {
     // MARK: - Property
     let nid: String
+    let siblingDiscount: Double
 
     // MARK: - Initializer
-    init(nid: String) {
+    init(nid: String, siblingDiscount: Double) {
         self.nid = nid
+        self.siblingDiscount = siblingDiscount
     }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws -> [NeighborRow] {
-        let siblingDiscount = brain.genes.double("links.sibling_rank_weight")
+    func perform(_ db: Database) throws -> [NeighborRow] {
 
         return try Row.fetchAll(db, sql: """
             SELECT n.id, n.title, n.summary, SUM(\(LinkRanking.weightSQL("l", siblingDiscount: siblingDiscount))) AS w

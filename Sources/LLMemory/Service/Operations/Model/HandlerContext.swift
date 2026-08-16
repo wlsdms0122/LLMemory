@@ -14,6 +14,13 @@ public struct HandlerContext {
     // requires them: an unseeded context does not compile.
     public let sessionId: SessionId?
     public let now: Int
+
+    // The brain this batch runs against — where its files live and what its
+    // configuration says. Handlers take it from here rather than from the
+    // scope they write through: a scope is a database handle, and a handle
+    // that also answered "where does note x live" was the store's way of
+    // knowing things only the domain should know.
+    let brain: BrainContext
     
     public var inFlightIds: Set<String> = []
     public var invalidatedIds: Set<String> = []
@@ -23,9 +30,10 @@ public struct HandlerContext {
     public var opaqueBodyIds: Set<String> = []
     
     // MARK: - Initializer
-    public init(sessionId: SessionId?, now: Int) {
+    init(sessionId: SessionId?, now: Int, brain: BrainContext) {
         self.sessionId = sessionId
         self.now = now
+        self.brain = brain
     }
     
     // MARK: - Public

@@ -36,7 +36,7 @@ struct SearchAssocRehearsalTests {
                 step: 0.5,
                 cap: 1.0
             )
-                .perform(db, home.brain)
+                .perform(db)
         }
         
         #expect(try assocWeight(between: "areh-a", and: "areh-b") == 0.5)
@@ -55,7 +55,7 @@ struct SearchAssocRehearsalTests {
                 raw: false
             ) }
         
-        try home.database().write { db in _ = try RecordRetrievalTransaction(outcome.record).perform(db, home.brain) }
+        try home.database().write { db in _ = try RecordRetrievalTransaction(outcome.record, strengthenStep: home.genes.double("links.strengthen_step"), rebirthFactor: home.genes.double("rebirth.default_factor")).perform(db) }
         
         // Then
         #expect(try assocWeight(between: "areh-a", and: "areh-b") ?? 0 > 0.5,

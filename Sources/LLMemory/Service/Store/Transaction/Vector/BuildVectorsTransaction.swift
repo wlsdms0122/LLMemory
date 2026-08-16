@@ -8,15 +8,22 @@
 import Foundation
 import GRDB
 
-struct BuildVectorsTransaction: GRDBBrainTransaction {
+struct BuildVectorsTransaction: GRDBTransaction {
+    // MARK: - Property
+    // The ceiling on the factorisation rank — the pass takes the lower of
+    // this and what the corpus can support.
+    let dimension: Int
+
     private let vectorMath = VectorMath()
 
     // MARK: - Initializer
-    init() { }
+    init(dimension: Int) {
+        self.dimension = dimension
+    }
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database, _ brain: BrainContext) throws -> VectorBuildResult {
+    func perform(_ db: Database) throws -> VectorBuildResult {
         let now = Int(Date().timeIntervalSince1970)
         let noteIds = try String.fetchAll(
             db,
@@ -34,7 +41,7 @@ struct BuildVectorsTransaction: GRDBBrainTransaction {
             )
         }
 
-        let dim = min(brain.config.getInt("vectors.dim", default: 48), noteCount - 1)
+        let dim = min(dimension, noteCount - 1)
         var indexById: [String: Int] = [:]
 
         for (index, id) in noteIds.enumerated() { indexById[id] = index }

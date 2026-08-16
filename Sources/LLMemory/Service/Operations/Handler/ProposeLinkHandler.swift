@@ -75,8 +75,8 @@ struct ProposeLinkHandler: OperationHandling {
         let provenance = (op["provenance"] as? String)
             .flatMap { value in value.isEmpty ? nil : value }
         let confidence = number.value(of: op["confidence"]) ?? 1.0
-        let base = scope.brain.genes.double("links.proposed_initial_weight")
-        let neighborFloor = scope.brain.genes.double("links.neighbor_floor")
+        let base = context.brain.genes.double("links.proposed_initial_weight")
+        let neighborFloor = context.brain.genes.double("links.neighbor_floor")
         let ceiling = neighborFloor - 0.02
         let weight = min(ceiling, base + max(0, ceiling - base) * confidence)
         

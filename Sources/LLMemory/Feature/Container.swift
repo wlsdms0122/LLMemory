@@ -33,29 +33,29 @@ struct Container: Sendable {
     let operations: any OperationsServiceable
 
     // MARK: - Initializer
-    init(storage: GRDBStorage) {
+    init(storage: GRDBStorage, brain: BrainContext) {
         // The retrieval strategies are chosen once, here, and handed to
         // everything that reads text for cues. Swapping either one is this
         // line and nothing else — which is the whole reason they are named by
         // what they answer rather than by how they answer it.
         let keywords: any KeywordExtracting = FrequencyKeywordExtractor()
         let entities: any EntityHinting = PatternEntityHinter()
-        let retrieval = RetrievalService(storage: storage, keywords: keywords, entities: entities)
-        let genome = GenomeService(storage: storage, keywords: keywords, entities: entities)
+        let retrieval = RetrievalService(storage: storage, brain: brain, keywords: keywords, entities: entities)
+        let genome = GenomeService(storage: storage, brain: brain, keywords: keywords, entities: entities)
         let scanner = LintScanner(rules: LintRuleRegistry())
-        let lint = LintService(storage: storage, scanner: scanner)
+        let lint = LintService(storage: storage, brain: brain, scanner: scanner)
 
         self.retrieval = retrieval
-        self.notes = NotesService(storage: storage, retrieval: retrieval)
+        self.notes = NotesService(storage: storage, brain: brain, retrieval: retrieval)
         self.stats = StatsService(storage: storage)
         self.lint = lint
-        self.enrichment = EnrichmentService(storage: storage)
-        self.consolidate = ConsolidateService(storage: storage, keywords: keywords)
-        self.index = IndexService(storage: storage, keywords: keywords)
+        self.enrichment = EnrichmentService(storage: storage, brain: brain)
+        self.consolidate = ConsolidateService(storage: storage, brain: brain, keywords: keywords)
+        self.index = IndexService(storage: storage, brain: brain, keywords: keywords)
         self.genome = genome
         self.operations = OperationsService(
             storage: storage,
-            engine: OperationsEngine(lint: scanner, keywords: keywords)
+            engine: OperationsEngine(lint: scanner, keywords: keywords, brain: brain)
         )
     }
 

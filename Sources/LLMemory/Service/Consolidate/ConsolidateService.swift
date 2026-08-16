@@ -34,13 +34,19 @@ public struct ConsolidateService: ConsolidateServiceable {
     public var candidateValidKinds: [String] { CandidateDetector.validKinds }
 
     let storage: GRDBStorage
+    let brain: BrainContext
     let keywords: any KeywordExtracting
+
+    // The enrichment keys and defaults have one owner; this resolves them
+    // from this brain each time they are needed.
+    var enrichment: EnrichmentTuning { EnrichmentTuning(brain.config) }
 
     private let detector = CandidateDetector()
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, keywords: any KeywordExtracting) {
+    init(storage: GRDBStorage, brain: BrainContext, keywords: any KeywordExtracting) {
         self.storage = storage
+        self.brain = brain
         self.keywords = keywords
     }
 
@@ -157,7 +163,12 @@ public struct ConsolidateService: ConsolidateServiceable {
     // the floor. Rare by design; structure loss is the point.
     func prune(_ scope: GRDBScope) throws -> PruneResult {
         let now = Int(Date().timeIntervalSince1970)
-        let decay = try scope.run(DecayAndPruneLinksTransaction())
+        let decay = try scope.run(
+            DecayAndPruneLinksTransaction(
+                factor: brain.genes.double("links.decay_factor"),
+                floor: brain.genes.double("links.prune_floor")
+            )
+        )
 
         try? scope.run(
             RecordEventTransaction(
@@ -178,7 +189,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     // hygiene prunes, term validation, disagreement review, vector rebuild.
     func integrate(_ scope: GRDBScope) throws -> IntegrateResult {
         let now = Int(Date().timeIntervalSince1970)
-        let retentionSec = scope.brain.config.getInt("events.retention_days", default: 30) * 24 * 60 * 60
+        let retentionSec = brain.config.getInt("events.retention_days", default: 30) * 24 * 60 * 60
 
         _ = try scope.run(DeriveActivityWindowsTransaction(now: now))
 
@@ -196,7 +207,7 @@ public struct ConsolidateService: ConsolidateServiceable {
         _ = try scope.run(
             PruneOldLifecycleEventsTransaction(
                 now: now,
-                retentionDays: scope.brain.config.getInt("lifecycle.retention_days", default: 180)
+                retentionDays: brain.config.getInt("lifecycle.retention_days", default: 180)
             )
         )
 
@@ -215,7 +226,14 @@ public struct ConsolidateService: ConsolidateServiceable {
         var staleRejected = 0
         var reviewPass = EnrichmentReviewPass()
 
-        switch try scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: nil, keywords: keywords)) }) {
+        switch try scope.attempt({ try scope.run(
+            ValidatePendingTermsTransaction(
+                noteIds: nil,
+                keywords: keywords,
+                roundtripTopK: enrichment.roundtripTopK,
+                idfDFCeiling: enrichment.idfDFCeiling
+            )
+        ) }) {
         case .success(let pass): validationPass = pass
         case .failure(let error): degrade("term_validation", error)
         }
@@ -225,7 +243,12 @@ public struct ConsolidateService: ConsolidateServiceable {
         case .failure(let error): degrade("stale_rejection", error)
         }
 
-        switch try scope.attempt({ try scope.run(FlagEnrichmentDisagreementsTransaction(now: now)) }) {
+        switch try scope.attempt({ try scope.run(
+            FlagEnrichmentDisagreementsTransaction(
+                now: now,
+                disagreeFloor: enrichment.disagreeFloor
+            )
+        ) }) {
         case .success(let pass): reviewPass = pass
         case .failure(let error): degrade("enrich_review", error)
         }
@@ -236,7 +259,9 @@ public struct ConsolidateService: ConsolidateServiceable {
         let decay: (decayed: Int, pruned: Int) = (0, 0)
         var vectorBuild: VectorBuildResult?
 
-        switch try scope.attempt({ try scope.run(BuildVectorsTransaction()) }) {
+        switch try scope.attempt({ try scope.run(
+            BuildVectorsTransaction(dimension: brain.config.getInt("vectors.dim", default: 48))
+        ) }) {
         case .success(let build): vectorBuild = build
         case .failure(let error): degrade("vector_build", error)
         }
@@ -296,14 +321,14 @@ public struct ConsolidateService: ConsolidateServiceable {
         let watermark = Int(
             try scope.run(FetchConfigValueTransaction(key: homeostasisWatermarkKey, default: "0"))
         ) ?? 0
-        let closedBefore = now - scope.brain.genes.int("activation.window_gap_sec")
+        let closedBefore = now - brain.genes.int("activation.window_gap_sec")
         let windows = try scope.run(
             FetchClosedActivityWindowsTransaction(watermark: watermark, closedBefore: closedBefore)
         )
 
-        let minSample = homeostasisMinSample(scope.brain.config)
-        let lowRate = homeostasisLowRate(scope.brain.config)
-        let highRate = homeostasisHighRate(scope.brain.config)
+        let minSample = homeostasisMinSample(brain.config)
+        let lowRate = homeostasisLowRate(brain.config)
+        let highRate = homeostasisHighRate(brain.config)
         var cohortSeen = 0
         var cohortLanded = 0
         var lastWindow = watermark
@@ -346,7 +371,7 @@ public struct ConsolidateService: ConsolidateServiceable {
             // From the row, not the process cache — the tick reads the value
             // it is about to move, and it moves it in this same scope.
             let current = try scope.run(FetchGeneValueTransaction(geneId: gene))
-                ?? scope.brain.config.getDouble(gene, default: wildType)
+                ?? brain.config.getDouble(gene, default: wildType)
             var target = current
 
             if landingRate < lowRate && current > bounds.min {

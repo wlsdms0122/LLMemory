@@ -15,6 +15,7 @@ import Storage
 public struct RetrievalService: RetrievalServiceable {
     // MARK: - Property
     let storage: GRDBStorage
+    let brain: BrainContext
     let keywords: any KeywordExtracting
     let entities: any EntityHinting
 
@@ -23,10 +24,12 @@ public struct RetrievalService: RetrievalServiceable {
     // MARK: - Initializer
     init(
         storage: GRDBStorage,
+        brain: BrainContext,
         keywords: any KeywordExtracting,
         entities: any EntityHinting
     ) {
         self.storage = storage
+        self.brain = brain
         self.keywords = keywords
         self.entities = entities
     }
@@ -162,7 +165,7 @@ public struct RetrievalService: RetrievalServiceable {
             sessionId: sessionId,
             activateIds: hitIds,
             strengthenPairs: cooccurrencePairs(hitIds),
-            rebirthRanked: searchRanked(scope.brain.genes, rows: rows, extra: extra),
+            rebirthRanked: searchRanked(brain.genes, rows: rows, extra: extra),
             payload: EventPayload(command: .search, payload)
         )
 
@@ -190,7 +193,7 @@ public struct RetrievalService: RetrievalServiceable {
 
         if includeBodies {
             for note in snapshot.similar {
-                let path = scope.brain.layout.brainRoot.appendingPathComponent(note.path)
+                let path = brain.layout.brainRoot.appendingPathComponent(note.path)
 
                 if let body = try? String(contentsOf: path, encoding: .utf8) {
                     bodies[note.id] = body
@@ -200,7 +203,7 @@ public struct RetrievalService: RetrievalServiceable {
 
         let record = RetrievalRecord(
             sessionId: sessionId,
-            rebirthRanked: relatedRanked(scope.brain.genes, snapshot: snapshot),
+            rebirthRanked: relatedRanked(brain.genes, snapshot: snapshot),
             payload: EventPayload(command: .related, [
                 "text": .string(String(text.prefix(200))),
                 "hit_ids": JSONValue(snapshot.similar.map { note in note.id }),
@@ -239,7 +242,13 @@ public struct RetrievalService: RetrievalServiceable {
         guard let record else { return [] }
 
         return try await storage.run { scope in
-            try scope.run(RecordRetrievalTransaction(record))
+            try scope.run(
+                RecordRetrievalTransaction(
+                    record,
+                    strengthenStep: brain.genes.double("links.strengthen_step"),
+                    rebirthFactor: brain.genes.double("rebirth.default_factor")
+                )
+            )
         }
     }
 

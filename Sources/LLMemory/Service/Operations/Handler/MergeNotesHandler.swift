@@ -135,7 +135,7 @@ struct MergeNotesHandler: OperationHandling {
         try scope.run(SyncNoteEnrichTransaction(noteId: intoId))
         
         for path in fromPaths {
-            try Trash(layout: scope.brain.layout).file(path, reason: "merged into \(intoId)", now: now)
+            try Trash(layout: context.brain.layout).file(path, reason: "merged into \(intoId)", now: now)
         }
         
         return [
@@ -152,7 +152,11 @@ struct MergeNotesHandler: OperationHandling {
         return ["removes": fromIds]
     }
     
-    func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
+    func touches(
+        _ op: [String: Any],
+        _ context: HandlerContext,
+        _ scope: GRDBReadScope
+    ) throws -> [URL] {
         var paths: [URL] = []
         
         if let intoId = op["into_id"] as? String, let path = try scope.run(FetchNotePathTransaction(nid: intoId)) {
@@ -165,7 +169,7 @@ struct MergeNotesHandler: OperationHandling {
             if let path = try scope.run(FetchNotePathTransaction(nid: fromId)) {
                 paths.append(path)
                 
-                if let trashPath = Trash(layout: scope.brain.layout).destination(of: path) { paths.append(trashPath) }
+                if let trashPath = Trash(layout: context.brain.layout).destination(of: path) { paths.append(trashPath) }
             }
         }
         

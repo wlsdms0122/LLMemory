@@ -189,7 +189,7 @@ struct SplitNoteHandler: OperationHandling {
             remaining = rest
             
             let childId = child["id"] as! String
-            let childPath = scope.brain.layout.file(forId: childId)
+            let childPath = context.brain.layout.file(forId: childId)
             
             try FileManager.default.createDirectory(
                 at: childPath.deletingLastPathComponent(),
@@ -253,7 +253,7 @@ struct SplitNoteHandler: OperationHandling {
                 now: now
             ))
             try scope.run(DeleteNoteRowTransaction(nid: fromId))
-            try Trash(layout: scope.brain.layout).file(
+            try Trash(layout: context.brain.layout).file(
                 srcPath,
                 reason: "split into \(newIds.joined(separator: ", "))",
                 now: now
@@ -409,18 +409,22 @@ struct SplitNoteHandler: OperationHandling {
         return effects
     }
     
-    func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
+    func touches(
+        _ op: [String: Any],
+        _ context: HandlerContext,
+        _ scope: GRDBReadScope
+    ) throws -> [URL] {
         var paths: [URL] = []
         
         if let fromId = op["from_id"] as? String, let src = try scope.run(FetchNotePathTransaction(nid: fromId)) {
             paths.append(src)
             
-            if let trashPath = Trash(layout: scope.brain.layout).destination(of: src) { paths.append(trashPath) }
+            if let trashPath = Trash(layout: context.brain.layout).destination(of: src) { paths.append(trashPath) }
         }
         
         for child in (op["into"] as? [[String: Any]]) ?? [] {
             if let childId = child["id"] as? String {
-                paths.append(scope.brain.layout.file(forId: childId))
+                paths.append(context.brain.layout.file(forId: childId))
             }
         }
         

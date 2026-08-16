@@ -66,7 +66,7 @@ struct DeleteNoteHandler: OperationHandling {
         
         // Safe to move here: `touches` names both this file and its trash
         // destination, so a rollback of the surrounding batch restores them.
-        let trashPath = try Trash(layout: scope.brain.layout).file(src, reason: op["reason"] as? String ?? "", now: now)
+        let trashPath = try Trash(layout: context.brain.layout).file(src, reason: op["reason"] as? String ?? "", now: now)
         
         let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(80)
         
@@ -82,14 +82,18 @@ struct DeleteNoteHandler: OperationHandling {
         ["removes": [op["id"] as? String ?? ""]]
     }
     
-    func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
+    func touches(
+        _ op: [String: Any],
+        _ context: HandlerContext,
+        _ scope: GRDBReadScope
+    ) throws -> [URL] {
         guard let noteId = op["id"] as? String,
             let src = try scope.run(FetchNotePathTransaction(nid: noteId))
         else {
             return []
         }
         
-        return Trash(layout: scope.brain.layout).destination(of: src).map { destination in [src, destination] } ?? [src]
+        return Trash(layout: context.brain.layout).destination(of: src).map { destination in [src, destination] } ?? [src]
     }
     
     // MARK: - Private

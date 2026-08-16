@@ -189,7 +189,10 @@ public struct CandidateDetector: Sendable {
             }
         }
         
-        let linkRows = try scope.run(FetchLinkNeighborRowsTransaction(nid: noteId))
+        let linkRows = try scope.run(FetchLinkNeighborRowsTransaction(
+                nid: noteId,
+                siblingDiscount: scope.brain.genes.double("links.sibling_rank_weight")
+            ))
         
         if !linkRows.isEmpty {
             let maxWeight = linkRows.map { row in row.value }.max() ?? 1.0

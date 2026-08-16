@@ -14,6 +14,7 @@ import Storage
 public struct NotesService: NotesServiceable {
     // MARK: - Property
     let storage: GRDBStorage
+    let brain: BrainContext
     let retrieval: any RetrievalServiceable
 
     private let sectionEdit = SectionEdit()
@@ -23,8 +24,9 @@ public struct NotesService: NotesServiceable {
     private let template = Template()
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, retrieval: any RetrievalServiceable) {
+    init(storage: GRDBStorage, brain: BrainContext, retrieval: any RetrievalServiceable) {
         self.storage = storage
+        self.brain = brain
         self.retrieval = retrieval
     }
 
@@ -149,14 +151,14 @@ public struct NotesService: NotesServiceable {
                 continue
             }
 
-            let path = scope.brain.layout.file(forId: id)
+            let path = brain.layout.file(forId: id)
             let text = try String(contentsOf: path, encoding: .utf8)
             let (doc, body) = try frontmatter.parse(text)
 
             found.append(
                 NoteView(
                     id: id,
-                    path: scope.brain.layout.relative(of: path) ?? path.path,
+                    path: brain.layout.relative(of: path) ?? path.path,
                     frontmatter: NoteFrontmatter(doc),
                     body: body,
                     hitCount: record.hitCount,

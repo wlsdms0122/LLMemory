@@ -8,12 +8,19 @@
 import Foundation
 import GRDB
 
-struct EnrichmentStatusTransaction: GRDBBrainReadTransaction {
+struct EnrichmentStatusTransaction: GRDBReadTransaction {
+    // MARK: - Property
+    let neighborFloor: Double
+    let enrichment: EnrichmentTuning
+
     // MARK: - Initializer
-    init() { }
+    init(neighborFloor: Double, enrichment: EnrichmentTuning) {
+        self.neighborFloor = neighborFloor
+        self.enrichment = enrichment
+    }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws -> EnrichmentStatus {
+    func perform(_ db: Database) throws -> EnrichmentStatus {
         let termRows = try Row.fetchAll(db, sql: """
             SELECT kind, status, COUNT(*) AS c FROM note_retrieval_terms
             GROUP BY kind, status ORDER BY kind, status
@@ -21,7 +28,7 @@ struct EnrichmentStatusTransaction: GRDBBrainReadTransaction {
         let termCounts = termRows.map { row in
             (row["kind"] as String, row["status"] as String, row["c"] as Int)
         }
-        let floor = brain.genes.double("links.neighbor_floor")
+        let floor = neighborFloor
         let assocRow = try Row.fetchOne(db, sql: """
             SELECT COUNT(*) AS total,
                    COALESCE(SUM(CASE WHEN weight >= ? THEN 1 ELSE 0 END), 0) AS active
@@ -56,9 +63,12 @@ struct EnrichmentStatusTransaction: GRDBBrainReadTransaction {
             vectorsDim: dim,
             noteCount: noteCount,
             vectorCount: vectorCount,
-            provenanceStats: try FetchProvenanceStatsTransaction().perform(db, brain),
+            provenanceStats: try FetchProvenanceStatsTransaction(
+                disagreeFloor: enrichment.disagreeFloor
+            )
+                .perform(db),
             reviewFlagged: reviewFlagged,
-            modelAlarmRate: brain.config.getDouble("enrich.model_alarm_rate", default: 0.4)
+            modelAlarmRate: enrichment.modelAlarmRate
         )
     }
 

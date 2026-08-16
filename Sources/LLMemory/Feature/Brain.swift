@@ -26,7 +26,7 @@ public struct Brain {
     // MARK: - Initializer
     public init(home: String) {
         let session = Session(home: home)
-        let container = Container(storage: session.storage)
+        let container = Container(storage: session.storage, brain: session.context)
 
         self.session = session
         self.container = container

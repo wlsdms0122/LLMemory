@@ -141,7 +141,11 @@ struct PatchSectionHandler: OperationHandling {
         ]
     }
     
-    func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
+    func touches(
+        _ op: [String: Any],
+        _ context: HandlerContext,
+        _ scope: GRDBReadScope
+    ) throws -> [URL] {
         guard let noteId = op["id"] as? String,
             let path = try scope.run(FetchNotePathTransaction(nid: noteId))
         else {

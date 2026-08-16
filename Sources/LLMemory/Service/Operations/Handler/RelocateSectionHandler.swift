@@ -171,7 +171,11 @@ struct RelocateSectionHandler: OperationHandling {
         ]
     }
     
-    func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
+    func touches(
+        _ op: [String: Any],
+        _ context: HandlerContext,
+        _ scope: GRDBReadScope
+    ) throws -> [URL] {
         var paths: [URL] = []
         
         if let fromId = op["from_id"] as? String,

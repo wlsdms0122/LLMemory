@@ -29,7 +29,7 @@ struct VectorsTests {
         home.createNote(id: "vec-only1")
         
         // When
-        let result = try home.database().write { db in try BuildVectorsTransaction().perform(db, home.brain) }
+        let result = try home.database().write { db in try BuildVectorsTransaction(dimension: home.config.getInt("vectors.dim", default: 48)).perform(db) }
         
         // Then
         #expect(result.skipped)
@@ -44,7 +44,7 @@ struct VectorsTests {
         }
         
         // When
-        let result = try home.database().write { db in try BuildVectorsTransaction().perform(db, home.brain) }
+        let result = try home.database().write { db in try BuildVectorsTransaction(dimension: home.config.getInt("vectors.dim", default: 48)).perform(db) }
         
         // Then
         #expect(!result.skipped)
@@ -86,7 +86,7 @@ struct VectorsTests {
                 content: "## A\nbeta cluster body \(index)\n")
         }
         
-        _ = try home.database().write { db in try BuildVectorsTransaction().perform(db, home.brain) }
+        _ = try home.database().write { db in try BuildVectorsTransaction(dimension: home.config.getInt("vectors.dim", default: 48)).perform(db) }
         
         // When
         let hits = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vec-a0"], limit: 8).perform(db, home.brain) }
@@ -166,7 +166,7 @@ struct VectorsTests {
             try db.execute(sql: "UPDATE notes SET stale = 1 WHERE id = 'vg-stl-0'")
         }
         
-        _ = try home.database().write { db in try BuildVectorsTransaction().perform(db, home.brain) }
+        _ = try home.database().write { db in try BuildVectorsTransaction(dimension: home.config.getInt("vectors.dim", default: 48)).perform(db) }
         
         // When
         let hits = try home.database().read { db in try ExpandByVectorsTransaction(seedIds: ["vg-act-0"], limit: 5).perform(db, home.brain) }
@@ -229,7 +229,7 @@ struct VectorsTests {
         }
         
         // When
-        let result = try home.database().write { db in try BuildVectorsTransaction().perform(db, home.brain) }
+        let result = try home.database().write { db in try BuildVectorsTransaction(dimension: home.config.getInt("vectors.dim", default: 48)).perform(db) }
         
         // Then
         #expect(result.noteCount == 4)

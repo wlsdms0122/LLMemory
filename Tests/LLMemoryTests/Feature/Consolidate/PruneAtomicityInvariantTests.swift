@@ -31,7 +31,7 @@ struct PruneAtomicityInvariantTests {
         // When
         #expect(throws: RollbackSignal.self) {
             try queue.write { database in
-                _ = try DecayAndPruneLinksTransaction(factor: 0.5, floor: 0.0).perform(database, home.brain)
+                _ = try DecayAndPruneLinksTransaction(factor: 0.5, floor: 0.0).perform(database)
                 
                 #expect(try Self.linkWeight(database) == 0.5, "decay is visible inside the transaction")
                 

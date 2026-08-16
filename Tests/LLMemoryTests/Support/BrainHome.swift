@@ -24,6 +24,9 @@ extension BrainHome {
 
     var storage: GRDBStorage { session.storage }
 
+    // What the services take alongside the store — this home's brain.
+    var brain: BrainContext { session.context }
+
     func database() throws -> any DatabaseWriter {
         try storage.connect()
     }
@@ -42,36 +45,36 @@ extension BrainHome {
         try storage.writeLock { try database().write(body) }
     }
 
-    var container: Container { Container(storage: storage) }
+    var container: Container { Container(storage: storage, brain: brain) }
 
     // Concrete services, for the tests that drive a scope-taking core
     // directly. The container hands out contracts, and those contracts carry
     // only what a production collaborator calls — so a test that wants the
     // sync core inside an open scope assembles the implementation itself
     // rather than widening the contract until the test fits through it.
-    var retrievalService: RetrievalService { RetrievalService(storage: storage, keywords: FrequencyKeywordExtractor(), entities: PatternEntityHinter()) }
+    var retrievalService: RetrievalService { RetrievalService(storage: storage, brain: brain, keywords: FrequencyKeywordExtractor(), entities: PatternEntityHinter()) }
 
     var lintScanner: LintScanner { LintScanner(rules: LintRuleRegistry()) }
 
-    var lintService: LintService { LintService(storage: storage, scanner: lintScanner) }
+    var lintService: LintService { LintService(storage: storage, brain: brain, scanner: lintScanner) }
 
     var genomeService: GenomeService {
-        GenomeService(storage: storage, keywords: FrequencyKeywordExtractor(), entities: PatternEntityHinter())
+        GenomeService(storage: storage, brain: brain, keywords: FrequencyKeywordExtractor(), entities: PatternEntityHinter())
     }
 
     var notesService: NotesService {
-        NotesService(storage: storage, retrieval: retrievalService)
+        NotesService(storage: storage, brain: brain, retrieval: retrievalService)
     }
 
     var consolidateService: ConsolidateService {
-        ConsolidateService(storage: storage, keywords: FrequencyKeywordExtractor())
+        ConsolidateService(storage: storage, brain: brain, keywords: FrequencyKeywordExtractor())
     }
 
-    var operationsEngine: OperationsEngine { OperationsEngine(lint: lintScanner, keywords: FrequencyKeywordExtractor()) }
+    var operationsEngine: OperationsEngine { OperationsEngine(lint: lintScanner, keywords: FrequencyKeywordExtractor(), brain: brain) }
 
     @discardableResult
     func apply(_ operations: [[String: Any]], rationale: String = "test") -> OperationsResult {
-        OperationsEngine.apply(storage, ["ops": operations, "rationale": rationale])
+        OperationsEngine.apply(storage, brain, ["ops": operations, "rationale": rationale])
     }
 
     @discardableResult

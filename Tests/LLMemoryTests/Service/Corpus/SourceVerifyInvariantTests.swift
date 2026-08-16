@@ -337,7 +337,7 @@ struct SourceVerifyInvariantTests {
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: notePath).perform(db, home.brain) }
         
         // When
-        let early = OperationsEngine.apply(home.storage, ["ops": [["op": "rebase_source", "id": "src-ack", "reason": "r"]], "rationale": "t"])
+        let early = OperationsEngine.apply(home.storage, home.brain, ["ops": [["op": "rebase_source", "id": "src-ack", "reason": "r"]], "rationale": "t"])
         
         // Then
         #expect(early.status == "ok", "rebase of a fresh source must be allowed: \(early.error)")
@@ -350,7 +350,7 @@ struct SourceVerifyInvariantTests {
         
         #expect(before?.stale == 1)
         
-        let result = OperationsEngine.apply(home.storage, ["ops": [["op": "rebase_source", "id": "src-ack", "reason": "reconciled"]], "rationale": "t"])
+        let result = OperationsEngine.apply(home.storage, home.brain, ["ops": [["op": "rebase_source", "id": "src-ack", "reason": "reconciled"]], "rationale": "t"])
         
         #expect(result.status == "ok", "rebase failed: \(result.error)")
         
@@ -374,7 +374,7 @@ struct SourceVerifyInvariantTests {
         """.write(to: plainPath, atomically: true, encoding: .utf8)
         try queue.write { db in _ = try ReindexNoteFileTransaction(path: plainPath).perform(db, home.brain) }
         
-        let none = OperationsEngine.apply(home.storage, ["ops": [["op": "rebase_source", "id": "src-plain", "reason": "r"]], "rationale": "t"])
+        let none = OperationsEngine.apply(home.storage, home.brain, ["ops": [["op": "rebase_source", "id": "src-plain", "reason": "r"]], "rationale": "t"])
         
         #expect(none.status != "ok", "rebase without a note_source row must be refused")
     }
@@ -400,7 +400,7 @@ struct SourceVerifyInvariantTests {
         // Then
         #expect(try Self.sourceRow(queue, "src-decl")?.stale == 1)
         
-        let result = OperationsEngine.apply(home.storage, ["ops": [["op": "set_frontmatter", "id": "src-decl",
+        let result = OperationsEngine.apply(home.storage, home.brain, ["ops": [["op": "set_frontmatter", "id": "src-decl",
             "fields": ["source": [second.path]]]], "rationale": "t"])
         
         #expect(result.status == "ok", "set_frontmatter failed: \(result.error)")
@@ -440,7 +440,7 @@ struct SourceVerifyInvariantTests {
             ["id": "src-sp-a", "title": "A", "tags": ["flow"], "summary": "s", "sections": ["## A"]],
             ["id": "src-sp-b", "title": "B", "tags": ["flow"], "summary": "s", "sections": ["## B"]]
         ]
-        let result = OperationsEngine.apply(home.storage, ["ops": [["op": "split_note", "from_id": "src-sp", "into": into]], "rationale": "t"])
+        let result = OperationsEngine.apply(home.storage, home.brain, ["ops": [["op": "split_note", "from_id": "src-sp", "into": into]], "rationale": "t"])
         
         #expect(result.status == "ok", "split failed: \(result.error)")
         
@@ -476,7 +476,7 @@ struct SourceVerifyInvariantTests {
         
         #expect(try Self.sourceRow(queue, "src-mi")?.stale == 1)
         
-        let result = OperationsEngine.apply(home.storage, ["ops": [[
+        let result = OperationsEngine.apply(home.storage, home.brain, ["ops": [[
             "op": "merge_notes", "into_id": "src-mi", "from_ids": ["src-mf"],
             "merged_content": "## body\nmerged\n", "summary": "s", "tags": ["flow"],
             "source": [second.path]
@@ -514,7 +514,7 @@ struct SourceVerifyInvariantTests {
         // Then
         #expect(before?.stale == 1)
         
-        let result = OperationsEngine.apply(home.storage, ["ops": [["op": "set_frontmatter", "id": "src-same",
+        let result = OperationsEngine.apply(home.storage, home.brain, ["ops": [["op": "set_frontmatter", "id": "src-same",
             "fields": ["summary": "updated", "source": [file.path]]]], "rationale": "t"])
         
         #expect(result.status == "ok", "set_frontmatter failed: \(result.error)")
@@ -553,7 +553,7 @@ struct SourceVerifyInvariantTests {
             ["id": "src-rs-b", "title": "B", "tags": ["flow"], "summary": "s",
                 "sections": ["## B"]]
         ]
-        let result = OperationsEngine.apply(home.storage, ["ops": [["op": "split_note", "from_id": "src-rs", "into": into]], "rationale": "t"])
+        let result = OperationsEngine.apply(home.storage, home.brain, ["ops": [["op": "split_note", "from_id": "src-rs", "into": into]], "rationale": "t"])
         
         #expect(result.status == "ok", "split failed: \(result.error)")
         

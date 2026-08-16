@@ -27,7 +27,7 @@ struct OperationsUnavailableTests {
             migrations: [],
             context: BrainContext(home: home)
         )
-        let operations = Container(storage: storage).operations
+        let operations = Container(storage: storage, brain: BrainContext(home: home)).operations
 
         // When
         let applied = await operations.apply(

@@ -20,10 +20,6 @@ final class MemoryHome: BrainHome, @unchecked Sendable {
     let now: Int
     let session: Session
 
-    // What a transaction is handed when a test runs one directly instead of
-    // through a scope.
-    var brain: BrainContext { session.context }
-
     var layout: BrainLayout { session.context.layout }
 
     var genes: Genes { session.context.genes }

@@ -8,21 +8,19 @@
 import Foundation
 import GRDB
 
-struct DecayAndPruneLinksTransaction: GRDBBrainTransaction {
+struct DecayAndPruneLinksTransaction: GRDBTransaction {
     // MARK: - Property
-    let factor: Double?
-    let floor: Double?
+    let factor: Double
+    let floor: Double
 
     // MARK: - Initializer
-    init(factor: Double? = nil, floor: Double? = nil) {
+    init(factor: Double, floor: Double) {
         self.factor = factor
         self.floor = floor
     }
 
     // MARK: - Public
-    func perform(_ db: Database, _ brain: BrainContext) throws -> (decayed: Int, pruned: Int) {
-        let factor = self.factor ?? brain.genes.double("links.decay_factor")
-        let floor = self.floor ?? brain.genes.double("links.prune_floor")
+    func perform(_ db: Database) throws -> (decayed: Int, pruned: Int) {
         let learned = LinkKind.rawValues { kind in kind.isLearned }
         let kindPlaceholders = Array(repeating: "?", count: learned.count).joined(separator: ",")
         let kinds = learned as [DatabaseValueConvertible?]

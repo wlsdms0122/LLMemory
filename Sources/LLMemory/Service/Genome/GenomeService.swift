@@ -18,16 +18,19 @@ import Storage
 public struct GenomeService: GenomeServiceable {
     // MARK: - Property
     let storage: GRDBStorage
+    let brain: BrainContext
     let keywords: any KeywordExtracting
     let entities: any EntityHinting
 
     // MARK: - Initializer
     init(
         storage: GRDBStorage,
+        brain: BrainContext,
         keywords: any KeywordExtracting,
         entities: any EntityHinting
     ) {
         self.storage = storage
+        self.brain = brain
         self.keywords = keywords
         self.entities = entities
     }
@@ -39,7 +42,7 @@ public struct GenomeService: GenomeServiceable {
     // of masquerading as wild-type.
     public func list() async throws -> [GeneListRow] {
         try await storage.read { scope in
-            catalogRows(scope.brain.genes, values: try scope.run(FetchGenomeValuesTransaction()))
+            catalogRows(brain.genes, values: try scope.run(FetchGenomeValuesTransaction()))
         }
     }
 
@@ -95,7 +98,7 @@ public struct GenomeService: GenomeServiceable {
     ) throws -> GenomeShadowResult {
         if let rejection = Genes.rejection(gene, value: value) { throw rejection }
 
-        let baselineValue = scope.brain.genes.double(gene)
+        let baselineValue = brain.genes.double(gene)
         let logged = try scope.run(FetchLoggedRetrievalQueriesTransaction(limit: limit))
 
         // The scope is a parameter, not a capture: the candidate run is the

@@ -46,7 +46,7 @@ struct FieldMergeGateInvariantTests {
         home.createNote(id: "mf-dry")
         
         // When
-        let result = OperationsEngine.dryRun(home.storage, [
+        let result = OperationsEngine.dryRun(home.storage, home.brain, [
             "ops": [["op": "set_frontmatter", "id": "mf-dry", "fields": ["title": 123]]],
             "rationale": "test"
         ])
@@ -81,8 +81,8 @@ struct FieldMergeGateInvariantTests {
         ]
         
         // Then
-        #expect(OperationsEngine.dryRun(home.storage, dropsAxisTag).status == "ok")
-        #expect(OperationsEngine.apply(home.storage, dropsAxisTag).status == "ok")
+        #expect(OperationsEngine.dryRun(home.storage, home.brain, dropsAxisTag).status == "ok")
+        #expect(OperationsEngine.apply(home.storage, home.brain, dropsAxisTag).status == "ok")
     }
     
     @Test("an unknown field is kept as a custom frontmatter field rather than refused")

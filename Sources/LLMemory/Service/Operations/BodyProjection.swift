@@ -82,7 +82,7 @@ struct BodyProjection {
             return nil
         
         default:
-            if try !handler.touches(op, scope).isEmpty {
+            if try !handler.touches(op, context, scope).isEmpty {
                 for noteId in handler.schema.mentionedNoteIds(in: op) {
                     context.opaqueBodyIds.insert(noteId)
                     context.stagedBodies.removeValue(forKey: noteId)

@@ -25,11 +25,17 @@ public struct OperationsEngine: Sendable {
     private let template = Template()
     
     let keywords: any KeywordExtracting
+    // The enrichment keys and defaults have one owner; this resolves them
+    // from this brain each time they are needed.
+    var enrichment: EnrichmentTuning { EnrichmentTuning(brain.config) }
+
+    let brain: BrainContext
 
     // MARK: - Initializer
-    init(lint: any LintScanning, keywords: any KeywordExtracting) {
+    init(lint: any LintScanning, keywords: any KeywordExtracting, brain: BrainContext) {
         self.registry = HandlerRegistry(lint: lint)
         self.keywords = keywords
+        self.brain = brain
     }
     
     // MARK: - Public
@@ -116,7 +122,7 @@ public struct OperationsEngine: Sendable {
         rationale: String
     ) throws -> OperationsResult {
         let now = Int(Date().timeIntervalSince1970)
-        let applyContext = HandlerContext(sessionId: sessionId, now: now)
+        let applyContext = HandlerContext(sessionId: sessionId, now: now, brain: brain)
         
         if let (message, index) = try validate(
             opsRaw,
@@ -145,7 +151,7 @@ public struct OperationsEngine: Sendable {
             )
         }
         
-        let affected = try affectedPaths(opsRaw, scope: scope.readOnly)
+        let affected = try affectedPaths(opsRaw, context: applyContext, scope: scope.readOnly)
         let backups: [(URL, String?)]
         do {
             backups = try snapshotFiles(affected)
@@ -195,7 +201,7 @@ public struct OperationsEngine: Sendable {
                 }
                 
                 if let sectionError = checkSectionInvariants(
-                    scope.brain.layout,
+                    brain.layout,
                     affected: affected,
                     backups: backups
                 ) {
@@ -291,7 +297,14 @@ public struct OperationsEngine: Sendable {
             // rolls back whole. The pass name rides the result; the error
             // detail rides the trace event.
             if case .failure(let error)? =
-                try? scope.attempt({ try scope.run(ValidatePendingTermsTransaction(noteIds: touched, keywords: keywords)) }) {
+                try? scope.attempt({ try scope.run(
+                    ValidatePendingTermsTransaction(
+                        noteIds: touched,
+                        keywords: keywords,
+                        roundtripTopK: enrichment.roundtripTopK,
+                        idfDFCeiling: enrichment.idfDFCeiling
+                    )
+                ) }) {
                 degradedPasses.append("term_validation")
                 
                 try? scope.run(
@@ -452,7 +465,7 @@ public struct OperationsEngine: Sendable {
         sessionId: SessionId? = nil,
         now: Int = Int(Date().timeIntervalSince1970)
     ) throws -> (String, Int?)? {
-        var context = HandlerContext(sessionId: sessionId, now: now)
+        var context = HandlerContext(sessionId: sessionId, now: now, brain: brain)
         
         for (index, op) in ops.enumerated() {
             guard let name = op["op"] as? String,
@@ -517,10 +530,10 @@ public struct OperationsEngine: Sendable {
             }
         }
         
-        let urls = try handler.touches(op, scope)
+        let urls = try handler.touches(op, context, scope)
         
         for url in urls {
-            guard let noteId = scope.brain.layout.id(ofFile: url) else { continue }
+            guard let noteId = brain.layout.id(ofFile: url) else { continue }
             
             if try scope.run(NoteLockedTransaction(nid: noteId)) {
                 return "note is locked (human-only) — edit the file directly, not via ops: \(noteId)"
@@ -530,7 +543,11 @@ public struct OperationsEngine: Sendable {
         return nil
     }
     
-    private func affectedPaths(_ ops: [[String: Any]], scope: GRDBReadScope) throws -> [URL] {
+    private func affectedPaths(
+        _ ops: [[String: Any]],
+        context: HandlerContext,
+        scope: GRDBReadScope
+    ) throws -> [URL] {
         var seen = Set<String>()
         var paths: [URL] = []
         
@@ -541,7 +558,7 @@ public struct OperationsEngine: Sendable {
                 continue
             }
             
-            for url in try handler.touches(op, scope) {
+            for url in try handler.touches(op, context, scope) {
                 if !seen.contains(url.path) {
                     seen.insert(url.path)
                     paths.append(url)
@@ -628,7 +645,7 @@ public struct OperationsEngine: Sendable {
         for path in affected where path.pathExtension == "md" {
             enqueue(path)
             
-            if let noteId = scope.brain.layout.id(ofFile: path) { affectedIds.append(noteId) }
+            if let noteId = brain.layout.id(ofFile: path) { affectedIds.append(noteId) }
         }
         
         var violations: [String] = []
@@ -639,7 +656,7 @@ public struct OperationsEngine: Sendable {
                     FetchTemplateDependentNoteIdsTransaction(templateIds: affectedIds)
                 )
                 
-                for noteId in dependents { enqueue(scope.brain.layout.file(forId: noteId)) }
+                for noteId in dependents { enqueue(brain.layout.file(forId: noteId)) }
             } catch {
                 violations.append("template reverse-dependency lookup failed: \(error)")
             }
@@ -655,14 +672,14 @@ public struct OperationsEngine: Sendable {
                 
                 (doc, body) = read
             } catch {
-                let noteId = scope.brain.layout.id(ofFile: path) ?? path.lastPathComponent
+                let noteId = brain.layout.id(ofFile: path) ?? path.lastPathComponent
                 violations.append("\(noteId): unreadable, template frame unverifiable: \(error)")
                 continue
             }
             
             guard let templateId = doc.template, !templateId.isEmpty else { continue }
             
-            let noteId = scope.brain.layout.id(ofFile: path) ?? path.lastPathComponent
+            let noteId = brain.layout.id(ofFile: path) ?? path.lastPathComponent
             
             guard let frame = (try? scope.run(LoadTemplateFrameTransaction(templateId: templateId))) ?? nil else {
                 violations.append("\(noteId): unknown template '\(templateId)'")
@@ -682,7 +699,7 @@ public struct OperationsEngine: Sendable {
     }
     
     private func checkEagerCap(scope: GRDBReadScope, before: Int) -> String? {
-        let cap = scope.brain.config.getInt("eager.max_count", default: 20)
+        let cap = brain.config.getInt("eager.max_count", default: 20)
         let after = (try? scope.run(CountEagerNotesTransaction())) ?? 0
         
         if after > cap && after > before {

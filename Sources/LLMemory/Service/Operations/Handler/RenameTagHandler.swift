@@ -126,7 +126,11 @@ struct RenameTagHandler: OperationHandling {
         return ["status": "ok", "ids": affectedIds, "note": note]
     }
     
-    func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] {
+    func touches(
+        _ op: [String: Any],
+        _ context: HandlerContext,
+        _ scope: GRDBReadScope
+    ) throws -> [URL] {
         let ids = try scope.run(FetchNotesWithTagTransaction(tag: op["from_tag"] as! String))
         
         return try ids.compactMap { noteId in try scope.run(FetchNotePathTransaction(nid: noteId)) }

@@ -51,7 +51,7 @@ struct AddRetrievalTermsHandler: OperationHandling {
         
         if phrases.isEmpty { return "terms must contain at least one non-empty string" }
         
-        let capacity = scope.brain.config.getInt("enrich.max_terms_per_op", default: 12)
+        let capacity = context.brain.config.getInt("enrich.max_terms_per_op", default: 12)
         
         if phrases.count > capacity {
             return "too many terms: \(phrases.count) (cap \(capacity) — see config enrich.max_terms_per_op)"

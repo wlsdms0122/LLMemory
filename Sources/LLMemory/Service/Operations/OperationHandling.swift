@@ -36,11 +36,19 @@ protocol OperationHandling: Sendable {
     
     func effect(_ op: [String: Any]) -> [String: [String]]
     
-    func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL]
+    func touches(
+        _ op: [String: Any],
+        _ context: HandlerContext,
+        _ scope: GRDBReadScope
+    ) throws -> [URL]
 }
 
 extension OperationHandling {
     func effect(_ op: [String: Any]) -> [String: [String]] { [:] }
     
-    func touches(_ op: [String: Any], _ scope: GRDBReadScope) throws -> [URL] { [] }
+    func touches(
+        _ op: [String: Any],
+        _ context: HandlerContext,
+        _ scope: GRDBReadScope
+    ) throws -> [URL] { [] }
 }

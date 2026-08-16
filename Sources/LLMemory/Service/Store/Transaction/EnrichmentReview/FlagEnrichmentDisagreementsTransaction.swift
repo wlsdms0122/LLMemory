@@ -8,26 +8,28 @@
 import Foundation
 import GRDB
 
-struct FlagEnrichmentDisagreementsTransaction: GRDBBrainTransaction {
+struct FlagEnrichmentDisagreementsTransaction: GRDBTransaction {
     // MARK: - Property
     let now: Int
+    let disagreeFloor: Double
 
     private let vectorMath = VectorMath()
 
     // MARK: - Initializer
-    init(now: Int) {
+    init(now: Int, disagreeFloor: Double) {
         self.now = now
+        self.disagreeFloor = disagreeFloor
     }
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database, _ brain: BrainContext) throws -> EnrichmentReviewPass {
+    func perform(_ db: Database) throws -> EnrichmentReviewPass {
         var pass = EnrichmentReviewPass()
         let vectors = try FetchNoteVectorsTransaction().perform(db)
 
         guard !vectors.isEmpty else { return pass }
 
-        let floor = brain.config.getDouble("enrich.disagree_floor", default: 0.15)
+        let floor = disagreeFloor
         let edges = try Row.fetchAll(db, sql: """
             SELECT src, dst, provenance FROM note_links WHERE kind = ?
             """, arguments: [LinkKind.assoc.rawValue])

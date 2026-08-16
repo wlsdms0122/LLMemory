@@ -90,7 +90,7 @@ struct ReadsTests {
         home.createNote(id: "list-lazy", content: "## S\nb\n")
         home.createNote(id: "list-eager", content: "## S\nb\n")
         
-        _ = OperationsEngine.apply(home.storage, ["ops": [["op": "set_frontmatter", "id": "list-eager",
+        _ = OperationsEngine.apply(home.storage, home.brain, ["ops": [["op": "set_frontmatter", "id": "list-eager",
             "fields": ["priority": "eager"]]], "rationale": "t"])
         
         let queue = try home.storage.connect()
@@ -229,7 +229,7 @@ struct ReadsTests {
         // Given
         home.createNote(id: "hist-b", content: "## S\nb\n")
         
-        _ = OperationsEngine.apply(home.storage, ["ops": [["op": "flag", "id": "hist-b", "kind": "reconsolidate",
+        _ = OperationsEngine.apply(home.storage, home.brain, ["ops": [["op": "flag", "id": "hist-b", "kind": "reconsolidate",
             "reason": "x"]], "rationale": "t"])
         
         let queue = try home.storage.connect()

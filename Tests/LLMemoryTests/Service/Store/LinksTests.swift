@@ -82,7 +82,7 @@ struct LinksTests {
         try seedPair()
         
         // Then
-        #expect(try home.database().write { db in try StrengthenLinksTransaction(pairs: [("temp-a", "temp-b")]).perform(db, home.brain) } == 1)
+        #expect(try home.database().write { db in try StrengthenLinksTransaction(pairs: [("temp-a", "temp-b")], step: home.genes.double("links.strengthen_step")).perform(db) } == 1)
     }
     
     @Test("strengthening a note against itself does nothing")
@@ -91,7 +91,7 @@ struct LinksTests {
         try seedPair()
         
         // Then
-        #expect(try home.database().write { db in try StrengthenLinksTransaction(pairs: [("temp-a", "temp-a")]).perform(db, home.brain) } == 0)
+        #expect(try home.database().write { db in try StrengthenLinksTransaction(pairs: [("temp-a", "temp-a")], step: home.genes.double("links.strengthen_step")).perform(db) } == 0)
     }
     
     @Test("rebirth strengthens the learned edge and leaves the fact edge exactly as it was")
@@ -102,7 +102,7 @@ struct LinksTests {
         try home.linkNotes("temp-a", "temp-b", kind: "cooccur", weight: 0.5)
         
         // When
-        _ = try home.database().write { db in try RebirthLinksTransaction(noteIds: ["temp-a", "temp-b"]).perform(db, home.brain) }
+        _ = try home.database().write { db in try RebirthLinksTransaction(noteIds: ["temp-a", "temp-b"], defaultFactor: home.genes.double("rebirth.default_factor")).perform(db) }
         
         // Then
         let weights = try home.read { database -> [String: Double] in

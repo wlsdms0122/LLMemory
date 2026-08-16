@@ -12,13 +12,15 @@ import Storage
 public struct IndexService: IndexServiceable {
     // MARK: - Property
     let storage: GRDBStorage
+    let brain: BrainContext
     let keywords: any KeywordExtracting
 
     private let indexer = Indexer()
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, keywords: any KeywordExtracting) {
+    init(storage: GRDBStorage, brain: BrainContext, keywords: any KeywordExtracting) {
         self.storage = storage
+        self.brain = brain
         self.keywords = keywords
     }
 
@@ -58,7 +60,9 @@ public struct IndexService: IndexServiceable {
     }
 
     public func buildVectors() async throws -> VectorBuildResult {
-        try await storage.run { scope in try scope.run(BuildVectorsTransaction()) }
+        try await storage.run { scope in try scope.run(
+                BuildVectorsTransaction(dimension: brain.config.getInt("vectors.dim", default: 48))
+            ) }
     }
 
     public func verifySources() async throws -> SourceVerifyResult {
@@ -68,7 +72,13 @@ public struct IndexService: IndexServiceable {
     public func validateTerms(
         rejectStale: Bool
     ) async throws -> Indexer.ValidateResult {
-        try await storage.run { scope in try scope.run(ValidateTermsTransaction(rejectStale: rejectStale, keywords: keywords)) }
+        try await storage.run { scope in try scope.run(
+                ValidateTermsTransaction(
+                    rejectStale: rejectStale,
+                    keywords: keywords,
+                    enrichment: EnrichmentTuning(brain.config)
+                )
+            ) }
     }
 
     // MARK: - Private

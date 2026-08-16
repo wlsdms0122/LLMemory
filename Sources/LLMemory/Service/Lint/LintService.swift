@@ -13,11 +13,13 @@ import Storage
 public struct LintService: LintServiceable {
     // MARK: - Property
     let storage: GRDBStorage
+    let brain: BrainContext
     let scanner: any LintScanning
     
     // MARK: - Initializer
-    init(storage: GRDBStorage, scanner: any LintScanning) {
+    init(storage: GRDBStorage, brain: BrainContext, scanner: any LintScanning) {
         self.storage = storage
+        self.brain = brain
         self.scanner = scanner
     }
     

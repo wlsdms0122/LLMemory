@@ -8,31 +8,35 @@
 import Foundation
 import GRDB
 
-struct RebirthLinksTransaction: GRDBBrainTransaction {
+struct RebirthLinksTransaction: GRDBTransaction {
     // MARK: - Property
-    // A factor per note, absent meaning the gene's default — which is not
-    // something a constructor can answer, since the brain arrives with the
-    // database and not before it.
+    // A factor per note, absent meaning the caller had no ranking to express
+    // and every note rebirths by the same default.
     let ranked: [(id: String, factor: Double?)]
+    let defaultFactor: Double
     let cap: Double
 
     // MARK: - Initializer
-    init(ranked: [(id: String, factor: Double?)], cap: Double = 1.0) {
+    init(ranked: [(id: String, factor: Double?)], defaultFactor: Double, cap: Double = 1.0) {
         self.ranked = ranked
+        self.defaultFactor = defaultFactor
         self.cap = cap
     }
 
     // An unranked set — every note carries the same weight of evidence.
-    init(noteIds: [String], factor: Double? = nil, cap: Double = 1.0) {
-        self.init(ranked: noteIds.map { id in (id, factor) }, cap: cap)
+    init(noteIds: [String], defaultFactor: Double, factor: Double? = nil, cap: Double = 1.0) {
+        self.init(
+            ranked: noteIds.map { id in (id, factor) },
+            defaultFactor: defaultFactor,
+            cap: cap
+        )
     }
 
     // MARK: - Public
     @discardableResult
-    func perform(_ db: Database, _ brain: BrainContext) throws -> Int {
+    func perform(_ db: Database) throws -> Int {
         guard ranked.count >= 2 else { return 0 }
 
-        let defaultFactor = brain.genes.double("rebirth.default_factor")
         var factorOf: [String: Double] = [:]
 
         for (id, factor) in ranked {
