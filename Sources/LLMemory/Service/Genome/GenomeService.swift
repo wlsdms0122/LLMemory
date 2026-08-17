@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import GRDB
 
 // Genome-domain service — the observation surfaces: the catalog with this
 // brain's values, the provenance of every mutation, and offline reranking
@@ -36,43 +35,17 @@ public struct GenomeService: GenomeServiceable {
     }
 
     // MARK: - Public
-    // Maps the catalog against values fetched in this scope — no cache
-    // mutation on the read path (read scopes read; only gated writers warm).
-    // The connection gate stays: an uninitialized brain fails loud instead
-    // of masquerading as wild-type.
+    // Maps the catalog against values fetched in this run — no cache mutation on
+    // the read path (reads read; only gated writers warm).
     public func list() async throws -> [GeneListRow] {
-        try await storage.read { db in
-            catalogRows(brain.genes, values: try db.run(FetchGenomeValuesTransaction()))
-        }
+        catalogRows(brain.genes, values: try await storage.run(FetchGenomeValuesTransaction()))
     }
 
     public func history(
         gene: String?,
         limit: Int
     ) async throws -> [GeneHistoryRow] {
-        try await storage.read { db in
-            try history(db, gene: gene, limit: limit)
-        }
-    }
-
-    public func shadow(
-        gene: String,
-        value: Double,
-        limit: Int,
-        sampleDiffs: Int
-    ) async throws -> GenomeShadowResult {
-        try await storage.read { db in
-            try shadow(db, gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
-        }
-    }
-
-    // MARK: - Internal
-    func history(
-        _ db: Database,
-        gene: String?,
-        limit: Int
-    ) throws -> [GeneHistoryRow] {
-        try db.run(FetchGenomeEventsTransaction(geneId: gene, limit: limit))
+        try await storage.run(FetchGenomeEventsTransaction(geneId: gene, limit: limit))
             .map { event in
                 GeneHistoryRow(
                     geneId: event.geneId,
@@ -85,105 +58,47 @@ public struct GenomeService: GenomeServiceable {
             }
     }
 
-    // Offline reranking — replays the logged retrieval queries against the
-    // current corpus under a candidate gene value. The candidate is task-local
-    // to the replay: it never reaches the brain's cache, so a concurrent reader
-    // of this brain cannot see it and nothing has to be put back afterwards.
-    func shadow(
-        _ db: Database,
+    // Offline reranking — the replay runs against the current corpus under a
+    // candidate gene value. The candidate never reaches the brain's cache: it is
+    // resolved into the numbers the replay takes, so a concurrent reader of this
+    // brain cannot see it and nothing has to be put back afterwards.
+    public func shadow(
         gene: String,
         value: Double,
         limit: Int,
         sampleDiffs: Int
-    ) throws -> GenomeShadowResult {
+    ) async throws -> GenomeShadowResult {
         if let rejection = Genes.rejection(gene, value: value) { throw rejection }
 
-        let baselineValue = brain.genes.double(gene)
-        let logged = try db.run(FetchLoggedRetrievalQueriesTransaction(limit: limit))
-
-        // The tuning is a parameter, not a capture: the candidate run is the
-        // same replay under numbers resolved from a brain that answers one
-        // gene differently, so the borrowed value reaches these transactions
-        // and no others — and it does so as the number they actually used.
-        func replayIds(
-            _ db: Database,
-            _ tuning: RetrievalTuning,
-            _ loggedQuery: FetchLoggedRetrievalQueriesTransaction.LoggedQuery
-        ) throws -> [String] {
-            switch loggedQuery.replay {
-            case let .search(tags, limit):
-                return try db.run(
-                    SearchNotesFTSTransaction(
-                        match: .text(loggedQuery.text, keywords: keywords),
-                        tags: tags,
-                        limit: limit,
-                        sessionId: loggedQuery.sessionId,
-                        primingWindowMin: tuning.primingWindowMin,
-                        primingAlpha: tuning.primingAlpha
-                    )
-                )
-                    .map { hit in hit.id }
-
-            case .related:
-                let snapshot = try db.run(
-                    BuildFramingSnapshotTransaction(
-                        text: loggedQuery.text,
-                        sessionId: loggedQuery.sessionId,
-                        keywords: keywords,
-                        entities: entities,
-                        similarLimit: tuning.similarLimit,
-                        expandHops: tuning.expandHops,
-                        neighborFloor: tuning.neighborFloor,
-                        siblingDiscount: tuning.siblingDiscount,
-                        primingWindowMin: tuning.primingWindowMin,
-                        primingAlpha: tuning.primingAlpha
-                    )
-                )
-
-                return snapshot.similar.map { note in note.id }
-                    + snapshot.linked.map { note in note.id }
-                    + snapshot.vectorLinked.map { note in note.id }
-            }
-        }
-
-        var diffs: [GenomeShadowResult.QueryDiff] = []
-        var changed = 0
-
-        for loggedQuery in logged {
-            let baseline = try replayIds(db, RetrievalTuning(brain.genes), loggedQuery)
-            let candidate = try replayIds(
-                db,
-                RetrievalTuning(brain.shadowing(gene: gene, value: value).genes),
-                loggedQuery
+        let outcome = try await storage.run(
+            ReplayRetrievalQueriesTransaction(
+                baseline: RetrievalTuning(brain.genes),
+                candidate: RetrievalTuning(brain.shadowing(gene: gene, value: value).genes),
+                limit: limit,
+                sampleDivergences: sampleDiffs,
+                keywords: keywords,
+                entities: entities
             )
-
-            if baseline != candidate {
-                changed += 1
-
-                if diffs.count < sampleDiffs {
-                    let baselineIds = Set(baseline)
-                    let candidateIds = Set(candidate)
-
-                    diffs.append(
-                        GenomeShadowResult.QueryDiff(
-                            query: "\(loggedQuery.replay.command.rawValue): \(loggedQuery.text)",
-                            baseline: baseline,
-                            candidate: candidate,
-                            entered: candidate.filter { id in !baselineIds.contains(id) },
-                            dropped: baseline.filter { id in !candidateIds.contains(id) }
-                        )
-                    )
-                }
-            }
-        }
+        )
 
         return GenomeShadowResult(
             gene: gene,
-            baselineValue: baselineValue,
+            baselineValue: brain.genes.double(gene),
             candidateValue: value,
-            queriesReplayed: logged.count,
-            queriesChanged: changed,
-            diffs: diffs
+            queriesReplayed: outcome.replayed,
+            queriesChanged: outcome.changed,
+            diffs: outcome.divergences.map { divergence in
+                let baseline = Set(divergence.baseline)
+                let candidate = Set(divergence.candidate)
+
+                return GenomeShadowResult.QueryDiff(
+                    query: divergence.query,
+                    baseline: divergence.baseline,
+                    candidate: divergence.candidate,
+                    entered: divergence.candidate.filter { id in !baseline.contains(id) },
+                    dropped: divergence.baseline.filter { id in !candidate.contains(id) }
+                )
+            }
         )
     }
 

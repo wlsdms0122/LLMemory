@@ -35,13 +35,20 @@ struct RetrievalTuning: Sendable {
     let primingAlpha: Double
 
     // MARK: - Initializer
-    init(_ genes: Genes) {
-        similarLimit = genes.int("related.similar_limit")
-        expandHops = genes.int("related.expand_hops")
-        neighborFloor = genes.double("links.neighbor_floor")
-        siblingDiscount = genes.double("links.sibling_rank_weight")
-        primingWindowMin = genes.int("priming.window_min")
-        primingAlpha = genes.double("priming.alpha")
+    init(
+        similarLimit: Int,
+        expandHops: Int,
+        neighborFloor: Double,
+        siblingDiscount: Double,
+        primingWindowMin: Int,
+        primingAlpha: Double
+    ) {
+        self.similarLimit = similarLimit
+        self.expandHops = expandHops
+        self.neighborFloor = neighborFloor
+        self.siblingDiscount = siblingDiscount
+        self.primingWindowMin = primingWindowMin
+        self.primingAlpha = primingAlpha
     }
 
     // MARK: - Public

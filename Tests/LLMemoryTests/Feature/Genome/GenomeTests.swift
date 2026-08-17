@@ -85,7 +85,7 @@ struct GenomeTests {
     }
     
     @Test("set_gene enforces bounds, refuses an unknown gene, and resets to wild-type without a value")
-    func setGeneOp() throws {
+    func setGeneOp() async throws {
         // When
         let outOfBounds = home.apply(["op": "set_gene", "gene": "links.sibling_rank_weight", "value": 5.0])
         let unknown = home.apply(["op": "set_gene", "gene": "no.such.gene", "value": 0.5])
@@ -99,9 +99,7 @@ struct GenomeTests {
         #expect(accepted.status == "ok")
         #expect(home.genes.double("links.sibling_rank_weight") == 0.2)
         
-        let history = try home.readScope { db in
-            try home.genomeService.history(db, gene: "links.sibling_rank_weight", limit: 5)
-        }
+        let history = try await home.genomeService.history(gene: "links.sibling_rank_weight", limit: 5)
         
         #expect(history.first?.cause == "set_gene", "every change must leave provenance")
         
@@ -153,7 +151,7 @@ struct GenomeTests {
     }
     
     @Test("expansion that never lands narrows the hop count, and each window is consumed exactly once")
-    func homeostasisNarrows() throws {
+    func homeostasisNarrows() async throws {
         // Given
         home.createNote(id: "seed")
         home.createNote(id: "dead-expand")
@@ -195,9 +193,7 @@ struct GenomeTests {
             #expect(again.adjustedGene == nil)
         }
         
-        let history = try home.readScope { db in
-            try home.genomeService.history(db, gene: "related.expand_hops", limit: 5)
-        }
+        let history = try await home.genomeService.history(gene: "related.expand_hops", limit: 5)
         
         #expect(history.first?.cause == "homeostasis:expand_landing")
     }
@@ -379,7 +375,7 @@ struct GenomeTests {
     }
     
     @Test("a shadow replay isolates the gene change — the same value changes nothing, and it never commits")
-    func shadowReplay() throws {
+    func shadowReplay() async throws {
         // Given
         home.createNote(
             id: "alpha-note", title: "alpha topic", summary: "alpha things",
@@ -395,23 +391,17 @@ struct GenomeTests {
         }
         
         // When
-        let unchanged = try home.readScope { db in
-            try home.genomeService.shadow(
-                db,
-                gene: "priming.alpha", value: home.genes.double("priming.alpha"), limit: 10, sampleDiffs: 5
-            )
-        }
+        let unchanged = try await home.genomeService.shadow(
+            gene: "priming.alpha", value: home.genes.double("priming.alpha"), limit: 10, sampleDiffs: 5
+        )
         
         // Then
         #expect(unchanged.queriesReplayed == 1)
         #expect(unchanged.queriesChanged == 0)
-        #expect(throws: GenomeWriteError.self) {
-            _ = try home.readScope { db in
-                try home.genomeService.shadow(
-                    db,
-                    gene: "priming.alpha", value: 99, limit: 10, sampleDiffs: 5
-                )
-            }
+        await #expect(throws: GenomeWriteError.self) {
+            _ = try await home.genomeService.shadow(
+                gene: "priming.alpha", value: 99, limit: 10, sampleDiffs: 5
+            )
         }
         #expect(home.genes.source("priming.alpha") == "wild_type", "a shadow run must not write the gene")
     }
