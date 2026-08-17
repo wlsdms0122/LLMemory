@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct RenameTagHandler: OperationHandling {
     // MARK: - Property
@@ -26,7 +27,7 @@ struct RenameTagHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let fromTag = op["from_tag"] as! String
         let toTag = op["to_tag"] as! String
@@ -42,12 +43,12 @@ struct RenameTagHandler: OperationHandling {
             return "invalid to_tag format: \(toTag)"
         }
         
-        let exists = try scope.run(TagVocabExistsTransaction(tag: fromTag))
-            || (try scope.run(TagInUseTransaction(tag: fromTag)))
+        let exists = try db.run(TagVocabExistsTransaction(tag: fromTag))
+            || (try db.run(TagInUseTransaction(tag: fromTag)))
         
         if !exists { return "unknown from_tag: \(fromTag)" }
         
-        let canonical = try scope.run(CanonicalizeTagTransaction(tag: toTag))
+        let canonical = try db.run(CanonicalizeTagTransaction(tag: toTag))
         
         if canonical != toTag && canonical != fromTag {
             return "to_tag '\(toTag)' is an alias of '\(canonical)' — rename to '\(canonical)' or drop the alias first"
@@ -59,16 +60,16 @@ struct RenameTagHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let fromTag = op["from_tag"] as! String
         let toTag = op["to_tag"] as! String
         let addAlias = (op["add_alias"] as? Bool) ?? false
         let now = context.now
-        let affectedIds = try scope.run(FetchNotesWithTagTransaction(tag: fromTag))
+        let affectedIds = try db.run(FetchNotesWithTagTransaction(tag: fromTag))
         
         for noteId in affectedIds {
-            guard let path = try context.brain.notePath(scope, noteId),
+            guard let path = try context.brain.notePath(db, noteId),
                 FileManager.default.fileExists(atPath: path.path)
             else {
                 throw OperationError.noteFileMissing(op: "rename_tag", id: noteId)
@@ -100,8 +101,8 @@ struct RenameTagHandler: OperationHandling {
             )
         }
         
-        try scope.run(EnsureTagTransaction(tag: toTag, now: now))
-        try scope.run(DropTagAliasClaimTransaction(alias: toTag))
+        try db.run(EnsureTagTransaction(tag: toTag, now: now))
+        try db.run(DropTagAliasClaimTransaction(alias: toTag))
         
         // The rewritten files are the truth now — reproject each note so
         // tags, content_hash and FTS follow the rename, same as every
@@ -109,16 +110,16 @@ struct RenameTagHandler: OperationHandling {
         // vocab delete is FK-blocked until reprojection clears the old
         // tag's rows.
         for noteId in affectedIds {
-            guard let path = try context.brain.notePath(scope, noteId) else { continue }
+            guard let path = try context.brain.notePath(db, noteId) else { continue }
             
-            try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
+            try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
         }
         
         if addAlias {
-            try scope.run(AddTagAliasTransaction(alias: fromTag, canonical: toTag, now: now))
+            try db.run(AddTagAliasTransaction(alias: fromTag, canonical: toTag, now: now))
         }
         
-        try scope.run(RetireTagTransaction(tag: fromTag, successor: toTag))
+        try db.run(RetireTagTransaction(tag: fromTag, successor: toTag))
         
         let note = "renamed tag \(fromTag) -> \(toTag) (\(affectedIds.count) notes)"
             + (addAlias ? " + alias" : "")
@@ -129,11 +130,11 @@ struct RenameTagHandler: OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] {
-        let ids = try scope.run(FetchNotesWithTagTransaction(tag: op["from_tag"] as! String))
+        let ids = try db.run(FetchNotesWithTagTransaction(tag: op["from_tag"] as! String))
         
-        return try ids.compactMap { noteId in try context.brain.notePath(scope, noteId) }
+        return try ids.compactMap { noteId in try context.brain.notePath(db, noteId) }
     }
     
     // MARK: - Private

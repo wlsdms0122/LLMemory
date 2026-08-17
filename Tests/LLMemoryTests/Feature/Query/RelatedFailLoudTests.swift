@@ -50,9 +50,9 @@ struct RelatedFailLoudTests {
 
         // Then
         #expect(throws: DBError.self) {
-            _ = try home.readScope { scope in
+            _ = try home.readScope { db in
                 try home.retrievalService.related(
-                    scope,
+                    db,
                     text: "gate note",
                     kind: nil,
                     sessionId: nil,

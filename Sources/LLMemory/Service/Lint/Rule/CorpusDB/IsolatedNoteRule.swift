@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct IsolatedNoteRule: CorpusDBLintRule {
     // MARK: - Property
@@ -14,8 +15,8 @@ struct IsolatedNoteRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope, _ tuning: LintTuning) throws -> [LintFinding] {
-        try scope.run(FetchFragmentationRowsTransaction())
+    func check(_ db: Database, _ tuning: LintTuning) throws -> [LintFinding] {
+        try db.run(FetchFragmentationRowsTransaction())
             .filter { row in row.linkN == 0 && row.entN == 0 && row.tagN <= 1 }
             .map { row in
                 .init("no links, no entities, ≤1 tag — orphan", target: .note(row.nid))

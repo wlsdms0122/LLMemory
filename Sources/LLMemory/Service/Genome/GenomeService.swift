@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 import Storage
 
 // Genome-domain service — the observation surfaces: the catalog with this
@@ -41,8 +42,8 @@ public struct GenomeService: GenomeServiceable {
     // The connection gate stays: an uninitialized brain fails loud instead
     // of masquerading as wild-type.
     public func list() async throws -> [GeneListRow] {
-        try await storage.read { scope in
-            catalogRows(brain.genes, values: try scope.run(FetchGenomeValuesTransaction()))
+        try await storage.read { db in
+            catalogRows(brain.genes, values: try db.run(FetchGenomeValuesTransaction()))
         }
     }
 
@@ -50,8 +51,8 @@ public struct GenomeService: GenomeServiceable {
         gene: String?,
         limit: Int
     ) async throws -> [GeneHistoryRow] {
-        try await storage.read { scope in
-            try history(scope, gene: gene, limit: limit)
+        try await storage.read { db in
+            try history(db, gene: gene, limit: limit)
         }
     }
 
@@ -61,18 +62,18 @@ public struct GenomeService: GenomeServiceable {
         limit: Int,
         sampleDiffs: Int
     ) async throws -> GenomeShadowResult {
-        try await storage.read { scope in
-            try shadow(scope, gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
+        try await storage.read { db in
+            try shadow(db, gene: gene, value: value, limit: limit, sampleDiffs: sampleDiffs)
         }
     }
 
     // MARK: - Internal
     func history(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         gene: String?,
         limit: Int
     ) throws -> [GeneHistoryRow] {
-        try scope.run(FetchGenomeEventsTransaction(geneId: gene, limit: limit))
+        try db.run(FetchGenomeEventsTransaction(geneId: gene, limit: limit))
             .map { event in
                 GeneHistoryRow(
                     geneId: event.geneId,
@@ -90,7 +91,7 @@ public struct GenomeService: GenomeServiceable {
     // to the replay: it never reaches the brain's cache, so a concurrent reader
     // of this brain cannot see it and nothing has to be put back afterwards.
     func shadow(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         gene: String,
         value: Double,
         limit: Int,
@@ -99,20 +100,20 @@ public struct GenomeService: GenomeServiceable {
         if let rejection = Genes.rejection(gene, value: value) { throw rejection }
 
         let baselineValue = brain.genes.double(gene)
-        let logged = try scope.run(FetchLoggedRetrievalQueriesTransaction(limit: limit))
+        let logged = try db.run(FetchLoggedRetrievalQueriesTransaction(limit: limit))
 
         // The tuning is a parameter, not a capture: the candidate run is the
         // same replay under numbers resolved from a brain that answers one
         // gene differently, so the borrowed value reaches these transactions
         // and no others — and it does so as the number they actually used.
         func replayIds(
-            _ scope: GRDBReadScope,
+            _ db: Database,
             _ tuning: RetrievalTuning,
             _ loggedQuery: FetchLoggedRetrievalQueriesTransaction.LoggedQuery
         ) throws -> [String] {
             switch loggedQuery.replay {
             case let .search(tags, limit):
-                return try scope.run(
+                return try db.run(
                     SearchNotesFTSTransaction(
                         match: .text(loggedQuery.text, keywords: keywords),
                         tags: tags,
@@ -125,7 +126,7 @@ public struct GenomeService: GenomeServiceable {
                     .map { hit in hit.id }
 
             case .related:
-                let snapshot = try scope.run(
+                let snapshot = try db.run(
                     BuildFramingSnapshotTransaction(
                         text: loggedQuery.text,
                         sessionId: loggedQuery.sessionId,
@@ -150,9 +151,9 @@ public struct GenomeService: GenomeServiceable {
         var changed = 0
 
         for loggedQuery in logged {
-            let baseline = try replayIds(scope, RetrievalTuning(brain.genes), loggedQuery)
+            let baseline = try replayIds(db, RetrievalTuning(brain.genes), loggedQuery)
             let candidate = try replayIds(
-                scope,
+                db,
                 RetrievalTuning(brain.shadowing(gene: gene, value: value).genes),
                 loggedQuery
             )

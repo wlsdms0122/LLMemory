@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // The two questions that compare the database against the files it projects.
 //
@@ -20,10 +21,10 @@ struct CorpusReconciler {
     // MARK: - Public
     // Every catalogued note still has a readable file behind it (L1).
     func checkFilesPresent(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         _ brain: BrainContext
     ) throws -> (checked: Int, issues: [String]) {
-        let ids = try scope.run(FetchAllNoteIdsTransaction())
+        let ids = try db.run(FetchAllNoteIdsTransaction())
         let issues = try ids.compactMap { id -> String? in
             let file = brain.layout.file(forId: id)
             let relative = brain.layout.relativeFile(forId: id)
@@ -47,22 +48,22 @@ struct CorpusReconciler {
     // whose file cannot be read is reported rather than dropped — an empty
     // search result is not the way to learn a note became unreadable.
     func reconcileSearchIndex(
-        _ scope: GRDBScope,
+        _ db: Database,
         _ brain: BrainContext
     ) throws -> (orphansPruned: Int, refilled: Int, unreadable: [String]) {
-        let noteIds = Set(try scope.run(FetchAllNoteIdsTransaction()))
-        let ftsIds = Set(try scope.run(FetchIndexedNoteIdsTransaction()))
+        let noteIds = Set(try db.run(FetchAllNoteIdsTransaction()))
+        let ftsIds = Set(try db.run(FetchIndexedNoteIdsTransaction()))
         let orphans = ftsIds.subtracting(noteIds)
 
         for orphan in orphans {
-            try scope.run(DropNoteFTSTransaction(noteId: orphan))
+            try db.run(DropNoteFTSTransaction(noteId: orphan))
         }
 
         var refilled = 0
         var unreadable: [String] = []
 
         for noteId in noteIds.subtracting(ftsIds).sorted() {
-            guard let header = try scope.run(FetchNoteHeaderTransaction(noteId: noteId)) else {
+            guard let header = try db.run(FetchNoteHeaderTransaction(noteId: noteId)) else {
                 continue
             }
 
@@ -80,7 +81,7 @@ struct CorpusReconciler {
                 continue
             }
 
-            try scope.run(
+            try db.run(
                 ReindexNoteFTSTransaction(
                     noteId: noteId,
                     title: header.title,

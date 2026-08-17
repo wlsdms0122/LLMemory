@@ -8,7 +8,9 @@
 import Foundation
 import GRDB
 
-// A transaction that only reads — the read scope accepts these alone, so
-// writing from a read path is a compile error again, not a runtime
-// SQLITE_READONLY surprise.
+// A transaction that only reads. It declares the fact rather than enforcing
+// it: an open handle can do either, so what this buys is the skipped
+// savepoint on the read path and a read entry point that accepts nothing
+// else. A write issued from inside a read body is a runtime
+// SQLITE_READONLY, as SQLite always said it would be.
 public protocol GRDBReadTransaction: GRDBTransaction { }

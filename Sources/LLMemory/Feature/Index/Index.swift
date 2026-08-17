@@ -90,8 +90,8 @@ public struct Index {
         
         // Planted inside the bootstrap: after the migration, before the build.
         var seeding: Seeding.Result?
-        let result = try session.bootstrap { scope in
-            if seed { seeding = try plant(force: force, scope: scope) }
+        let result = try session.bootstrap { db in
+            if seed { seeding = try plant(force: force, db: db) }
         }
 
         try Guide.markdown.write(
@@ -118,8 +118,8 @@ public struct Index {
         // connection — and before the seeds are restated, so a brain whose schema
         // did not move forward does not get files that did.
         var seeding: Seeding.Result?
-        let result = try session.bootstrap { scope in
-            if seed { seeding = try plant(force: force, scope: scope) }
+        let result = try session.bootstrap { db in
+            if seed { seeding = try plant(force: force, db: db) }
         }
 
         try Guide.markdown.write(
@@ -138,12 +138,12 @@ public struct Index {
     }
 
     // MARK: - Private
-    private func plant(force: Bool, scope: BootstrapScope) throws -> Seeding.Result {
+    private func plant(force: Bool, db: BootstrapScope) throws -> Seeding.Result {
         seeding.plant(
             force: force,
-            seeded: try scope.seededNoteIds(),
+            seeded: try db.seededNoteIds(),
             now: Int(Date().timeIntervalSince1970),
-            scope: scope
+            db: db
         )
     }
 }

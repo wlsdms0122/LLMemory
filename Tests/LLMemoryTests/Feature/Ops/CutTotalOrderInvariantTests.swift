@@ -80,7 +80,7 @@ struct CutTotalOrderInvariantTests {
         }
         
         // When
-        let rows = try home.readScope { scope in try detector.reconsolidateCandidates(scope, limit: 3) }
+        let rows = try home.readScope { db in try detector.reconsolidateCandidates(db, limit: 3) }
         
         // Then
         #expect(rows.map(\.id) == ["fl-n1", "fl-n2", "fl-n3"])
@@ -95,7 +95,7 @@ struct CutTotalOrderInvariantTests {
         try seedTags(ids: ids) { _ in ["ta", "tb", "tc"] }
         
         // When
-        let rows = try home.readScope { scope in try detector.splitCandidates(scope, limit: 3) }
+        let rows = try home.readScope { db in try detector.splitCandidates(db, limit: 3) }
         
         // Then
         #expect(rows.map(\.id) == ["sp-n1", "sp-n2", "sp-n3"])
@@ -111,7 +111,7 @@ struct CutTotalOrderInvariantTests {
         
         // When
         try home.database().write { database in
-            try bookkeeper.seedInitialLinks(GRDBScope(database), nid: "sd-new", tags: ["shared"])
+            try bookkeeper.seedInitialLinks(database, nid: "sd-new", tags: ["shared"])
         }
         
         // Then
@@ -158,7 +158,7 @@ struct CutTotalOrderInvariantTests {
         }
         
         // When
-        let clusters = try home.readScope { scope in try detector.clusters(scope) }
+        let clusters = try home.readScope { db in try detector.clusters(db) }
         
         // Then
         #expect(clusters.count == 1)

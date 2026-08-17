@@ -208,7 +208,7 @@ struct FragmentationLintTests {
         #expect(result.status == "ok", "\(result.error)")
         
         // When
-        let families = try home.readScope { scope in try NoteFamilyIndex().families(scope, minFamily: home.lintTuning.fragmentMinFamily) }
+        let families = try home.readScope { db in try NoteFamilyIndex().families(db, minFamily: home.lintTuning.fragmentMinFamily) }
         
         // Then
         #expect(families.contains { family in
@@ -276,7 +276,7 @@ struct FragmentationLintTests {
         #expect(try siblingEdgeCount() == 1, "a rebuild must not erase sibling edges")
     }
     
-    @Test("a corpus-scope warn can be reviewed and closed like any other")
+    @Test("a corpus-db warn can be reviewed and closed like any other")
     func corpusScopeWarnIsDismissible() throws {
         // Given
         for suffix in ["one", "two", "three"] {
@@ -437,8 +437,8 @@ struct FragmentationLintTests {
     }
     
     private func lint(id: String? = nil, code: String, includeDismissed: Bool = false) throws -> [LintIssue] {
-        try home.readScope { scope in try home.lintScanner.scan(
-                scope,
+        try home.readScope { db in try home.lintScanner.scan(
+                db,
                 id: id,
                 code: code,
                 severity: nil,

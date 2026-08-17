@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 public struct OperationsEngine: Sendable {
     // MARK: - Property
@@ -65,7 +66,7 @@ public struct OperationsEngine: Sendable {
     // Runs inside the caller's write scope — OperationsService provides the
     // cross-process write lock via `storage.run`.
     public func apply(
-        _ scope: GRDBScope,
+        _ db: Database,
         _ payload: [String: Any],
         sessionId: SessionId? = nil
     ) -> OperationsResult {
@@ -86,7 +87,7 @@ public struct OperationsEngine: Sendable {
         
         do {
             result = try applySequence(
-                scope,
+                db,
                 opsRaw: opsRaw,
                 sessionId: sessionId,
                 rationale: rationale
@@ -118,7 +119,7 @@ public struct OperationsEngine: Sendable {
     // The gated apply sequence — validate, snapshot, savepointed op run,
     // post-checks, and the capture event that records the outcome.
     private func applySequence(
-        _ scope: GRDBScope,
+        _ db: Database,
         opsRaw: [[String: Any]],
         sessionId: SessionId?,
         rationale: String
@@ -128,11 +129,11 @@ public struct OperationsEngine: Sendable {
         
         if let (message, index) = try validate(
             opsRaw,
-            scope: scope.readOnly,
+            db: db,
             sessionId: sessionId,
             now: now
         ) {
-            try? scope.run(RecordEventTransaction(
+            try? db.run(RecordEventTransaction(
                 kind: .capture,
                 payload: EventPayload([
                     "tx_status": "rejected",
@@ -153,14 +154,14 @@ public struct OperationsEngine: Sendable {
             )
         }
         
-        let affected = try affectedPaths(opsRaw, context: applyContext, scope: scope.readOnly)
+        let affected = try affectedPaths(opsRaw, context: applyContext, db: db)
         let backups: [(URL, String?)]
         do {
             backups = try snapshotFiles(affected)
         } catch {
             let message = "snapshot failed: \(error)"
             
-            try? scope.run(RecordEventTransaction(
+            try? db.run(RecordEventTransaction(
                 kind: .capture,
                 payload: EventPayload([
                     "tx_status": "rejected",
@@ -183,13 +184,13 @@ public struct OperationsEngine: Sendable {
         var results: [OperationOutcome] = []
         var failure: (Int?, String)? = nil
         var splitConflict: (Int, SplitConflict)? = nil
-        let eagerBefore = (try? scope.run(CountEagerNotesTransaction())) ?? 0
+        let eagerBefore = (try? db.run(CountEagerNotesTransaction())) ?? 0
         
         do {
-            try scope.savepoint {
+            try db.inSavepoint {
                 for (index, op) in opsRaw.enumerated() {
                     do {
-                        results.append(try dispatchApply(op, context: applyContext, scope: scope))
+                        results.append(try dispatchApply(op, context: applyContext, db: db))
                     } catch let conflict as SplitConflict {
                         splitConflict = (index, conflict)
                         
@@ -212,13 +213,13 @@ public struct OperationsEngine: Sendable {
                     return .rollback
                 }
                 
-                if let templateError = checkTemplateFrames(affected: affected, scope: scope.readOnly) {
+                if let templateError = checkTemplateFrames(affected: affected, db: db) {
                     failure = (nil, templateError)
                     
                     return .rollback
                 }
                 
-                if let capError = checkEagerCap(scope: scope.readOnly, before: eagerBefore) {
+                if let capError = checkEagerCap(db: db, before: eagerBefore) {
                     failure = (nil, capError)
                     
                     return .rollback
@@ -257,7 +258,7 @@ public struct OperationsEngine: Sendable {
             
             if let index { payload["failed_index"] = .integer(index) }
             
-            try? scope.run(RecordEventTransaction(
+            try? db.run(RecordEventTransaction(
                 kind: .capture,
                 payload: EventPayload(payload),
                 sessionId: sessionId
@@ -281,7 +282,7 @@ public struct OperationsEngine: Sendable {
             ])
         }
         
-        try? scope.run(RecordEventTransaction(
+        try? db.run(RecordEventTransaction(
             kind: .capture,
             payload: EventPayload([
                 "tx_status": "ok",
@@ -299,7 +300,7 @@ public struct OperationsEngine: Sendable {
             // rolls back whole. The pass name rides the result; the error
             // detail rides the trace event.
             if case .failure(let error)? =
-                try? scope.attempt({ try scope.run(
+                try? db.attempt({ try db.run(
                     ValidatePendingTermsTransaction(
                         noteIds: touched,
                         keywords: keywords,
@@ -309,7 +310,7 @@ public struct OperationsEngine: Sendable {
                 ) }) {
                 degradedPasses.append("term_validation")
                 
-                try? scope.run(
+                try? db.run(
                     RecordEventTransaction(
                         kind: .capture,
                         payload: EventPayload([
@@ -334,7 +335,7 @@ public struct OperationsEngine: Sendable {
         )
 }
     
-    public func dryRun(_ scope: GRDBReadScope, _ payload: [String: Any], sessionId: SessionId? = nil) -> OperationsDryRunResult {
+    public func dryRun(_ db: Database, _ payload: [String: Any], sessionId: SessionId? = nil) -> OperationsDryRunResult {
         guard let opsRaw = payload["ops"] as? [[String: Any]], !opsRaw.isEmpty else {
             return OperationsDryRunResult(
                 status: "rejected",
@@ -345,7 +346,7 @@ public struct OperationsEngine: Sendable {
         }
         
         do {
-            let result: (String?, Int?)? = try validate(opsRaw, scope: scope, sessionId: sessionId)
+            let result: (String?, Int?)? = try validate(opsRaw, db: db, sessionId: sessionId)
             
             if let (message, index) = result {
                 return OperationsDryRunResult(
@@ -463,7 +464,7 @@ public struct OperationsEngine: Sendable {
     
     private func validate(
         _ ops: [[String: Any]],
-        scope: GRDBReadScope,
+        db: Database,
         sessionId: SessionId? = nil,
         now: Int = Int(Date().timeIntervalSince1970)
     ) throws -> (String, Int?)? {
@@ -481,7 +482,7 @@ public struct OperationsEngine: Sendable {
                 name: name,
                 handler: handler,
                 context: context,
-                scope: scope
+                db: db
             ) {
                 return ("op[\(index)] \(name): \(message)", index)
             }
@@ -490,7 +491,7 @@ public struct OperationsEngine: Sendable {
                 return ("op[\(index)] \(name): \(message)", index)
             }
             
-            if let message = try handler.validate(op, context, scope) {
+            if let message = try handler.validate(op, context, db) {
                 return ("op[\(index)] \(name): \(message)", index)
             }
             
@@ -499,7 +500,7 @@ public struct OperationsEngine: Sendable {
                 name: name,
                 handler: handler,
                 context: &context,
-                scope: scope
+                db: db
             ) {
                 return ("op[\(index)] \(name): \(message)", index)
             }
@@ -523,7 +524,7 @@ public struct OperationsEngine: Sendable {
         name: String,
         handler: any OperationHandling,
         context: HandlerContext,
-        scope: GRDBReadScope
+        db: Database
     ) throws -> String? {
         if name != "create_note", !context.lockedInFlightIds.isEmpty {
             for noteId in handler.schema.mentionedNoteIds(in: op)
@@ -532,12 +533,12 @@ public struct OperationsEngine: Sendable {
             }
         }
         
-        let urls = try handler.touches(op, context, scope)
+        let urls = try handler.touches(op, context, db)
         
         for url in urls {
             guard let noteId = brain.layout.id(ofFile: url) else { continue }
             
-            if try scope.run(NoteLockedTransaction(nid: noteId)) {
+            if try db.run(NoteLockedTransaction(nid: noteId)) {
                 return "note is locked (human-only) — edit the file directly, not via ops: \(noteId)"
             }
         }
@@ -548,7 +549,7 @@ public struct OperationsEngine: Sendable {
     private func affectedPaths(
         _ ops: [[String: Any]],
         context: HandlerContext,
-        scope: GRDBReadScope
+        db: Database
     ) throws -> [URL] {
         var seen = Set<String>()
         var paths: [URL] = []
@@ -560,7 +561,7 @@ public struct OperationsEngine: Sendable {
                 continue
             }
             
-            for url in try handler.touches(op, context, scope) {
+            for url in try handler.touches(op, context, db) {
                 if !seen.contains(url.path) {
                     seen.insert(url.path)
                     paths.append(url)
@@ -630,7 +631,7 @@ public struct OperationsEngine: Sendable {
         return nil
     }
     
-    private func checkTemplateFrames(affected: [URL], scope: GRDBReadScope) -> String? {
+    private func checkTemplateFrames(affected: [URL], db: Database) -> String? {
         var toCheck: [URL] = []
         var seen = Set<String>()
         
@@ -654,7 +655,7 @@ public struct OperationsEngine: Sendable {
         
         if !affectedIds.isEmpty {
             do {
-                let dependents = try scope.run(
+                let dependents = try db.run(
                     FetchTemplateDependentNoteIdsTransaction(templateIds: affectedIds)
                 )
                 
@@ -683,7 +684,7 @@ public struct OperationsEngine: Sendable {
             
             let noteId = brain.layout.id(ofFile: path) ?? path.lastPathComponent
             
-            guard let frame = (try? frames.frame(scope, brain, templateId: templateId)) ?? nil else {
+            guard let frame = (try? frames.frame(db, brain, templateId: templateId)) ?? nil else {
                 violations.append("\(noteId): unknown template '\(templateId)'")
                 continue
             }
@@ -700,9 +701,9 @@ public struct OperationsEngine: Sendable {
         return nil
     }
     
-    private func checkEagerCap(scope: GRDBReadScope, before: Int) -> String? {
+    private func checkEagerCap(db: Database, before: Int) -> String? {
         let cap = brain.config.getInt("eager.max_count", default: 20)
-        let after = (try? scope.run(CountEagerNotesTransaction())) ?? 0
+        let after = (try? db.run(CountEagerNotesTransaction())) ?? 0
         
         if after > cap && after > before {
             return "eager cap exceeded (\(after)/\(cap)) — use priority=lazy (eager is the per-session BOOT working set)"
@@ -711,10 +712,10 @@ public struct OperationsEngine: Sendable {
         return nil
     }
     
-    private func dispatchApply(_ op: [String: Any], context: HandlerContext, scope: GRDBScope) throws -> OperationOutcome {
+    private func dispatchApply(_ op: [String: Any], context: HandlerContext, db: Database) throws -> OperationOutcome {
         let name = op["op"] as! String
         let handler = registry[name]!
-        let raw = try handler.write(op, context, scope)
+        let raw = try handler.write(op, context, db)
         var paths: [String] = []
         
         if let rawPaths = raw["paths"] as? [Any] {

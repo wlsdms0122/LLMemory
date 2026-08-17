@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct RestoreHandler: OperationHandling {
     // MARK: - Property
@@ -27,10 +28,10 @@ struct RestoreHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
-        if try noteExistence.isTaken(noteId, context: context, scope: scope) {
+        if try noteExistence.isTaken(noteId, context: context, db: db) {
             return "id collision: '\(noteId)' is already a live note — restoring would overwrite it"
         }
         
@@ -46,7 +47,7 @@ struct RestoreHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let noteId = op["id"] as! String
         let now = context.now
@@ -75,9 +76,9 @@ struct RestoreHandler: OperationHandling {
             encoding: .utf8
         )
         try FileManager.default.removeItem(at: trashFile)
-        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: destination), path: destination))
-        try scope.run(TouchNoteUsageTransaction(noteId: noteId, now: now))
-        try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
+        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: destination), path: destination))
+        try db.run(TouchNoteUsageTransaction(noteId: noteId, now: now))
+        try db.run(RecordNoteLifecycleEventTransaction(nid: noteId,
             kind: "restored",
             reason: op["reason"] as? String,
             now: now
@@ -98,7 +99,7 @@ struct RestoreHandler: OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] {
         let noteId = op["id"] as? String ?? ""
         

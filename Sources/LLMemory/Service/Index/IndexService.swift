@@ -36,10 +36,10 @@ public struct IndexService: IndexServiceable {
         // compares scanned paths against DB rows, so a scan taken before the
         // lock could mark a concurrently committed note as an orphan and
         // delete it. Atomicity beats lock duration here.
-        try await storage.run { scope in
+        try await storage.run { db in
             let scan = indexer.scanPending(brain)
 
-            return try scope.run(
+            return try db.run(
                 ReconcileIndexTransaction(
                     brain: brain,
                     scan: scan,
@@ -53,31 +53,31 @@ public struct IndexService: IndexServiceable {
     public func reindex(
         filePaths: [String]
     ) async throws -> [Indexer.ReindexOutcome] {
-        try await storage.run { scope in
-            try scope.run(ReindexNotesTransaction(brain: brain, filePaths: filePaths))
+        try await storage.run { db in
+            try db.run(ReindexNotesTransaction(brain: brain, filePaths: filePaths))
         }
     }
 
     public func check(
         level: Indexer.IntegrityLevel
     ) async throws -> (ok: Bool, msgs: [String]) {
-        try await storage.read { scope in try scope.run(CheckIntegrityTransaction(brain: brain, level: level)) }
+        try await storage.read { db in try db.run(CheckIntegrityTransaction(brain: brain, level: level)) }
     }
 
     public func buildVectors() async throws -> VectorBuildResult {
-        try await storage.run { scope in try scope.run(
+        try await storage.run { db in try db.run(
                 BuildVectorsTransaction(dimension: brain.config.getInt("vectors.dim", default: 48))
             ) }
     }
 
     public func verifySources() async throws -> SourceVerifyResult {
-        try await storage.run { scope in try SourceVerifier().verifyAll(scope, brain) }
+        try await storage.run { db in try SourceVerifier().verifyAll(db, brain) }
     }
 
     public func validateTerms(
         rejectStale: Bool
     ) async throws -> Indexer.ValidateResult {
-        try await storage.run { scope in try scope.run(
+        try await storage.run { db in try db.run(
                 ValidateTermsTransaction(
                     rejectStale: rejectStale,
                     keywords: keywords,

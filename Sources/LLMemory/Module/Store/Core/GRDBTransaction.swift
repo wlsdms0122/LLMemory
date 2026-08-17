@@ -10,9 +10,9 @@ import GRDB
 
 // A transaction is the DB module's vocabulary — a reusable, synchronous
 // bundle of queries over a database handle. It claims no atomicity: the
-// rollback boundary (flock + BEGIN/COMMIT) belongs to the storage scope
-// that runs it, so the same transaction composes into any unit of work
-// and any number of services share it.
+// rollback boundary (flock + BEGIN/COMMIT) belongs to the unit of work the
+// storage opened around it, so the same transaction composes into any of
+// them and any number of services share it.
 public protocol GRDBTransaction: Sendable {
     associatedtype Result
 

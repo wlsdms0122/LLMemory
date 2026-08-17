@@ -13,7 +13,7 @@ public struct LintRuleInfo: Encodable {
     // MARK: - Property
     public let code: String
     public let severity: String
-    public let scope: String
+    public let db: String
     
     // MARK: - Initializer
     // MARK: - Public

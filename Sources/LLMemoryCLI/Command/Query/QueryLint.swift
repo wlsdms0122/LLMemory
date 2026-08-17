@@ -59,7 +59,7 @@ struct QueryLint: AsyncParsableCommand {
     @Option(name: .long, help: "Cap rows returned (default: no cap).")
     var limit: Int?
     
-    @Flag(name: .long, help: "List registered rules (code, severity, scope) instead of linting.")
+    @Flag(name: .long, help: "List registered rules (code, severity, db) instead of linting.")
     var rules: Bool = false
     
     @Flag(name: .long, help: "Include warns closed by dismiss_candidate.")
@@ -76,8 +76,8 @@ struct QueryLint: AsyncParsableCommand {
             CommandOutput().render(catalog, json: format.json) { rules in
                 [
                     .table(
-                        rules.map { rule in [rule.severity, rule.code, rule.scope] },
-                        headers: ["sev", "code", "scope"]
+                        rules.map { rule in [rule.severity, rule.code, rule.db] },
+                        headers: ["sev", "code", "db"]
                     )
                 ]
             }

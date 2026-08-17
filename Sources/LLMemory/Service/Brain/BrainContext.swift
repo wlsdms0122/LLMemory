@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // One brain, as everything about it that is not its database: where its files
 // live, what its configuration says, what its genes are set to. They share a
@@ -81,12 +82,8 @@ public struct BrainContext: Sendable {
     // Where a note this brain actually has lives. Existence is the only
     // thing the database is asked — the location is the id — so this pairs
     // the one question a store can answer with the one it cannot.
-    func notePath(_ scope: GRDBReadScope, _ nid: String) throws -> URL? {
-        try scope.run(NoteExistsTransaction(nid: nid)) ? layout.file(forId: nid) : nil
-    }
-
-    func notePath(_ scope: GRDBScope, _ nid: String) throws -> URL? {
-        try notePath(scope.readOnly, nid)
+    func notePath(_ db: Database, _ nid: String) throws -> URL? {
+        try db.run(NoteExistsTransaction(nid: nid)) ? layout.file(forId: nid) : nil
     }
 
     // The id of a note file this brain can index, or a refusal that says

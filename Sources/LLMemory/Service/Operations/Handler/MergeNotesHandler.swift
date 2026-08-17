@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct MergeNotesHandler: OperationHandling {
     // MARK: - Property
@@ -35,11 +36,11 @@ struct MergeNotesHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let intoId = op["into_id"] as? String ?? ""
         
-        if let rejection = try noteExistence.rejectionForUnknown(intoId, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(intoId, context: context, db: db) {
             return "merge_notes.into_id must be an *existing* note id (or one created earlier in this transaction): '\(intoId)'. To merge into a fresh umbrella note, prepend a `create_note` op with the same id, then merge. (\(rejection))"
         }
         
@@ -54,7 +55,7 @@ struct MergeNotesHandler: OperationHandling {
         }
         
         for fromId in fromStrings {
-            if let rejection = try noteExistence.rejectionForUnknown(fromId, context: context, scope: scope) {
+            if let rejection = try noteExistence.rejectionForUnknown(fromId, context: context, db: db) {
                 return "from_ids: \(rejection)"
             }
         }
@@ -71,12 +72,12 @@ struct MergeNotesHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let intoId = op["into_id"] as! String
         let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
         
-        guard let intoPath = try context.brain.notePath(scope, intoId),
+        guard let intoPath = try context.brain.notePath(db, intoId),
             FileManager.default.fileExists(atPath: intoPath.path)
         else {
             throw OperationError.noteFileMissing(op: "merge_notes", id: intoId)
@@ -105,7 +106,7 @@ struct MergeNotesHandler: OperationHandling {
         var fromPaths: [URL] = []
         
         for fromId in fromIds {
-            if let path = try context.brain.notePath(scope, fromId),
+            if let path = try context.brain.notePath(db, fromId),
                 FileManager.default.fileExists(atPath: path.path) {
                 fromPaths.append(path)
             }
@@ -118,21 +119,21 @@ struct MergeNotesHandler: OperationHandling {
             atomically: true,
             encoding: .utf8
         )
-        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: intoPath), path: intoPath))
-        try scope.run(StampNoteLifecycleTransaction(nid: intoId, file: context.brain.layout.file(forId: intoId), now: now, isNew: false))
+        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: intoPath), path: intoPath))
+        try db.run(StampNoteLifecycleTransaction(nid: intoId, file: context.brain.layout.file(forId: intoId), now: now, isNew: false))
         
         for fromId in fromIds {
-            _ = try scope.run(FlagInboundReferrersTransaction(
+            _ = try db.run(FlagInboundReferrersTransaction(
                 targetId: fromId,
                 reason: "merged into \(intoId)",
                 now: now
             ))
-            try scope.run(RedirectLinksForMergeTransaction(fromId: fromId, intoId: intoId))
-            try scope.run(AbsorbNoteArtifactsForMergeTransaction(from: fromId, into: intoId))
-            try scope.run(DeleteNoteRowTransaction(nid: fromId))
+            try db.run(RedirectLinksForMergeTransaction(fromId: fromId, intoId: intoId))
+            try db.run(AbsorbNoteArtifactsForMergeTransaction(from: fromId, into: intoId))
+            try db.run(DeleteNoteRowTransaction(nid: fromId))
         }
         
-        try scope.run(SyncNoteEnrichTransaction(noteId: intoId))
+        try db.run(SyncNoteEnrichTransaction(noteId: intoId))
         
         for path in fromPaths {
             try Trash(layout: context.brain.layout).file(path, reason: "merged into \(intoId)", now: now)
@@ -155,18 +156,18 @@ struct MergeNotesHandler: OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] {
         var paths: [URL] = []
         
-        if let intoId = op["into_id"] as? String, let path = try context.brain.notePath(scope, intoId) {
+        if let intoId = op["into_id"] as? String, let path = try context.brain.notePath(db, intoId) {
             paths.append(path)
         }
         
         let fromIds = (op["from_ids"] as? [Any])?.compactMap { id in id as? String } ?? []
         
         for fromId in fromIds {
-            if let path = try context.brain.notePath(scope, fromId) {
+            if let path = try context.brain.notePath(db, fromId) {
                 paths.append(path)
                 
                 if let trashPath = Trash(layout: context.brain.layout).destination(of: path) { paths.append(trashPath) }

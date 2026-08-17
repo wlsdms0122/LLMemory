@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct RevalidateHandler: OperationHandling {
     // MARK: - Property
@@ -27,15 +28,15 @@ struct RevalidateHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
         
-        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, db: db) {
             return rejection
         }
         
-        guard let stale = try scope.run(FetchNoteStaleStateTransaction(nid: noteId)) else {
+        guard let stale = try db.run(FetchNoteStaleStateTransaction(nid: noteId)) else {
             return "unknown id: \(noteId)"
         }
         
@@ -47,12 +48,12 @@ struct RevalidateHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let now = context.now
         let noteId = op["id"] as! String
         
-        guard let path = try context.brain.notePath(scope, noteId),
+        guard let path = try context.brain.notePath(db, noteId),
             FileManager.default.fileExists(atPath: path.path)
         else {
             throw OperationError.noteFileMissing(op: "revalidate", id: noteId)
@@ -64,9 +65,9 @@ struct RevalidateHandler: OperationHandling {
         doc.invalidatedReason = nil
         
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
-        try scope.run(SetNoteStaleTransaction(nid: noteId, stale: false))
-        try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
+        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
+        try db.run(SetNoteStaleTransaction(nid: noteId, stale: false))
+        try db.run(RecordNoteLifecycleEventTransaction(nid: noteId,
             kind: "revalidated",
             reason: op["reason"] as? String,
             now: now
@@ -78,10 +79,10 @@ struct RevalidateHandler: OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] {
         guard let noteId = op["id"] as? String,
-            let path = try context.brain.notePath(scope, noteId)
+            let path = try context.brain.notePath(db, noteId)
         else {
             return []
         }

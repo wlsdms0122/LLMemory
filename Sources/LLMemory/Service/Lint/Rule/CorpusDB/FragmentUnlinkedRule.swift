@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct FragmentUnlinkedRule: CorpusDBLintRule {
     // MARK: - Property
@@ -16,11 +17,11 @@ struct FragmentUnlinkedRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope, _ tuning: LintTuning) throws -> [LintFinding] {
+    func check(_ db: Database, _ tuning: LintTuning) throws -> [LintFinding] {
         var findings: [LintFinding] = []
         
-        for family in try families.families(scope, minFamily: tuning.fragmentMinFamily) {
-            let unlinked = try families.unlinkedMembers(scope, family)
+        for family in try families.families(db, minFamily: tuning.fragmentMinFamily) {
+            let unlinked = try families.unlinkedMembers(db, family)
             
             guard !unlinked.isEmpty else { continue }
             

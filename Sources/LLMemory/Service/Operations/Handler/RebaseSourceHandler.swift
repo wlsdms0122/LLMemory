@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct RebaseSourceHandler: OperationHandling {
     // MARK: - Property
@@ -25,15 +26,15 @@ struct RebaseSourceHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
         
-        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, db: db) {
             return rejection
         }
         
-        if !(try scope.run(NoteSourceTrackedTransaction(nid: noteId))) {
+        if !(try db.run(NoteSourceTrackedTransaction(nid: noteId))) {
             return "note has no drift-tracked source: \(noteId)"
         }
         
@@ -43,17 +44,17 @@ struct RebaseSourceHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let now = context.now
         let noteId = op["id"] as! String
         
-        try scope.run(RebaseNoteSourceTransaction(
+        try db.run(RebaseNoteSourceTransaction(
             noteId: noteId,
-            paths: try SourceVerifier().declaredPaths(scope.readOnly, context.brain, noteId: noteId),
+            paths: try SourceVerifier().declaredPaths(db, context.brain, noteId: noteId),
             now: now
         ))
-        try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
+        try db.run(RecordNoteLifecycleEventTransaction(nid: noteId,
             kind: "source_rebased",
             reason: op["reason"] as? String,
             now: now

@@ -247,7 +247,7 @@ struct DismissalsTests {
         #expect(rows == 1, "a new key would create a second row and reset the ratchet")
     }
     
-    @Test("a dismissal must be addressed exactly once, with the field its scope calls for")
+    @Test("a dismissal must be addressed exactly once, with the field its db calls for")
     func targetAddressingGuards() throws {
         // Given
         try seedNearDuplicateTagPair()
@@ -269,7 +269,7 @@ struct DismissalsTests {
         #expect(both.status != "ok")
         #expect(both.error.contains("not both"), "\(both.error)")
         #expect(wrongScope.status != "ok")
-        #expect(wrongScope.error.contains("corpus-scope lint warns only"), "\(wrongScope.error)")
+        #expect(wrongScope.error.contains("corpus-db lint warns only"), "\(wrongScope.error)")
     }
     
     @Test("an untargeted corpus finding is a rule defect, reported as an error nobody can dismiss")
@@ -304,8 +304,8 @@ struct DismissalsTests {
         #expect(createSplitCandidate("big-reg").status == "ok")
         
         // When
-        let untargeted = try home.readScope { scope in
-            try home.lintScanner.lintAll(scope).filter { issue in issue.code == "lint-rule-untargeted" }
+        let untargeted = try home.readScope { db in
+            try home.lintScanner.lintAll(db).filter { issue in issue.code == "lint-rule-untargeted" }
         }
         
         // Then
@@ -365,8 +365,8 @@ struct DismissalsTests {
     }
     
     private func splitCandidateIds() throws -> [String] {
-        try home.readScope { scope in
-            try detector.splitCandidates(scope, limit: 50).map(\.id)
+        try home.readScope { db in
+            try detector.splitCandidates(db, limit: 50).map(\.id)
         }
     }
     
@@ -379,9 +379,9 @@ struct DismissalsTests {
     }
     
     private func lintIssues(code: String, includeDismissed: Bool = false) throws -> [LintIssue] {
-        try home.readScope { scope in
-            let all = try home.lintScanner.lintAll(scope)
-            let visible = includeDismissed ? all : try home.lintScanner.suppressDismissed(scope, all)
+        try home.readScope { db in
+            let all = try home.lintScanner.lintAll(db)
+            let visible = includeDismissed ? all : try home.lintScanner.suppressDismissed(db, all)
             
             return visible.filter { issue in issue.code == code }
         }

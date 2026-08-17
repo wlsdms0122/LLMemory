@@ -94,7 +94,7 @@ struct UnreadableNoteGateInvariantTests {
         _ = try corrupt(id: "il1-bad", body: "garbage, no frontmatter\n")
         
         // When
-        let issues = try home.read { database in try CorpusReconciler().checkFilesPresent(GRDBReadScope(database), home.brain).issues }
+        let issues = try home.read { database in try CorpusReconciler().checkFilesPresent(database, home.brain).issues }
         
         // Then
         #expect(issues.contains { issue in issue.contains("il1-bad") && issue.contains("unreadable") },
@@ -115,7 +115,7 @@ struct UnreadableNoteGateInvariantTests {
             try home.database().write { database -> (orphansPruned: Int, refilled: Int, unreadable: [String]) in
                 try database.execute(sql: "DELETE FROM notes_fts WHERE id IN ('fts-ok','fts-bad')")
                 
-                return try CorpusReconciler().reconcileSearchIndex(GRDBScope(database), home.brain)
+                return try CorpusReconciler().reconcileSearchIndex(database, home.brain)
             }
         }
         
@@ -228,7 +228,7 @@ struct UnreadableNoteGateInvariantTests {
         
         // Then
         #expect(throws: (any Error).self) {
-            try home.readScope { scope in try detector.neighbors(scope, noteId: "an-note", k: 3) }
+            try home.readScope { db in try detector.neighbors(db, noteId: "an-note", k: 3) }
         }
     }
     
@@ -244,8 +244,8 @@ struct UnreadableNoteGateInvariantTests {
         _ = try corrupt(id: "sw-bad", body: "garbage\n")
         
         // When
-        try home.readScope { scope in
-            let split = try detector.splitCandidates(scope)
+        try home.readScope { db in
+            let split = try detector.splitCandidates(db)
             
             // Then
             #expect(split.contains { candidate in candidate.id == "sw-ok" },
@@ -253,9 +253,9 @@ struct UnreadableNoteGateInvariantTests {
             #expect(!split.contains { candidate in candidate.id == "sw-bad" },
                 "an unreadable note was sketched anyway")
             
-            _ = try detector.clusters(scope)
-            _ = try detector.missingEdges(scope)
-            _ = try detector.nearDuplicates(scope)
+            _ = try detector.clusters(db)
+            _ = try detector.missingEdges(db)
+            _ = try detector.nearDuplicates(db)
         }
     }
     

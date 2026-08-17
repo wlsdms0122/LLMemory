@@ -48,7 +48,7 @@ public struct LintIssue: Encodable, Sendable {
         try container.encode(severity, forKey: .severity)
         try container.encode(code, forKey: .code)
         try container.encode(message, forKey: .message)
-        try container.encode(target.scope, forKey: .targetScope)
+        try container.encode(target.db, forKey: .targetScope)
         try container.encode(target.subject, forKey: .subject)
     }
     

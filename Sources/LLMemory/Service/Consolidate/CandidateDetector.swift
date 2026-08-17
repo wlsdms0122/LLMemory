@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // The restructuring detector — what counts as a candidate (split shapes,
 // stale flags, clusters, missing edges, near-duplicates) is decided here,
@@ -56,15 +57,15 @@ public struct CandidateDetector: Sendable {
     }
 
     // MARK: - Public
-    func splitCandidates(_ scope: GRDBReadScope, limit: Int = 20) throws -> [SplitCandidate] {
+    func splitCandidates(_ db: Database, limit: Int = 20) throws -> [SplitCandidate] {
         let minWords = brain.config.getInt("split.min_words", default: 400)
         let minSections = brain.config.getInt("split.min_sections", default: 4)
         let minTagDiversity = brain.config.getInt("split.min_tag_diversity", default: 3)
-        let rows = try scope.run(
+        let rows = try db.run(
             FetchSplitShapeRowsTransaction(minWords: minWords, minSections: minSections)
         )
-        let dismissals = try scope.run(FetchDismissalsByNoteTransaction(kind: "split"))
-        let generation = try scope.run(FetchCandidateGenerationTransaction())
+        let dismissals = try db.run(FetchDismissalsByNoteTransaction(kind: "split"))
+        let generation = try db.run(FetchCandidateGenerationTransaction())
         var candidates: [SplitCandidate] = []
         
         for row in rows {
@@ -82,7 +83,7 @@ public struct CandidateDetector: Sendable {
             
             let sections: [SectionSketch]
             do {
-                sections = try sectionSketch(scope, nid: row.id)
+                sections = try sectionSketch(db, nid: row.id)
             } catch is NoteUnreadable {
                 continue
             }
@@ -108,38 +109,38 @@ public struct CandidateDetector: Sendable {
     }
     
     func reconsolidateCandidates(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         limit: Int = 20
     ) throws -> [FlaggedCandidate] {
-        try flagged(scope, flag: "reconsolidate", limit: limit)
+        try flagged(db, flag: "reconsolidate", limit: limit)
     }
     
-    func rippleCandidates(_ scope: GRDBReadScope, limit: Int = 20) throws -> [FlaggedCandidate] {
-        try flagged(scope, flag: "stale_ref", limit: limit)
+    func rippleCandidates(_ db: Database, limit: Int = 20) throws -> [FlaggedCandidate] {
+        try flagged(db, flag: "stale_ref", limit: limit)
     }
     
     func enrichReviewCandidates(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         limit: Int = 20
     ) throws -> [FlaggedCandidate] {
-        try flagged(scope, flag: EnrichmentReview.flagKind, limit: limit)
+        try flagged(db, flag: EnrichmentReview.flagKind, limit: limit)
     }
     
-    func neighbors(_ scope: GRDBReadScope, noteId: String, k: Int = 10) throws -> [NeighborScore] {
-        guard let title = try scope.run(FetchNoteAnchorTransaction(nid: noteId)) else {
+    func neighbors(_ db: Database, noteId: String, k: Int = 10) throws -> [NeighborScore] {
+        guard let title = try db.run(FetchNoteAnchorTransaction(nid: noteId)) else {
             throw NotesError.unknownIds([noteId])
         }
         
         let body = try noteFile.requireNote(at: brain.layout.file(forId: noteId)).body
         
-        return try neighbors(scope, noteId: noteId, tokens: tokenize("\(title) \(body)"), k: k)
+        return try neighbors(db, noteId: noteId, tokens: tokenize("\(title) \(body)"), k: k)
     }
 
     // The scoring core — private, so every outside caller passes the anchor
     // existence gate above; a caller that already holds the body hands the
     // derived tokens, and nothing re-reads a file or keeps its text alive.
     private func neighbors(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         noteId: String,
         tokens: Set<String>,
         k: Int
@@ -151,7 +152,7 @@ public struct CandidateDetector: Sendable {
             let matchExpr = tokenList.map { token in "\"\(token)\"" }.joined(separator: " OR ")
             // The match expression is derived text — an unparsable one is a
             // miss, not a failure (same contract as the inline try? before).
-            let rows = (try? scope.run(
+            let rows = (try? db.run(
                 SearchFTSNeighborRowsTransaction(matchExpr: matchExpr, excludeId: noteId)
             )) ?? []
             let total = max(rows.count, 1)
@@ -172,10 +173,10 @@ public struct CandidateDetector: Sendable {
             }
         }
         
-        let targetEntities = try scope.run(FetchNoteEntitySetTransaction(nid: noteId))
+        let targetEntities = try db.run(FetchNoteEntitySetTransaction(nid: noteId))
         
         if !targetEntities.isEmpty {
-            let rows = try scope.run(FetchEntityOverlapRowsTransaction(nid: noteId))
+            let rows = try db.run(FetchEntityOverlapRowsTransaction(nid: noteId))
             let targetSize = targetEntities.count
             
             for row in rows {
@@ -197,7 +198,7 @@ public struct CandidateDetector: Sendable {
             }
         }
         
-        let linkRows = try scope.run(FetchLinkNeighborRowsTransaction(
+        let linkRows = try db.run(FetchLinkNeighborRowsTransaction(
                 nid: noteId,
                 siblingDiscount: brain.genes.double("links.sibling_rank_weight")
             ))
@@ -238,13 +239,13 @@ public struct CandidateDetector: Sendable {
     }
     
     func clusters(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         minSize: Int = 2,
         maxSize: Int? = nil,
         limit: Int = 20
     ) throws -> [CandidateCluster] {
         let cap = maxSize ?? brain.config.getInt("candidates.cluster.max_size", default: 12)
-        let edges = try scope.run(FetchClusterEdgesTransaction())
+        let edges = try db.run(FetchClusterEdgesTransaction())
         
         var parent: [String: String] = [:]
         
@@ -285,7 +286,7 @@ public struct CandidateDetector: Sendable {
         var clusters: [CandidateCluster] = []
         
         for (_, members) in groups where members.count >= minSize && members.count <= cap {
-            let rows = try scope.run(FetchClusterMemberRowsTransaction(ids: members))
+            let rows = try db.run(FetchClusterMemberRowsTransaction(ids: members))
             let memberStructs = rows.map { row in
                 CandidateMember(
                     id: row.id,
@@ -293,7 +294,7 @@ public struct CandidateDetector: Sendable {
                     summary: row.summary
                 )
             }
-            let clusterEdges = try clusterEdges(scope, memberIds: members)
+            let clusterEdges = try clusterEdges(db, memberIds: members)
             
             clusters.append(
                 CandidateCluster(
@@ -317,7 +318,7 @@ public struct CandidateDetector: Sendable {
     }
     
     func missingEdges(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         limit: Int = 20,
         perNote: Int = 3,
         vecCos: Double? = nil,
@@ -328,7 +329,7 @@ public struct CandidateDetector: Sendable {
         var linked = Set<String>()
         var degree: [String: Int] = [:]
         
-        for pair in try scope.run(FetchSurfaceLinkPairsTransaction()) {
+        for pair in try db.run(FetchSurfaceLinkPairsTransaction()) {
             linked.insert(pairKey(pair.src, pair.dst))
             degree[pair.src, default: 0] += 1
             degree[pair.dst, default: 0] += 1
@@ -336,7 +337,7 @@ public struct CandidateDetector: Sendable {
         
         var meta: [String: CandidateMember] = [:]
         
-        for row in try scope.run(FetchSurfaceMetaRowsTransaction()) {
+        for row in try db.run(FetchSurfaceMetaRowsTransaction()) {
             meta[row.id] = CandidateMember(
                 id: row.id,
                 title: row.title,
@@ -371,7 +372,7 @@ public struct CandidateDetector: Sendable {
         }
         
         do {
-            let raw = try scope.run(FetchNoteVectorsTransaction())
+            let raw = try db.run(FetchNoteVectorsTransaction())
             var vectors: [String: [Float]] = [:]
             
             for (id, vector) in raw where vector.count > 1 {
@@ -407,7 +408,7 @@ public struct CandidateDetector: Sendable {
             let hits: [(String, Double)]
             do {
                 hits = try bm25Neighbors(
-                    scope,
+                    db,
                     noteId: anchor,
                     limit: perNote,
                     maxBm25: bm25Threshold
@@ -447,13 +448,13 @@ public struct CandidateDetector: Sendable {
     }
     
     func nearDuplicates(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         minFts: Double = 0.85,
         minJaccard: Double = 0.6,
         minContainment: Double = 0.85,
         limit: Int = 20
     ) throws -> [NearDuplicate] {
-        let rows = try scope.run(FetchSurfaceNoteRowsTransaction())
+        let rows = try db.run(FetchSurfaceNoteRowsTransaction())
         var tokensById: [String: Set<String>] = [:]
         var summaryById: [String: String?] = [:]
         var ftsTokensById: [String: Set<String>] = [:]
@@ -486,7 +487,7 @@ public struct CandidateDetector: Sendable {
                 continue
             }
             
-            let neighborScores = try neighbors(scope, noteId: id, tokens: ftsTokens, k: 3)
+            let neighborScores = try neighbors(db, noteId: id, tokens: ftsTokens, k: 3)
             
             for neighbor in neighborScores {
                 if neighbor.fts < minFts { continue }
@@ -541,8 +542,8 @@ public struct CandidateDetector: Sendable {
     }
     
     // MARK: - Private
-    private func sectionSketch(_ scope: GRDBReadScope, nid: String) throws -> [SectionSketch] {
-        guard let path = try brain.notePath(scope, nid) else {
+    private func sectionSketch(_ db: Database, nid: String) throws -> [SectionSketch] {
+        guard let path = try brain.notePath(db, nid) else {
             return []
         }
         let (_, body) = try noteFile.requireNote(at: path)
@@ -567,11 +568,11 @@ public struct CandidateDetector: Sendable {
     }
     
     private func flagged(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         flag: String,
         limit: Int
     ) throws -> [FlaggedCandidate] {
-        try scope.run(FetchFlaggedRowsTransaction(flag: flag, limit: limit)).map { row in
+        try db.run(FetchFlaggedRowsTransaction(flag: flag, limit: limit)).map { row in
             FlaggedCandidate(
                 id: row.noteId,
                 reason: row.reason,
@@ -587,7 +588,7 @@ public struct CandidateDetector: Sendable {
     }
     
     private func clusterEdges(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         memberIds: [String]
     ) throws -> [CandidateCluster.Edge] {
         if memberIds.count < 2 { return [] }
@@ -603,7 +604,7 @@ public struct CandidateDetector: Sendable {
             let neighborScores: [NeighborScore]
             do {
                 neighborScores = try neighbors(
-                    scope,
+                    db,
                     noteId: memberId,
                     k: max(memberIds.count, 30)
                 )
@@ -655,12 +656,12 @@ public struct CandidateDetector: Sendable {
     }
     
     private func bm25Neighbors(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         noteId: String,
         limit: Int,
         maxBm25: Double
     ) throws -> [(String, Double)] {
-        guard let title = try scope.run(FetchNoteAnchorTransaction(nid: noteId)) else {
+        guard let title = try db.run(FetchNoteAnchorTransaction(nid: noteId)) else {
             return []
         }
         
@@ -683,7 +684,7 @@ public struct CandidateDetector: Sendable {
         let matchExpr = tokens.sorted().map { token in "\"\(token)\"" }.joined(separator: " OR ")
         // Derived match text — an unparsable expression is a miss, not a
         // failure (same contract as the inline try? before).
-        let rows = (try? scope.run(
+        let rows = (try? db.run(
             SearchBM25NeighborRowsTransaction(matchExpr: matchExpr, excludeId: noteId, limit: limit * 3)
         )) ?? []
         var hits: [(String, Double)] = []

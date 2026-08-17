@@ -15,7 +15,7 @@ struct GenomeShadow: AsyncParsableCommand {
         commandName: "shadow",
         abstract: "Replay logged queries under a candidate gene value — offline reranking, not a counterfactual.",
         discussion: """
-            Honest scope, by design:
+            Honest db, by design:
               · raw-retention only — replays search/related retrieval events
                 still in the events table; compacted history is gone and no
                 replay ledger exists.

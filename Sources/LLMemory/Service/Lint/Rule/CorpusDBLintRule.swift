@@ -6,7 +6,8 @@
 //
 
 import Foundation
+import GRDB
 
 protocol CorpusDBLintRule: LintRuleMeta {
-    func check(_ scope: GRDBReadScope, _ tuning: LintTuning) throws -> [LintFinding]
+    func check(_ db: Database, _ tuning: LintTuning) throws -> [LintFinding]
 }

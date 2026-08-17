@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct FlagHandler: OperationHandling {
     // MARK: - Property
@@ -26,23 +27,23 @@ struct FlagHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let kind = op["kind"] as? String ?? ""
         
         if !OperationVocabulary.creatableFlagKinds.contains(kind) { return "invalid flag kind: \(kind)" }
         
-        return try noteExistence.rejectionForUnknown(op["id"] as? String ?? "", context: context, scope: scope)
+        return try noteExistence.rejectionForUnknown(op["id"] as? String ?? "", context: context, db: db)
     }
     
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let now = context.now
         
-        try scope.run(AddRippleFlagTransaction(
+        try db.run(AddRippleFlagTransaction(
             noteId: op["id"] as! String,
             kind: op["kind"] as! String,
             reason: op["reason"] as? String ?? "",

@@ -46,7 +46,7 @@ public struct OperationsService: OperationsServiceable {
         }
         
         do {
-            let result = try await storage.run { scope in
+            let result = try await storage.run { db in
                 guard let payload = engine.decodePayload(payloadJSON) else {
                     return OperationsResult(
                         status: "rejected",
@@ -58,7 +58,7 @@ public struct OperationsService: OperationsServiceable {
                     )
                 }
                 
-                return engine.apply(scope, payload, sessionId: sessionId)
+                return engine.apply(db, payload, sessionId: sessionId)
             }
             
             return result
@@ -80,7 +80,7 @@ public struct OperationsService: OperationsServiceable {
         sessionId: SessionId?
     ) async -> OperationsDryRunResult {
         do {
-            return try await storage.read { scope in
+            return try await storage.read { db in
                 guard let payload = engine.decodePayload(payloadJSON) else {
                     return OperationsDryRunResult(
                         status: "rejected",
@@ -90,7 +90,7 @@ public struct OperationsService: OperationsServiceable {
                     )
                 }
                 
-                return engine.dryRun(scope, payload, sessionId: sessionId)
+                return engine.dryRun(db, payload, sessionId: sessionId)
             }
         } catch {
             return OperationsDryRunResult(

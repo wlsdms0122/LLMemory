@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // Reads fragment families out of the corpus. Family membership is decided by
 // the connected components of the `sibling` edges first — those are a fact the
@@ -17,8 +18,8 @@ struct NoteFamilyIndex {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    func families(_ scope: GRDBReadScope, minFamily: Int) throws -> [NoteFamily] {
-        let graph = try scope.run(FetchFamilyGraphTransaction())
+    func families(_ db: Database, minFamily: Int) throws -> [NoteFamily] {
+        let graph = try db.run(FetchFamilyGraphTransaction())
         let allIds = Set(graph.notes)
         var adjacency: [String: [String]] = [:]
         
@@ -105,12 +106,12 @@ struct NoteFamilyIndex {
         }
     }
     
-    func unlinkedMembers(_ scope: GRDBReadScope, _ family: NoteFamily) throws -> [String] {
+    func unlinkedMembers(_ db: Database, _ family: NoteFamily) throws -> [String] {
         let inFamily = Set(family.members).union(family.stem.map { stem in [stem] } ?? [])
         var unlinked: [String] = []
         
         for member in family.members {
-            let neighbours = try scope.run(FetchDeliberateNeighborsTransaction(noteId: member))
+            let neighbours = try db.run(FetchDeliberateNeighborsTransaction(noteId: member))
             
             if neighbours.contains(where: { other in inFamily.contains(other) }) { continue }
             

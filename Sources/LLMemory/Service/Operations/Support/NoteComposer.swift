@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // Builds what a new or edited note is made of: the body a create_note lands
 // (scaffolded from its template frame when it declares one), and the custom
@@ -22,7 +23,7 @@ struct NoteComposer {
     // MARK: - Public
     func composeCreateBody(
         _ op: [String: Any],
-        _ scope: GRDBReadScope,
+        _ db: Database,
         _ brain: BrainContext
     ) throws -> String {
         let raw = op["content"] as? String ?? ""
@@ -30,7 +31,7 @@ struct NoteComposer {
         let templateId = (op["template"] as? String).flatMap { value in value.isEmpty ? nil : value }
         
         if let templateId, content.isEmpty,
-            let frame = try frames.frame(scope, brain, templateId: templateId) {
+            let frame = try frames.frame(db, brain, templateId: templateId) {
             content = template.scaffold(frame)
         }
         

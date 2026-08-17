@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 import Storage
 
 // Retrieval-domain service — the associative surfaces (search, related,
@@ -50,9 +51,9 @@ public struct RetrievalService: RetrievalServiceable {
         excludeTags: [String],
         raw: Bool
     ) async throws -> (rows: [SearchRow], extra: [ExpandedNote]) {
-        let outcome = try await storage.read { scope in
+        let outcome = try await storage.read { db in
             try search(
-                scope,
+                db,
                 query: query,
                 tags: tags,
                 limit: limit,
@@ -75,9 +76,9 @@ public struct RetrievalService: RetrievalServiceable {
         sessionId: SessionId?,
         includeBodies: Bool
     ) async throws -> RelatedResult {
-        let outcome = try await storage.read { scope in
+        let outcome = try await storage.read { db in
             try related(
-                scope,
+                db,
                 text: text,
                 kind: kind,
                 sessionId: sessionId,
@@ -100,8 +101,8 @@ public struct RetrievalService: RetrievalServiceable {
         k: Int,
         sessionId: SessionId?
     ) async throws -> [NeighborScore] {
-        let outcome = try await storage.read { scope in
-            try neighbors(scope, id: id, k: k, sessionId: sessionId)
+        let outcome = try await storage.read { db in
+            try neighbors(db, id: id, k: k, sessionId: sessionId)
         }
 
         try await applyRecord(outcome.record)
@@ -113,14 +114,14 @@ public struct RetrievalService: RetrievalServiceable {
         name: String?,
         limit: Int
     ) async throws -> [EntityHit] {
-        try await storage.read { scope in
-            try scope.run(LookupEntitiesTransaction(name: name, limit: limit))
+        try await storage.read { db in
+            try db.run(LookupEntitiesTransaction(name: name, limit: limit))
         }
     }
 
     // MARK: - Internal
     func search(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         query: String,
         tags: [String] = [],
         limit: Int = 5,
@@ -131,7 +132,7 @@ public struct RetrievalService: RetrievalServiceable {
         sinceTs: Int? = nil,
         raw: Bool = false
     ) throws -> (rows: [SearchRow], extra: [ExpandedNote], record: RetrievalRecord) {
-        let rows = try scope.run(
+        let rows = try db.run(
             SearchNotesFTSTransaction(
                 match: raw ? .raw(query) : .text(query, keywords: keywords),
                 tags: tags,
@@ -147,7 +148,7 @@ public struct RetrievalService: RetrievalServiceable {
         var extra: [ExpandedNote] = []
 
         if expand > 0 {
-            extra = (try? scope.run(
+            extra = (try? db.run(
                 ExpandLinksTransaction(
                     noteIds: rows.map { row in row.id },
                     hops: 1,
@@ -182,13 +183,13 @@ public struct RetrievalService: RetrievalServiceable {
     }
 
     func related(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         text: String,
         kind: LinkKind?,
         sessionId: SessionId?,
         includeBodies: Bool
     ) throws -> (result: RelatedResult, record: RetrievalRecord) {
-        let snapshot = try scope.run(
+        let snapshot = try db.run(
             BuildFramingSnapshotTransaction(
                 text: text,
                 linkKind: kind,
@@ -230,12 +231,12 @@ public struct RetrievalService: RetrievalServiceable {
     }
 
     func neighbors(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         id: String,
         k: Int,
         sessionId: SessionId? = nil
     ) throws -> (scores: [NeighborScore], record: RetrievalRecord?) {
-        let scores = try detector.neighbors(scope, noteId: id, k: k)
+        let scores = try detector.neighbors(db, noteId: id, k: k)
         let record: RetrievalRecord? = scores.isEmpty ? nil : .init(
             sessionId: sessionId,
             payload: EventPayload(command: .neighbors, [
@@ -256,8 +257,8 @@ public struct RetrievalService: RetrievalServiceable {
     ) async throws -> [String] {
         guard let record else { return [] }
 
-        return try await storage.run { scope in
-            try scope.run(
+        return try await storage.run { db in
+            try db.run(
                 RecordRetrievalTransaction(
                     record,
                     strengthenStep: brain.genes.double("links.strengthen_step"),

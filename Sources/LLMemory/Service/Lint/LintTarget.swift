@@ -11,7 +11,7 @@ public enum LintTarget: Equatable, Hashable, Sendable {
     case note(String)
     case corpus(String)
     
-    public var scope: String {
+    public var db: String {
         switch self {
         case .note:
             return "note"
@@ -28,5 +28,5 @@ public enum LintTarget: Equatable, Hashable, Sendable {
         }
     }
     
-    var storageKey: String { "\(scope)\u{0}\(subject)" }
+    var storageKey: String { "\(db)\u{0}\(subject)" }
 }

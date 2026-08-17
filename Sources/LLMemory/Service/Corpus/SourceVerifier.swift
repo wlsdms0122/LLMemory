@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // Drift checking for the files a note was written from.
 //
@@ -24,11 +25,11 @@ struct SourceVerifier {
     // What the note declares as its sources, or nothing when the brain has no
     // such note. Throws NoteUnreadable for a note whose file cannot be parsed.
     func declaredPaths(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         _ brain: BrainContext,
         noteId: String
     ) throws -> [String] {
-        guard let file = try brain.notePath(scope, noteId) else { return [] }
+        guard let file = try brain.notePath(db, noteId) else { return [] }
 
         return try noteFile.requireNote(at: file).doc.source
     }
@@ -37,12 +38,12 @@ struct SourceVerifier {
     // reported rather than skipped — the corpus is the authority, so losing
     // access to it is the finding.
     func verifyAll(
-        _ scope: GRDBScope,
+        _ db: Database,
         _ brain: BrainContext,
         now: Int? = nil
     ) throws -> SourceVerifyResult {
         let timestamp = now ?? Int(Date().timeIntervalSince1970)
-        let tracked = try scope.run(FetchSourceTrackingTransaction())
+        let tracked = try db.run(FetchSourceTrackingTransaction())
         var result = SourceVerifyResult(
             total: tracked.count,
             rechecked: 0,
@@ -56,7 +57,7 @@ struct SourceVerifier {
             let noteId = tracking.noteId
             let declared: [String]
             do {
-                declared = try declaredPaths(scope.readOnly, brain, noteId: noteId)
+                declared = try declaredPaths(db, brain, noteId: noteId)
             } catch {
                 guard error is NoteUnreadable else { throw error }
 
@@ -67,12 +68,12 @@ struct SourceVerifier {
             let checkable = declared.filter(fingerprint.isDriftCheckable)
 
             if checkable.isEmpty {
-                try scope.run(SetSourceStalenessTransaction(noteId: noteId, stale: nil))
+                try db.run(SetSourceStalenessTransaction(noteId: noteId, stale: nil))
                 continue
             }
 
             if fingerprint.computeDeclHash(declared) != tracking.declHash {
-                try scope.run(
+                try db.run(
                     RebaseNoteSourceTransaction(noteId: noteId, paths: declared, now: timestamp)
                 )
                 result.rechecked += 1
@@ -104,7 +105,7 @@ struct SourceVerifier {
                 result.recovered += 1
             }
 
-            try scope.run(SetSourceStalenessTransaction(noteId: noteId, stale: stale))
+            try db.run(SetSourceStalenessTransaction(noteId: noteId, stale: stale))
         }
 
         return result

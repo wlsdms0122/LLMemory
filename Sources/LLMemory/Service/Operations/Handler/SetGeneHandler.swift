@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct SetGeneHandler: OperationHandling {
     // MARK: - Property
@@ -28,7 +29,7 @@ struct SetGeneHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let id = op["gene"] as? String ?? ""
         var value: Double?
@@ -45,14 +46,14 @@ struct SetGeneHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let now = context.now
         let id = op["gene"] as! String
         let reason = op["reason"] as? String
         
         if let raw = op["value"], !(raw is NSNull), let value = number.value(of: raw) {
-            let result = try scope.run(
+            let result = try db.run(
                 ApplyGeneValueTransaction(
                     geneId: id,
                     value: value,
@@ -71,7 +72,7 @@ struct SetGeneHandler: OperationHandling {
             ]
         }
         
-        let old = try scope.run(
+        let old = try db.run(
             RevertGeneValueTransaction(
                 geneId: id,
                 cause: "set_gene",

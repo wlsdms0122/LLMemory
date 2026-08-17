@@ -27,7 +27,7 @@ public struct EnrichmentService: EnrichmentServiceable {
 
     // MARK: - Public
     public func status() async throws -> EnrichmentStatus {
-        try await storage.read { scope in try scope.run(
+        try await storage.read { db in try db.run(
                 EnrichmentStatusTransaction(
                     neighborFloor: brain.genes.double("links.neighbor_floor"),
                     disagreeFloor: enrichment.disagreeFloor,

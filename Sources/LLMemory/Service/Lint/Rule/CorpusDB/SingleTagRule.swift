@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // Tags are the only classification a note has, so one tag means one way in.
 // A note that is otherwise connected but carries a single label is reachable
@@ -17,8 +18,8 @@ struct SingleTagRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope, _ tuning: LintTuning) throws -> [LintFinding] {
-        try scope.run(FetchFragmentationRowsTransaction())
+    func check(_ db: Database, _ tuning: LintTuning) throws -> [LintFinding] {
+        try db.run(FetchFragmentationRowsTransaction())
             .filter { row in
                 !(row.linkN == 0 && row.entN == 0 && row.tagN <= 1) && row.tagN <= 1
             }

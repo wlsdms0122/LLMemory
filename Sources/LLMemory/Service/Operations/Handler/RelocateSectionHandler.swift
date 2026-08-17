@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct RelocateSectionHandler: OperationHandling {
     // MARK: - Property
@@ -32,18 +33,18 @@ struct RelocateSectionHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let fromId = op["from_id"] as? String ?? ""
         let toId = op["to_id"] as? String ?? ""
         
         if fromId == toId { return "from_id and to_id must differ" }
         
-        if let rejection = try noteExistence.rejectionForUnknown(fromId, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(fromId, context: context, db: db) {
             return rejection
         }
         
-        if let rejection = try noteExistence.rejectionForUnknown(toId, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(toId, context: context, db: db) {
             return rejection
         }
         
@@ -83,14 +84,14 @@ struct RelocateSectionHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let fromId = op["from_id"] as! String
         let toId = op["to_id"] as! String
         
-        guard let srcPath = try context.brain.notePath(scope, fromId),
+        guard let srcPath = try context.brain.notePath(db, fromId),
             FileManager.default.fileExists(atPath: srcPath.path),
-            let dstPath = try context.brain.notePath(scope, toId),
+            let dstPath = try context.brain.notePath(db, toId),
             FileManager.default.fileExists(atPath: dstPath.path)
         else {
             throw OperationError.noteFileMissing(op: "relocate_section", id: "\(fromId) or \(toId)")
@@ -143,21 +144,21 @@ struct RelocateSectionHandler: OperationHandling {
             atomically: true,
             encoding: .utf8
         )
-        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: srcPath), path: srcPath))
-        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: dstPath), path: dstPath))
+        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: srcPath), path: srcPath))
+        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: dstPath), path: dstPath))
         
         let now = context.now
         
-        try scope.run(StampNoteLifecycleTransaction(nid: fromId, file: context.brain.layout.file(forId: fromId), now: now, isNew: false))
-        try scope.run(StampNoteLifecycleTransaction(nid: toId, file: context.brain.layout.file(forId: toId), now: now, isNew: false))
+        try db.run(StampNoteLifecycleTransaction(nid: fromId, file: context.brain.layout.file(forId: fromId), now: now, isNew: false))
+        try db.run(StampNoteLifecycleTransaction(nid: toId, file: context.brain.layout.file(forId: toId), now: now, isNew: false))
         try bookkeeper.recordEdit(
-            scope,
+            db,
             nid: fromId,
             opLabel: "relocate_section/from→\(toId)",
             now: now
         )
         try bookkeeper.recordEdit(
-            scope,
+            db,
             nid: toId,
             opLabel: "relocate_section/from←\(fromId)",
             now: now
@@ -174,16 +175,16 @@ struct RelocateSectionHandler: OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] {
         var paths: [URL] = []
         
         if let fromId = op["from_id"] as? String,
-            let path = try context.brain.notePath(scope, fromId) {
+            let path = try context.brain.notePath(db, fromId) {
             paths.append(path)
         }
         
-        if let toId = op["to_id"] as? String, let path = try context.brain.notePath(scope, toId) {
+        if let toId = op["to_id"] as? String, let path = try context.brain.notePath(db, toId) {
             paths.append(path)
         }
         

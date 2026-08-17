@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // The heading frame a template note declares.
 //
@@ -24,11 +25,11 @@ struct TemplateFrames {
     // read throws — a template silently treated as frameless would let every
     // note that follows it drift unreported.
     func frame(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         _ brain: BrainContext,
         templateId: String
     ) throws -> [TemplateFrameNode]? {
-        guard let file = try brain.notePath(scope, templateId) else { return nil }
+        guard let file = try brain.notePath(db, templateId) else { return nil }
 
         let (_, body) = try frontmatter.parse(try String(contentsOf: file, encoding: .utf8))
 

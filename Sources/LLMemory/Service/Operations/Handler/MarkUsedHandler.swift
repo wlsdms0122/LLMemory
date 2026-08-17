@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct MarkUsedHandler: OperationHandling {
     // MARK: - Property
@@ -28,7 +29,7 @@ struct MarkUsedHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         guard let raw = op["ids"] as? [Any], !raw.isEmpty else {
             return "ids must be a non-empty array of note ids"
@@ -41,7 +42,7 @@ struct MarkUsedHandler: OperationHandling {
         let lookbackSec = ActivationTuning(context.brain).usedLookbackSec
         let cutoff = context.now - lookbackSec
         let label = context.sessionId
-        let surfaced = try scope.run(
+        let surfaced = try db.run(
             NotesSurfacedRecentlyTransaction(noteIds: ids, cutoff: cutoff, label: label)
         )
         
@@ -57,7 +58,7 @@ struct MarkUsedHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let ids = (op["ids"] as! [Any]).compactMap { value in value as? String }
         
@@ -66,12 +67,12 @@ struct MarkUsedHandler: OperationHandling {
         // events) and the marking below see the same universe. The
         // notSurfaced throw inside is a backstop, not a second gate: it
         // shares the context's now/session with validation.
-        _ = try scope.run(DeriveActivityWindowsTransaction(
+        _ = try db.run(DeriveActivityWindowsTransaction(
             now: context.now,
             windowGapSec: ActivationTuning(context.brain).windowGapSec
         ))
         
-        let outcomes = try scope.run(MarkNotesUsedTransaction(
+        let outcomes = try db.run(MarkNotesUsedTransaction(
             ids: ids,
             response: op["response"] as? String,
             sessionLabel: context.sessionId,

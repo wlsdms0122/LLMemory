@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct EnrichThinRule: NoteDBLintRule {
     // MARK: - Property
@@ -17,7 +18,7 @@ struct EnrichThinRule: NoteDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope, _ brain: BrainContext, note: NoteLintInput) throws -> [LintFinding] {
+    func check(_ db: Database, _ brain: BrainContext, note: NoteLintInput) throws -> [LintFinding] {
         let haystack = "\(note.doc.title)\n\(note.body)"
         
         guard hasHangul(haystack) else { return [] }
@@ -26,7 +27,7 @@ struct EnrichThinRule: NoteDBLintRule {
         
         guard !compounds.isEmpty else { return [] }
         
-        let active = try scope.run(CountActiveRetrievalTermsTransaction(noteId: note.nid))
+        let active = try db.run(CountActiveRetrievalTermsTransaction(noteId: note.nid))
         
         guard active == 0 else { return [] }
         

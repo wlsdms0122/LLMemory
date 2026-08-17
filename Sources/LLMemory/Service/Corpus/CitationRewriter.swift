@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // Re-addressing is renaming, and a rename that leaves the corpus pointing at
 // the old name is a rename that manufactures dangling references. There is no
@@ -22,14 +23,14 @@ struct CitationRewriter {
     // unreadable citer fails the whole re-addressing instead.
     @discardableResult
     func rewrite(
-        _ scope: GRDBScope,
+        _ db: Database,
         _ brain: BrainContext,
         from: String,
         to: String
     ) throws -> [String] {
         guard from != to else { return [] }
 
-        let citers = try scope.run(FetchInboundCitersTransaction(marker: from, excluding: to))
+        let citers = try db.run(FetchInboundCitersTransaction(marker: from, excluding: to))
         var rewritten: [String] = []
 
         for citer in citers {
@@ -44,7 +45,7 @@ struct CitationRewriter {
             guard updated != text else { continue }
 
             try updated.write(to: file, atomically: true, encoding: .utf8)
-            try scope.run(
+            try db.run(
                 ReindexNoteFileTransaction(
                     noteId: try brain.requireNoteId(of: file),
                     path: file

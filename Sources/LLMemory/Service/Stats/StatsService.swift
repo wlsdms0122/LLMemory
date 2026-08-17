@@ -23,17 +23,17 @@ public struct StatsService: StatsServiceable {
     public func noteStats(
         id: String
     ) async throws -> NoteStats? {
-        try await storage.read { scope in try scope.run(NoteStatsTransaction(id: id)) }
+        try await storage.read { db in try db.run(NoteStatsTransaction(id: id)) }
     }
 
     public func prefixStats(
         prefix: String
     ) async throws -> PrefixStats {
-        try await storage.read { scope in try scope.run(PrefixStatsTransaction(prefix: prefix)) }
+        try await storage.read { db in try db.run(PrefixStatsTransaction(prefix: prefix)) }
     }
 
     public func overallStats() async throws -> OverallStats {
-        try await storage.read { scope in try scope.run(OverallStatsTransaction()) }
+        try await storage.read { db in try db.run(OverallStatsTransaction()) }
     }
 
     // MARK: - Private

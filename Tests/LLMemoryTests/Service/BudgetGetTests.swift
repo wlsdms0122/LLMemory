@@ -37,7 +37,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd", title: "bd", tags: ["tech"],
             content: body).status == "ok")
         
-        let (_, _, cut) = try home.readScope { scope in try home.notesService.getBudget(scope, id: "bd", budget: 15, sessionId: nil) }
+        let (_, _, cut) = try home.readScope { db in try home.notesService.getBudget(db, id: "bd", budget: 15, sessionId: nil) }
         
         #expect(cut.truncated)
         #expect(cut.shownSections.map { section in section.path } == ["## A"])
@@ -54,7 +54,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd2", title: "bd2", tags: ["tech"],
             content: body).status == "ok")
         
-        let (_, _, cut) = try home.readScope { scope in try home.notesService.getBudget(scope, id: "bd2", budget: 1, sessionId: nil) }
+        let (_, _, cut) = try home.readScope { db in try home.notesService.getBudget(db, id: "bd2", budget: 1, sessionId: nil) }
         
         #expect(cut.truncated)
         #expect(cut.truncatedWithin == "(preamble)")
@@ -74,7 +74,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd6", title: "bd6", tags: ["tech"],
             content: big).status == "ok")
         
-        let (_, _, cut) = try home.readScope { scope in try home.notesService.getBudget(scope, id: "bd6", budget: 10, sessionId: nil) }
+        let (_, _, cut) = try home.readScope { db in try home.notesService.getBudget(db, id: "bd6", budget: 10, sessionId: nil) }
         
         #expect(cut.truncated)
         #expect(cut.truncatedWithin == "## A")
@@ -89,7 +89,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd3", title: "bd3", tags: ["tech"],
             content: body).status == "ok")
         
-        let (note, _, cut) = try home.readScope { scope in try home.notesService.getBudget(scope, id: "bd3", budget: 10_000, sessionId: nil) }
+        let (note, _, cut) = try home.readScope { db in try home.notesService.getBudget(db, id: "bd3", budget: 10_000, sessionId: nil) }
         
         #expect(!cut.truncated)
         #expect(cut.omitted.isEmpty)
@@ -116,7 +116,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd5", title: "bd5", tags: ["tech"],
             content: wrapped).status == "ok")
         
-        let (_, _, cut) = try home.readScope { scope in try home.notesService.getBudget(scope, id: "bd5", budget: 16, sessionId: nil) }
+        let (_, _, cut) = try home.readScope { db in try home.notesService.getBudget(db, id: "bd5", budget: 16, sessionId: nil) }
         
         #expect(cut.truncated)
         #expect(cut.shownSections.map { section in section.path } == ["# Report history > ## 2026-07-01"])
@@ -126,8 +126,8 @@ struct BudgetGetTests {
         #expect(cut.shown.contains("six"))
         #expect(!cut.shown.contains("seven"))
         
-        let (_, slices, _) = try home.readScope { scope in
-            try home.notesService.getSections(scope, id: "bd5", sections: [cut.omitted[0].path], sessionId: nil)
+        let (_, slices, _) = try home.readScope { db in
+            try home.notesService.getSections(db, id: "bd5", sections: [cut.omitted[0].path], sessionId: nil)
         }
         
         #expect(slices[0].text.contains("seven eight"))
@@ -144,7 +144,7 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd7", title: "bd7", tags: ["tech"],
             content: wrapped).status == "ok")
         
-        let (_, _, cut) = try home.readScope { scope in try home.notesService.getBudget(scope, id: "bd7", budget: 30, sessionId: nil) }
+        let (_, _, cut) = try home.readScope { db in try home.notesService.getBudget(db, id: "bd7", budget: 30, sessionId: nil) }
         
         #expect(cut.truncated)
         #expect(cut.truncatedWithin == "# Report history")
@@ -160,13 +160,13 @@ struct BudgetGetTests {
         #expect(home.createNote(id: "bd4", title: "bd4", tags: ["tech"],
             content: "three words here\nand five more words now\n").status == "ok")
         
-        let (_, _, cut) = try home.readScope { scope in try home.notesService.getBudget(scope, id: "bd4", budget: 3, sessionId: nil) }
+        let (_, _, cut) = try home.readScope { db in try home.notesService.getBudget(db, id: "bd4", budget: 3, sessionId: nil) }
         
         #expect(cut.truncated)
         #expect(cut.truncatedWithin == "(preamble)")
         #expect(cut.shown == "three words here")
         
-        let (note, _, full) = try home.readScope { scope in try home.notesService.getBudget(scope, id: "bd4", budget: 100, sessionId: nil) }
+        let (note, _, full) = try home.readScope { db in try home.notesService.getBudget(db, id: "bd4", budget: 100, sessionId: nil) }
         
         #expect(!full.truncated)
         #expect(full.shown == note.body)

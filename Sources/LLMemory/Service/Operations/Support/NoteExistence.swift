@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // Whether an id names a note, counting the ones this batch is about to create.
 // A batch is one transaction, so an op may refer to a note an earlier op in the
@@ -19,19 +20,19 @@ struct NoteExistence {
     // this batch. Asking `state.ids` alone is the shape that let `migrate_note`
     // move a note onto an id another op had just created, with no file and no
     // row left to say the second note ever existed.
-    func isTaken(_ nid: String, context: HandlerContext, scope: GRDBReadScope) throws -> Bool {
+    func isTaken(_ nid: String, context: HandlerContext, db: Database) throws -> Bool {
         if context.inFlightIds.contains(nid) { return true }
 
-        return try scope.run(NoteExistsTransaction(nid: nid))
+        return try db.run(NoteExistsTransaction(nid: nid))
     }
 
     func rejectionForUnknown(
         _ nid: String,
         context: HandlerContext,
-        scope: GRDBReadScope
+        db: Database
     ) throws -> String? {
         if context.inFlightIds.contains(nid) { return nil }
-        if try scope.run(NoteExistsTransaction(nid: nid)) { return nil }
+        if try db.run(NoteExistsTransaction(nid: nid)) { return nil }
         
         return "unknown id: \(nid)"
     }

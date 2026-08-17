@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct TemplateDriftRule: NoteDBLintRule {
     // MARK: - Property
@@ -18,10 +19,10 @@ struct TemplateDriftRule: NoteDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope, _ brain: BrainContext, note: NoteLintInput) throws -> [LintFinding] {
+    func check(_ db: Database, _ brain: BrainContext, note: NoteLintInput) throws -> [LintFinding] {
         guard let templateId = note.doc.template, !templateId.isEmpty else { return [] }
         
-        guard let frame = try frames.frame(scope, brain, templateId: templateId) else {
+        guard let frame = try frames.frame(db, brain, templateId: templateId) else {
             return [.init("template note '\(templateId)' not found — cannot validate frame")]
         }
         

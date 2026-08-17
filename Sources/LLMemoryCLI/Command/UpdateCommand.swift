@@ -41,7 +41,7 @@ struct UpdateCommand: ParsableCommand {
             An id this release no longer ships, still held by a note carrying
             `seed: true`, is retired to cortex/.trash/ and reported — a release
             unowns its own copy rather than leaving it to claim a provenance
-            nothing backs. Authored notes are never in scope.
+            nothing backs. Authored notes are never in db.
             
             A seeded note is one that carries `seed: true`. If a release adds an id
             an authored note already holds, that is a conflict: NOTHING is

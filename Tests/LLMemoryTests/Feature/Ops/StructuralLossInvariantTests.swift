@@ -72,7 +72,7 @@ struct StructuralLossInvariantTests {
         #expect(home.createNote(id: "trsh-snap", content: "## A\nsecond\n").status == "ok")
         
         // When
-        let source = try home.read { database in try home.brain.notePath(GRDBReadScope(database), "trsh-snap") }
+        let source = try home.read { database in try home.brain.notePath(database, "trsh-snap") }
         
         guard let source, let predicted = trash.destination(of: source) else {
             throw TestFailure("setup: no trash destination for the live note")
@@ -181,11 +181,11 @@ struct StructuralLossInvariantTests {
         let expected = home.layout.file(forId: "mig.dst")
         
         // When
-        let touched = try home.readScope { scope in
+        let touched = try home.readScope { db in
             try MigrateNoteHandler().touches(
                 operation,
                 HandlerContext(sessionId: nil, now: home.now, brain: home.brain),
-                scope
+                db
             )
         }
         

@@ -440,7 +440,7 @@ struct TemplateTests {
         ]], "rationale": "t"]).status == "ok")
         
         let queue = try home.storage.connect()
-        let members = Set(try queue.read { db in try detector.clusters(GRDBReadScope(db)) }.flatMap { cluster in cluster.members.map(\.id) })
+        let members = Set(try queue.read { db in try detector.clusters(db) }.flatMap { cluster in cluster.members.map(\.id) })
         
         #expect(members.contains("cl-n1"))
         #expect(members.contains("cl-n2"))
@@ -453,7 +453,7 @@ struct TemplateTests {
         // Then
         #expect(makeTemplate().status == "ok")
         
-        let (note, frame, _) = try home.readScope { scope in try home.notesService.template(scope, id: "tpl-spec", sessionId: nil) }
+        let (note, frame, _) = try home.readScope { db in try home.notesService.template(db, id: "tpl-spec", sessionId: nil) }
         
         #expect(note.id == "tpl-spec")
         #expect(frame.map(\.title) == ["Background", "Spec", "Reference"])

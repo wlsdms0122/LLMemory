@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // One op. A handler declares the fields it accepts, refuses a payload it
 // cannot honour, and performs the change inside a scope the engine opened.
@@ -25,13 +26,13 @@ protocol OperationHandling: Sendable {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String?
     
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any]
     
     func effect(_ op: [String: Any]) -> [String: [String]]
@@ -39,7 +40,7 @@ protocol OperationHandling: Sendable {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL]
 }
 
@@ -49,6 +50,6 @@ extension OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] { [] }
 }

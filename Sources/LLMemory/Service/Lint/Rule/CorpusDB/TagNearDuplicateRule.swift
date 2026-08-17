@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct TagNearDuplicateRule: CorpusDBLintRule {
     // MARK: - Property
@@ -16,8 +17,8 @@ struct TagNearDuplicateRule: CorpusDBLintRule {
     
     // MARK: - Initializer
     // MARK: - Public
-    func check(_ scope: GRDBReadScope, _ tuning: LintTuning) throws -> [LintFinding] {
-        let counts = try scope.run(FetchTagUsageTransaction())
+    func check(_ db: Database, _ tuning: LintTuning) throws -> [LintFinding] {
+        let counts = try db.run(FetchTagUsageTransaction())
         var findings: [LintFinding] = []
         
         for leftIndex in 0..<counts.count {

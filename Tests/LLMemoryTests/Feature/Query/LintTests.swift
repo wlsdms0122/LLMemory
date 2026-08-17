@@ -118,8 +118,8 @@ struct LintTests {
         try home.overwriteBody(of: "lf-broken", with: "## A\nx\n## A\ny\n")
         
         // When
-        let all = try home.readScope { scope in try home.lintScanner.scan(
-                scope,
+        let all = try home.readScope { db in try home.lintScanner.scan(
+                db,
                 id: nil,
                 code: nil,
                 severity: nil,
@@ -127,8 +127,8 @@ struct LintTests {
                 includeDismissed: false
             )
         }
-        let errors = try home.readScope { scope in try home.lintScanner.scan(
-                scope,
+        let errors = try home.readScope { db in try home.lintScanner.scan(
+                db,
                 id: nil,
                 code: nil,
                 severity: "error",
@@ -136,8 +136,8 @@ struct LintTests {
                 includeDismissed: false
             )
         }
-        let onlyEnrich = try home.readScope { scope in try home.lintScanner.scan(
-                scope,
+        let onlyEnrich = try home.readScope { db in try home.lintScanner.scan(
+                db,
                 id: nil,
                 code: "enrich-thin",
                 severity: nil,
@@ -145,8 +145,8 @@ struct LintTests {
                 includeDismissed: false
             )
         }
-        let capped = try home.readScope { scope in try home.lintScanner.scan(
-                scope,
+        let capped = try home.readScope { db in try home.lintScanner.scan(
+                db,
                 id: nil,
                 code: nil,
                 severity: nil,
@@ -294,7 +294,7 @@ struct LintTests {
         #expect(DanglingNoteRefRule().nearestId("ref-targex", ["ref-targea", "ref-targeb"], excluding: "x") == "ref-targea")
     }
     
-    @Test("a document-scope warning is dismissible like any other warning")
+    @Test("a document-db warning is dismissible like any other warning")
     func documentWarnIsDismissible() throws {
         // Given
         create("doc-target", content: "## A\nbody\n")
@@ -310,7 +310,7 @@ struct LintTests {
         
         // Then
         #expect(result.status == "ok",
-            "a document-scope warn was refused as an unknown kind — \(result.error)")
+            "a document-db warn was refused as an unknown kind — \(result.error)")
     }
     
     @Test("the catalog's warnings and the dismissal gate come from the same registration")
@@ -390,7 +390,7 @@ struct LintTests {
     }
     
     private func issues(of noteId: String) throws -> [LintIssue] {
-        try home.readScope { scope in try home.lintScanner.lintNote(scope, nid: noteId) }
+        try home.readScope { db in try home.lintScanner.lintNote(db, nid: noteId) }
     }
     
     private func codes(of noteId: String) throws -> Set<String> {
@@ -398,12 +398,12 @@ struct LintTests {
     }
     
     private func allIssues() throws -> [LintIssue] {
-        try home.readScope { scope in try home.lintScanner.lintAll(scope) }
+        try home.readScope { db in try home.lintScanner.lintAll(db) }
     }
     
     private func isolatedSubjects() throws -> [String] {
-        try home.readScope { scope in try home.lintScanner.scan(
-                scope,
+        try home.readScope { db in try home.lintScanner.scan(
+                db,
                 id: nil,
                 code: "isolated",
                 severity: nil,

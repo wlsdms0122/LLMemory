@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct AddRetrievalTermsHandler: OperationHandling {
     // MARK: - Property
@@ -27,11 +28,11 @@ struct AddRetrievalTermsHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
         
-        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, db: db) {
             return rejection
         }
         
@@ -63,7 +64,7 @@ struct AddRetrievalTermsHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let now = context.now
         let noteId = op["id"] as! String
@@ -77,7 +78,7 @@ struct AddRetrievalTermsHandler: OperationHandling {
         var inserted = 0
         
         for term in terms {
-            inserted += try scope.run(UpsertPendingTermTransaction(
+            inserted += try db.run(UpsertPendingTermTransaction(
                 noteId: noteId,
                 kind: kind,
                 term: term,

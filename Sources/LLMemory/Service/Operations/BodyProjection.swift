@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct BodyProjection {
     // MARK: - Property
@@ -22,12 +23,12 @@ struct BodyProjection {
         name: String,
         handler: any OperationHandling,
         context: inout HandlerContext,
-        scope: GRDBReadScope
+        db: Database
     ) throws -> String? {
         switch name {
         case "create_note":
             if let noteId = op["id"] as? String, !noteId.isEmpty {
-                context.stagedBodies[noteId] = try composer.composeCreateBody(op, scope, context.brain)
+                context.stagedBodies[noteId] = try composer.composeCreateBody(op, db, context.brain)
                 context.opaqueBodyIds.remove(noteId)
             }
             
@@ -38,7 +39,7 @@ struct BodyProjection {
             
             if context.opaqueBodyIds.contains(noteId) { return nil }
             
-            guard let body = try stagedBody(of: noteId, context: context, scope: scope) else {
+            guard let body = try stagedBody(of: noteId, context: context, db: db) else {
                 context.opaqueBodyIds.insert(noteId)
                 
                 return nil
@@ -82,7 +83,7 @@ struct BodyProjection {
             return nil
         
         default:
-            if try !handler.touches(op, context, scope).isEmpty {
+            if try !handler.touches(op, context, db).isEmpty {
                 for noteId in handler.schema.mentionedNoteIds(in: op) {
                     context.opaqueBodyIds.insert(noteId)
                     context.stagedBodies.removeValue(forKey: noteId)
@@ -97,11 +98,11 @@ struct BodyProjection {
     private func stagedBody(
         of noteId: String,
         context: HandlerContext,
-        scope: GRDBReadScope
+        db: Database
     ) throws -> String? {
         if let staged = context.stagedBodies[noteId] { return staged }
         
-        guard let path = try context.brain.notePath(scope, noteId) else { return nil }
+        guard let path = try context.brain.notePath(db, noteId) else { return nil }
         
         return (try? noteFile.readNoteIfPresent(at: path))??.body
     }

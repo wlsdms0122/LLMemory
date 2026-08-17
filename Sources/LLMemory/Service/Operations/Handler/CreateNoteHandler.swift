@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct CreateNoteHandler: OperationHandling {
     // MARK: - Property
@@ -39,7 +40,7 @@ struct CreateNoteHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let hasTemplate = (op["template"] as? String).map { value in !value.isEmpty } ?? false
         
@@ -48,7 +49,7 @@ struct CreateNoteHandler: OperationHandling {
         if hasTemplate {
             let templateId = op["template"] as! String
             
-            if !(try scope.run(NoteExistsTransaction(nid: templateId)))
+            if !(try db.run(NoteExistsTransaction(nid: templateId)))
                 && !context.inFlightIds.contains(templateId) {
                 return "unknown template note: \(templateId)"
             }
@@ -84,7 +85,7 @@ struct CreateNoteHandler: OperationHandling {
             return "\(error)"
         }
         
-        if try noteExistence.isTaken(noteId, context: context, scope: scope) {
+        if try noteExistence.isTaken(noteId, context: context, db: db) {
             return "id collision: \(noteId) (use patch_section to update)"
         }
         
@@ -102,7 +103,7 @@ struct CreateNoteHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let now = context.now
         let noteId = op["id"] as! String
@@ -113,7 +114,7 @@ struct CreateNoteHandler: OperationHandling {
             withIntermediateDirectories: true
         )
         
-        let body = try composer.composeCreateBody(op, scope.readOnly, context.brain)
+        let body = try composer.composeCreateBody(op, db, context.brain)
         var doc = FrontmatterDocument(
             title: op["title"] as? String ?? "",
             priority: op["priority"] as? String ?? "lazy",
@@ -139,14 +140,14 @@ struct CreateNoteHandler: OperationHandling {
         try composer.mergeFields(&doc, schema.undeclaredFields(in: op))
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
         
-        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
-        try scope.run(StampNoteLifecycleTransaction(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: true))
-        try scope.run(RecordNoteLifecycleEventTransaction(nid: noteId,
+        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
+        try db.run(StampNoteLifecycleTransaction(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: true))
+        try db.run(RecordNoteLifecycleEventTransaction(nid: noteId,
             kind: "created",
             reason: op["rationale"] as? String,
             now: now
         ))
-        try bookkeeper.seedInitialLinks(scope, nid: noteId, tags: doc.tags)
+        try bookkeeper.seedInitialLinks(db, nid: noteId, tags: doc.tags)
         
         return [
             "status": "ok",
@@ -163,7 +164,7 @@ struct CreateNoteHandler: OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] {
         (op["id"] as? String).map { id in [context.brain.layout.file(forId: id)] } ?? []
     }

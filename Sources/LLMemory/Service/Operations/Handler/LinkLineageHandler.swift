@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct LinkLineageHandler: OperationHandling {
     // MARK: - Property
@@ -32,7 +33,7 @@ struct LinkLineageHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let rawKind = op["kind"] as? String ?? ""
         let lineage = LinkKind.rawValues { kind in kind.isLineage }
@@ -46,17 +47,17 @@ struct LinkLineageHandler: OperationHandling {
         
         if src == dst { return "src and dst must differ: \(src)" }
         
-        if let rejection = try noteExistence.rejectionForUnknown(src, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(src, context: context, db: db) {
             return rejection
         }
         
-        return try noteExistence.rejectionForUnknown(dst, context: context, scope: scope)
+        return try noteExistence.rejectionForUnknown(dst, context: context, db: db)
     }
     
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let now = context.now
         let src = op["src"] as! String
@@ -64,11 +65,11 @@ struct LinkLineageHandler: OperationHandling {
         // validate() refused every spelling that is not a lineage kind.
         let kind = LinkKind(rawValue: op["kind"] as! String)!
         
-        try scope.run(InsertLineageLinkTransaction(src: src, dst: dst, kind: kind, now: now))
+        try db.run(InsertLineageLinkTransaction(src: src, dst: dst, kind: kind, now: now))
         
         let reason = op["reason"] as? String
         
-        try scope.run(RecordNoteLifecycleEventTransaction(
+        try db.run(RecordNoteLifecycleEventTransaction(
             nid: src,
             kind: kind.rawValue,
             reason: reason,

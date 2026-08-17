@@ -31,9 +31,9 @@ public struct LintService: LintServiceable {
         limit: Int?,
         includeDismissed: Bool
     ) async throws -> [LintIssue] {
-        try await storage.read { scope in
+        try await storage.read { db in
             try scanner.scan(
-                scope,
+                db,
                 id: id,
                 code: code,
                 severity: severity,

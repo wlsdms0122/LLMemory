@@ -28,8 +28,8 @@ struct CandidateDiscoveryTests {
         seedEntityGroup(count: 4)
         
         // When
-        let clusters = try home.readScope { scope in
-            try detector.clusters(scope, minSize: 2, maxSize: 50, limit: 20)
+        let clusters = try home.readScope { db in
+            try detector.clusters(db, minSize: 2, maxSize: 50, limit: 20)
         }
         
         // Then
@@ -44,8 +44,8 @@ struct CandidateDiscoveryTests {
         seedEntityGroup(count: 4)
         
         // When
-        let capped = try home.readScope { scope in
-            try detector.clusters(scope, maxSize: 3, limit: 20)
+        let capped = try home.readScope { db in
+            try detector.clusters(db, maxSize: 3, limit: 20)
         }
         
         // Then
@@ -64,8 +64,8 @@ struct CandidateDiscoveryTests {
         home.createNote(id: "dup-b", title: "B", tags: ["tech"], content: body)
         
         // When
-        let duplicates = try home.readScope { scope in
-            try detector.nearDuplicates(scope, limit: 20)
+        let duplicates = try home.readScope { db in
+            try detector.nearDuplicates(db, limit: 20)
         }
         
         // Then
@@ -103,7 +103,7 @@ struct CandidateDiscoveryTests {
     @Test("neighbors refuses an anchor that does not exist rather than returning nothing")
     func neighborsRefusesAnUnknownAnchor() throws {
         #expect(throws: (any Error).self) {
-            try home.readScope { scope in try detector.neighbors(scope, noteId: "nonexistent-xyz", k: 5) }
+            try home.readScope { db in try detector.neighbors(db, noteId: "nonexistent-xyz", k: 5) }
         }
     }
     
@@ -133,8 +133,8 @@ struct CandidateDiscoveryTests {
     }
     
     private func missingEdgeHoldsTheSeededPair() throws -> Bool {
-        try home.readScope { scope in
-            let edges = try detector.missingEdges(scope, limit: 20, ftsBm25: 0.0)
+        try home.readScope { db in
+            let edges = try detector.missingEdges(db, limit: 20, ftsBm25: 0.0)
             
             return edges.contains { edge in Set([edge.a.id, edge.b.id]) == ["me-a", "me-b"] }
         }

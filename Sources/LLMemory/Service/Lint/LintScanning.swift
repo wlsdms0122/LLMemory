@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // Judgement over a scope somebody else opened. It owns no storage: given a
 // read scope it runs the catalog, drops what a person has reviewed and kept,
@@ -22,7 +23,7 @@ protocol LintScanning: Sendable {
     func ruleCatalog() -> [LintRuleInfo]
     
     func scan(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         id: String?,
         code: String?,
         severity: String?,

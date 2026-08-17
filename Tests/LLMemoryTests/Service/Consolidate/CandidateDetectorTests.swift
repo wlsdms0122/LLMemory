@@ -61,8 +61,8 @@ struct CandidatesTests {
         try markStale(ids: ["nbr-stale"])
         
         // When
-        let hits = try home.readScope { scope in
-            try detector.neighbors(scope, noteId: "nbr-seed", k: 10)
+        let hits = try home.readScope { db in
+            try detector.neighbors(db, noteId: "nbr-seed", k: 10)
         }
         
         // Then
@@ -85,8 +85,8 @@ struct CandidatesTests {
         try markStale(ids: ["ndup-stale"])
         
         // When
-        let duplicates = try home.readScope { scope in
-            try detector.nearDuplicates(scope, limit: 50)
+        let duplicates = try home.readScope { db in
+            try detector.nearDuplicates(db, limit: 50)
         }
         
         // Then
@@ -112,8 +112,8 @@ struct CandidatesTests {
         #expect(invalidated.status == "ok", "invalidate failed: \(invalidated.error)")
         
         // When
-        let edges = try home.readScope { scope in
-            try detector.missingEdges(scope, limit: 20, perNote: 3, ftsBm25: -0.1)
+        let edges = try home.readScope { db in
+            try detector.missingEdges(db, limit: 20, perNote: 3, ftsBm25: -0.1)
         }
         
         // Then

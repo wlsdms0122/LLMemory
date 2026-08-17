@@ -32,7 +32,7 @@ struct SectionGetTests {
         ).status == "ok")
         
         // When
-        let (note, slices, _) = try home.readScope { scope in try home.notesService.getSections(scope, id: "doc", sections: ["## A"], sessionId: nil) }
+        let (note, slices, _) = try home.readScope { db in try home.notesService.getSections(db, id: "doc", sections: ["## A"], sessionId: nil) }
         
         // Then
         #expect(note.id == "doc")
@@ -50,7 +50,7 @@ struct SectionGetTests {
         
         // Then
         #expect(throws: SectionError.self) {
-            _ = try home.readScope { scope in try home.notesService.getSections(scope, id: "doc2", sections: ["## Nope"], sessionId: nil) }
+            _ = try home.readScope { db in try home.notesService.getSections(db, id: "doc2", sections: ["## Nope"], sessionId: nil) }
         }
     }
     
@@ -63,7 +63,7 @@ struct SectionGetTests {
         ).status == "ok")
         
         // When
-        let (_, entries, _) = try home.readScope { scope in try home.notesService.toc(scope, id: "doc3", sessionId: nil) }
+        let (_, entries, _) = try home.readScope { db in try home.notesService.toc(db, id: "doc3", sessionId: nil) }
         
         // Then
         #expect(entries.map(\.path) == ["## A", "## A > ### A1"])

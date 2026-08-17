@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // The inspector core — runs the rule catalog over a scope, suppresses the
 // findings a person has reviewed and kept, and sorts what is left so the same
@@ -16,7 +17,7 @@ struct LintScanner: LintScanning {
 
     // The brain being inspected — its config sets the thresholds the rules
     // judge by, and its layout says where a note id lives. Taken here rather
-    // than off the scope: a scope is a database handle.
+    // than off the handle it is given: a database answers neither.
     let brain: BrainContext
     
     private let engine = LintEngine()
@@ -54,16 +55,16 @@ struct LintScanner: LintScanning {
         var catalog: [LintRuleInfo] = []
         
         catalog += rules.documentRules.map { rule in
-            .init(code: rule.code, severity: rule.severity.rawValue, scope: "document")
+            .init(code: rule.code, severity: rule.severity.rawValue, db: "document")
         }
         catalog += rules.noteRules.map { rule in
-            .init(code: rule.code, severity: rule.severity.rawValue, scope: "note")
+            .init(code: rule.code, severity: rule.severity.rawValue, db: "note")
         }
         catalog += rules.noteDBRules.map { rule in
-            .init(code: rule.code, severity: rule.severity.rawValue, scope: "note+db")
+            .init(code: rule.code, severity: rule.severity.rawValue, db: "note+db")
         }
         catalog += rules.corpusDBRules.map { rule in
-            .init(code: rule.code, severity: rule.severity.rawValue, scope: "corpus+db")
+            .init(code: rule.code, severity: rule.severity.rawValue, db: "corpus+db")
         }
         
         return catalog.sorted { lhs, rhs in (lhs.severity, lhs.code) < (rhs.severity, rhs.code) }
@@ -72,7 +73,7 @@ struct LintScanner: LintScanning {
     // The inspector core — runs the rule catalog, suppresses habituated
     // findings, and sorts for stable output.
     func scan(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         id: String?,
         code: String?,
         severity: String?,
@@ -80,11 +81,11 @@ struct LintScanner: LintScanning {
         includeDismissed: Bool
     ) throws -> [LintIssue] {
         var issues = try id != nil
-            ? lintNote(scope, nid: id!)
-            : lintAll(scope)
+            ? lintNote(db, nid: id!)
+            : lintAll(db)
         
         if !includeDismissed {
-            issues = try suppressDismissed(scope, issues)
+            issues = try suppressDismissed(db, issues)
         }
         
         if let code { issues = issues.filter { issue in issue.code == code } }
@@ -95,8 +96,8 @@ struct LintScanner: LintScanning {
             if lhs.severity != rhs.severity { return lhs.severity == "error" }
             
             if lhs.target != rhs.target {
-                if lhs.target.scope != rhs.target.scope {
-                    return lhs.target.scope < rhs.target.scope
+                if lhs.target.db != rhs.target.db {
+                    return lhs.target.db < rhs.target.db
                 }
                 
                 return lhs.target.subject < rhs.target.subject
@@ -112,20 +113,20 @@ struct LintScanner: LintScanning {
         return issues
     }
     
-    func lintNote(_ scope: GRDBReadScope, nid: String) throws -> [LintIssue] {
-        checked(try lintNote(scope, nid: nid, index: scope.run(corpusIndexTransaction)))
+    func lintNote(_ db: Database, nid: String) throws -> [LintIssue] {
+        checked(try lintNote(db, nid: nid, index: db.run(corpusIndexTransaction)))
     }
     
-    func lintAll(_ scope: GRDBReadScope) throws -> [LintIssue] {
-        let index = try scope.run(corpusIndexTransaction)
+    func lintAll(_ db: Database) throws -> [LintIssue] {
+        let index = try db.run(corpusIndexTransaction)
         var issues: [LintIssue] = []
         
         for nid in index.ids.sorted() {
-            issues.append(contentsOf: try lintNote(scope, nid: nid, index: index))
+            issues.append(contentsOf: try lintNote(db, nid: nid, index: index))
         }
         
         for rule in rules.corpusDBRules {
-            issues.append(contentsOf: try rule.check(scope, tuning).map { finding in
+            issues.append(contentsOf: try rule.check(db, tuning).map { finding in
                 corpusIssue(code: rule.code, severity: rule.severity.rawValue, finding)
             })
         }
@@ -153,12 +154,12 @@ struct LintScanner: LintScanning {
         return LintIssue(severity, code, finding.message, target, key: finding.key)
     }
     
-    func suppressDismissed(_ scope: GRDBReadScope, _ issues: [LintIssue]) throws -> [LintIssue] {
-        let dismissals = try scope.run(FetchLintDismissalsTransaction())
+    func suppressDismissed(_ db: Database, _ issues: [LintIssue]) throws -> [LintIssue] {
+        let dismissals = try db.run(FetchLintDismissalsTransaction())
         
         if dismissals.isEmpty { return issues }
         
-        let generation = try scope.run(FetchCandidateGenerationTransaction())
+        let generation = try db.run(FetchCandidateGenerationTransaction())
         var shapes: [String: (words: Int, sections: Int)] = [:]
         
         return try issues.filter { issue in
@@ -179,7 +180,7 @@ struct LintScanner: LintScanning {
             
             case .note(let nid):
                 if shapes[nid] == nil {
-                    shapes[nid] = try scope.run(FetchNoteShapeTransaction(nid: nid))
+                    shapes[nid] = try db.run(FetchNoteShapeTransaction(nid: nid))
                 }
                 
                 let shape = shapes[nid]!
@@ -250,11 +251,11 @@ struct LintScanner: LintScanning {
     }
     
     private func lintNote(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         nid: String,
         index: LintCorpusIndex
     ) throws -> [LintIssue] {
-        guard try scope.run(NoteExistsTransaction(nid: nid)) else {
+        guard try db.run(NoteExistsTransaction(nid: nid)) else {
             return [LintIssue("error", "missing", "note not in db: \(nid)", .note(nid))]
         }
         
@@ -309,7 +310,7 @@ struct LintScanner: LintScanning {
         }
         
         for rule in rules.noteDBRules {
-            issues.append(contentsOf: try rule.check(scope, brain, note: note).map { finding in
+            issues.append(contentsOf: try rule.check(db, brain, note: note).map { finding in
                 LintIssue(
                     rule.severity.rawValue,
                     rule.code,

@@ -80,7 +80,7 @@ public struct Seeding: Sendable {
     // that are easy to forget, and forgetting them is silent — the retirement
     // simply stops happening, and a zero clock writes a false timestamp onto a
     // trashed note.
-    public func plant(force: Bool, seeded: [String], now: Int, scope: BootstrapScope) -> Result {
+    public func plant(force: Bool, seeded: [String], now: Int, db: BootstrapScope) -> Result {
         var result = Result()
 
         // Every seed's address is read once, and every branch below decides from
@@ -177,7 +177,7 @@ public struct Seeding: Sendable {
             }
 
             do {
-                try scope.removeNote(
+                try db.removeNote(
                     id: id,
                     file: file,
                     flagReason: "retired \(id) — no longer shipped",

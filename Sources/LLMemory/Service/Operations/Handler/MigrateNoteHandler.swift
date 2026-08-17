@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct MigrateNoteHandler: OperationHandling {
     // MARK: - Property
@@ -29,11 +30,11 @@ struct MigrateNoteHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
         
-        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, db: db) {
             return rejection
         }
         
@@ -47,7 +48,7 @@ struct MigrateNoteHandler: OperationHandling {
             return "invalid new_id format: \(newId)"
         }
         
-        if newId != noteId, try noteExistence.isTaken(newId, context: context, scope: scope) {
+        if newId != noteId, try noteExistence.isTaken(newId, context: context, db: db) {
             return "new_id collision: \(newId)"
         }
         
@@ -57,13 +58,13 @@ struct MigrateNoteHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let targetId = op["id"] as! String
         let newId = (op["new_id"] as? String) ?? targetId
         let newPath = context.brain.layout.file(forId: newId)
         
-        guard let srcPath = try context.brain.notePath(scope, targetId),
+        guard let srcPath = try context.brain.notePath(db, targetId),
             FileManager.default.fileExists(atPath: srcPath.path)
         else {
             throw OperationError.noteFileMissing(op: "migrate_note", id: targetId)
@@ -85,31 +86,31 @@ struct MigrateNoteHandler: OperationHandling {
         }
         
         let oldEntityHits: [(entity: String, hits: Int)] = (newId != targetId)
-            ? try scope.run(FetchNoteEntityHitsTransaction(noteId: targetId))
+            ? try db.run(FetchNoteEntityHitsTransaction(noteId: targetId))
             : []
         
-        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: newPath), path: newPath))
+        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: newPath), path: newPath))
         
         var rewritten: [String] = []
         
         if newId != targetId {
-            try scope.run(ReparentNoteArtifactsTransaction(from: targetId, to: newId))
-            try scope.run(DeleteNoteRowTransaction(nid: targetId))
-            try scope.run(ClearNoteTagsTransaction(noteId: targetId))
+            try db.run(ReparentNoteArtifactsTransaction(from: targetId, to: newId))
+            try db.run(DeleteNoteRowTransaction(nid: targetId))
+            try db.run(ClearNoteTagsTransaction(noteId: targetId))
             
             for hit in oldEntityHits {
-                try scope.run(SetEntityHitCountTransaction(noteId: newId, entity: hit.entity, hits: hit.hits))
+                try db.run(SetEntityHitCountTransaction(noteId: newId, entity: hit.entity, hits: hit.hits))
             }
             
-            try scope.run(SyncNoteEnrichTransaction(noteId: newId))
-            try scope.run(NormalizeUndirectedLinksTransaction(nodeId: newId))
+            try db.run(SyncNoteEnrichTransaction(noteId: newId))
+            try db.run(NormalizeUndirectedLinksTransaction(nodeId: newId))
             
             // After the new id exists, so the rewritten citations resolve
             // to it on reindex rather than dangling for an instant.
-            rewritten = try citationRewriter.rewrite(scope, context.brain, from: targetId, to: newId)
+            rewritten = try citationRewriter.rewrite(db, context.brain, from: targetId, to: newId)
         }
         
-        try scope.run(StampNoteLifecycleTransaction(nid: newId, file: context.brain.layout.file(forId: newId), now: now, isNew: false))
+        try db.run(StampNoteLifecycleTransaction(nid: newId, file: context.brain.layout.file(forId: newId), now: now, isNew: false))
         
         let citations = rewritten.isEmpty
             ? ""
@@ -137,11 +138,11 @@ struct MigrateNoteHandler: OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] {
         var paths: [URL] = []
         
-        if let noteId = op["id"] as? String, let src = try context.brain.notePath(scope, noteId) {
+        if let noteId = op["id"] as? String, let src = try context.brain.notePath(db, noteId) {
             paths.append(src)
         }
         
@@ -151,7 +152,7 @@ struct MigrateNoteHandler: OperationHandling {
         
         // The notes that cite this id are rewritten by the write, so they
         // belong in the snapshot — a rollback has to put them back.
-        for src in try scope.run(FetchCitingNoteIdsTransaction(marker: targetId)) {
+        for src in try db.run(FetchCitingNoteIdsTransaction(marker: targetId)) {
             paths.append(context.brain.layout.file(forId: src))
         }
         

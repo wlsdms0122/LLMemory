@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 // The bookkeeping that follows a write — the lifecycle event that says what
 // happened, and the links a new note starts life with. Separated from the
@@ -16,16 +17,16 @@ struct NoteWriteBookkeeper {
     // MARK: - Initializer
     // MARK: - Public
     func recordEdit(
-        _ scope: GRDBScope,
+        _ db: Database,
         nid: String,
         opLabel: String,
         now: Int
     ) throws {
-        try scope.run(RecordNoteLifecycleEventTransaction(nid: nid, kind: "edited", reason: opLabel, now: now))
+        try db.run(RecordNoteLifecycleEventTransaction(nid: nid, kind: "edited", reason: opLabel, now: now))
     }
     
-    func seedInitialLinks(_ scope: GRDBScope, nid: String, tags: [String]) throws {
-        try scope.run(SeedInitialLinksTransaction(nid: nid, tags: tags))
+    func seedInitialLinks(_ db: Database, nid: String, tags: [String]) throws {
+        try db.run(SeedInitialLinksTransaction(nid: nid, tags: tags))
     }
     
     // MARK: - Private

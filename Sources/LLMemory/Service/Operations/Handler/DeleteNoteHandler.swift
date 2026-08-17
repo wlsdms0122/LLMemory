@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct DeleteNoteHandler: OperationHandling {
     // MARK: - Property
@@ -27,17 +28,17 @@ struct DeleteNoteHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
         
-        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, db: db) {
             return rejection
         }
         
         if (op["force"] as? Bool) == true { return nil }
         
-        let inbound = try scope.run(FetchInboundBlockersTransaction(noteId: noteId))
+        let inbound = try db.run(FetchInboundBlockersTransaction(noteId: noteId))
         
         if !inbound.isEmpty {
             return "inbound links exist (src: \(inbound.joined(separator: ", "))) — resolve them or set force=true"
@@ -49,16 +50,16 @@ struct DeleteNoteHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let noteId = op["id"] as! String
         let now = context.now
         
-        guard let src = try context.brain.notePath(scope, noteId) else {
+        guard let src = try context.brain.notePath(db, noteId) else {
             throw OperationError.unknownNote(noteId)
         }
         
-        try scope.run(RemoveNoteRowsTransaction(
+        try db.run(RemoveNoteRowsTransaction(
             nid: noteId,
             flagReason: "deleted \(noteId)",
             now: now
@@ -85,10 +86,10 @@ struct DeleteNoteHandler: OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] {
         guard let noteId = op["id"] as? String,
-            let src = try context.brain.notePath(scope, noteId)
+            let src = try context.brain.notePath(db, noteId)
         else {
             return []
         }

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 import Storage
 
 // Note-domain service — body reads (whole, sections, budget, toc, frame),
@@ -35,8 +36,8 @@ public struct NotesService: NotesServiceable {
         ids: [String],
         sessionId: SessionId?
     ) async throws -> (found: [NoteView], missing: [String]) {
-        let outcome = try await storage.read { scope in
-            try get(scope, ids: ids, sessionId: sessionId)
+        let outcome = try await storage.read { db in
+            try get(db, ids: ids, sessionId: sessionId)
         }
 
         try await retrieval.applyRecord(outcome.record)
@@ -49,8 +50,8 @@ public struct NotesService: NotesServiceable {
         sections: [String],
         sessionId: SessionId?
     ) async throws -> (note: NoteView, slices: [SectionSlice]) {
-        let outcome = try await storage.read { scope in
-            try getSections(scope, id: id, sections: sections, sessionId: sessionId)
+        let outcome = try await storage.read { db in
+            try getSections(db, id: id, sections: sections, sessionId: sessionId)
         }
 
         try await retrieval.applyRecord(outcome.record)
@@ -63,8 +64,8 @@ public struct NotesService: NotesServiceable {
         budget: Int,
         sessionId: SessionId?
     ) async throws -> (note: NoteView, cut: BudgetCut) {
-        let outcome = try await storage.read { scope in
-            try getBudget(scope, id: id, budget: budget, sessionId: sessionId)
+        let outcome = try await storage.read { db in
+            try getBudget(db, id: id, budget: budget, sessionId: sessionId)
         }
 
         try await retrieval.applyRecord(outcome.record)
@@ -76,7 +77,7 @@ public struct NotesService: NotesServiceable {
         id: String,
         sessionId: SessionId?
     ) async throws -> (note: NoteView, entries: [TocEntry]) {
-        let outcome = try await storage.read { scope in try toc(scope, id: id, sessionId: sessionId) }
+        let outcome = try await storage.read { db in try toc(db, id: id, sessionId: sessionId) }
 
         try await retrieval.applyRecord(outcome.record)
 
@@ -87,7 +88,7 @@ public struct NotesService: NotesServiceable {
         id: String,
         sessionId: SessionId?
     ) async throws -> (note: NoteView, frame: [TemplateFrameNode]) {
-        let outcome = try await storage.read { scope in try template(scope, id: id, sessionId: sessionId) }
+        let outcome = try await storage.read { db in try template(db, id: id, sessionId: sessionId) }
 
         try await retrieval.applyRecord(outcome.record)
 
@@ -111,37 +112,37 @@ public struct NotesService: NotesServiceable {
             limit: limit
         )
 
-        return try await storage.read { scope in try scope.run(ListNoteRowsTransaction(filter)) }
+        return try await storage.read { db in try db.run(ListNoteRowsTransaction(filter)) }
     }
 
     public func history(
         noteId: String,
         limit: Int
     ) async throws -> [NoteHistoryEvent] {
-        try await storage.read { scope in
-            try scope.run(FetchNoteHistoryTransaction(noteId: noteId, limit: limit))
+        try await storage.read { db in
+            try db.run(FetchNoteHistoryTransaction(noteId: noteId, limit: limit))
         }
     }
 
     public func tree(prefix: String?) async throws -> [TreeRow] {
-        try await storage.read { scope in try scope.run(FetchTreeTransaction(prefix: prefix)) }
+        try await storage.read { db in try db.run(FetchTreeTransaction(prefix: prefix)) }
     }
 
     public func structure(
         prefix: String?
     ) async throws -> StructureResult {
-        try await storage.read { scope in try structure(scope, prefix: prefix) }
+        try await storage.read { db in try structure(db, prefix: prefix) }
     }
 
     // MARK: - Internal
     // sessionId is required on purpose — a caller that forgets it loses the
     // event's session attribution silently, so the omission must not compile.
     func get(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         ids: [String],
         sessionId: SessionId?
     ) throws -> (found: [NoteView], missing: [String], record: RetrievalRecord?) {
-        let byId = try scope.run(FetchNoteCatalogTransaction(ids: ids))
+        let byId = try db.run(FetchNoteCatalogTransaction(ids: ids))
         var found: [NoteView] = []
         var missing: [String] = []
 
@@ -180,12 +181,12 @@ public struct NotesService: NotesServiceable {
     }
 
     func getSections(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         id: String,
         sections: [String],
         sessionId: SessionId?
     ) throws -> (note: NoteView, slices: [SectionSlice], record: RetrievalRecord?) {
-        let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
+        let (found, missing, record) = try get(db, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -204,12 +205,12 @@ public struct NotesService: NotesServiceable {
     }
 
     func getBudget(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         id: String,
         budget: Int,
         sessionId: SessionId?
     ) throws -> (note: NoteView, record: RetrievalRecord?, cut: BudgetCut) {
-        let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
+        let (found, missing, record) = try get(db, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -219,11 +220,11 @@ public struct NotesService: NotesServiceable {
     }
 
     func toc(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         id: String,
         sessionId: SessionId?
     ) throws -> (note: NoteView, entries: [TocEntry], record: RetrievalRecord?) {
-        let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
+        let (found, missing, record) = try get(db, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -238,11 +239,11 @@ public struct NotesService: NotesServiceable {
     }
 
     func template(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         id: String,
         sessionId: SessionId?
     ) throws -> (note: NoteView, frame: [TemplateFrameNode], record: RetrievalRecord?) {
-        let (found, missing, record) = try get(scope, ids: [id], sessionId: sessionId)
+        let (found, missing, record) = try get(db, ids: [id], sessionId: sessionId)
 
         guard let note = found.first else {
             throw NotesError.unknownIds(missing)
@@ -251,13 +252,13 @@ public struct NotesService: NotesServiceable {
         return (note, template.parseFrame(note.body), record)
     }
 
-    func structure(_ scope: GRDBReadScope, prefix: String?) throws -> StructureResult {
-        let tree = try scope.run(FetchTreeTransaction(prefix: prefix))
-        let distribution = try scope.run(FetchLinkDistributionTransaction())
+    func structure(_ db: Database, prefix: String?) throws -> StructureResult {
+        let tree = try db.run(FetchTreeTransaction(prefix: prefix))
+        let distribution = try db.run(FetchLinkDistributionTransaction())
         var stats: PrefixStats? = nil
 
         if let prefix {
-            stats = try scope.run(PrefixStatsTransaction(prefix: prefix))
+            stats = try db.run(PrefixStatsTransaction(prefix: prefix))
         }
 
         return StructureResult(tree: tree, distribution: distribution, prefixStats: stats)

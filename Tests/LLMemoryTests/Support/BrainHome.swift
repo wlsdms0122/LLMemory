@@ -37,8 +37,8 @@ extension BrainHome {
 
     // The production shape — a read scope handed in, never hand-assembled
     // at the call site. Raw `read` stays for SQL probes.
-    func readScope<T>(_ body: (GRDBReadScope) throws -> T) throws -> T {
-        try database().read { db in try body(GRDBReadScope(db)) }
+    func readScope<T>(_ body: (Database) throws -> T) throws -> T {
+        try database().read { db in try body(db) }
     }
 
     func write<T>(_ body: (Database) throws -> T) throws -> T {

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct PurgeEnrichmentHandler: OperationHandling {
     // MARK: - Property
@@ -22,7 +23,7 @@ struct PurgeEnrichmentHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         nil
     }
@@ -30,11 +31,11 @@ struct PurgeEnrichmentHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let now = context.now
         let provenance = op["provenance"] as! String
-        let (termsPurged, edgesPurged, affected) = try scope.run(PurgeEnrichmentProvenanceTransaction(
+        let (termsPurged, edgesPurged, affected) = try db.run(PurgeEnrichmentProvenanceTransaction(
             provenance: provenance,
             now: now
         ))

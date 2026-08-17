@@ -182,7 +182,7 @@ struct SeedTests {
     @Test("the seed mark is projected onto the note row")
     func theSeedMarkIsProjected() throws {
         // Given
-        _ = seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
+        _ = seeding.plant(force: false, seeded: [], now: home.now, db: try home.bootstrapScope())
 
         #expect(home.createNote(id: "tech.mine", content: "## A\nmine\n").status == "ok")
 
@@ -447,7 +447,7 @@ struct SeedTests {
     @Test("update touches seed ids only — authored notes beside and beneath them are left alone")
     func updateLeavesAuthoredNotesAlone() throws {
         // Given
-        let brain = try CLIBrain(prefix: "llmemory-seed-scope")
+        let brain = try CLIBrain(prefix: "llmemory-seed-db")
         let seed = try firstSeed()
         let authored = brain.noteURL(id: "tech.di-container")
         let before = try String(contentsOf: authored, encoding: .utf8)
@@ -527,7 +527,7 @@ struct SeedTests {
     @Test("locked is a bot-mutation gate, not ownership — planting restates the note either way")
     func plantRestatesSeedRegardlessOfLocked() throws {
         // Given
-        _ = seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
+        _ = seeding.plant(force: false, seeded: [], now: home.now, db: try home.bootstrapScope())
 
         let seed = try firstSeed()
         let file = home.layout.file(forId: seed.id)
@@ -537,7 +537,7 @@ struct SeedTests {
         try forked.write(to: file, atomically: true, encoding: .utf8)
 
         // When
-        let result = seeding.plant(force: false, seeded: [], now: home.now, scope: try home.bootstrapScope())
+        let result = seeding.plant(force: false, seeded: [], now: home.now, db: try home.bootstrapScope())
 
         // Then
         #expect(result.refreshed.contains(seed.id),

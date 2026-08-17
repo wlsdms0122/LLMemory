@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct SetFrontmatterHandler: OperationHandling {
     // MARK: - Property
@@ -31,11 +32,11 @@ struct SetFrontmatterHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
         
-        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, db: db) {
             return rejection
         }
         
@@ -57,7 +58,7 @@ struct SetFrontmatterHandler: OperationHandling {
         do {
             var probe = FrontmatterDocument()
             
-            if let path = try context.brain.notePath(scope, noteId),
+            if let path = try context.brain.notePath(db, noteId),
                 let read = try noteFile.readNoteIfPresent(at: path) {
                 probe = read.doc
             }
@@ -73,11 +74,11 @@ struct SetFrontmatterHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let noteId = op["id"] as! String
         
-        guard let path = try context.brain.notePath(scope, noteId),
+        guard let path = try context.brain.notePath(db, noteId),
             FileManager.default.fileExists(atPath: path.path)
         else {
             throw OperationError.noteFileMissing(op: "set_frontmatter", id: noteId)
@@ -89,15 +90,15 @@ struct SetFrontmatterHandler: OperationHandling {
         
         try composer.mergeFields(&doc, fields)
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
+        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
         
         let now = context.now
         
-        try scope.run(StampNoteLifecycleTransaction(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: false))
+        try db.run(StampNoteLifecycleTransaction(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: false))
         
         let keys = fields.keys.sorted().joined(separator: ",")
         
-        try bookkeeper.recordEdit(scope, nid: noteId, opLabel: "set_frontmatter/\(keys)", now: now)
+        try bookkeeper.recordEdit(db, nid: noteId, opLabel: "set_frontmatter/\(keys)", now: now)
         
         return [
             "status": "ok",
@@ -110,10 +111,10 @@ struct SetFrontmatterHandler: OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] {
         guard let noteId = op["id"] as? String,
-            let path = try context.brain.notePath(scope, noteId)
+            let path = try context.brain.notePath(db, noteId)
         else {
             return []
         }

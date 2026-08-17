@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct DismissCandidateHandler: OperationHandling {
     // MARK: - Property
@@ -15,8 +16,8 @@ struct DismissCandidateHandler: OperationHandling {
         + "threshold (each dismissal deepens it) or a corpus-wide reorg reopens it. No file edit; affects only "
         + "the candidate channel, never retrieval.",
         fields: [
-            .required("id", unless: "target", role: .noteId, "target note id (note-scope findings)"),
-            .optional("target", "for a corpus-scope lint warn (`query lint` printed scope=corpus): the "
+            .required("id", unless: "target", role: .noteId, "target note id (note-db findings)"),
+            .optional("target", "for a corpus-db lint warn (`query lint` printed db=corpus): the "
                 + "`subject` it reported, e.g. `tag-pair:금리|금융`. Mutually exclusive with `id` — "
                 + "a corpus fact belongs to no note, so it is not addressable by one."),
             .required("kind", "`split`, or `lint:<code>` for a lint warn you reviewed and are keeping "
@@ -41,14 +42,14 @@ struct DismissCandidateHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let kind = op["kind"] as? String ?? ""
         let hasId = !((op["id"] as? String) ?? "").isEmpty
         let hasTarget = !((op["target"] as? String) ?? "").isEmpty
         
         if hasId && hasTarget {
-            return "pass `id` (note-scope) or `target` (corpus-scope), not both — a finding has one target"
+            return "pass `id` (note-db) or `target` (corpus-db), not both — a finding has one target"
         }
         
         if let code = dismissalPolicy.lintCode(of: kind) {
@@ -63,17 +64,17 @@ struct DismissCandidateHandler: OperationHandling {
             let target: LintTarget = hasTarget
                 ? .corpus(op["target"] as! String)
                 : .note((op["id"] as? String) ?? "")
-            let allFindings = try lint.scan(scope, id: nil, code: code, severity: nil, limit: nil, includeDismissed: true)
+            let allFindings = try lint.scan(db, id: nil, code: code, severity: nil, limit: nil, includeDismissed: true)
             let liveFindings = allFindings.filter { issue in issue.target == target }
             
             if liveFindings.isEmpty {
                 let subjects = Set(
-                    allFindings.map { issue in "\(issue.target.scope):\(issue.target.subject)" }
+                    allFindings.map { issue in "\(issue.target.db):\(issue.target.subject)" }
                 ).sorted()
                 let shown = subjects.prefix(5).joined(separator: ", ")
                 let more = subjects.count > 5 ? " +\(subjects.count - 5) more" : ""
                 
-                return "no live '\(code)' finding on \(target.scope) '\(target.subject)' — nothing to dismiss"
+                return "no live '\(code)' finding on \(target.db) '\(target.subject)' — nothing to dismiss"
                     + (shown.isEmpty ? "" : " (live subjects: \(shown)\(more))")
             }
             
@@ -103,16 +104,16 @@ struct DismissCandidateHandler: OperationHandling {
             return "invalid candidate kind: \(kind) (dismissible: "
                 + "\(DismissalPolicy.dismissibleKinds.sorted().joined(separator: " | ")) | lint:<warn-code>)"
         } else if hasTarget {
-            return "`target` is for corpus-scope lint warns only — '\(kind)' is a note candidate, use `id`"
+            return "`target` is for corpus-db lint warns only — '\(kind)' is a note candidate, use `id`"
         }
         
-        return try noteExistence.rejectionForUnknown(op["id"] as? String ?? "", context: context, scope: scope)
+        return try noteExistence.rejectionForUnknown(op["id"] as? String ?? "", context: context, db: db)
     }
     
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let now = context.now
         let target: LintTarget = ((op["target"] as? String)
@@ -123,7 +124,7 @@ struct DismissCandidateHandler: OperationHandling {
         if let code = dismissalPolicy.lintCode(of: kind),
             dismissalPolicy.lintFingerprint(of: kind) == nil {
             let liveFindings = try lint.scan(
-                scope.readOnly,
+                db,
                 id: nil,
                 code: code,
                 severity: nil,
@@ -144,7 +145,7 @@ struct DismissCandidateHandler: OperationHandling {
             kind = dismissalPolicy.lintKind(code, fingerprint: matched.dismissalKey)
         }
         
-        try scope.run(RecordDismissalTransaction(target: target,
+        try db.run(RecordDismissalTransaction(target: target,
             kind: kind,
             reason: op["reason"] as? String,
             now: now))
@@ -158,7 +159,7 @@ struct DismissCandidateHandler: OperationHandling {
         return [
             "status": "ok",
             "ids": ids,
-            "note": "dismissed \(kind) candidate on \(target.scope) '\(target.subject)'"
+            "note": "dismissed \(kind) candidate on \(target.db) '\(target.subject)'"
         ]
     }
     

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct SplitNoteHandler: OperationHandling {
     // MARK: - Property
@@ -33,11 +34,11 @@ struct SplitNoteHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let fromId = op["from_id"] as? String ?? ""
         
-        if let rejection = try noteExistence.rejectionForUnknown(fromId, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(fromId, context: context, db: db) {
             return rejection
         }
         
@@ -73,7 +74,7 @@ struct SplitNoteHandler: OperationHandling {
             }
             
             if childId != fromId,
-                try noteExistence.isTaken(childId, context: context, scope: scope) {
+                try noteExistence.isTaken(childId, context: context, db: db) {
                 return "into[\(index)] id collision: \(childId)"
             }
             
@@ -117,7 +118,7 @@ struct SplitNoteHandler: OperationHandling {
             normalized[index]["sections"] = normalizedSections
         }
         
-        if let srcPath = try context.brain.notePath(scope, fromId),
+        if let srcPath = try context.brain.notePath(db, fromId),
             let raw = try? String(contentsOf: srcPath, encoding: .utf8) {
             let (_, srcBody) = try frontmatter.parse(raw)
             
@@ -139,7 +140,7 @@ struct SplitNoteHandler: OperationHandling {
         let keepSrc = (op["remainder"] as? [String: Any])?["keep"] as? Bool ?? false
         
         if !keepSrc {
-            let uncovered = try uncoveredRouteArtifacts(scope, fromId: fromId, routing: routing)
+            let uncovered = try uncoveredRouteArtifacts(db, fromId: fromId, routing: routing)
             
             if !uncovered.isEmpty {
                 throw SplitConflict(fromId: fromId, unresolved: uncovered)
@@ -152,11 +153,11 @@ struct SplitNoteHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let fromId = op["from_id"] as! String
         
-        guard let srcPath = try context.brain.notePath(scope, fromId),
+        guard let srcPath = try context.brain.notePath(db, fromId),
             FileManager.default.fileExists(atPath: srcPath.path)
         else {
             throw OperationError.noteFileMissing(op: "split_note", id: fromId)
@@ -165,9 +166,9 @@ struct SplitNoteHandler: OperationHandling {
         let (srcDoc, srcBody) = try frontmatter.parse(
             try String(contentsOf: srcPath, encoding: .utf8)
         )
-        let (outboundEdges, inboundEdges) = try scope.run(FetchLinkFanTransaction(fromId: fromId))
+        let (outboundEdges, inboundEdges) = try db.run(FetchLinkFanTransaction(fromId: fromId))
         let routing = parseRouting(op)
-        let srcTerms = try scope.run(FetchActiveTermRowsTransaction(noteId: fromId))
+        let srcTerms = try db.run(FetchActiveTermRowsTransaction(noteId: fromId))
         var written: [URL] = []
         var newIds: [String] = []
         let now = context.now
@@ -218,9 +219,9 @@ struct SplitNoteHandler: OperationHandling {
                 atomically: true,
                 encoding: .utf8
             )
-            try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: childPath), path: childPath))
-            try scope.run(InheritSourceObservationTransaction(from: fromId, to: childId))
-            try scope.run(StampNoteLifecycleTransaction(nid: childId, file: context.brain.layout.file(forId: childId), now: now, isNew: true))
+            try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: childPath), path: childPath))
+            try db.run(InheritSourceObservationTransaction(from: fromId, to: childId))
+            try db.run(StampNoteLifecycleTransaction(nid: childId, file: context.brain.layout.file(forId: childId), now: now, isNew: true))
             
             written.append(childPath)
             newIds.append(childId)
@@ -231,7 +232,7 @@ struct SplitNoteHandler: OperationHandling {
             && !remaining.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         
         if keepRemainder && !sourceSurvives {
-            let uncovered = try uncoveredRouteArtifacts(scope.readOnly, fromId: fromId, routing: routing)
+            let uncovered = try uncoveredRouteArtifacts(db, fromId: fromId, routing: routing)
             
             if !uncovered.isEmpty {
                 throw SplitConflict(fromId: fromId, unresolved: uncovered)
@@ -244,15 +245,15 @@ struct SplitNoteHandler: OperationHandling {
                 atomically: true,
                 encoding: .utf8
             )
-            try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: srcPath), path: srcPath))
-            try scope.run(StampNoteLifecycleTransaction(nid: fromId, file: context.brain.layout.file(forId: fromId), now: now, isNew: false))
+            try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: srcPath), path: srcPath))
+            try db.run(StampNoteLifecycleTransaction(nid: fromId, file: context.brain.layout.file(forId: fromId), now: now, isNew: false))
         } else {
-            _ = try scope.run(FlagInboundReferrersTransaction(
+            _ = try db.run(FlagInboundReferrersTransaction(
                 targetId: fromId,
                 reason: "split into \(newIds.joined(separator: ", "))",
                 now: now
             ))
-            try scope.run(DeleteNoteRowTransaction(nid: fromId))
+            try db.run(DeleteNoteRowTransaction(nid: fromId))
             try Trash(layout: context.brain.layout).file(
                 srcPath,
                 reason: "split into \(newIds.joined(separator: ", "))",
@@ -272,7 +273,7 @@ struct SplitNoteHandler: OperationHandling {
             let src = outbound ? child : other
             let dst = outbound ? other : child
             
-            try scope.run(AddLinkTransaction(
+            try db.run(AddLinkTransaction(
                 src: src,
                 dst: dst,
                 kind: edge.kind,
@@ -351,9 +352,9 @@ struct SplitNoteHandler: OperationHandling {
         try redistribute(outboundEdges, outbound: true)
         try redistribute(inboundEdges, outbound: false)
         
-        for noteId in newIds { try scope.run(NormalizeUndirectedLinksTransaction(nodeId: noteId)) }
+        for noteId in newIds { try db.run(NormalizeUndirectedLinksTransaction(nodeId: noteId)) }
         
-        try scope.run(LinkSiblingsTransaction(
+        try db.run(LinkSiblingsTransaction(
             ids: sourceSurvives ? newIds + [fromId] : newIds,
             now: now
         ))
@@ -374,7 +375,7 @@ struct SplitNoteHandler: OperationHandling {
                 }
                 
                 for noteId in targets {
-                    try scope.run(InsertPendingTermIfAbsentTransaction(
+                    try db.run(InsertPendingTermIfAbsentTransaction(
                         noteId: noteId,
                         kind: kind,
                         term: term,
@@ -384,7 +385,7 @@ struct SplitNoteHandler: OperationHandling {
                 }
             }
             
-            try scope.run(DeleteNoteLinksTransaction(noteId: fromId))
+            try db.run(DeleteNoteLinksTransaction(noteId: fromId))
         }
         
         return [
@@ -412,11 +413,11 @@ struct SplitNoteHandler: OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] {
         var paths: [URL] = []
         
-        if let fromId = op["from_id"] as? String, let src = try context.brain.notePath(scope, fromId) {
+        if let fromId = op["from_id"] as? String, let src = try context.brain.notePath(db, fromId) {
             paths.append(src)
             
             if let trashPath = Trash(layout: context.brain.layout).destination(of: src) { paths.append(trashPath) }
@@ -478,11 +479,11 @@ struct SplitNoteHandler: OperationHandling {
     }
     
     private func uncoveredRouteArtifacts(
-        _ scope: GRDBReadScope,
+        _ db: Database,
         fromId: String,
         routing: [String: [String]]
     ) throws -> [RouteArtifact] {
-        try scope.run(FetchSplitRouteTargetsTransaction(noteId: fromId)).filter { artifact in
+        try db.run(FetchSplitRouteTargetsTransaction(noteId: fromId)).filter { artifact in
             routing[routeArtifactKey(artifact)] == nil
         }
     }

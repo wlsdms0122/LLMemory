@@ -51,7 +51,7 @@ struct OpsRequiredEnforcementTests {
         #expect(field?.requiredUnless == "template", "the waiver must be declared, not hand-rolled")
     }
     
-    @Test("every id- or axis-shaped field declares its role, so scope extraction can see it")
+    @Test("every id- or axis-shaped field declares its role, so db extraction can see it")
     func fieldRoleIsDeclared() {
         // When
         let violations = home.operationsEngine.registry.handlers.flatMap { opName, handler in
@@ -66,7 +66,7 @@ struct OpsRequiredEnforcementTests {
             """)
     }
     
-    @Test("derived scope covers where an op sends things, not only where it reads them")
+    @Test("derived db covers where an op sends things, not only where it reads them")
     func derivedScopeCoversDestinations() throws {
         // Given
         let relocate = try schema(of: "relocate_section")
@@ -80,7 +80,7 @@ struct OpsRequiredEnforcementTests {
         ])
         
         // Then
-        #expect(relocateIds == ["a", "b"], "the destination must be in scope — got \(relocateIds)")
+        #expect(relocateIds == ["a", "b"], "the destination must be in db — got \(relocateIds)")
         #expect(splitIds == ["a", "c1"])
     }
     

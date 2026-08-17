@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct ProposeLinkHandler: OperationHandling {
     // MARK: - Property
@@ -30,7 +31,7 @@ struct ProposeLinkHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let src = op["src"] as? String ?? ""
         let dst = op["dst"] as? String ?? ""
@@ -45,11 +46,11 @@ struct ProposeLinkHandler: OperationHandling {
             }
         }
         
-        if let rejection = try noteExistence.rejectionForUnknown(src, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(src, context: context, db: db) {
             return "src: \(rejection)"
         }
         
-        if let rejection = try noteExistence.rejectionForUnknown(dst, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(dst, context: context, db: db) {
             return "dst: \(rejection)"
         }
         
@@ -67,7 +68,7 @@ struct ProposeLinkHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let now = context.now
         let src = op["src"] as! String
@@ -85,7 +86,7 @@ struct ProposeLinkHandler: OperationHandling {
             return ["status": "ok", "ids": [], "note": "skipped self-loop \(src)"]
         }
         
-        try scope.run(UpsertAssocLinkTransaction(
+        try db.run(UpsertAssocLinkTransaction(
             src: source,
             dst: destination,
             weight: weight,

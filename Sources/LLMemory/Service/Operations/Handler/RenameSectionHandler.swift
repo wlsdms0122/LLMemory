@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GRDB
 
 struct RenameSectionHandler: OperationHandling {
     // MARK: - Property
@@ -31,11 +32,11 @@ struct RenameSectionHandler: OperationHandling {
     func validate(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> String? {
         let noteId = op["id"] as? String ?? ""
         
-        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, scope: scope) {
+        if let rejection = try noteExistence.rejectionForUnknown(noteId, context: context, db: db) {
             return rejection
         }
         
@@ -51,11 +52,11 @@ struct RenameSectionHandler: OperationHandling {
     func write(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBScope
+        _ db: Database
     ) throws -> [String: Any] {
         let noteId = op["id"] as! String
         
-        guard let path = try context.brain.notePath(scope, noteId),
+        guard let path = try context.brain.notePath(db, noteId),
             FileManager.default.fileExists(atPath: path.path)
         else {
             throw OperationError.noteFileMissing(op: "rename_section", id: noteId)
@@ -68,12 +69,12 @@ struct RenameSectionHandler: OperationHandling {
         let newBody = try sectionEdit.rename(body, path: sectionPath, newTitle: newTitle)
         
         try (frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
-        try scope.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
+        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
         
         let now = context.now
         
-        try scope.run(StampNoteLifecycleTransaction(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: false))
-        try bookkeeper.recordEdit(scope, nid: noteId, opLabel: "rename_section", now: now)
+        try db.run(StampNoteLifecycleTransaction(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: false))
+        try bookkeeper.recordEdit(db, nid: noteId, opLabel: "rename_section", now: now)
         
         return [
             "status": "ok",
@@ -86,10 +87,10 @@ struct RenameSectionHandler: OperationHandling {
     func touches(
         _ op: [String: Any],
         _ context: HandlerContext,
-        _ scope: GRDBReadScope
+        _ db: Database
     ) throws -> [URL] {
         guard let noteId = op["id"] as? String,
-            let path = try context.brain.notePath(scope, noteId)
+            let path = try context.brain.notePath(db, noteId)
         else {
             return []
         }
