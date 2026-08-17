@@ -17,7 +17,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // The store does not know what a brain is — it knows when the answer to
     // "what is committed" moved, and says so; whoever caches those answers
     // decides what that costs them.
-    private let didCommit: @Sendable (any GRDBStorable) -> Void
+    private let didCommit: @Sendable (GRDBStorage) -> Void
 
     private let databaseURL: URL
     private let migrations: [any GRDBMigration]
@@ -49,7 +49,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     public init(
         databaseURL: URL,
         migrations: [any GRDBMigration],
-        didCommit: @escaping @Sendable (any GRDBStorable) -> Void = { _ in }
+        didCommit: @escaping @Sendable (GRDBStorage) -> Void = { _ in }
     ) {
         self.databaseURL = databaseURL
         self.migrations = migrations
@@ -57,7 +57,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     }
 
     // MARK: - Lifecycle
-    public func connection() throws -> any DatabaseWriter {
+    public func connect() throws -> any DatabaseWriter {
         stateLock.lock()
 
         defer { stateLock.unlock() }
@@ -138,7 +138,12 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     }
 
     // MARK: - Public
-    public func initialize() throws {
+    // Migrate, then cache. Not named `initialize`: DBStorable already supplies
+    // one, and its default reaches the database through `connect`, which
+    // refuses while migrations are pending — the very state this exists to
+    // leave. Two methods answering the same name, one of them wrong for this
+    // store, is how a caller holding the protocol gets the wrong one.
+    public func prepare() throws {
         let dataDirectory = databaseURL.deletingLastPathComponent()
 
         guard FileManager.default.fileExists(atPath: dataDirectory.path) else {
@@ -185,7 +190,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // already holds the lock, and must not take it twice.
     @discardableResult
     public func run<T: GRDBTransaction>(_ transaction: T) async throws -> T.Result {
-        let connection = try self.connection()
+        let connection = try self.connect()
 
         return try await gated { try await transaction.execute(connection) }
     }
@@ -193,7 +198,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // A read takes neither gate — nothing it does can be clobbered.
     @discardableResult
     public func run<T: GRDBReadTransaction>(_ transaction: T) async throws -> T.Result {
-        try await transaction.execute(try connection())
+        try await transaction.execute(try connect())
     }
 
     // The write unit of work — one flock + one BEGIN/COMMIT around the whole
@@ -201,7 +206,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // through db.run(transaction). Throwing rolls the entire body back.
     @discardableResult
     public func write<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
-        let connection = try self.connection()
+        let connection = try self.connect()
 
         return try await gated { try await connection.write { db in try body(db) } }
     }
@@ -210,7 +215,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // writes issued through it at runtime.
     @discardableResult
     public func read<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
-        try await connection().read { db in
+        try await connect().read { db in
             try body(db)
         }
     }

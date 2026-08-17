@@ -25,7 +25,7 @@ struct SessionBindingTests {
     func sessionsAreIndependent() throws {
         // Given
         try home.storage.writeLock {
-            try home.storage.connection().write { database in
+            try home.storage.connect().write { database in
                 try database.execute(
                     sql: "INSERT INTO meta (key, value) VALUES ('binding-probe', 'first')"
                 )
@@ -34,11 +34,11 @@ struct SessionBindingTests {
 
         let second = try SecondaryHome()
 
-        try second.storage.initialize()
+        try second.storage.prepare()
 
         // When — write through the second session's storage only.
         try second.storage.writeLock {
-            try second.storage.connection().write { database in
+            try second.storage.connect().write { database in
                 try database.execute(
                     sql: "INSERT INTO meta (key, value) VALUES ('binding-probe', 'second')"
                 )
@@ -46,10 +46,10 @@ struct SessionBindingTests {
         }
 
         // Then
-        let underFirst = try home.storage.connection().read { database in
+        let underFirst = try home.storage.connect().read { database in
             try String.fetchOne(database, sql: "SELECT value FROM meta WHERE key = 'binding-probe'")
         }
-        let underSecond = try second.storage.connection().read { database in
+        let underSecond = try second.storage.connect().read { database in
             try String.fetchOne(database, sql: "SELECT value FROM meta WHERE key = 'binding-probe'")
         }
 
@@ -83,7 +83,7 @@ struct SessionBindingTests {
         // When
         let second = try SecondaryHome()
 
-        try second.storage.initialize()
+        try second.storage.prepare()
 
         // Then
         #expect(home.layout.brainRoot == home.session.home)
@@ -97,10 +97,10 @@ struct SessionBindingTests {
     @Test("a storage caches its connection — reconnecting yields the same queue")
     func storageCachesTheConnection() throws {
         // Given
-        let before = try home.storage.connection() as? DatabaseQueue
+        let before = try home.storage.connect() as? DatabaseQueue
 
         // When
-        let after = try home.storage.connection() as? DatabaseQueue
+        let after = try home.storage.connect() as? DatabaseQueue
 
         // Then
         #expect(before != nil && before === after, "connect must reuse the cached connection")

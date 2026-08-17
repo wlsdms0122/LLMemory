@@ -32,7 +32,7 @@ struct MigrationGateInvariantTests {
 
         // When
         #expect(throws: DBError.self) {
-            try home.storage.initialize()
+            try home.storage.prepare()
         }
 
         // Then — the drift stays visible to the verify layer.
@@ -58,7 +58,7 @@ struct MigrationGateInvariantTests {
 
         // When
         #expect(throws: DBError.self) {
-            try home.storage.initialize()
+            try home.storage.prepare()
         }
 
         // Then
@@ -79,7 +79,7 @@ struct MigrationGateInvariantTests {
         dropConnection()
 
         // When / Then
-        #expect(throws: DBError.self) { _ = try home.storage.connection() }
+        #expect(throws: DBError.self) { _ = try home.storage.connect() }
     }
 
     @Test("connect refuses a brain migrated by a newer binary")
@@ -95,7 +95,7 @@ struct MigrationGateInvariantTests {
         dropConnection()
 
         // When / Then
-        #expect(throws: DBError.self) { _ = try home.storage.connection() }
+        #expect(throws: DBError.self) { _ = try home.storage.connect() }
     }
 
     @Test("a table that lost its CHECK constraint fails the shape predicate")

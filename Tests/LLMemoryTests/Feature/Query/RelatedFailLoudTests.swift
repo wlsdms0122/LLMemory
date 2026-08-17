@@ -33,7 +33,7 @@ struct RelatedFailLoudTests {
         
         // Then
         #expect(throws: DBError.self) {
-            _ = try ghost.storage.connection()
+            _ = try ghost.storage.connect()
         }
     }
     

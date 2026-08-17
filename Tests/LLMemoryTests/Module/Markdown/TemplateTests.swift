@@ -244,7 +244,7 @@ struct TemplateTests {
     }
     
     private func body(_ home: MemoryHome, _ id: String) throws -> String {
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         let relative = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id = ?", arguments: [id]).map { _ in home.layout.relativeFile(forId: id) }
         }
@@ -271,7 +271,7 @@ struct TemplateTests {
             #expect(scaffolded.contains(heading))
         }
         
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         let row = try queue.read { db in
             try Row.fetchOne(db, sql: "SELECT template, locked FROM notes WHERE id = 'doc-1'")
         }
@@ -360,7 +360,7 @@ struct TemplateTests {
         #expect(created.status == "failed")
         #expect(created.error.contains("template frame"))
         
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         
         #expect(try !queue.read { db in try NoteExistsTransaction(nid: "doc-4").perform(db) })
     }
@@ -399,7 +399,7 @@ struct TemplateTests {
             "content": "# A\nx\n# B\ny\n"
         ]], "rationale": "t"]).status == "ok")
         
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         let relative = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT 1 FROM notes WHERE id='tpl-ab'").map { _ in home.layout.relativeFile(forId: "tpl-ab") }
         }
@@ -439,7 +439,7 @@ struct TemplateTests {
             "tags": ["flow"], "content": "## A\ny\n", "locked": true, "entities": ["ClusterEnt"]
         ]], "rationale": "t"]).status == "ok")
         
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         let members = Set(try queue.read { db in try detector.clusters(db) }.flatMap { cluster in cluster.members.map(\.id) })
         
         #expect(members.contains("cl-n1"))

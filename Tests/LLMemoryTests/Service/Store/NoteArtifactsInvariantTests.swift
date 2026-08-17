@@ -27,7 +27,7 @@ struct NoteArtifactsInvariantTests {
     @Test("every table that cascades from a note is classified — an unclassified one is invisible to the ops that must carry it")
     func everyNoteCascadeTableIsClassified() throws {
         // When
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         let cascade = try queue.read { db in try FetchNoteCascadeTablesTransaction().perform(db) }
         
         // Then
@@ -46,7 +46,7 @@ struct NoteArtifactsInvariantTests {
     @Test("every artifact declares what a split does with it, so none is silently dropped")
     func everyArtifactHasSplitPolicy() throws {
         // When
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         let cascade = Set(try queue.read { db in try FetchNoteCascadeTablesTransaction().perform(db) })
         
         // Then
@@ -71,7 +71,7 @@ struct NoteArtifactsInvariantTests {
         @Test("every declared disposition names a table that actually exists")
     func dispositionEntriesAreRealCascadeTables() throws {
         // When
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         let cascade = Set(try queue.read { db in try FetchNoteCascadeTablesTransaction().perform(db) })
         
         // Then

@@ -16,7 +16,7 @@ import GRDB
 // `storage.write` gate is covered by the CLI suite.
 extension OperationsEngine {
     static func apply(
-        _ storage: any GRDBStorable,
+        _ storage: GRDBStorage,
         _ brain: BrainContext,
         _ payload: [String: Any],
         sessionId: SessionId? = nil
@@ -41,7 +41,7 @@ extension OperationsEngine {
             }
 
             return try storage.writeLock {
-                try storage.connection().write { db in
+                try storage.connect().write { db in
                     engine.apply(db, decoded, sessionId: sessionId)
                 }
             }
@@ -58,7 +58,7 @@ extension OperationsEngine {
     }
 
     static func dryRun(
-        _ storage: any GRDBStorable,
+        _ storage: GRDBStorage,
         _ brain: BrainContext,
         _ payload: [String: Any]
     ) -> OperationsDryRunResult {
@@ -79,7 +79,7 @@ extension OperationsEngine {
                 )
             }
 
-            return try storage.connection().read { db in
+            return try storage.connect().read { db in
                 engine.dryRun(db, decoded)
             }
         } catch {

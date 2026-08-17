@@ -61,7 +61,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote(home.layout, "gate-1", source: "[\"\(grounding.path)\"]")
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
         try "alpha changed".write(to: grounding, atomically: true, encoding: .utf8)
@@ -100,7 +100,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote(home.layout, "gate-2", source: "[\"\(grounding.path)\"]")
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
         try FileManager.default.removeItem(at: path)
@@ -156,7 +156,7 @@ struct SourceGateInvariantTests {
     @Test("a malformed source in an op is refused by dry-run and apply alike")
     func malformedOpsSourceIsRejectedByDryRunAndApply() throws {
         // Given
-        _ = try home.storage.connection()
+        _ = try home.storage.connect()
         
         // When
         for bad in [[123], [NSNull()], [""], [["foo": "bar"]]] as [Any] {
@@ -183,7 +183,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote(home.layout, "gate-3", source: "[\"\(grounding.path)\"]")
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
         
@@ -215,7 +215,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote(home.layout, "gate-4", source: "[\"\(grounding.path)\"]")
-        let queue = try home.storage.connection()
+        let queue = try home.storage.connect()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
         
@@ -242,7 +242,7 @@ struct SourceGateInvariantTests {
     @Test("every well-formed shape still applies")
     func validShapesStillApply() throws {
         // Given
-        _ = try home.storage.connection()
+        _ = try home.storage.connect()
         
         // When
         let result = home.apply([[

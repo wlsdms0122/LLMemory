@@ -19,7 +19,7 @@ public final class Session {
     ]
 
     public let home: URL
-    public let storage: any GRDBStorable
+    public let storage: GRDBStorage
     let context: BrainContext
 
     private let indexer = Indexer()
@@ -70,13 +70,13 @@ public final class Session {
         beforeIndexing: (BootstrapScope) throws -> Void = { _ in }
     ) throws -> Indexer.BuildResult {
         try storage.writeLock {
-            try storage.initialize()
+            try storage.prepare()
 
             // The constructor may have warmed against a database that was not
             // there yet — re-warm before anything below reads the caches.
             rewarm()
 
-            let queue = try storage.connection()
+            let queue = try storage.connect()
 
             try beforeIndexing(BootstrapScope(queue: queue, context: context))
 

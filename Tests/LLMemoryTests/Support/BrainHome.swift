@@ -22,13 +22,13 @@ extension BrainHome {
     // MARK: - Public
     var path: String { url.path }
 
-    var storage: any GRDBStorable { session.storage }
+    var storage: GRDBStorage { session.storage }
 
     // What the services take alongside the store — this home's brain.
     var brain: BrainContext { session.context }
 
     func database() throws -> any DatabaseWriter {
-        try storage.connection()
+        try storage.connect()
     }
 
     func read<T>(_ body: (Database) throws -> T) throws -> T {
