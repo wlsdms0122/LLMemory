@@ -134,14 +134,14 @@ public struct OperationsEngine: Sendable {
             now: now
         ) {
             try? RecordEventOperation(
-            kind: .capture,
-            payload: EventPayload([
-                "tx_status": "rejected",
-                "error": .string(message),
-                "rejected_index": index.map { index in .integer(index) },
-                "op_count": .integer(opsRaw.count)
-            ]),
-            sessionId: sessionId
+                kind: .capture,
+                payload: EventPayload([
+                    "tx_status": "rejected",
+                    "error": .string(message),
+                    "rejected_index": index.map { index in .integer(index) },
+                    "op_count": .integer(opsRaw.count)
+                ]),
+                sessionId: sessionId
             ).execute(db)
             
             return OperationsResult(
@@ -162,13 +162,13 @@ public struct OperationsEngine: Sendable {
             let message = "snapshot failed: \(error)"
             
             try? RecordEventOperation(
-            kind: .capture,
-            payload: EventPayload([
-                "tx_status": "rejected",
-                "error": .string(message),
-                "op_count": .integer(opsRaw.count)
-            ]),
-            sessionId: sessionId
+                kind: .capture,
+                payload: EventPayload([
+                    "tx_status": "rejected",
+                    "error": .string(message),
+                    "op_count": .integer(opsRaw.count)
+                ]),
+                sessionId: sessionId
             ).execute(db)
             
             return OperationsResult(
@@ -259,9 +259,9 @@ public struct OperationsEngine: Sendable {
             if let index { payload["failed_index"] = .integer(index) }
             
             try? RecordEventOperation(
-            kind: .capture,
-            payload: EventPayload(payload),
-            sessionId: sessionId
+                kind: .capture,
+                payload: EventPayload(payload),
+                sessionId: sessionId
             ).execute(db)
             
             return OperationsResult(
@@ -283,13 +283,13 @@ public struct OperationsEngine: Sendable {
         }
         
         try? RecordEventOperation(
-        kind: .capture,
-        payload: EventPayload([
-            "tx_status": "ok",
-            "op_count": .integer(opsRaw.count),
-            "ops": .array(opsSummary)
-        ]),
-        sessionId: sessionId
+            kind: .capture,
+            payload: EventPayload([
+                "tx_status": "ok",
+                "op_count": .integer(opsRaw.count),
+                "ops": .array(opsSummary)
+            ]),
+            sessionId: sessionId
         ).execute(db)
         
         var degradedPasses: [String] = []

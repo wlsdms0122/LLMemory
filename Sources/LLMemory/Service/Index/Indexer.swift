@@ -194,34 +194,21 @@ public struct Indexer: Sendable {
                 continue
             }
 
-            var failure: Error? = nil
-            var reindexed: (noteId: String, relativePath: String)? = nil
+            let attempt = try db.attempt {
+                let noteId = try ReindexNoteFileOperation(
+                    noteId: try brain.requireNoteId(of: path),
+                    path: path
+                )
+                    .execute(db)
 
-            do {
-                try db.inSavepoint {
-                    do {
-                        let noteId = try ReindexNoteFileOperation(
-                            noteId: try brain.requireNoteId(of: path),
-                            path: path
-                        )
-                            .execute(db)
-
-                        reindexed = (noteId, brain.layout.relative(of: path) ?? path.path)
-
-                        return .commit
-                    } catch {
-                        failure = error
-
-                        return .rollback
-                    }
-                }
-            } catch {
-                failure = failure ?? error
+                return (noteId: noteId, relativePath: brain.layout.relative(of: path) ?? path.path)
             }
 
-            if let failure {
+            switch attempt {
+            case .failure(let failure):
                 outcomes.append(ReindexOutcome(filePath: filePath, result: .failure("\(failure)")))
-            } else if let reindexed {
+
+            case .success(let reindexed):
                 outcomes.append(
                     ReindexOutcome(
                         filePath: filePath,
@@ -289,10 +276,13 @@ public struct Indexer: Sendable {
             changed += 1
         }
 
+        // A note that fails is recorded and the pass carries on, so each one
+        // needs a boundary of its own — an upsert is a dozen statements, and
+        // half of them landing in the enclosing commit is a corrupt row, not a
+        // failed note. The operation claims no atomicity; the caller that
+        // swallows the failure is the one that has to ask for one.
         for note in pending {
-            do {
-                try reconcileOne(note)
-            } catch {
+            if case .failure(let error) = try db.attempt({ try reconcileOne(note) }) {
                 errors.append("\(note.rel): \(error)")
             }
         }

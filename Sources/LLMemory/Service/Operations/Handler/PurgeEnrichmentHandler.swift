@@ -36,8 +36,8 @@ struct PurgeEnrichmentHandler: OperationHandling {
         let now = context.now
         let provenance = op["provenance"] as! String
         let (termsPurged, edgesPurged, affected) = try PurgeEnrichmentProvenanceOperation(
-        provenance: provenance,
-        now: now
+            provenance: provenance,
+            now: now
         ).execute(db)
         
         return [

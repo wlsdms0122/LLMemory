@@ -66,16 +66,16 @@ struct MarkUsedHandler: OperationHandling {
         // notSurfaced throw inside is a backstop, not a second gate: it
         // shares the context's now/session with validation.
         _ = try DeriveActivityWindowsOperation(
-        now: context.now,
-        windowGapSec: ActivationTuning(context.brain).windowGapSec
+            now: context.now,
+            windowGapSec: ActivationTuning(context.brain).windowGapSec
         ).execute(db)
         
         let outcomes = try MarkNotesUsedOperation(
-        ids: ids,
-        response: op["response"] as? String,
-        sessionLabel: context.sessionId,
-        now: context.now,
-        lookbackSec: ActivationTuning(context.brain).usedLookbackSec
+            ids: ids,
+            response: op["response"] as? String,
+            sessionLabel: context.sessionId,
+            now: context.now,
+            lookbackSec: ActivationTuning(context.brain).usedLookbackSec
         ).execute(db)
         let marked = outcomes.filter { outcome in outcome.matched }
         let failed = outcomes.filter { outcome in !outcome.matched }

@@ -60,9 +60,9 @@ struct DeleteNoteHandler: OperationHandling {
         }
         
         try RemoveNoteRowsOperation(
-        nid: noteId,
-        flagReason: "deleted \(noteId)",
-        now: now
+            nid: noteId,
+            flagReason: "deleted \(noteId)",
+            now: now
         ).execute(db)
         
         // Safe to move here: `touches` names both this file and its trash

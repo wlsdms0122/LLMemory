@@ -43,10 +43,10 @@ struct ResolveFlagHandler: OperationHandling {
     ) throws -> [String: Any] {
         let now = context.now
         let resolved = try ResolveRippleFlagOperation(
-        noteId: op["id"] as! String,
-        kind: op["kind"] as! String,
-        reason: op["reason"] as? String,
-        now: now
+            noteId: op["id"] as! String,
+            kind: op["kind"] as! String,
+            reason: op["reason"] as? String,
+            now: now
         ).execute(db)
         
         return [

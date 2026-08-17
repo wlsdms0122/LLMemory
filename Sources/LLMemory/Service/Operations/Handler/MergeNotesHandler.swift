@@ -124,9 +124,9 @@ struct MergeNotesHandler: OperationHandling {
         
         for fromId in fromIds {
             _ = try FlagInboundReferrersOperation(
-            targetId: fromId,
-            reason: "merged into \(intoId)",
-            now: now
+                targetId: fromId,
+                reason: "merged into \(intoId)",
+                now: now
             ).execute(db)
             try RedirectLinksForMergeOperation(fromId: fromId, intoId: intoId).execute(db)
             try AbsorbNoteArtifactsForMergeOperation(from: fromId, into: intoId).execute(db)

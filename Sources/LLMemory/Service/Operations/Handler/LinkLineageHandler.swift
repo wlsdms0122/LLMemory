@@ -70,10 +70,10 @@ struct LinkLineageHandler: OperationHandling {
         let reason = op["reason"] as? String
         
         try RecordNoteLifecycleEventOperation(
-        nid: src,
-        kind: kind.rawValue,
-        reason: reason,
-        now: now
+            nid: src,
+            kind: kind.rawValue,
+            reason: reason,
+            now: now
         ).execute(db)
         
         return [

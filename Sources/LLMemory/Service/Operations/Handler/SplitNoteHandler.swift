@@ -249,9 +249,9 @@ struct SplitNoteHandler: OperationHandling {
             try StampNoteLifecycleOperation(nid: fromId, file: context.brain.layout.file(forId: fromId), now: now, isNew: false).execute(db)
         } else {
             _ = try FlagInboundReferrersOperation(
-            targetId: fromId,
-            reason: "split into \(newIds.joined(separator: ", "))",
-            now: now
+                targetId: fromId,
+                reason: "split into \(newIds.joined(separator: ", "))",
+                now: now
             ).execute(db)
             try DeleteNoteRowOperation(nid: fromId).execute(db)
             try Trash(layout: context.brain.layout).file(
@@ -274,13 +274,13 @@ struct SplitNoteHandler: OperationHandling {
             let dst = outbound ? other : child
             
             try AddLinkOperation(
-            src: src,
-            dst: dst,
-            kind: edge.kind,
-            weight: weight,
-            createdAt: edge.createdAt,
-            lastActivatedAt: edge.lastActivatedAt,
-            provenance: edge.provenance
+                src: src,
+                dst: dst,
+                kind: edge.kind,
+                weight: weight,
+                createdAt: edge.createdAt,
+                lastActivatedAt: edge.lastActivatedAt,
+                provenance: edge.provenance
             ).execute(db)
         }
         
@@ -355,8 +355,8 @@ struct SplitNoteHandler: OperationHandling {
         for noteId in newIds { try NormalizeUndirectedLinksOperation(nodeId: noteId).execute(db) }
         
         try LinkSiblingsOperation(
-        ids: sourceSurvives ? newIds + [fromId] : newIds,
-        now: now
+            ids: sourceSurvives ? newIds + [fromId] : newIds,
+            now: now
         ).execute(db)
         
         if !sourceSurvives {
@@ -376,11 +376,11 @@ struct SplitNoteHandler: OperationHandling {
                 
                 for noteId in targets {
                     try InsertPendingTermIfAbsentOperation(
-                    noteId: noteId,
-                    kind: kind,
-                    term: term,
-                    provenance: provenance,
-                    now: now
+                        noteId: noteId,
+                        kind: kind,
+                        term: term,
+                        provenance: provenance,
+                        now: now
                     ).execute(db)
                 }
             }

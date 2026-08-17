@@ -79,11 +79,11 @@ struct AddRetrievalTermsHandler: OperationHandling {
         
         for term in terms {
             inserted += try UpsertPendingTermOperation(
-            noteId: noteId,
-            kind: kind,
-            term: term,
-            provenance: provenance,
-            now: now
+                noteId: noteId,
+                kind: kind,
+                term: term,
+                provenance: provenance,
+                now: now
             ).execute(db)
         }
         

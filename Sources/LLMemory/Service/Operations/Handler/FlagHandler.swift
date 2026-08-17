@@ -44,10 +44,10 @@ struct FlagHandler: OperationHandling {
         let now = context.now
         
         try AddRippleFlagOperation(
-        noteId: op["id"] as! String,
-        kind: op["kind"] as! String,
-        reason: op["reason"] as? String ?? "",
-        now: now
+            noteId: op["id"] as! String,
+            kind: op["kind"] as! String,
+            reason: op["reason"] as? String ?? "",
+            now: now
         ).execute(db)
         
         return ["status": "ok", "ids": [op["id"]!], "note": "flagged \(op["kind"]!)"]

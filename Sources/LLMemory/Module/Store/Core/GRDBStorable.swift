@@ -26,12 +26,12 @@ public extension GRDBStorable {
     // It is an operation like any other — the closure is the body `execute`
     // would have held — so it goes through `run`, and the store's hooks see it.
     @discardableResult
-    func write<T>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
+    func write<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
         try await run(Perform(body))
     }
 
     @discardableResult
-    func read<T>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
+    func read<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
         try await run(PerformReading(body))
     }
 }
@@ -42,7 +42,7 @@ public extension GRDBStorable {
 // most work earns it. A body that only orchestrates other operations for one
 // caller does not — there is nothing to reuse, and a type per call site would
 // be a name that exists to be spelled once.
-public struct Perform<Result>: GRDBOperation {
+public struct Perform<Result: Sendable>: GRDBOperation {
     // MARK: - Property
     private let body: @Sendable (Database) throws -> Result
 
@@ -58,7 +58,7 @@ public struct Perform<Result>: GRDBOperation {
     }
 }
 
-public struct PerformReading<Result>: GRDBReadOperation {
+public struct PerformReading<Result: Sendable>: GRDBReadOperation {
     // MARK: - Property
     private let body: @Sendable (Database) throws -> Result
 

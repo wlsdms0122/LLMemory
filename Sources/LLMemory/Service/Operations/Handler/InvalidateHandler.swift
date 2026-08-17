@@ -77,9 +77,9 @@ struct InvalidateHandler: OperationHandling {
         let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(100)
         
         _ = try FlagInboundReferrersOperation(
-        targetId: noteId,
-        reason: "invalidated: \(reasonShort)",
-        now: now
+            targetId: noteId,
+            reason: "invalidated: \(reasonShort)",
+            now: now
         ).execute(db)
         
         return ["status": "ok", "path": path.path, "ids": [noteId], "note": "invalidated"]

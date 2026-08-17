@@ -50,9 +50,9 @@ struct RebaseSourceHandler: OperationHandling {
         let noteId = op["id"] as! String
         
         try RebaseNoteSourceOperation(
-        noteId: noteId,
-        paths: try SourceVerifier().declaredPaths(db, context.brain, noteId: noteId),
-        now: now
+            noteId: noteId,
+            paths: try SourceVerifier().declaredPaths(db, context.brain, noteId: noteId),
+            now: now
         ).execute(db)
         try RecordNoteLifecycleEventOperation(nid: noteId,
         kind: "source_rebased",

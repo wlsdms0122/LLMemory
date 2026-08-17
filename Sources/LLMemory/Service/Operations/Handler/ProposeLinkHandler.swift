@@ -87,11 +87,11 @@ struct ProposeLinkHandler: OperationHandling {
         }
         
         try UpsertAssocLinkOperation(
-        src: source,
-        dst: destination,
-        weight: weight,
-        now: now,
-        provenance: provenance
+            src: source,
+            dst: destination,
+            weight: weight,
+            now: now,
+            provenance: provenance
         ).execute(db)
         
         return [
