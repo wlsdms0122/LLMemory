@@ -7,7 +7,11 @@
 
 import Foundation
 
-// Index-domain service — build/verify surfaces over the write operations.
+// Index-domain service — the async surfaces the tiers above reach for, over
+// the scopes the store opens. What a correct projection of the corpus looks
+// like is Indexer's judgement, so these bodies orchestrate it directly: a type
+// per body would be a name spelled once, at one call site, forwarding to a
+// method that already exists.
 public struct IndexService: IndexServiceable {
     // MARK: - Property
     let storage: any GRDBStorable
@@ -38,12 +42,15 @@ public struct IndexService: IndexServiceable {
         try await storage.write { db in
             let scan = indexer.scanPending(brain)
 
-            return try ReconcileIndexOperation(
-                brain: brain,
-                scan: scan,
+            return try indexer.reconcile(
+                brain,
+                db,
+                pending: scan.pending,
+                scannedRels: scan.scannedRels,
                 rebuild: rebuild,
-                now: Int(Date().timeIntervalSince1970)
-            ).execute(db)
+                now: Int(Date().timeIntervalSince1970),
+                fileErrors: scan.errors
+            )
         }
     }
 
@@ -51,14 +58,14 @@ public struct IndexService: IndexServiceable {
         filePaths: [String]
     ) async throws -> [Indexer.ReindexOutcome] {
         try await storage.write { db in
-            try ReindexNotesOperation(brain: brain, filePaths: filePaths).execute(db)
+            try indexer.reindexFiles(db, brain, filePaths: filePaths)
         }
     }
 
     public func check(
         level: Indexer.IntegrityLevel
     ) async throws -> (ok: Bool, msgs: [String]) {
-        try await storage.run(CheckIntegrityOperation(brain: brain, level: level))
+        try await storage.read { db in try indexer.check(db, brain, rawLevel: level.rawValue) }
     }
 
     public func buildVectors() async throws -> VectorBuildResult {

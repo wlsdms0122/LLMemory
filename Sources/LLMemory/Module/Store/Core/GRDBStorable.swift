@@ -24,7 +24,10 @@ public extension GRDBStorable {
     // handed. Throwing rolls the whole body back.
     //
     // It is an operation like any other — the closure is the body `execute`
-    // would have held — so it goes through `run`, and the store's hooks see it.
+    // would have held — so it goes through `run` rather than reaching for
+    // `open` itself. `open` is what the store implements, `run` is what a
+    // caller says; a convenience that called the first would be a second door
+    // into the same room, and whatever `run` grows to do next would miss it.
     @discardableResult
     func write<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
         try await run(Perform(body))

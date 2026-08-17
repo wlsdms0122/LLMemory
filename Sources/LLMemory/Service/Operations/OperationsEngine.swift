@@ -43,7 +43,7 @@ public struct OperationsEngine: Sendable {
     
     // MARK: - Public
     // The one place the raw payload string re-enters the [String: Any] world —
-    // both ops transactions decode through here.
+    // both ops transactions (apply and dry-run) decode through here.
     func decodePayload(_ json: String) -> [String: Any]? {
         guard
             let data = json.data(using: .utf8),
