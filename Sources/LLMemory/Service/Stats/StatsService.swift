@@ -6,16 +6,15 @@
 //
 
 import Foundation
-import Storage
 
 // Stats-domain service — pure observation of the corpus and its activation
 // traces.
 public struct StatsService: StatsServiceable {
     // MARK: - Property
-    let storage: GRDBStorage
+    let storage: any GRDBStorable
 
     // MARK: - Initializer
-    init(storage: GRDBStorage) {
+    init(storage: any GRDBStorable) {
         self.storage = storage
     }
 

@@ -19,7 +19,7 @@ public final class Session {
     ]
 
     public let home: URL
-    public let storage: GRDBStorage
+    public let storage: any GRDBStorable
     let context: BrainContext
 
     private let indexer = Indexer()

@@ -22,7 +22,7 @@ extension BrainHome {
     // MARK: - Public
     var path: String { url.path }
 
-    var storage: GRDBStorage { session.storage }
+    var storage: any GRDBStorable { session.storage }
 
     // What the services take alongside the store — this home's brain.
     var brain: BrainContext { session.context }

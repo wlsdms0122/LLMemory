@@ -64,7 +64,7 @@ public struct OperationsEngine: Sendable {
     }
     
     // Runs inside the caller's write scope — OperationsService provides the
-    // cross-process write lock via `storage.run`.
+    // cross-process write lock via `storage.write`.
     public func apply(
         _ db: Database,
         _ payload: [String: Any],

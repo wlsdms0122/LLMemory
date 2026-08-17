@@ -7,7 +7,6 @@
 
 import Foundation
 import GRDB
-import Storage
 
 @_silgen_name("flock") private func c_flock(_ fd: Int32, _ op: Int32) -> Int32
 
@@ -17,7 +16,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // The store does not know what a brain is — it knows when the answer to
     // "what is committed" moved, and says so; whoever caches those answers
     // decides what that costs them.
-    private let didCommit: @Sendable (GRDBStorage) -> Void
+    private let didCommit: @Sendable (any GRDBStorable) -> Void
 
     private let databaseURL: URL
     private let migrations: [any GRDBMigration]
@@ -49,7 +48,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     public init(
         databaseURL: URL,
         migrations: [any GRDBMigration],
-        didCommit: @escaping @Sendable (GRDBStorage) -> Void = { _ in }
+        didCommit: @escaping @Sendable (any GRDBStorable) -> Void = { _ in }
     ) {
         self.databaseURL = databaseURL
         self.migrations = migrations
@@ -179,11 +178,11 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         }
     }
 
-    // The write scope — one flock + one BEGIN/COMMIT around the whole body.
-    // Services orchestrate domain work inside; every DB touch goes through
-    // scope.run(transaction). Throwing rolls the entire scope back.
+    // The write unit of work — one flock + one BEGIN/COMMIT around the whole
+    // body. Services orchestrate domain work inside; every DB touch goes
+    // through db.run(transaction). Throwing rolls the entire body back.
     @discardableResult
-    public func run<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
+    public func write<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
         let connection = try connect()
 
         // In-process exclusion first — flock cannot separate two tasks of one
@@ -215,8 +214,8 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         }
     }
 
-    // The read scope — no lock, no write transaction; SQLite rejects writes
-    // issued through it at runtime.
+    // The read unit of work — no lock, no write transaction; SQLite rejects
+    // writes issued through it at runtime.
     @discardableResult
     public func read<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
         try await connect().read { db in

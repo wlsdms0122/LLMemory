@@ -33,7 +33,7 @@ struct Container: Sendable {
     let operations: any OperationsServiceable
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, brain: BrainContext) {
+    init(storage: any GRDBStorable, brain: BrainContext) {
         // The retrieval strategies are chosen once, here, and handed to
         // everything that reads text for cues. Swapping either one is this
         // line and nothing else — which is the whole reason they are named by

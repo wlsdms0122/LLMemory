@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Storage
 
 // Ops-domain service — the mutation surface. apply runs the atomic write
 // transaction; the op catalog is code-owned and needs no connection.
@@ -16,12 +15,12 @@ import Storage
 // because nothing was executed and the payload was never interpreted.
 public struct OperationsService: OperationsServiceable {
     // MARK: - Property
-    let storage: GRDBStorage
+    let storage: any GRDBStorable
     let engine: OperationsEngine
     
     
     // MARK: - Initializer
-    init(storage: GRDBStorage, engine: OperationsEngine) {
+    init(storage: any GRDBStorable, engine: OperationsEngine) {
         self.storage = storage
         self.engine = engine
     }
@@ -46,7 +45,7 @@ public struct OperationsService: OperationsServiceable {
         }
         
         do {
-            let result = try await storage.run { db in
+            let result = try await storage.write { db in
                 guard let payload = engine.decodePayload(payloadJSON) else {
                     return OperationsResult(
                         status: "rejected",

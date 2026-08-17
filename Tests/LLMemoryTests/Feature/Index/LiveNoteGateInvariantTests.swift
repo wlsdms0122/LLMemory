@@ -41,7 +41,7 @@ struct LiveNoteGateInvariantTests {
     // Sync by fixture contract — MemoryHome holds its exclusion for the
     // fixture's lifetime, so no test may suspend under it (an await here
     // starves the pool and hangs the run). The locked write goes through
-    // writeLock; the async storage.run + exit-code surface is covered
+    // writeLock; the async storage.write + exit-code surface is covered
     // end-to-end by IndexCommandTests against the real binary.
     @Test("index reindex reports failure for a trashed path instead of quietly doing nothing")
     func indexReindexReportsFailureForATrashedPath() throws {

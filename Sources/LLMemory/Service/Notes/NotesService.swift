@@ -7,14 +7,13 @@
 
 import Foundation
 import GRDB
-import Storage
 
 // Note-domain service — body reads (whole, sections, budget, toc, frame),
 // enumeration, history, and structure. Body reads
 // derive a retrieval record; RetrievalService applies it.
 public struct NotesService: NotesServiceable {
     // MARK: - Property
-    let storage: GRDBStorage
+    let storage: any GRDBStorable
     let brain: BrainContext
     let retrieval: any RetrievalServiceable
 
@@ -25,7 +24,7 @@ public struct NotesService: NotesServiceable {
     private let template = Template()
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, brain: BrainContext, retrieval: any RetrievalServiceable) {
+    init(storage: any GRDBStorable, brain: BrainContext, retrieval: any RetrievalServiceable) {
         self.storage = storage
         self.brain = brain
         self.retrieval = retrieval

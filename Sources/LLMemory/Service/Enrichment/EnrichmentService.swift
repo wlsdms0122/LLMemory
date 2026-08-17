@@ -6,13 +6,12 @@
 //
 
 import Foundation
-import Storage
 
 // Enrichment-domain service — observation of the semantic layer (terms,
 // assoc edges, vectors, provenance noise).
 public struct EnrichmentService: EnrichmentServiceable {
     // MARK: - Property
-    let storage: GRDBStorage
+    let storage: any GRDBStorable
     let brain: BrainContext
 
     // The enrichment keys and defaults have one owner; this resolves them
@@ -20,7 +19,7 @@ public struct EnrichmentService: EnrichmentServiceable {
     private var enrichment: EnrichmentTuning { EnrichmentTuning(brain.config) }
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, brain: BrainContext) {
+    init(storage: any GRDBStorable, brain: BrainContext) {
         self.storage = storage
         self.brain = brain
     }

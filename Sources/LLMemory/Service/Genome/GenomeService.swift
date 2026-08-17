@@ -7,7 +7,6 @@
 
 import Foundation
 import GRDB
-import Storage
 
 // Genome-domain service — the observation surfaces: the catalog with this
 // brain's values, the provenance of every mutation, and offline reranking
@@ -18,14 +17,14 @@ import Storage
 // module, where the callers that need them already are.
 public struct GenomeService: GenomeServiceable {
     // MARK: - Property
-    let storage: GRDBStorage
+    let storage: any GRDBStorable
     let brain: BrainContext
     let keywords: any KeywordExtracting
     let entities: any EntityHinting
 
     // MARK: - Initializer
     init(
-        storage: GRDBStorage,
+        storage: any GRDBStorable,
         brain: BrainContext,
         keywords: any KeywordExtracting,
         entities: any EntityHinting

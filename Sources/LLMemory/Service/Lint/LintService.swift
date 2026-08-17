@@ -6,18 +6,17 @@
 //
 
 import Foundation
-import Storage
 
 // The lint domain's async door — opens a read scope and asks the scanner.
 // Everything it knows about what a defect is, it knows by asking.
 public struct LintService: LintServiceable {
     // MARK: - Property
-    let storage: GRDBStorage
+    let storage: any GRDBStorable
     let brain: BrainContext
     let scanner: any LintScanning
     
     // MARK: - Initializer
-    init(storage: GRDBStorage, brain: BrainContext, scanner: any LintScanning) {
+    init(storage: any GRDBStorable, brain: BrainContext, scanner: any LintScanning) {
         self.storage = storage
         self.brain = brain
         self.scanner = scanner

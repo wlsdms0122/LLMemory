@@ -7,7 +7,6 @@
 
 import Foundation
 import GRDB
-import Storage
 
 // Retrieval-domain service — the associative surfaces (search, related,
 // neighbors, entity) and the side-effect record they derive. Reads run in a
@@ -15,7 +14,7 @@ import Storage
 // retrieval must not fail because its trace could not be written.
 public struct RetrievalService: RetrievalServiceable {
     // MARK: - Property
-    let storage: GRDBStorage
+    let storage: any GRDBStorable
     let brain: BrainContext
     let keywords: any KeywordExtracting
     let entities: any EntityHinting
@@ -28,7 +27,7 @@ public struct RetrievalService: RetrievalServiceable {
 
     // MARK: - Initializer
     init(
-        storage: GRDBStorage,
+        storage: any GRDBStorable,
         brain: BrainContext,
         keywords: any KeywordExtracting,
         entities: any EntityHinting
@@ -257,7 +256,7 @@ public struct RetrievalService: RetrievalServiceable {
     ) async throws -> [String] {
         guard let record else { return [] }
 
-        return try await storage.run { db in
+        return try await storage.write { db in
             try db.run(
                 RecordRetrievalTransaction(
                     record,

@@ -45,7 +45,7 @@ struct IndexCommandTests {
     
     // The user-facing contract of "reindex reports failure": the real binary
     // partitions successes from failures, writes failures to stderr, and
-    // exits 1 — the whole storage.run + exit-code path in one shot.
+    // exits 1 — the whole storage.write + exit-code path in one shot.
     @Test("--path reindex partitions success from failure and exits 1")
     func reindexReportsFailureThroughTheRealBinary() {
         // Given — --path resolves relative arguments against the CWD, so the

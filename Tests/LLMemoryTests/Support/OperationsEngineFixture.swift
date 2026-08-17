@@ -13,10 +13,10 @@ import GRDB
 // JSON string the CLI would send, decoded through the service's single decode
 // door, and applied through the engine's scope body. The write lock rides
 // writeLock (the sync gate) because unit tests stay synchronous; the async
-// `storage.run` gate is covered by the CLI suite.
+// `storage.write` gate is covered by the CLI suite.
 extension OperationsEngine {
     static func apply(
-        _ storage: GRDBStorage,
+        _ storage: any GRDBStorable,
         _ brain: BrainContext,
         _ payload: [String: Any],
         sessionId: SessionId? = nil
@@ -58,7 +58,7 @@ extension OperationsEngine {
     }
 
     static func dryRun(
-        _ storage: GRDBStorage,
+        _ storage: any GRDBStorable,
         _ brain: BrainContext,
         _ payload: [String: Any]
     ) -> OperationsDryRunResult {

@@ -7,7 +7,6 @@
 
 import Foundation
 import GRDB
-import Storage
 
 // Consolidation-domain service — the periodic hygiene passes.
 public struct ConsolidateService: ConsolidateServiceable {
@@ -34,7 +33,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     public let candidateStructuralKinds = CandidateDetector.structuralKinds
     public var candidateValidKinds: [String] { CandidateDetector.validKinds }
 
-    let storage: GRDBStorage
+    let storage: any GRDBStorable
     let brain: BrainContext
     let keywords: any KeywordExtracting
 
@@ -47,7 +46,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     private let corpus = CorpusReconciler()
 
     // MARK: - Initializer
-    init(storage: GRDBStorage, brain: BrainContext, keywords: any KeywordExtracting) {
+    init(storage: any GRDBStorable, brain: BrainContext, keywords: any KeywordExtracting) {
         self.storage = storage
         self.brain = brain
         self.detector = CandidateDetector(brain: brain)
@@ -112,7 +111,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     }
 
     public func integrate() async throws -> IntegrateResult {
-        try await storage.run { db in
+        try await storage.write { db in
             var result = try integrate(db)
             let integrity = try corpus.checkFilesPresent(db, brain)
             result.integrityL1 = IntegrateResult.IntegrityReport(
@@ -127,7 +126,7 @@ public struct ConsolidateService: ConsolidateServiceable {
 
     public func homeostasis() async throws -> HomeostasisReport {
         let now = Int(Date().timeIntervalSince1970)
-        let report = try await storage.run { db in
+        let report = try await storage.write { db in
             _ = try db.run(DeriveActivityWindowsTransaction(now: now, windowGapSec: ActivationTuning(brain).windowGapSec))
 
             let report = try homeostasisTick(db, now: now)
@@ -154,7 +153,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     }
 
     public func prune() async throws -> PruneResult {
-        try await storage.run { db in try prune(db) }
+        try await storage.write { db in try prune(db) }
     }
 
     public func report() async throws -> ConsolidateTagReport {
