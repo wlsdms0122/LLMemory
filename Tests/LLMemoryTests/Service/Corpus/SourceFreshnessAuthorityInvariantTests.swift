@@ -63,7 +63,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         let path = try Self.writeNote(home.layout, "fresh-1", sources: [source])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileOperation(noteId: try home.brain.requireNoteId(of: path), path: path).execute(db) }
         
         let baselineMtime = try Self.mtime(source)
         
@@ -97,7 +97,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         let path = try Self.writeNote(home.layout, "fresh-2", sources: [source])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileOperation(noteId: try home.brain.requireNoteId(of: path), path: path).execute(db) }
         
         let baselineMtime = try Self.mtime(source)
         
@@ -127,7 +127,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         let path = try Self.writeNote(home.layout, "fresh-3", sources: [source])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileOperation(noteId: try home.brain.requireNoteId(of: path), path: path).execute(db) }
         try "beta".write(to: source, atomically: true, encoding: .utf8)
         
         // When
@@ -155,7 +155,7 @@ struct SourceFreshnessAuthorityInvariantTests {
         let path = try Self.writeNote(home.layout, "fresh-4", sources: [first, second])
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileOperation(noteId: try home.brain.requireNoteId(of: path), path: path).execute(db) }
         try FileManager.default.removeItem(at: second)
         
         _ = try queue.write { db in try SourceVerifier().verifyAll(db, home.brain) }

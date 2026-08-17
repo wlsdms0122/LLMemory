@@ -34,8 +34,8 @@ struct TagPriorTests {
 
         // When
         let prior = try home.read { database in
-            try ComputeTagPriorTransaction(sessionId: SessionId("s1")!, windowSec: 3600, now: now)
-                .perform(database)
+            try ComputeTagPriorOperation(sessionId: SessionId("s1")!, windowSec: 3600, now: now)
+                .execute(database)
         }
 
         // Then — a tag on every hit is a full 1.0 however many tags it shares a note with,
@@ -54,8 +54,8 @@ struct TagPriorTests {
 
         // When
         let prior = try home.read { database in
-            try ComputeTagPriorTransaction(sessionId: SessionId("mine")!, windowSec: 3600, now: now)
-                .perform(database)
+            try ComputeTagPriorOperation(sessionId: SessionId("mine")!, windowSec: 3600, now: now)
+                .execute(database)
         }
 
         // Then

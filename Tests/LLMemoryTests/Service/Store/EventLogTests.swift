@@ -24,19 +24,19 @@ struct EventLogTests {
     }
 
     // MARK: - Test
-    @Test("a retrieval written through the transaction is one the log reader finds")
+    @Test("a retrieval written through the operation is one the log reader finds")
     func writtenKindIsTheKindRead() throws {
         try home.write { database in
-            try RecordEventTransaction(
+            try RecordEventOperation(
                 kind: .retrieval,
                 payload: EventPayload(command: .search, ["query": "quokka", "hit_ids": JSONValue(["n1"])]),
                 ts: 1_000
             )
-                .perform(database)
+                .execute(database)
         }
 
         let logged = try home.read { database in
-            try FetchLoggedRetrievalQueriesTransaction(limit: 10).perform(database)
+            try FetchLoggedRetrievalQueriesOperation(limit: 10).execute(database)
         }
 
         #expect(logged.count == 1)
@@ -54,7 +54,7 @@ struct EventLogTests {
         }
 
         let logged = try home.read { database in
-            try FetchLoggedRetrievalQueriesTransaction(limit: 10).perform(database)
+            try FetchLoggedRetrievalQueriesOperation(limit: 10).execute(database)
         }
 
         #expect(logged.isEmpty)
@@ -63,23 +63,23 @@ struct EventLogTests {
     @Test("only search carries tags and a limit — related has none to carry")
     func replayCarriesOnlyItsOwnInputs() throws {
         try home.write { database in
-            try RecordEventTransaction(
+            try RecordEventOperation(
                 kind: .retrieval,
                 payload: EventPayload(
                     command: .search, ["query": "a", "tags": JSONValue(["swift"]), "limit": 3]),
                 ts: 1_000
             )
-                .perform(database)
-            try RecordEventTransaction(
+                .execute(database)
+            try RecordEventOperation(
                 kind: .retrieval,
                 payload: EventPayload(command: .related, ["text": "b"]),
                 ts: 1_001
             )
-                .perform(database)
+                .execute(database)
         }
 
         let logged = try home.read { database in
-            try FetchLoggedRetrievalQueriesTransaction(limit: 10).perform(database)
+            try FetchLoggedRetrievalQueriesOperation(limit: 10).execute(database)
         }
         let replays = logged.map { query in query.replay }
 

@@ -144,13 +144,13 @@ struct RelocateSectionHandler: OperationHandling {
             atomically: true,
             encoding: .utf8
         )
-        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: srcPath), path: srcPath))
-        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: dstPath), path: dstPath))
+        try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: srcPath), path: srcPath).execute(db)
+        try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: dstPath), path: dstPath).execute(db)
         
         let now = context.now
         
-        try db.run(StampNoteLifecycleTransaction(nid: fromId, file: context.brain.layout.file(forId: fromId), now: now, isNew: false))
-        try db.run(StampNoteLifecycleTransaction(nid: toId, file: context.brain.layout.file(forId: toId), now: now, isNew: false))
+        try StampNoteLifecycleOperation(nid: fromId, file: context.brain.layout.file(forId: fromId), now: now, isNew: false).execute(db)
+        try StampNoteLifecycleOperation(nid: toId, file: context.brain.layout.file(forId: toId), now: now, isNew: false).execute(db)
         try bookkeeper.recordEdit(
             db,
             nid: fromId,

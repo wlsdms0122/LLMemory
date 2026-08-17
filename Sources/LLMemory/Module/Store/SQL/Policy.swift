@@ -8,7 +8,7 @@
 import Foundation
 
 // The gate predicates — what makes a note visible, decayable or exempt,
-// written once as SQL fragments the transactions compose. Values, not
+// written once as SQL fragments the operations compose. Values, not
 // behaviour: same input, same string, nothing to hold.
 enum Policy {
     // MARK: - Property

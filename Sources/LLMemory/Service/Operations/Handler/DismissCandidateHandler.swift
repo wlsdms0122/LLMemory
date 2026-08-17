@@ -145,10 +145,10 @@ struct DismissCandidateHandler: OperationHandling {
             kind = dismissalPolicy.lintKind(code, fingerprint: matched.dismissalKey)
         }
         
-        try db.run(RecordDismissalTransaction(target: target,
-            kind: kind,
-            reason: op["reason"] as? String,
-            now: now))
+        try RecordDismissalOperation(target: target,
+        kind: kind,
+        reason: op["reason"] as? String,
+        now: now).execute(db)
         
         let ids: [String] = {
             if case .note(let noteId) = target { return [noteId] }

@@ -16,7 +16,7 @@ struct IsolatedNoteRule: CorpusDBLintRule {
     // MARK: - Initializer
     // MARK: - Public
     func check(_ db: Database, _ tuning: LintTuning) throws -> [LintFinding] {
-        try db.run(FetchFragmentationRowsTransaction())
+        try FetchFragmentationRowsOperation().execute(db)
             .filter { row in row.linkN == 0 && row.entN == 0 && row.tagN <= 1 }
             .map { row in
                 .init("no links, no entities, ≤1 tag — orphan", target: .note(row.nid))

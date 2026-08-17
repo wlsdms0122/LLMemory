@@ -48,7 +48,7 @@ struct SectionInvariantExitInvariantTests {
         
         // Then
         #expect(result.status == "ok", "soft delete turned out to be one-way: \(result.error)")
-        #expect(try home.read { database in try NoteExistsTransaction(nid: "cr-note").perform(database) })
+        #expect(try home.read { database in try NoteExistsOperation(nid: "cr-note").execute(database) })
     }
     
     @Test("a note that already has a duplicate heading can still be re-addressed")

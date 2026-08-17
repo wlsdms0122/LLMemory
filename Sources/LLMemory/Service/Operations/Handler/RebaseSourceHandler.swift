@@ -34,7 +34,7 @@ struct RebaseSourceHandler: OperationHandling {
             return rejection
         }
         
-        if !(try db.run(NoteSourceTrackedTransaction(nid: noteId))) {
+        if !(try NoteSourceTrackedOperation(nid: noteId).execute(db)) {
             return "note has no drift-tracked source: \(noteId)"
         }
         
@@ -49,16 +49,16 @@ struct RebaseSourceHandler: OperationHandling {
         let now = context.now
         let noteId = op["id"] as! String
         
-        try db.run(RebaseNoteSourceTransaction(
-            noteId: noteId,
-            paths: try SourceVerifier().declaredPaths(db, context.brain, noteId: noteId),
-            now: now
-        ))
-        try db.run(RecordNoteLifecycleEventTransaction(nid: noteId,
-            kind: "source_rebased",
-            reason: op["reason"] as? String,
-            now: now
-        ))
+        try RebaseNoteSourceOperation(
+        noteId: noteId,
+        paths: try SourceVerifier().declaredPaths(db, context.brain, noteId: noteId),
+        now: now
+        ).execute(db)
+        try RecordNoteLifecycleEventOperation(nid: noteId,
+        kind: "source_rebased",
+        reason: op["reason"] as? String,
+        now: now
+        ).execute(db)
         
         return ["status": "ok", "ids": [noteId], "note": "source re-baselined"]
     }

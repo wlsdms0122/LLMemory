@@ -119,7 +119,7 @@ struct DismissalsTests {
         #expect(dismiss("big-5").status == "ok")
         
         // Then
-        let hits = try home.read { database in try SearchNotesFTSTransaction(match: .text("zephyrquark", keywords: FrequencyKeywordExtractor()), primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).perform(database) }
+        let hits = try home.read { database in try SearchNotesFTSOperation(match: .text("zephyrquark", keywords: FrequencyKeywordExtractor()), primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).execute(database) }
         
         #expect(!(try splitCandidateIds().contains("big-5")))
         #expect(hits.contains { hit in hit.id == "big-5" }, "a dismissal must not affect search")
@@ -133,7 +133,7 @@ struct DismissalsTests {
         
         // When
         let targets = try home.read { database in
-            try FetchSplitRouteTargetsTransaction(noteId: "big-6").perform(database)
+            try FetchSplitRouteTargetsOperation(noteId: "big-6").execute(database)
         }
         
         // Then
@@ -217,7 +217,7 @@ struct DismissalsTests {
             "a change in tag usage is not evidence about a corpus judgement")
         
         // When
-        try home.database().write { database in try BumpCandidateGenerationTransaction().perform(database) }
+        try home.database().write { database in try BumpCandidateGenerationOperation().execute(database) }
         
         // Then
         #expect(try lintIssues(code: "tag-near-duplicate").count == 1, "a reorganisation must reopen it")

@@ -10,7 +10,7 @@ import Foundation
 // The package's entry point — the composition root that binds one brain home
 // and hands out its domain surfaces. Everything flows from here by explicit
 // injection: paths, configuration and genome values belong to the Session's
-// context and reach a transaction through the scope that runs it, so two live
+// context and reach an operation through the transaction that runs it, so two live
 // brains in one process share nothing.
 public struct Brain {
     // MARK: - Property

@@ -76,7 +76,7 @@ struct FtsMetaOnlyTests {
     // MARK: - Private
     private func projectMetaOnly(id: String, title: String = "title", summary: String = "summary") throws {
         try home.database().write { database in
-            try SetNoteFTSMetaOnlyTransaction(nid: id, title: title, summary: summary).perform(database)
+            try SetNoteFTSMetaOnlyOperation(nid: id, title: title, summary: summary).execute(database)
         }
     }
     

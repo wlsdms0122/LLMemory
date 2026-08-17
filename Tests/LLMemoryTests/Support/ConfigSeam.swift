@@ -9,7 +9,7 @@ import Foundation
 import GRDB
 @testable import LLMemory
 
-// Test-only config writer — production mutates config through a transaction
+// Test-only config writer — production mutates config through an operation
 // inside a scope. A fixture commits the row and then re-reads the caches the
 // way a write scope does, so what the test set up and what the process holds
 // come from the same place.

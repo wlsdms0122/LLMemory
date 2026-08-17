@@ -49,7 +49,7 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: base + 90_000, sessionId: "task-a", hitIds: ["n2"])
         
         // When
-            let result = try DeriveActivityWindowsTransaction(now: base + 100_000, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            let result = try DeriveActivityWindowsOperation(now: base + 100_000, windowGapSec: home.activationTuning.windowGapSec).execute(database)
         
         // Then
             #expect(result.eventsConsumed == 5)
@@ -77,12 +77,12 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: 2_000_000, sessionId: nil, hitIds: ["n1"])
         
         // When
-            let first = try DeriveActivityWindowsTransaction(now: 2_000_100, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            let first = try DeriveActivityWindowsOperation(now: 2_000_100, windowGapSec: home.activationTuning.windowGapSec).execute(database)
         
         // Then
             #expect(first.eventsConsumed == 1)
             
-            let second = try DeriveActivityWindowsTransaction(now: 2_000_200, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            let second = try DeriveActivityWindowsOperation(now: 2_000_200, windowGapSec: home.activationTuning.windowGapSec).execute(database)
             
             #expect(second.eventsConsumed == 0)
             
@@ -130,7 +130,7 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: now - 60, sessionId: nil,
                 hitIds: ["transfer-flow", "unrelated-note"])
             
-            _ = try DeriveActivityWindowsTransaction(now: now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            _ = try DeriveActivityWindowsOperation(now: now, windowGapSec: home.activationTuning.windowGapSec).execute(database)
         }
         
         // When
@@ -184,18 +184,18 @@ struct ActivationTests {
             try recordRetrieval(database, timestamp: now - 10, sessionId: "turn-1:capture",
                 hitIds: ["snapshot-only-note"])
             
-            _ = try DeriveActivityWindowsTransaction(now: now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            _ = try DeriveActivityWindowsOperation(now: now, windowGapSec: home.activationTuning.windowGapSec).execute(database)
         
         // When
             // A labeled mark attaches to the window with that label, and to no other.
-            let ok = try MarkNotesUsedTransaction(ids: ["answer-note"], response: nil,
-                sessionLabel: SessionId("turn-1"), now: now, lookbackSec: home.activationTuning.usedLookbackSec).perform(database)
+            let ok = try MarkNotesUsedOperation(ids: ["answer-note"], response: nil,
+                sessionLabel: SessionId("turn-1"), now: now, lookbackSec: home.activationTuning.usedLookbackSec).execute(database)
         
         // Then
             #expect(ok.first?.signal == "reported")
             #expect(throws: Activation.UsedError.self) {
-                _ = try MarkNotesUsedTransaction(ids: ["snapshot-only-note"], response: nil,
-                    sessionLabel: SessionId("turn-1"), now: now, lookbackSec: home.activationTuning.usedLookbackSec).perform(database)
+                _ = try MarkNotesUsedOperation(ids: ["snapshot-only-note"], response: nil,
+                    sessionLabel: SessionId("turn-1"), now: now, lookbackSec: home.activationTuning.usedLookbackSec).execute(database)
             }
         }
     }
@@ -210,11 +210,11 @@ struct ActivationTests {
         try home.database().write { database in
             try recordRetrieval(database, timestamp: now - 30, sessionId: "w1", hitIds: ["n1"])
             
-            _ = try DeriveActivityWindowsTransaction(now: now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            _ = try DeriveActivityWindowsOperation(now: now, windowGapSec: home.activationTuning.windowGapSec).execute(database)
         }
         
         // When
-        let stats = try home.read { database in try OverallStatsTransaction().perform(database) }
+        let stats = try home.read { database in try OverallStatsOperation().execute(database) }
         
         // Then
         #expect(stats.activation.windows == 1)

@@ -71,12 +71,10 @@ struct GenomeTests {
         
         // When — the genome itself carries a value.
         try home.write { database in
-            _ = try database.run(
-                ApplyGeneValueTransaction(
-                    geneId: "priming.alpha", value: 1.2, cause: "set_gene",
-                    requireMutable: false, ts: 1, configured: nil
-                )
-            )
+            _ = try ApplyGeneValueOperation(
+                geneId: "priming.alpha", value: 1.2, cause: "set_gene",
+                requireMutable: false, ts: 1, configured: nil
+            ).execute(database)
         }
         
         // Then
@@ -140,12 +138,10 @@ struct GenomeTests {
     func lockedGeneGuard() throws {
         try home.write { database in
             #expect(throws: GenomeWriteError.self) {
-                try database.run(
-                    ApplyGeneValueTransaction(
-                        geneId: "links.decay_factor", value: 0.8,
-                        cause: "homeostasis:test", requireMutable: true, ts: 1, configured: nil
-                    )
-                )
+                try ApplyGeneValueOperation(
+                    geneId: "links.decay_factor", value: 0.8,
+                    cause: "homeostasis:test", requireMutable: true, ts: 1, configured: nil
+                ).execute(database)
             }
         }
     }
@@ -171,7 +167,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            _ = try DeriveActivityWindowsOperation(now: home.now, windowGapSec: home.activationTuning.windowGapSec).execute(database)
             
             // When
             let report = try home.consolidateService.homeostasisTick(database, now: home.now)
@@ -216,7 +212,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            _ = try DeriveActivityWindowsOperation(now: home.now, windowGapSec: home.activationTuning.windowGapSec).execute(database)
             
             // When
             let report = try home.consolidateService.homeostasisTick(database, now: home.now)
@@ -241,12 +237,10 @@ struct GenomeTests {
         let base = home.now - 50_000
         
         try home.write { database in
-            _ = try database.run(
-                ApplyGeneValueTransaction(
-                    geneId: "related.expand_hops", value: 0, cause: "set_gene",
-                    detail: "test setup", requireMutable: false, ts: home.now, configured: nil
-                )
-            )
+            _ = try ApplyGeneValueOperation(
+                geneId: "related.expand_hops", value: 0, cause: "set_gene",
+                detail: "test setup", requireMutable: false, ts: home.now, configured: nil
+            ).execute(database)
             
             for index in 0 ..< 12 {
                 let timestamp = base + index * 3600
@@ -255,7 +249,7 @@ struct GenomeTests {
                 try recordRetrieval(database, timestamp: timestamp + 30, hitIds: ["landed-expand"], command: "get")
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            _ = try DeriveActivityWindowsOperation(now: home.now, windowGapSec: home.activationTuning.windowGapSec).execute(database)
             
             // When
             let report = try home.consolidateService.homeostasisTick(database, now: home.now)
@@ -275,7 +269,7 @@ struct GenomeTests {
                 try recordRetrieval(database, timestamp: timestamp + 30, hitIds: ["landed-expand"], command: "get")
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            _ = try DeriveActivityWindowsOperation(now: home.now, windowGapSec: home.activationTuning.windowGapSec).execute(database)
             
             let report = try home.consolidateService.homeostasisTick(database, now: home.now)
             
@@ -306,7 +300,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            _ = try DeriveActivityWindowsOperation(now: home.now, windowGapSec: home.activationTuning.windowGapSec).execute(database)
             
             // When — below the minimum sample.
             let first = try home.consolidateService.homeostasisTick(database, now: home.now)
@@ -325,7 +319,7 @@ struct GenomeTests {
                 )
             }
             
-            _ = try DeriveActivityWindowsTransaction(now: home.now, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            _ = try DeriveActivityWindowsOperation(now: home.now, windowGapSec: home.activationTuning.windowGapSec).execute(database)
             
             let second = try home.consolidateService.homeostasisTick(database, now: home.now)
             
@@ -354,14 +348,14 @@ struct GenomeTests {
         try home.write { database in
             try recordRetrieval(database, timestamp: 3_000_000, hitIds: ["n1"])
             
-            _ = try DeriveActivityWindowsTransaction(now: 3_000_100, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            _ = try DeriveActivityWindowsOperation(now: 3_000_100, windowGapSec: home.activationTuning.windowGapSec).execute(database)
         }
         
         // When — the cache is rewound the way a second process would see it.
         home.brain.plantStaleConfigValue("activation.derive_watermark", value: "0")
         
         try home.write { database in
-            let result = try DeriveActivityWindowsTransaction(now: 3_000_200, windowGapSec: home.activationTuning.windowGapSec).perform(database)
+            let result = try DeriveActivityWindowsOperation(now: 3_000_200, windowGapSec: home.activationTuning.windowGapSec).execute(database)
             
             // Then
             #expect(result.eventsConsumed == 0, "the cursor is read from the row, not from the cache")

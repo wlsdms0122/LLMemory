@@ -86,31 +86,31 @@ struct MigrateNoteHandler: OperationHandling {
         }
         
         let oldEntityHits: [(entity: String, hits: Int)] = (newId != targetId)
-            ? try db.run(FetchNoteEntityHitsTransaction(noteId: targetId))
+            ? try FetchNoteEntityHitsOperation(noteId: targetId).execute(db)
             : []
         
-        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: newPath), path: newPath))
+        try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: newPath), path: newPath).execute(db)
         
         var rewritten: [String] = []
         
         if newId != targetId {
-            try db.run(ReparentNoteArtifactsTransaction(from: targetId, to: newId))
-            try db.run(DeleteNoteRowTransaction(nid: targetId))
-            try db.run(ClearNoteTagsTransaction(noteId: targetId))
+            try ReparentNoteArtifactsOperation(from: targetId, to: newId).execute(db)
+            try DeleteNoteRowOperation(nid: targetId).execute(db)
+            try ClearNoteTagsOperation(noteId: targetId).execute(db)
             
             for hit in oldEntityHits {
-                try db.run(SetEntityHitCountTransaction(noteId: newId, entity: hit.entity, hits: hit.hits))
+                try SetEntityHitCountOperation(noteId: newId, entity: hit.entity, hits: hit.hits).execute(db)
             }
             
-            try db.run(SyncNoteEnrichTransaction(noteId: newId))
-            try db.run(NormalizeUndirectedLinksTransaction(nodeId: newId))
+            try SyncNoteEnrichOperation(noteId: newId).execute(db)
+            try NormalizeUndirectedLinksOperation(nodeId: newId).execute(db)
             
             // After the new id exists, so the rewritten citations resolve
             // to it on reindex rather than dangling for an instant.
             rewritten = try citationRewriter.rewrite(db, context.brain, from: targetId, to: newId)
         }
         
-        try db.run(StampNoteLifecycleTransaction(nid: newId, file: context.brain.layout.file(forId: newId), now: now, isNew: false))
+        try StampNoteLifecycleOperation(nid: newId, file: context.brain.layout.file(forId: newId), now: now, isNew: false).execute(db)
         
         let citations = rewritten.isEmpty
             ? ""
@@ -152,7 +152,7 @@ struct MigrateNoteHandler: OperationHandling {
         
         // The notes that cite this id are rewritten by the write, so they
         // belong in the snapshot — a rollback has to put them back.
-        for src in try db.run(FetchCitingNoteIdsTransaction(marker: targetId)) {
+        for src in try FetchCitingNoteIdsOperation(marker: targetId).execute(db) {
             paths.append(context.brain.layout.file(forId: src))
         }
         

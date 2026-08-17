@@ -10,7 +10,7 @@ import Foundation
 // An event's payload, in the form the column stores it. Encoding happens
 // once, where the facts are known, and the value travels as text from there
 // — which is why a read path can derive one and hand it to a write
-// transaction across a concurrency boundary.
+// operation across a concurrency boundary.
 //
 // Encoding cannot fail into the caller's lap: a trace that refuses to
 // serialise must not take down the operation it traces. What it must not do

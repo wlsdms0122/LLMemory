@@ -34,7 +34,7 @@ struct VocabPruneTests {
         
         // When
         let result = try home.write { database in
-            try PruneUnusedVocabTagsTransaction().perform(database)
+            try PruneUnusedVocabTagsOperation().execute(database)
         }
         
         // Then
@@ -49,7 +49,7 @@ struct VocabPruneTests {
         
         // When
         let result = try home.write { database in
-            try PruneUnusedVocabTagsTransaction().perform(database)
+            try PruneUnusedVocabTagsOperation().execute(database)
         }
         
         // Then

@@ -135,7 +135,7 @@ struct PathIdInvariantTests {
             atPath: home.url.appendingPathComponent("cortex/p/q/r.md").path
         ), "the note under the old address must be untouched")
 
-        let rows = try home.read { database in try FetchTreeTransaction(prefix: "p").perform(database) }
+        let rows = try home.read { database in try FetchTreeOperation(prefix: "p").execute(database) }
 
         #expect(Set(rows.map(\.prefix)) == ["p.q", "p.moved"])
     }
@@ -148,9 +148,9 @@ struct PathIdInvariantTests {
         }
 
         // When
-        let top = try home.read { database in try FetchTreeTransaction().perform(database) }
+        let top = try home.read { database in try FetchTreeOperation().execute(database) }
         let under = try home.read { database in
-            try FetchTreeTransaction(prefix: "a").perform(database)
+            try FetchTreeOperation(prefix: "a").execute(database)
         }
 
         // Then
@@ -174,10 +174,10 @@ struct PathIdInvariantTests {
 
         // When
         let rows = try home.read { database in
-            try FetchTreeTransaction(prefix: "m").perform(database)
+            try FetchTreeOperation(prefix: "m").execute(database)
         }
         let stats = try home.read { database in
-            try PrefixStatsTransaction(prefix: "m").perform(database)
+            try PrefixStatsOperation(prefix: "m").execute(database)
         }
 
         // Then

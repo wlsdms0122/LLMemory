@@ -69,11 +69,11 @@ struct RenameSectionHandler: OperationHandling {
         let newBody = try sectionEdit.rename(body, path: sectionPath, newTitle: newTitle)
         
         try (frontmatter.dump(doc) + newBody).write(to: path, atomically: true, encoding: .utf8)
-        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
+        try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: path), path: path).execute(db)
         
         let now = context.now
         
-        try db.run(StampNoteLifecycleTransaction(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: false))
+        try StampNoteLifecycleOperation(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: false).execute(db)
         try bookkeeper.recordEdit(db, nid: noteId, opLabel: "rename_section", now: now)
         
         return [

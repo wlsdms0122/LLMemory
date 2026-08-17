@@ -19,7 +19,7 @@ struct NoteFamilyIndex {
     // MARK: - Initializer
     // MARK: - Public
     func families(_ db: Database, minFamily: Int) throws -> [NoteFamily] {
-        let graph = try db.run(FetchFamilyGraphTransaction())
+        let graph = try FetchFamilyGraphOperation().execute(db)
         let allIds = Set(graph.notes)
         var adjacency: [String: [String]] = [:]
         
@@ -111,7 +111,7 @@ struct NoteFamilyIndex {
         var unlinked: [String] = []
         
         for member in family.members {
-            let neighbours = try db.run(FetchDeliberateNeighborsTransaction(noteId: member))
+            let neighbours = try FetchDeliberateNeighborsOperation(noteId: member).execute(db)
             
             if neighbours.contains(where: { other in inFamily.contains(other) }) { continue }
             

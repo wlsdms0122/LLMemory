@@ -18,7 +18,7 @@ struct TagNearDuplicateRule: CorpusDBLintRule {
     // MARK: - Initializer
     // MARK: - Public
     func check(_ db: Database, _ tuning: LintTuning) throws -> [LintFinding] {
-        let counts = try db.run(FetchTagUsageTransaction())
+        let counts = try FetchTagUsageOperation().execute(db)
         var findings: [LintFinding] = []
         
         for leftIndex in 0..<counts.count {

@@ -15,7 +15,7 @@ import Foundation
 // belongs to one execution rather than to the brain never lands in it.
 //
 // A caller that must read a value it is itself writing reads the row
-// (FetchGeneValueTransaction), not this.
+// (FetchGeneValueOperation), not this.
 public struct Genes: Sendable {
     public struct Gene: Sendable {
         // MARK: - Property
@@ -135,7 +135,7 @@ public struct Genes: Sendable {
     }
 
     // Whether the catalog admits this value, answered once. Every caller
-    // that decides admissibility asks here — the write transaction, the op
+    // that decides admissibility asks here — the write operation, the op
     // that must refuse with a sentence before writing, and the shadow replay
     // that only borrows a value. Three copies of the same inequality drift
     // one bound at a time, and the copy that drifts is the one that refuses.

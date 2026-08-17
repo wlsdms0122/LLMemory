@@ -75,7 +75,7 @@ struct SessionBindingTests {
     func sessionsDoNotShareParameters() throws {
         // Given — a probe value primed into the fixture's own context
         try home.write { database in
-            try SetConfigValueTransaction(key: "binding-probe", value: "mine").perform(database)
+            try SetConfigValueOperation(key: "binding-probe", value: "mine").execute(database)
         }
 
         home.session.rewarm()

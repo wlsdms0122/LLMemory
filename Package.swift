@@ -16,7 +16,7 @@ let package = Package(
         .package(url: "https://github.com/groue/GRDB.swift", from: "6.29.0"),
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
         .package(url: "https://github.com/jpsim/Yams", from: "5.1.0"),
-        .package(url: "https://github.com/wlsdms0122/Storage", from: "1.2.1")
+        .package(url: "https://github.com/wlsdms0122/Storage", branch: "develop")
     ],
     targets: [
         .target(

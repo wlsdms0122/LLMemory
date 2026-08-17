@@ -38,7 +38,7 @@ struct DeleteNoteHandler: OperationHandling {
         
         if (op["force"] as? Bool) == true { return nil }
         
-        let inbound = try db.run(FetchInboundBlockersTransaction(noteId: noteId))
+        let inbound = try FetchInboundBlockersOperation(noteId: noteId).execute(db)
         
         if !inbound.isEmpty {
             return "inbound links exist (src: \(inbound.joined(separator: ", "))) — resolve them or set force=true"
@@ -59,11 +59,11 @@ struct DeleteNoteHandler: OperationHandling {
             throw OperationError.unknownNote(noteId)
         }
         
-        try db.run(RemoveNoteRowsTransaction(
-            nid: noteId,
-            flagReason: "deleted \(noteId)",
-            now: now
-        ))
+        try RemoveNoteRowsOperation(
+        nid: noteId,
+        flagReason: "deleted \(noteId)",
+        now: now
+        ).execute(db)
         
         // Safe to move here: `touches` names both this file and its trash
         // destination, so a rollback of the surrounding batch restores them.

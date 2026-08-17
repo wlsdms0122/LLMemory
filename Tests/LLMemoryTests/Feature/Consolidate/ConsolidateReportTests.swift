@@ -28,7 +28,7 @@ struct ConsolidateReportTests {
         home.createNote(id: "tag-common-2", tags: ["flow", "shared"])
         
         // When
-        let report = try home.read { database in try FetchTagReportTransaction().perform(database) }
+        let report = try home.read { database in try FetchTagReportOperation().execute(database) }
         
         // Then
         let rare = Set(report.rare.map(\.tag))
@@ -42,7 +42,7 @@ struct ConsolidateReportTests {
     func compactOldEventsKeepsEverythingInsideRetention() throws {
         // When
         let result = try home.database().write { database in
-            try CompactOldEventsTransaction(now: home.now, retentionSec: 99_999_999).perform(database)
+            try CompactOldEventsOperation(now: home.now, retentionSec: 99_999_999).execute(database)
         }
         
         // Then

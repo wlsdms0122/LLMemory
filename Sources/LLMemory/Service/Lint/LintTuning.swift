@@ -10,7 +10,7 @@ import Foundation
 // The thresholds the note rules judge by, resolved from one brain's config.
 //
 // The keys and their defaults live here and nowhere else. What counts as an
-// oversized note is a lint judgement, so the store transaction that reads the
+// oversized note is a lint judgement, so the store operation that reads the
 // corpus takes these as numbers rather than answering them for itself.
 struct LintTuning: Sendable {
     // MARK: - Property

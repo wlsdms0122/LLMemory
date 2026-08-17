@@ -36,7 +36,7 @@ struct RevalidateHandler: OperationHandling {
             return rejection
         }
         
-        guard let stale = try db.run(FetchNoteStaleStateTransaction(nid: noteId)) else {
+        guard let stale = try FetchNoteStaleStateOperation(nid: noteId).execute(db) else {
             return "unknown id: \(noteId)"
         }
         
@@ -65,13 +65,13 @@ struct RevalidateHandler: OperationHandling {
         doc.invalidatedReason = nil
         
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
-        try db.run(SetNoteStaleTransaction(nid: noteId, stale: false))
-        try db.run(RecordNoteLifecycleEventTransaction(nid: noteId,
-            kind: "revalidated",
-            reason: op["reason"] as? String,
-            now: now
-        ))
+        try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: path), path: path).execute(db)
+        try SetNoteStaleOperation(nid: noteId, stale: false).execute(db)
+        try RecordNoteLifecycleEventOperation(nid: noteId,
+        kind: "revalidated",
+        reason: op["reason"] as? String,
+        now: now
+        ).execute(db)
         
         return ["status": "ok", "path": path.path, "ids": [noteId], "note": "revalidated"]
     }

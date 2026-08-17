@@ -76,13 +76,13 @@ struct RestoreHandler: OperationHandling {
             encoding: .utf8
         )
         try FileManager.default.removeItem(at: trashFile)
-        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: destination), path: destination))
-        try db.run(TouchNoteUsageTransaction(noteId: noteId, now: now))
-        try db.run(RecordNoteLifecycleEventTransaction(nid: noteId,
-            kind: "restored",
-            reason: op["reason"] as? String,
-            now: now
-        ))
+        try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: destination), path: destination).execute(db)
+        try TouchNoteUsageOperation(noteId: noteId, now: now).execute(db)
+        try RecordNoteLifecycleEventOperation(nid: noteId,
+        kind: "restored",
+        reason: op["reason"] as? String,
+        now: now
+        ).execute(db)
         
         return [
             "status": "ok",

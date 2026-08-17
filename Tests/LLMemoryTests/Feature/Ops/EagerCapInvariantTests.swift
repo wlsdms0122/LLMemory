@@ -85,6 +85,6 @@ struct EagerCapInvariantTests {
     }
     
     private func eagerCount() throws -> Int {
-        try home.read { database in try CountEagerNotesTransaction().perform(database) }
+        try home.read { database in try CountEagerNotesOperation().execute(database) }
     }
 }

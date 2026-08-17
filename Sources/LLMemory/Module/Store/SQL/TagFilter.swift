@@ -24,7 +24,7 @@ enum TagFilter {
         guard !tags.isEmpty else { return ("", []) }
 
         let canonical = try tags.map { tag in
-            try CanonicalizeTagTransaction(tag: tag).perform(db)
+            try CanonicalizeTagOperation(tag: tag).execute(db)
         }
 
         if negated {

@@ -63,7 +63,7 @@ struct SourceGateInvariantTests {
         let path = try Self.writeNote(home.layout, "gate-1", source: "[\"\(grounding.path)\"]")
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileOperation(noteId: try home.brain.requireNoteId(of: path), path: path).execute(db) }
         try "alpha changed".write(to: grounding, atomically: true, encoding: .utf8)
         
         _ = try queue.write { db in try SourceVerifier().verifyAll(db, home.brain) }
@@ -102,7 +102,7 @@ struct SourceGateInvariantTests {
         let path = try Self.writeNote(home.layout, "gate-2", source: "[\"\(grounding.path)\"]")
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileOperation(noteId: try home.brain.requireNoteId(of: path), path: path).execute(db) }
         try FileManager.default.removeItem(at: path)
         
         // When
@@ -127,7 +127,7 @@ struct SourceGateInvariantTests {
         try "alpha".write(to: grounding, atomically: true, encoding: .utf8)
         
         let path = try Self.writeNote(home.layout, "gate-6", source: "[\"\(grounding.path)\"]")
-        try home.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
+        try home.write { db in _ = try ReindexNoteFileOperation(noteId: try home.brain.requireNoteId(of: path), path: path).execute(db) }
         
         let hashBefore = try home.read { db in
             try String.fetchOne(db, sql: "SELECT source_hash FROM note_source WHERE note_id = 'gate-6'")
@@ -185,7 +185,7 @@ struct SourceGateInvariantTests {
         let path = try Self.writeNote(home.layout, "gate-3", source: "[\"\(grounding.path)\"]")
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileOperation(noteId: try home.brain.requireNoteId(of: path), path: path).execute(db) }
         
         // When
         let result = home.apply([[
@@ -217,7 +217,7 @@ struct SourceGateInvariantTests {
         let path = try Self.writeNote(home.layout, "gate-4", source: "[\"\(grounding.path)\"]")
         let queue = try home.storage.connect()
         
-        try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: path), path: path).perform(db) }
+        try queue.write { db in _ = try ReindexNoteFileOperation(noteId: try home.brain.requireNoteId(of: path), path: path).execute(db) }
         
         // When
         let result = home.apply([[

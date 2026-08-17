@@ -115,8 +115,8 @@ struct NoteExtraProjectionTests {
 
     private func listed(_ field: NoteFieldFilter) throws -> [String] {
         try home.read { database in
-            try ListNoteRowsTransaction(.init(fields: [field]))
-                .perform(database)
+            try ListNoteRowsOperation(.init(fields: [field]))
+                .execute(database)
                 .map { row in row.id }
         }
     }

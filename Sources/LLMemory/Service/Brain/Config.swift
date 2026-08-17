@@ -13,7 +13,7 @@ import Foundation
 // which is current.
 //
 // It reads the cache and nothing else. The rows behind the cache are the
-// store's — a config transaction reaches them — and what this type owns is
+// store's — a config operation reaches them — and what this type owns is
 // how a cache holds them: a `[String: String]` cannot say "written, and
 // deliberately empty", so a sentinel stands in for it. Both the writing of
 // that sentinel and the reading of it are here, because a representation

@@ -36,7 +36,7 @@ struct InvalidateHandler: OperationHandling {
             return rejection
         }
         
-        let priority = try db.run(FetchNotePriorityTransaction(nid: noteId))
+        let priority = try FetchNotePriorityOperation(nid: noteId).execute(db)
         
         if priority == "eager" { return "cannot invalidate eager note: \(noteId)" }
         
@@ -66,21 +66,21 @@ struct InvalidateHandler: OperationHandling {
         }
         
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
-        try db.run(SetNoteStaleTransaction(nid: noteId, stale: true))
-        try db.run(RecordNoteLifecycleEventTransaction(nid: noteId,
-            kind: "invalidated",
-            reason: op["reason"] as? String,
-            now: now
-        ))
+        try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: path), path: path).execute(db)
+        try SetNoteStaleOperation(nid: noteId, stale: true).execute(db)
+        try RecordNoteLifecycleEventOperation(nid: noteId,
+        kind: "invalidated",
+        reason: op["reason"] as? String,
+        now: now
+        ).execute(db)
         
         let reasonShort = (op["reason"] as? String ?? "").unicodeScalarPrefix(100)
         
-        _ = try db.run(FlagInboundReferrersTransaction(
-            targetId: noteId,
-            reason: "invalidated: \(reasonShort)",
-            now: now
-        ))
+        _ = try FlagInboundReferrersOperation(
+        targetId: noteId,
+        reason: "invalidated: \(reasonShort)",
+        now: now
+        ).execute(db)
         
         return ["status": "ok", "path": path.path, "ids": [noteId], "note": "invalidated"]
     }

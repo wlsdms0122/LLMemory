@@ -30,13 +30,13 @@ struct SearchAssocRehearsalTests {
         home.createNote(id: "areh-b", title: "beta", content: "## A\nzephyrquasar context\n")
         
         _ = try home.database().write { db in
-            try StrengthenLinksTransaction(
+            try StrengthenLinksOperation(
                 pairs: [("areh-a", "areh-b")],
                 kind: .assoc,
                 step: 0.5,
                 cap: 1.0
             )
-                .perform(db)
+                .execute(db)
         }
         
         #expect(try assocWeight(between: "areh-a", and: "areh-b") == 0.5)
@@ -55,7 +55,7 @@ struct SearchAssocRehearsalTests {
                 raw: false
             ) }
         
-        try home.database().write { db in _ = try RecordRetrievalTransaction(outcome.record, strengthenStep: home.genes.double("links.strengthen_step"), rebirthFactor: home.genes.double("rebirth.default_factor")).perform(db) }
+        try home.database().write { db in _ = try RecordRetrievalOperation(outcome.record, strengthenStep: home.genes.double("links.strengthen_step"), rebirthFactor: home.genes.double("rebirth.default_factor")).execute(db) }
         
         // Then
         #expect(try assocWeight(between: "areh-a", and: "areh-b") ?? 0 > 0.5,

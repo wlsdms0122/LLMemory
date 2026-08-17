@@ -78,13 +78,13 @@ struct AddRetrievalTermsHandler: OperationHandling {
         var inserted = 0
         
         for term in terms {
-            inserted += try db.run(UpsertPendingTermTransaction(
-                noteId: noteId,
-                kind: kind,
-                term: term,
-                provenance: provenance,
-                now: now
-            ))
+            inserted += try UpsertPendingTermOperation(
+            noteId: noteId,
+            kind: kind,
+            term: term,
+            provenance: provenance,
+            now: now
+            ).execute(db)
         }
         
         return [

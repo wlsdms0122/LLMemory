@@ -10,7 +10,7 @@ import CryptoKit
 
 // Content fingerprints for a note's declared source files — the pure
 // hashing mechanics behind source-drift detection. DB rows are the source
-// transactions' business.
+// operations' business.
 public struct SourceFingerprint: Sendable {
     // MARK: - Property
     // MARK: - Initializer

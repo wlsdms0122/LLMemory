@@ -11,7 +11,7 @@ import GRDB
 // The two questions that compare the database against the files it projects.
 //
 // Both walk from an id the database gave to the file that id addresses, so
-// neither is a transaction: the walk is the address grammar, and the store
+// neither is an operation: the walk is the address grammar, and the store
 // would have to know it to finish either answer.
 struct CorpusReconciler {
     // MARK: - Property
@@ -24,7 +24,7 @@ struct CorpusReconciler {
         _ db: Database,
         _ brain: BrainContext
     ) throws -> (checked: Int, issues: [String]) {
-        let ids = try db.run(FetchAllNoteIdsTransaction())
+        let ids = try FetchAllNoteIdsOperation().execute(db)
         let issues = try ids.compactMap { id -> String? in
             let file = brain.layout.file(forId: id)
             let relative = brain.layout.relativeFile(forId: id)
@@ -51,19 +51,19 @@ struct CorpusReconciler {
         _ db: Database,
         _ brain: BrainContext
     ) throws -> (orphansPruned: Int, refilled: Int, unreadable: [String]) {
-        let noteIds = Set(try db.run(FetchAllNoteIdsTransaction()))
-        let ftsIds = Set(try db.run(FetchIndexedNoteIdsTransaction()))
+        let noteIds = Set(try FetchAllNoteIdsOperation().execute(db))
+        let ftsIds = Set(try FetchIndexedNoteIdsOperation().execute(db))
         let orphans = ftsIds.subtracting(noteIds)
 
         for orphan in orphans {
-            try db.run(DropNoteFTSTransaction(noteId: orphan))
+            try DropNoteFTSOperation(noteId: orphan).execute(db)
         }
 
         var refilled = 0
         var unreadable: [String] = []
 
         for noteId in noteIds.subtracting(ftsIds).sorted() {
-            guard let header = try db.run(FetchNoteHeaderTransaction(noteId: noteId)) else {
+            guard let header = try FetchNoteHeaderOperation(noteId: noteId).execute(db) else {
                 continue
             }
 
@@ -81,14 +81,12 @@ struct CorpusReconciler {
                 continue
             }
 
-            try db.run(
-                ReindexNoteFTSTransaction(
-                    noteId: noteId,
-                    title: header.title,
-                    summary: header.summary ?? "",
-                    body: body
-                )
-            )
+            try ReindexNoteFTSOperation(
+                noteId: noteId,
+                title: header.title,
+                summary: header.summary ?? "",
+                body: body
+            ).execute(db)
             refilled += 1
         }
 

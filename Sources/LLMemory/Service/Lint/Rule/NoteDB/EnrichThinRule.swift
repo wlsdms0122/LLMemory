@@ -27,7 +27,7 @@ struct EnrichThinRule: NoteDBLintRule {
         
         guard !compounds.isEmpty else { return [] }
         
-        let active = try db.run(CountActiveRetrievalTermsTransaction(noteId: note.nid))
+        let active = try CountActiveRetrievalTermsOperation(noteId: note.nid).execute(db)
         
         guard active == 0 else { return [] }
         

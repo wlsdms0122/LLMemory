@@ -90,11 +90,11 @@ struct SetFrontmatterHandler: OperationHandling {
         
         try composer.mergeFields(&doc, fields)
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
-        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
+        try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: path), path: path).execute(db)
         
         let now = context.now
         
-        try db.run(StampNoteLifecycleTransaction(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: false))
+        try StampNoteLifecycleOperation(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: false).execute(db)
         
         let keys = fields.keys.sorted().joined(separator: ",")
         

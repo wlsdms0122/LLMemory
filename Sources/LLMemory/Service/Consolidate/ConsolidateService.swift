@@ -127,24 +127,22 @@ public struct ConsolidateService: ConsolidateServiceable {
     public func homeostasis() async throws -> HomeostasisReport {
         let now = Int(Date().timeIntervalSince1970)
         let report = try await storage.write { db in
-            _ = try db.run(DeriveActivityWindowsTransaction(now: now, windowGapSec: ActivationTuning(brain).windowGapSec))
+            _ = try DeriveActivityWindowsOperation(now: now, windowGapSec: ActivationTuning(brain).windowGapSec).execute(db)
 
             let report = try homeostasisTick(db, now: now)
 
             // The run happened whether or not its trace lands — losing the
             // trace must not undo the consolidation it describes.
-            try? db.run(
-                RecordEventTransaction(
-                    kind: .consolidation,
-                    payload: EventPayload([
-                        "action": "homeostasis",
-                        "windows_processed": .integer(report.windowsProcessed),
-                        "adjusted_gene": report.adjustedGene.map { gene in .string(gene) },
-                        "note": .string(report.note)
-                    ]),
-                    ts: now
-                )
-            )
+            try? RecordEventOperation(
+                kind: .consolidation,
+                payload: EventPayload([
+                    "action": "homeostasis",
+                    "windows_processed": .integer(report.windowsProcessed),
+                    "adjusted_gene": report.adjustedGene.map { gene in .string(gene) },
+                    "note": .string(report.note)
+                ]),
+                ts: now
+            ).execute(db)
 
             return report
         }
@@ -157,7 +155,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     }
 
     public func report() async throws -> ConsolidateTagReport {
-        try await storage.run(FetchTagReportTransaction())
+        try await storage.run(FetchTagReportOperation())
     }
 
     // MARK: - Internal
@@ -166,24 +164,20 @@ public struct ConsolidateService: ConsolidateServiceable {
     // the floor. Rare by design; structure loss is the point.
     func prune(_ db: Database) throws -> PruneResult {
         let now = Int(Date().timeIntervalSince1970)
-        let decay = try db.run(
-            DecayAndPruneLinksTransaction(
-                factor: brain.genes.double("links.decay_factor"),
-                floor: brain.genes.double("links.prune_floor")
-            )
-        )
+        let decay = try DecayAndPruneLinksOperation(
+            factor: brain.genes.double("links.decay_factor"),
+            floor: brain.genes.double("links.prune_floor")
+        ).execute(db)
 
-        try? db.run(
-            RecordEventTransaction(
-                kind: .consolidation,
-                payload: EventPayload([
-                    "action": "prune",
-                    "links_decayed": .integer(decay.decayed),
-                    "links_pruned": .integer(decay.pruned)
-                ]),
-                ts: now
-            )
-        )
+        try? RecordEventOperation(
+            kind: .consolidation,
+            payload: EventPayload([
+                "action": "prune",
+                "links_decayed": .integer(decay.decayed),
+                "links_pruned": .integer(decay.pruned)
+            ]),
+            ts: now
+        ).execute(db)
 
         return PruneResult(linksDecayed: decay.decayed, linksPruned: decay.pruned)
     }
@@ -194,25 +188,19 @@ public struct ConsolidateService: ConsolidateServiceable {
         let now = Int(Date().timeIntervalSince1970)
         let retentionSec = brain.config.getInt("events.retention_days", default: 30) * 24 * 60 * 60
 
-        _ = try db.run(DeriveActivityWindowsTransaction(now: now, windowGapSec: ActivationTuning(brain).windowGapSec))
+        _ = try DeriveActivityWindowsOperation(now: now, windowGapSec: ActivationTuning(brain).windowGapSec).execute(db)
 
-        let eventsCompacted = try db.run(
-            CompactOldEventsTransaction(now: now, retentionSec: retentionSec)
-        ).compacted
-        let tagSummary = try db.run(FetchTagReportTransaction())
+        let eventsCompacted = try CompactOldEventsOperation(now: now, retentionSec: retentionSec).execute(db).compacted
+        let tagSummary = try FetchTagReportOperation().execute(db)
         let sourceVerify = try SourceVerifier().verifyAll(db, brain, now: now)
 
-        let prunedTags = try db.run(PruneUnusedVocabTagsTransaction())
-        let prunedRippleFlags = try db.run(
-            PruneResolvedRippleFlagsTransaction(now: now)
-        )
+        let prunedTags = try PruneUnusedVocabTagsOperation().execute(db)
+        let prunedRippleFlags = try PruneResolvedRippleFlagsOperation(now: now).execute(db)
 
-        _ = try db.run(
-            PruneOldLifecycleEventsTransaction(
-                now: now,
-                retentionDays: brain.config.getInt("lifecycle.retention_days", default: 180)
-            )
-        )
+        _ = try PruneOldLifecycleEventsOperation(
+            now: now,
+            retentionDays: brain.config.getInt("lifecycle.retention_days", default: 180)
+        ).execute(db)
 
         let ftsPrune = try corpus.reconcileSearchIndex(db, brain)
 
@@ -229,29 +217,25 @@ public struct ConsolidateService: ConsolidateServiceable {
         var staleRejected = 0
         var reviewPass = EnrichmentReviewPass()
 
-        switch try db.attempt({ try db.run(
-            ValidatePendingTermsTransaction(
-                noteIds: nil,
-                keywords: keywords,
-                roundtripTopK: enrichment.roundtripTopK,
-                idfDFCeiling: enrichment.idfDFCeiling
-            )
-        ) }) {
+        switch try db.attempt({ try ValidatePendingTermsOperation(
+            noteIds: nil,
+            keywords: keywords,
+            roundtripTopK: enrichment.roundtripTopK,
+            idfDFCeiling: enrichment.idfDFCeiling
+        ).execute(db) }) {
         case .success(let pass): validationPass = pass
         case .failure(let error): degrade("term_validation", error)
         }
 
-        switch try db.attempt({ try db.run(RejectStalePendingTermsTransaction()) }) {
+        switch try db.attempt({ try RejectStalePendingTermsOperation().execute(db) }) {
         case .success(let rejected): staleRejected = rejected
         case .failure(let error): degrade("stale_rejection", error)
         }
 
-        switch try db.attempt({ try db.run(
-            FlagEnrichmentDisagreementsTransaction(
-                now: now,
-                disagreeFloor: enrichment.disagreeFloor
-            )
-        ) }) {
+        switch try db.attempt({ try FlagEnrichmentDisagreementsOperation(
+            now: now,
+            disagreeFloor: enrichment.disagreeFloor
+        ).execute(db) }) {
         case .success(let pass): reviewPass = pass
         case .failure(let error): degrade("enrich_review", error)
         }
@@ -262,9 +246,7 @@ public struct ConsolidateService: ConsolidateServiceable {
         let decay: (decayed: Int, pruned: Int) = (0, 0)
         var vectorBuild: VectorBuildResult?
 
-        switch try db.attempt({ try db.run(
-            BuildVectorsTransaction(dimension: brain.config.getInt("vectors.dim", default: 48))
-        ) }) {
+        switch try db.attempt({ try BuildVectorsOperation(dimension: brain.config.getInt("vectors.dim", default: 48)).execute(db) }) {
         case .success(let build): vectorBuild = build
         case .failure(let error): degrade("vector_build", error)
         }
@@ -303,9 +285,7 @@ public struct ConsolidateService: ConsolidateServiceable {
             for (key, value) in decoded { tracePayload[key] = value }
         }
 
-        try? db.run(
-            RecordEventTransaction(kind: .consolidation, payload: EventPayload(tracePayload), ts: now)
-        )
+        try? RecordEventOperation(kind: .consolidation, payload: EventPayload(tracePayload), ts: now).execute(db)
 
         return IntegrateResult(
             summary: summary,
@@ -322,12 +302,10 @@ public struct ConsolidateService: ConsolidateServiceable {
     // the ceiling. Windows are consumed exactly once via the watermark.
     func homeostasisTick(_ db: Database, now: Int) throws -> HomeostasisReport {
         let watermark = Int(
-            try db.run(FetchConfigValueTransaction(key: homeostasisWatermarkKey, default: "0"))
+            try FetchConfigValueOperation(key: homeostasisWatermarkKey, default: "0").execute(db)
         ) ?? 0
         let closedBefore = now - brain.genes.int("activation.window_gap_sec")
-        let windows = try db.run(
-            FetchClosedActivityWindowsTransaction(watermark: watermark, closedBefore: closedBefore)
-        )
+        let windows = try FetchClosedActivityWindowsOperation(watermark: watermark, closedBefore: closedBefore).execute(db)
 
         let minSample = homeostasisMinSample(brain.config)
         let lowRate = homeostasisLowRate(brain.config)
@@ -341,17 +319,17 @@ public struct ConsolidateService: ConsolidateServiceable {
 
             guard window.sighted else { continue }
 
-            let evidence = try db.run(FetchExpandEvidenceTransaction(windowId: window.id))
+            let evidence = try FetchExpandEvidenceOperation(windowId: window.id).execute(db)
 
             cohortSeen += evidence.seen
             cohortLanded += evidence.landed
         }
 
         let sampleSeen = (Int(
-            try db.run(FetchConfigValueTransaction(key: homeostasisSeenKey, default: "0"))
+            try FetchConfigValueOperation(key: homeostasisSeenKey, default: "0").execute(db)
         ) ?? 0) + cohortSeen
         let sampleLanded = (Int(
-            try db.run(FetchConfigValueTransaction(key: homeostasisLandedKey, default: "0"))
+            try FetchConfigValueOperation(key: homeostasisLandedKey, default: "0").execute(db)
         ) ?? 0) + cohortLanded
         var remainderSeen = sampleSeen
         var remainderLanded = sampleLanded
@@ -373,7 +351,7 @@ public struct ConsolidateService: ConsolidateServiceable {
             let wildType = bounds.wildType
             // From the row, not the process cache — the tick reads the value
             // it is about to move, and it moves it in this same scope.
-            let current = try db.run(FetchGeneValueTransaction(geneId: gene))
+            let current = try FetchGeneValueOperation(geneId: gene).execute(db)
                 ?? brain.config.getDouble(gene, default: wildType)
             var target = current
 
@@ -388,17 +366,15 @@ public struct ConsolidateService: ConsolidateServiceable {
             }
 
             if target != current {
-                let result = try db.run(
-                    ApplyGeneValueTransaction(
-                        geneId: gene,
-                        value: target,
-                        cause: "homeostasis:expand_landing",
-                        detail: "rate=\(String(format: "%.4f", landingRate)) n=\(sampleSeen)",
-                        requireMutable: true,
-                        ts: now,
-                        configured: brain.config.double(gene)
-                    )
-                )
+                let result = try ApplyGeneValueOperation(
+                    geneId: gene,
+                    value: target,
+                    cause: "homeostasis:expand_landing",
+                    detail: "rate=\(String(format: "%.4f", landingRate)) n=\(sampleSeen)",
+                    requireMutable: true,
+                    ts: now,
+                    configured: brain.config.double(gene)
+                ).execute(db)
                 adjustedGene = gene
                 oldValue = result.old
                 newValue = result.new
@@ -408,9 +384,9 @@ public struct ConsolidateService: ConsolidateServiceable {
             remainderLanded = 0
         }
 
-        try db.run(SetConfigValueTransaction(key: homeostasisWatermarkKey, value: String(lastWindow)))
-        try db.run(SetConfigValueTransaction(key: homeostasisSeenKey, value: String(remainderSeen)))
-        try db.run(SetConfigValueTransaction(key: homeostasisLandedKey, value: String(remainderLanded)))
+        try SetConfigValueOperation(key: homeostasisWatermarkKey, value: String(lastWindow)).execute(db)
+        try SetConfigValueOperation(key: homeostasisSeenKey, value: String(remainderSeen)).execute(db)
+        try SetConfigValueOperation(key: homeostasisLandedKey, value: String(remainderLanded)).execute(db)
 
         return HomeostasisReport(
             windowsProcessed: windows.count,

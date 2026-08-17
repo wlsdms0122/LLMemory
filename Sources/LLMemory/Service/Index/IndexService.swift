@@ -7,7 +7,7 @@
 
 import Foundation
 
-// Index-domain service — build/verify surfaces over the write transactions.
+// Index-domain service — build/verify surfaces over the write operations.
 public struct IndexService: IndexServiceable {
     // MARK: - Property
     let storage: any GRDBStorable
@@ -38,14 +38,12 @@ public struct IndexService: IndexServiceable {
         try await storage.write { db in
             let scan = indexer.scanPending(brain)
 
-            return try db.run(
-                ReconcileIndexTransaction(
-                    brain: brain,
-                    scan: scan,
-                    rebuild: rebuild,
-                    now: Int(Date().timeIntervalSince1970)
-                )
-            )
+            return try ReconcileIndexOperation(
+                brain: brain,
+                scan: scan,
+                rebuild: rebuild,
+                now: Int(Date().timeIntervalSince1970)
+            ).execute(db)
         }
     }
 
@@ -53,19 +51,19 @@ public struct IndexService: IndexServiceable {
         filePaths: [String]
     ) async throws -> [Indexer.ReindexOutcome] {
         try await storage.write { db in
-            try db.run(ReindexNotesTransaction(brain: brain, filePaths: filePaths))
+            try ReindexNotesOperation(brain: brain, filePaths: filePaths).execute(db)
         }
     }
 
     public func check(
         level: Indexer.IntegrityLevel
     ) async throws -> (ok: Bool, msgs: [String]) {
-        try await storage.run(CheckIntegrityTransaction(brain: brain, level: level))
+        try await storage.run(CheckIntegrityOperation(brain: brain, level: level))
     }
 
     public func buildVectors() async throws -> VectorBuildResult {
         try await storage.run(
-            BuildVectorsTransaction(dimension: brain.config.getInt("vectors.dim", default: 48))
+            BuildVectorsOperation(dimension: brain.config.getInt("vectors.dim", default: 48))
         )
     }
 
@@ -77,7 +75,7 @@ public struct IndexService: IndexServiceable {
         rejectStale: Bool
     ) async throws -> Indexer.ValidateResult {
         try await storage.run(
-            ValidateTermsTransaction(
+            ValidateTermsOperation(
                 rejectStale: rejectStale,
                 keywords: keywords,
                 roundtripTopK: enrichment.roundtripTopK,

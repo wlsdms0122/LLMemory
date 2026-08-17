@@ -184,39 +184,24 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         }
     }
 
-    // A write transaction run on its own. The gating lives here rather than
-    // in the transaction's own `execute` because it is the store's concern,
-    // not the transaction's: the same transaction composes inside a body that
-    // already holds the lock, and must not take it twice.
-    @discardableResult
-    public func run<T: GRDBTransaction>(_ transaction: T) async throws -> T.Result {
-        let connection = try self.connect()
+    // Opening a transaction is the one thing a store answers, so it is the one
+    // place the gating can live: an operation composed inside a body that
+    // already holds the lock never reaches here, and so never takes it twice.
+    //
+    // A read takes neither gate — nothing it does can be clobbered — and gets
+    // a read connection, which is what `readOnly` was passed here to buy.
+    public func open<T>(
+        readOnly: Bool,
+        _ body: @escaping @Sendable (Database) throws -> T
+    ) async throws -> T {
+        let connection = try connect()
 
-        return try await gated { try await transaction.execute(connection) }
-    }
+        guard !readOnly else {
+            return try await connection.read { db in try body(db) }
+        }
 
-    // A read takes neither gate — nothing it does can be clobbered.
-    @discardableResult
-    public func run<T: GRDBReadTransaction>(_ transaction: T) async throws -> T.Result {
-        try await transaction.execute(try connect())
-    }
-
-    // The write unit of work — one flock + one BEGIN/COMMIT around the whole
-    // body. Services orchestrate domain work inside; every DB touch goes
-    // through db.run(transaction). Throwing rolls the entire body back.
-    @discardableResult
-    public func write<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
-        let connection = try self.connect()
-
-        return try await gated { try await connection.write { db in try body(db) } }
-    }
-
-    // The read unit of work — no lock, no write transaction; SQLite rejects
-    // writes issued through it at runtime.
-    @discardableResult
-    public func read<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
-        try await connect().read { db in
-            try body(db)
+        return try await gated {
+            try await connection.write { db in try body(db) }
         }
     }
 

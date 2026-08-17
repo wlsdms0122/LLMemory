@@ -409,7 +409,7 @@ struct EnrichmentTests {
         try queue.write { db in
             try db.execute(sql: "UPDATE note_lifecycle_events SET created_at = 1 WHERE note_id='lc-note'")
             
-            _ = try PruneOldLifecycleEventsTransaction(now: 1_000_000_000, retentionDays: 180).perform(db)
+            _ = try PruneOldLifecycleEventsOperation(now: 1_000_000_000, retentionDays: 180).execute(db)
         }
         
         let after = try queue.read { db in
@@ -746,13 +746,13 @@ struct EnrichmentTests {
         #expect(abs(weight - 0.454) < 0.001)
         #expect((row?["provenance"] as String?) == "test:capture")
         
-        let assocExpanded = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["enr-pl-a"], hops: 1, kind: .assoc, minWeight: home.retrievalTuning.neighborFloor, siblingDiscount: home.retrievalTuning.siblingDiscount).perform(db) }
+        let assocExpanded = try home.database().read { db in try ExpandLinksOperation(noteIds: ["enr-pl-a"], hops: 1, kind: .assoc, minWeight: home.retrievalTuning.neighborFloor, siblingDiscount: home.retrievalTuning.siblingDiscount).execute(db) }
         
         #expect(!assocExpanded.contains { hit in hit.id == "enr-pl-b" })
         
-        _ = try home.database().write { db in try StrengthenLinksTransaction(pairs: [("enr-pl-a", "enr-pl-b")], kind: .assoc, step: 0.3).perform(db) }
+        _ = try home.database().write { db in try StrengthenLinksOperation(pairs: [("enr-pl-a", "enr-pl-b")], kind: .assoc, step: 0.3).execute(db) }
         
-        let after = try home.database().read { db in try ExpandLinksTransaction(noteIds: ["enr-pl-a"], hops: 1, kind: .assoc, minWeight: home.retrievalTuning.neighborFloor, siblingDiscount: home.retrievalTuning.siblingDiscount).perform(db) }
+        let after = try home.database().read { db in try ExpandLinksOperation(noteIds: ["enr-pl-a"], hops: 1, kind: .assoc, minWeight: home.retrievalTuning.neighborFloor, siblingDiscount: home.retrievalTuning.siblingDiscount).execute(db) }
         
         #expect(after.contains { hit in hit.id == "enr-pl-b" })
     }
@@ -837,7 +837,7 @@ struct EnrichmentTests {
         let rejected = try home.storage.writeLock { () -> Int in
             let writeQueue = try home.storage.connect()
             
-            return try writeQueue.write { db in try RejectStalePendingTermsTransaction(maxAgeSec: 0).perform(db) }
+            return try writeQueue.write { db in try RejectStalePendingTermsOperation(maxAgeSec: 0).execute(db) }
         }
         
         #expect(rejected >= 1)
@@ -1104,7 +1104,7 @@ struct EnrichmentTests {
         #expect((row["reason"] as String) == "from reason", "reason must follow the freshest dismissal (from)")
     }
     
-    // FetchEntityHitsTransaction — archived/stale surfacing gate
+    // FetchEntityHitsOperation — archived/stale surfacing gate
     @Test("a stale note is left off the entity hit surface")
     func entityHitsExcludesStale() throws {
         // Given
@@ -1129,7 +1129,7 @@ struct EnrichmentTests {
         }
         
         // When
-        let hits = try queue.read { db in try FetchEntityHitsTransaction(entities: ["EH-99"], limitPerEntity: 10).perform(db) }
+        let hits = try queue.read { db in try FetchEntityHitsOperation(entities: ["EH-99"], limitPerEntity: 10).execute(db) }
         
         // Then
         #expect(hits.count == 3)

@@ -86,13 +86,13 @@ struct ProposeLinkHandler: OperationHandling {
             return ["status": "ok", "ids": [], "note": "skipped self-loop \(src)"]
         }
         
-        try db.run(UpsertAssocLinkTransaction(
-            src: source,
-            dst: destination,
-            weight: weight,
-            now: now,
-            provenance: provenance
-        ))
+        try UpsertAssocLinkOperation(
+        src: source,
+        dst: destination,
+        weight: weight,
+        now: now,
+        provenance: provenance
+        ).execute(db)
         
         return [
             "status": "ok",

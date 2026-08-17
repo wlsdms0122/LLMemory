@@ -42,9 +42,7 @@ struct MarkUsedHandler: OperationHandling {
         let lookbackSec = ActivationTuning(context.brain).usedLookbackSec
         let cutoff = context.now - lookbackSec
         let label = context.sessionId
-        let surfaced = try db.run(
-            NotesSurfacedRecentlyTransaction(noteIds: ids, cutoff: cutoff, label: label)
-        )
+        let surfaced = try NotesSurfacedRecentlyOperation(noteIds: ids, cutoff: cutoff, label: label).execute(db)
         
         if let missing = ids.first(where: { id in !surfaced.contains(id) }) {
             return "note '\(missing)' was not surfaced in any recent activity window"
@@ -67,18 +65,18 @@ struct MarkUsedHandler: OperationHandling {
         // events) and the marking below see the same universe. The
         // notSurfaced throw inside is a backstop, not a second gate: it
         // shares the context's now/session with validation.
-        _ = try db.run(DeriveActivityWindowsTransaction(
-            now: context.now,
-            windowGapSec: ActivationTuning(context.brain).windowGapSec
-        ))
+        _ = try DeriveActivityWindowsOperation(
+        now: context.now,
+        windowGapSec: ActivationTuning(context.brain).windowGapSec
+        ).execute(db)
         
-        let outcomes = try db.run(MarkNotesUsedTransaction(
-            ids: ids,
-            response: op["response"] as? String,
-            sessionLabel: context.sessionId,
-            now: context.now,
-            lookbackSec: ActivationTuning(context.brain).usedLookbackSec
-        ))
+        let outcomes = try MarkNotesUsedOperation(
+        ids: ids,
+        response: op["response"] as? String,
+        sessionLabel: context.sessionId,
+        now: context.now,
+        lookbackSec: ActivationTuning(context.brain).usedLookbackSec
+        ).execute(db)
         let marked = outcomes.filter { outcome in outcome.matched }
         let failed = outcomes.filter { outcome in !outcome.matched }
         var note = "marked \(marked.count) note(s) used"

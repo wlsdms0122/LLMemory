@@ -9,7 +9,7 @@ import Foundation
 
 // How far and how hard retrieval reaches, resolved from one brain's genes.
 //
-// Every gene the read path is tuned by is named here once. The transactions
+// Every gene the read path is tuned by is named here once. The operations
 // take the numbers — how wide to expand is a judgement about association, not
 // something a row reader decides — and the genome shadow replay builds this
 // from a brain with one gene swapped, so a replay says which values it ran

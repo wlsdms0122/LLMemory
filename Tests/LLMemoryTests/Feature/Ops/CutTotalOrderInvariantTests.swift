@@ -40,7 +40,7 @@ struct CutTotalOrderInvariantTests {
         
         // When
         let hits = try home.read { database in
-            try FetchEntityHitsTransaction(entities: ["acme"], limitPerEntity: 3).perform(database)
+            try FetchEntityHitsOperation(entities: ["acme"], limitPerEntity: 3).execute(database)
         }
         
         // Then
@@ -56,8 +56,8 @@ struct CutTotalOrderInvariantTests {
         try seedEntityIndex(ids: ids)
         
         // When
-        let named = try home.read { database in try LookupEntitiesTransaction(name: "acme", limit: 3).perform(database) }
-        let all = try home.read { database in try LookupEntitiesTransaction(name: nil, limit: 3).perform(database) }
+        let named = try home.read { database in try LookupEntitiesOperation(name: "acme", limit: 3).execute(database) }
+        let all = try home.read { database in try LookupEntitiesOperation(name: nil, limit: 3).execute(database) }
         
         // Then
         #expect(named.map(\.noteId) == ["lk-n1", "lk-n2", "lk-n3"])
@@ -135,7 +135,7 @@ struct CutTotalOrderInvariantTests {
         try seedTags(ids: ids) { offset in ["hub", "x\(offset + 1)"] }
         
         // When
-        let pairs = try home.read { database in try FetchTagCooccurrenceTransaction(tags: ["hub"], limit: 3).perform(database) }
+        let pairs = try home.read { database in try FetchTagCooccurrenceOperation(tags: ["hub"], limit: 3).execute(database) }
         
         // Then
         #expect(pairs.map { pair in "\(pair.tagA)|\(pair.tagB)" } == ["hub|x1", "hub|x2", "hub|x3"])
@@ -181,7 +181,7 @@ struct CutTotalOrderInvariantTests {
         }
         
         // When
-        let rows = try home.read { database in try SearchNotesFTSTransaction(match: .text("zebra", keywords: FrequencyKeywordExtractor()), limit: 3, primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).perform(database) }
+        let rows = try home.read { database in try SearchNotesFTSOperation(match: .text("zebra", keywords: FrequencyKeywordExtractor()), limit: 3, primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).execute(database) }
         
         // Then
         #expect(rows.map(\.id) == ["se-n1", "se-n2", "se-n3"])

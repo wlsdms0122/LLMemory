@@ -65,16 +65,16 @@ struct LinkLineageHandler: OperationHandling {
         // validate() refused every spelling that is not a lineage kind.
         let kind = LinkKind(rawValue: op["kind"] as! String)!
         
-        try db.run(InsertLineageLinkTransaction(src: src, dst: dst, kind: kind, now: now))
+        try InsertLineageLinkOperation(src: src, dst: dst, kind: kind, now: now).execute(db)
         
         let reason = op["reason"] as? String
         
-        try db.run(RecordNoteLifecycleEventTransaction(
-            nid: src,
-            kind: kind.rawValue,
-            reason: reason,
-            now: now
-        ))
+        try RecordNoteLifecycleEventOperation(
+        nid: src,
+        kind: kind.rawValue,
+        reason: reason,
+        now: now
+        ).execute(db)
         
         return [
             "status": "ok",

@@ -22,11 +22,11 @@ struct NoteWriteBookkeeper {
         opLabel: String,
         now: Int
     ) throws {
-        try db.run(RecordNoteLifecycleEventTransaction(nid: nid, kind: "edited", reason: opLabel, now: now))
+        try RecordNoteLifecycleEventOperation(nid: nid, kind: "edited", reason: opLabel, now: now).execute(db)
     }
     
     func seedInitialLinks(_ db: Database, nid: String, tags: [String]) throws {
-        try db.run(SeedInitialLinksTransaction(nid: nid, tags: tags))
+        try SeedInitialLinksOperation(nid: nid, tags: tags).execute(db)
     }
     
     // MARK: - Private

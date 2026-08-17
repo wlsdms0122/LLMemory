@@ -13,7 +13,7 @@ import GRDB
 // alias table to soften this: the citations themselves move, so the resolver
 // stays a single exact match and no old name outlives the note.
 //
-// It edits note files, so it is not a transaction. What the database knows —
+// It edits note files, so it is not an operation. What the database knows —
 // who cites whom — it asks for; the rest is the corpus.
 struct CitationRewriter {
     // MARK: - Initializer
@@ -30,7 +30,7 @@ struct CitationRewriter {
     ) throws -> [String] {
         guard from != to else { return [] }
 
-        let citers = try db.run(FetchInboundCitersTransaction(marker: from, excluding: to))
+        let citers = try FetchInboundCitersOperation(marker: from, excluding: to).execute(db)
         var rewritten: [String] = []
 
         for citer in citers {
@@ -45,12 +45,10 @@ struct CitationRewriter {
             guard updated != text else { continue }
 
             try updated.write(to: file, atomically: true, encoding: .utf8)
-            try db.run(
-                ReindexNoteFileTransaction(
-                    noteId: try brain.requireNoteId(of: file),
-                    path: file
-                )
-            )
+            try ReindexNoteFileOperation(
+                noteId: try brain.requireNoteId(of: file),
+                path: file
+            ).execute(db)
             rewritten.append(citer)
         }
 

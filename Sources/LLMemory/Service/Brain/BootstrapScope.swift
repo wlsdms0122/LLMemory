@@ -14,7 +14,7 @@ import GRDB
 // — without the connection itself crossing the boundary.
 //
 // It sits with the brain rather than with the store because it is the seam,
-// not the mechanism: the removal it offers is a row transaction and a file
+// not the mechanism: the removal it offers is a row operation and a file
 // move, and only this side knows the second half exists.
 public struct BootstrapScope {
     // MARK: - Property
@@ -31,7 +31,7 @@ public struct BootstrapScope {
     // MARK: - Public
     public func seededNoteIds() throws -> [String] {
         try queue.read { database in
-            try FetchSeededNoteIdsTransaction().perform(database)
+            try FetchSeededNoteIdsOperation().execute(database)
         }
     }
 
@@ -49,8 +49,8 @@ public struct BootstrapScope {
         now: Int
     ) throws -> URL? {
         try queue.write { database in
-            try RemoveNoteRowsTransaction(nid: id, flagReason: flagReason, now: now)
-                .perform(database)
+            try RemoveNoteRowsOperation(nid: id, flagReason: flagReason, now: now)
+                .execute(database)
         }
 
         return try Trash(layout: context.layout).file(file, reason: trashReason, now: now)

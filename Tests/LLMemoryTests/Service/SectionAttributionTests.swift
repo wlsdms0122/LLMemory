@@ -119,7 +119,7 @@ struct SectionAttributionTests {
         
         // When
         let hit = try home.read { database in
-            try FetchSimilarNotesTransaction(keywords: ["qwombat"], limit: 5, primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).perform(database)
+            try FetchSimilarNotesOperation(keywords: ["qwombat"], limit: 5, primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).execute(database)
                 .first { similar in similar.id == "sim-note" }
         }
         
@@ -135,7 +135,7 @@ struct SectionAttributionTests {
     }
     
     private func search(_ query: String) throws -> [SearchRow] {
-        try home.read { database in try SearchNotesFTSTransaction(match: .text(query, keywords: FrequencyKeywordExtractor()), primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).perform(database) }
+        try home.read { database in try SearchNotesFTSOperation(match: .text(query, keywords: FrequencyKeywordExtractor()), primingWindowMin: home.retrievalTuning.primingWindowMin, primingAlpha: home.retrievalTuning.primingAlpha).execute(database) }
     }
     
     private func hit(for query: String, in noteId: String) throws -> SearchRow? {

@@ -109,7 +109,7 @@ struct NoteDeletionTests {
         for noteId in family { lifecycle.create(noteId) }
         
         try home.database().write { database in
-            try LinkSiblingsTransaction(ids: family, now: home.now).perform(database)
+            try LinkSiblingsOperation(ids: family, now: home.now).execute(database)
         }
         
         // Then

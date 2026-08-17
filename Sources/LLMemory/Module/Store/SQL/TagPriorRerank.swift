@@ -27,12 +27,12 @@ enum TagPriorRerank {
     ) -> [String: Double] {
         guard let sessionId else { return [:] }
 
-        return (try? ComputeTagPriorTransaction(
+        return (try? ComputeTagPriorOperation(
             sessionId: sessionId,
             windowSec: windowMin * 60,
             now: now
         )
-            .perform(db)) ?? [:]
+            .execute(db)) ?? [:]
     }
 
     // A rerank can only promote what was fetched, so the pool has to be wider

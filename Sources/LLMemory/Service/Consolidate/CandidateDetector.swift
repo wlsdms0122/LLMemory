@@ -10,7 +10,7 @@ import GRDB
 
 // The restructuring detector — what counts as a candidate (split shapes,
 // stale flags, clusters, missing edges, near-duplicates) is decided here,
-// and the candidate transactions only fetch the rows it judges.
+// and the candidate operations only fetch the rows it judges.
 //
 // It is not a service. An XxxService instance is an effectful surface over
 // storage — it owns the async doors and the container wires it. This is
@@ -61,11 +61,9 @@ public struct CandidateDetector: Sendable {
         let minWords = brain.config.getInt("split.min_words", default: 400)
         let minSections = brain.config.getInt("split.min_sections", default: 4)
         let minTagDiversity = brain.config.getInt("split.min_tag_diversity", default: 3)
-        let rows = try db.run(
-            FetchSplitShapeRowsTransaction(minWords: minWords, minSections: minSections)
-        )
-        let dismissals = try db.run(FetchDismissalsByNoteTransaction(kind: "split"))
-        let generation = try db.run(FetchCandidateGenerationTransaction())
+        let rows = try FetchSplitShapeRowsOperation(minWords: minWords, minSections: minSections).execute(db)
+        let dismissals = try FetchDismissalsByNoteOperation(kind: "split").execute(db)
+        let generation = try FetchCandidateGenerationOperation().execute(db)
         var candidates: [SplitCandidate] = []
         
         for row in rows {
@@ -127,7 +125,7 @@ public struct CandidateDetector: Sendable {
     }
     
     func neighbors(_ db: Database, noteId: String, k: Int = 10) throws -> [NeighborScore] {
-        guard let title = try db.run(FetchNoteAnchorTransaction(nid: noteId)) else {
+        guard let title = try FetchNoteAnchorOperation(nid: noteId).execute(db) else {
             throw NotesError.unknownIds([noteId])
         }
         
@@ -152,9 +150,7 @@ public struct CandidateDetector: Sendable {
             let matchExpr = tokenList.map { token in "\"\(token)\"" }.joined(separator: " OR ")
             // The match expression is derived text — an unparsable one is a
             // miss, not a failure (same contract as the inline try? before).
-            let rows = (try? db.run(
-                SearchFTSNeighborRowsTransaction(matchExpr: matchExpr, excludeId: noteId)
-            )) ?? []
+            let rows = (try? SearchFTSNeighborRowsOperation(matchExpr: matchExpr, excludeId: noteId).execute(db)) ?? []
             let total = max(rows.count, 1)
             
             for (rank, row) in rows.enumerated() {
@@ -173,10 +169,10 @@ public struct CandidateDetector: Sendable {
             }
         }
         
-        let targetEntities = try db.run(FetchNoteEntitySetTransaction(nid: noteId))
+        let targetEntities = try FetchNoteEntitySetOperation(nid: noteId).execute(db)
         
         if !targetEntities.isEmpty {
-            let rows = try db.run(FetchEntityOverlapRowsTransaction(nid: noteId))
+            let rows = try FetchEntityOverlapRowsOperation(nid: noteId).execute(db)
             let targetSize = targetEntities.count
             
             for row in rows {
@@ -198,10 +194,10 @@ public struct CandidateDetector: Sendable {
             }
         }
         
-        let linkRows = try db.run(FetchLinkNeighborRowsTransaction(
-                nid: noteId,
-                siblingDiscount: brain.genes.double("links.sibling_rank_weight")
-            ))
+        let linkRows = try FetchLinkNeighborRowsOperation(
+            nid: noteId,
+            siblingDiscount: brain.genes.double("links.sibling_rank_weight")
+        ).execute(db)
         
         if !linkRows.isEmpty {
             let maxWeight = linkRows.map { row in row.value }.max() ?? 1.0
@@ -245,7 +241,7 @@ public struct CandidateDetector: Sendable {
         limit: Int = 20
     ) throws -> [CandidateCluster] {
         let cap = maxSize ?? brain.config.getInt("candidates.cluster.max_size", default: 12)
-        let edges = try db.run(FetchClusterEdgesTransaction())
+        let edges = try FetchClusterEdgesOperation().execute(db)
         
         var parent: [String: String] = [:]
         
@@ -286,7 +282,7 @@ public struct CandidateDetector: Sendable {
         var clusters: [CandidateCluster] = []
         
         for (_, members) in groups where members.count >= minSize && members.count <= cap {
-            let rows = try db.run(FetchClusterMemberRowsTransaction(ids: members))
+            let rows = try FetchClusterMemberRowsOperation(ids: members).execute(db)
             let memberStructs = rows.map { row in
                 CandidateMember(
                     id: row.id,
@@ -329,7 +325,7 @@ public struct CandidateDetector: Sendable {
         var linked = Set<String>()
         var degree: [String: Int] = [:]
         
-        for pair in try db.run(FetchSurfaceLinkPairsTransaction()) {
+        for pair in try FetchSurfaceLinkPairsOperation().execute(db) {
             linked.insert(pairKey(pair.src, pair.dst))
             degree[pair.src, default: 0] += 1
             degree[pair.dst, default: 0] += 1
@@ -337,7 +333,7 @@ public struct CandidateDetector: Sendable {
         
         var meta: [String: CandidateMember] = [:]
         
-        for row in try db.run(FetchSurfaceMetaRowsTransaction()) {
+        for row in try FetchSurfaceMetaRowsOperation().execute(db) {
             meta[row.id] = CandidateMember(
                 id: row.id,
                 title: row.title,
@@ -372,7 +368,7 @@ public struct CandidateDetector: Sendable {
         }
         
         do {
-            let raw = try db.run(FetchNoteVectorsTransaction())
+            let raw = try FetchNoteVectorsOperation().execute(db)
             var vectors: [String: [Float]] = [:]
             
             for (id, vector) in raw where vector.count > 1 {
@@ -454,7 +450,7 @@ public struct CandidateDetector: Sendable {
         minContainment: Double = 0.85,
         limit: Int = 20
     ) throws -> [NearDuplicate] {
-        let rows = try db.run(FetchSurfaceNoteRowsTransaction())
+        let rows = try FetchSurfaceNoteRowsOperation().execute(db)
         var tokensById: [String: Set<String>] = [:]
         var summaryById: [String: String?] = [:]
         var ftsTokensById: [String: Set<String>] = [:]
@@ -572,7 +568,7 @@ public struct CandidateDetector: Sendable {
         flag: String,
         limit: Int
     ) throws -> [FlaggedCandidate] {
-        try db.run(FetchFlaggedRowsTransaction(flag: flag, limit: limit)).map { row in
+        try FetchFlaggedRowsOperation(flag: flag, limit: limit).execute(db).map { row in
             FlaggedCandidate(
                 id: row.noteId,
                 reason: row.reason,
@@ -661,7 +657,7 @@ public struct CandidateDetector: Sendable {
         limit: Int,
         maxBm25: Double
     ) throws -> [(String, Double)] {
-        guard let title = try db.run(FetchNoteAnchorTransaction(nid: noteId)) else {
+        guard let title = try FetchNoteAnchorOperation(nid: noteId).execute(db) else {
             return []
         }
         
@@ -684,9 +680,7 @@ public struct CandidateDetector: Sendable {
         let matchExpr = tokens.sorted().map { token in "\"\(token)\"" }.joined(separator: " OR ")
         // Derived match text — an unparsable expression is a miss, not a
         // failure (same contract as the inline try? before).
-        let rows = (try? db.run(
-            SearchBM25NeighborRowsTransaction(matchExpr: matchExpr, excludeId: noteId, limit: limit * 3)
-        )) ?? []
+        let rows = (try? SearchBM25NeighborRowsOperation(matchExpr: matchExpr, excludeId: noteId, limit: limit * 3).execute(db)) ?? []
         var hits: [(String, Double)] = []
         
         for row in rows where row.score <= maxBm25 {

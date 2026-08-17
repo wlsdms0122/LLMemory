@@ -43,12 +43,12 @@ struct RenameTagHandler: OperationHandling {
             return "invalid to_tag format: \(toTag)"
         }
         
-        let exists = try db.run(TagVocabExistsTransaction(tag: fromTag))
-            || (try db.run(TagInUseTransaction(tag: fromTag)))
+        let exists = try TagVocabExistsOperation(tag: fromTag).execute(db)
+            || (try TagInUseOperation(tag: fromTag).execute(db))
         
         if !exists { return "unknown from_tag: \(fromTag)" }
         
-        let canonical = try db.run(CanonicalizeTagTransaction(tag: toTag))
+        let canonical = try CanonicalizeTagOperation(tag: toTag).execute(db)
         
         if canonical != toTag && canonical != fromTag {
             return "to_tag '\(toTag)' is an alias of '\(canonical)' — rename to '\(canonical)' or drop the alias first"
@@ -66,7 +66,7 @@ struct RenameTagHandler: OperationHandling {
         let toTag = op["to_tag"] as! String
         let addAlias = (op["add_alias"] as? Bool) ?? false
         let now = context.now
-        let affectedIds = try db.run(FetchNotesWithTagTransaction(tag: fromTag))
+        let affectedIds = try FetchNotesWithTagOperation(tag: fromTag).execute(db)
         
         for noteId in affectedIds {
             guard let path = try context.brain.notePath(db, noteId),
@@ -101,8 +101,8 @@ struct RenameTagHandler: OperationHandling {
             )
         }
         
-        try db.run(EnsureTagTransaction(tag: toTag, now: now))
-        try db.run(DropTagAliasClaimTransaction(alias: toTag))
+        try EnsureTagOperation(tag: toTag, now: now).execute(db)
+        try DropTagAliasClaimOperation(alias: toTag).execute(db)
         
         // The rewritten files are the truth now — reproject each note so
         // tags, content_hash and FTS follow the rename, same as every
@@ -112,14 +112,14 @@ struct RenameTagHandler: OperationHandling {
         for noteId in affectedIds {
             guard let path = try context.brain.notePath(db, noteId) else { continue }
             
-            try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
+            try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: path), path: path).execute(db)
         }
         
         if addAlias {
-            try db.run(AddTagAliasTransaction(alias: fromTag, canonical: toTag, now: now))
+            try AddTagAliasOperation(alias: fromTag, canonical: toTag, now: now).execute(db)
         }
         
-        try db.run(RetireTagTransaction(tag: fromTag, successor: toTag))
+        try RetireTagOperation(tag: fromTag, successor: toTag).execute(db)
         
         let note = "renamed tag \(fromTag) -> \(toTag) (\(affectedIds.count) notes)"
             + (addAlias ? " + alias" : "")
@@ -132,7 +132,7 @@ struct RenameTagHandler: OperationHandling {
         _ context: HandlerContext,
         _ db: Database
     ) throws -> [URL] {
-        let ids = try db.run(FetchNotesWithTagTransaction(tag: op["from_tag"] as! String))
+        let ids = try FetchNotesWithTagOperation(tag: op["from_tag"] as! String).execute(db)
         
         return try ids.compactMap { noteId in try context.brain.notePath(db, noteId) }
     }

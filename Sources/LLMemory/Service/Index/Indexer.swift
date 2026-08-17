@@ -200,11 +200,11 @@ public struct Indexer: Sendable {
             do {
                 try db.inSavepoint {
                     do {
-                        let noteId = try ReindexNoteFileTransaction(
+                        let noteId = try ReindexNoteFileOperation(
                             noteId: try brain.requireNoteId(of: path),
                             path: path
                         )
-                            .perform(db)
+                            .execute(db)
 
                         reindexed = (noteId, brain.layout.relative(of: path) ?? path.path)
 
@@ -245,7 +245,7 @@ public struct Indexer: Sendable {
         fileErrors: [String] = []
     ) throws -> BuildResult {
         if rebuild {
-            try SnapshotArtifactsForRebuildTransaction().perform(db)
+            try SnapshotArtifactsForRebuildOperation().execute(db)
             try db.execute(sql: "DELETE FROM notes")
             try db.execute(sql: "DELETE FROM tags")
             try db.execute(sql: "DELETE FROM notes_fts")
@@ -277,7 +277,7 @@ public struct Indexer: Sendable {
                 return
             }
 
-            try UpsertNoteTransaction(
+            try UpsertNoteOperation(
                 noteId: try brain.requireNoteId(of: note.file),
                 file: note.file,
                 fields: note.fields,
@@ -285,7 +285,7 @@ public struct Indexer: Sendable {
                 raw: note.raw,
                 now: now
             )
-                .perform(db)
+                .execute(db)
             changed += 1
         }
 
@@ -309,12 +309,12 @@ public struct Indexer: Sendable {
         }
 
         for orphan in orphans {
-            try DeleteNoteRowTransaction(nid: orphan).perform(db)
+            try DeleteNoteRowOperation(nid: orphan).execute(db)
         }
 
         if rebuild {
-            try RestoreArtifactsAfterRebuildTransaction().perform(db)
-            try BumpCandidateGenerationTransaction().perform(db)
+            try RestoreArtifactsAfterRebuildOperation().execute(db)
+            try BumpCandidateGenerationOperation().execute(db)
         }
 
         if rebuild && !errors.isEmpty {
@@ -604,7 +604,7 @@ public struct Indexer: Sendable {
             ok = false
         }
 
-        let eagerCount = try CountEagerNotesTransaction().perform(db)
+        let eagerCount = try CountEagerNotesOperation().execute(db)
 
         if eagerCount > eagerCap {
             messages.append("L3\teager-cap-exceeded\t\(eagerCount)/\(eagerCap)")

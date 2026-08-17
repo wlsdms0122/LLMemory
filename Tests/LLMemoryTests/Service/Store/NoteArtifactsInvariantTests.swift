@@ -28,7 +28,7 @@ struct NoteArtifactsInvariantTests {
     func everyNoteCascadeTableIsClassified() throws {
         // When
         let queue = try home.storage.connect()
-        let cascade = try queue.read { db in try FetchNoteCascadeTablesTransaction().perform(db) }
+        let cascade = try queue.read { db in try FetchNoteCascadeTablesOperation().execute(db) }
         
         // Then
         #expect(!cascade.isEmpty)
@@ -47,7 +47,7 @@ struct NoteArtifactsInvariantTests {
     func everyArtifactHasSplitPolicy() throws {
         // When
         let queue = try home.storage.connect()
-        let cascade = Set(try queue.read { db in try FetchNoteCascadeTablesTransaction().perform(db) })
+        let cascade = Set(try queue.read { db in try FetchNoteCascadeTablesOperation().execute(db) })
         
         // Then
         for table in cascade where table != "note_links" {
@@ -72,7 +72,7 @@ struct NoteArtifactsInvariantTests {
     func dispositionEntriesAreRealCascadeTables() throws {
         // When
         let queue = try home.storage.connect()
-        let cascade = Set(try queue.read { db in try FetchNoteCascadeTablesTransaction().perform(db) })
+        let cascade = Set(try queue.read { db in try FetchNoteCascadeTablesOperation().execute(db) })
         
         // Then
         for (table, _) in NoteArtifactPolicy.tableDisposition {

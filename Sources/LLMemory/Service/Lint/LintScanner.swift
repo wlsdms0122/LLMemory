@@ -37,8 +37,8 @@ struct LintScanner: LintScanning {
 
     // One spelling of the corpus read, so a single-note lint and a full pass
     // score against the same thresholds.
-    private var corpusIndexTransaction: FetchLintCorpusIndexTransaction {
-        FetchLintCorpusIndexTransaction(
+    private var corpusIndexOperation: FetchLintCorpusIndexOperation {
+        FetchLintCorpusIndexOperation(
             oversizedWords: tuning.oversizedWords,
             growthMinDatedSections: tuning.growthMinDatedSections
         )
@@ -114,11 +114,11 @@ struct LintScanner: LintScanning {
     }
     
     func lintNote(_ db: Database, nid: String) throws -> [LintIssue] {
-        checked(try lintNote(db, nid: nid, index: db.run(corpusIndexTransaction)))
+        checked(try lintNote(db, nid: nid, index: corpusIndexOperation.execute(db)))
     }
     
     func lintAll(_ db: Database) throws -> [LintIssue] {
-        let index = try db.run(corpusIndexTransaction)
+        let index = try corpusIndexOperation.execute(db)
         var issues: [LintIssue] = []
         
         for nid in index.ids.sorted() {
@@ -155,11 +155,11 @@ struct LintScanner: LintScanning {
     }
     
     func suppressDismissed(_ db: Database, _ issues: [LintIssue]) throws -> [LintIssue] {
-        let dismissals = try db.run(FetchLintDismissalsTransaction())
+        let dismissals = try FetchLintDismissalsOperation().execute(db)
         
         if dismissals.isEmpty { return issues }
         
-        let generation = try db.run(FetchCandidateGenerationTransaction())
+        let generation = try FetchCandidateGenerationOperation().execute(db)
         var shapes: [String: (words: Int, sections: Int)] = [:]
         
         return try issues.filter { issue in
@@ -180,7 +180,7 @@ struct LintScanner: LintScanning {
             
             case .note(let nid):
                 if shapes[nid] == nil {
-                    shapes[nid] = try db.run(FetchNoteShapeTransaction(nid: nid))
+                    shapes[nid] = try FetchNoteShapeOperation(nid: nid).execute(db)
                 }
                 
                 let shape = shapes[nid]!
@@ -255,7 +255,7 @@ struct LintScanner: LintScanning {
         nid: String,
         index: LintCorpusIndex
     ) throws -> [LintIssue] {
-        guard try db.run(NoteExistsTransaction(nid: nid)) else {
+        guard try NoteExistsOperation(nid: nid).execute(db) else {
             return [LintIssue("error", "missing", "note not in db: \(nid)", .note(nid))]
         }
         

@@ -19,7 +19,7 @@ struct SingleTagRule: CorpusDBLintRule {
     // MARK: - Initializer
     // MARK: - Public
     func check(_ db: Database, _ tuning: LintTuning) throws -> [LintFinding] {
-        try db.run(FetchFragmentationRowsTransaction())
+        try FetchFragmentationRowsOperation().execute(db)
             .filter { row in
                 !(row.linkN == 0 && row.entN == 0 && row.tagN <= 1) && row.tagN <= 1
             }

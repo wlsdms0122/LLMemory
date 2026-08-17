@@ -198,7 +198,7 @@ CREATE INDEX IF NOT EXISTS idx_nrt_provenance ON note_retrieval_terms(provenance
 -- reference 엣지는 이 인덱스 ⋈ notes 의 물질화다: 마커를 쓴 시점에 대상이 없어도
 -- 행은 남고, 대상 노트가 나중에 생기면 그 노트의 업서트가 inbound 엣지를 완성한다
 -- (스캔/생성 순서 의존 소거 — 07-29). 대상 없는 행 = 미해결 인용(관측 가능).
--- 쓰기는 RefreshReferenceLinksTransaction 단일 경로. 본문 파생이라 reconstructable.
+-- 쓰기는 RefreshReferenceLinksOperation 단일 경로. 본문 파생이라 reconstructable.
 -- ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS note_ref_markers (
   src TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
@@ -228,7 +228,7 @@ CREATE TABLE IF NOT EXISTS note_vectors (
 -- "한 섹션에 국한되지 않는 매치" 의 명시 표현.
 -- enrich 셀 = note_retrieval_terms 중 status='active' 인 alias/cue 를 개행으로
 -- 이어붙인 텍스트 — head row 에만 산다.
--- 쓰기는 ReindexNoteFTSTransaction 단일 경로 — raw INSERT 금지.
+-- 쓰기는 ReindexNoteFTSOperation 단일 경로 — raw INSERT 금지.
 -- ─────────────────────────────────────────────────────────
 CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
   id UNINDEXED, section UNINDEXED, title, summary, body, enrich,

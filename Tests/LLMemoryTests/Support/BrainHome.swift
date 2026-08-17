@@ -58,7 +58,7 @@ extension BrainHome {
 
     var candidateDetector: CandidateDetector { CandidateDetector(brain: brain) }
 
-    // The tuning a transaction would otherwise have read off the brain — the
+    // The tuning an operation would otherwise have read off the brain — the
     // production values, so a test that does not care about a threshold gets
     // the same one the service would have passed.
     var retrievalTuning: RetrievalTuning { RetrievalTuning(brain.genes) }
@@ -198,11 +198,11 @@ extension BrainHome {
 
     func reindexFile(at file: URL) throws {
         try write { database in
-            _ = try ReindexNoteFileTransaction(
+            _ = try ReindexNoteFileOperation(
                 noteId: try brain.requireNoteId(of: file),
                 path: file
             )
-                .perform(database)
+                .execute(database)
         }
     }
 

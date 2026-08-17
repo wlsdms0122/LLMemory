@@ -111,7 +111,7 @@ public struct NotesService: NotesServiceable {
             limit: limit
         )
 
-        return try await storage.run(ListNoteRowsTransaction(filter))
+        return try await storage.run(ListNoteRowsOperation(filter))
     }
 
     public func history(
@@ -119,12 +119,12 @@ public struct NotesService: NotesServiceable {
         limit: Int
     ) async throws -> [NoteHistoryEvent] {
         try await storage.read { db in
-            try db.run(FetchNoteHistoryTransaction(noteId: noteId, limit: limit))
+            try FetchNoteHistoryOperation(noteId: noteId, limit: limit).execute(db)
         }
     }
 
     public func tree(prefix: String?) async throws -> [TreeRow] {
-        try await storage.run(FetchTreeTransaction(prefix: prefix))
+        try await storage.run(FetchTreeOperation(prefix: prefix))
     }
 
     public func structure(
@@ -141,7 +141,7 @@ public struct NotesService: NotesServiceable {
         ids: [String],
         sessionId: SessionId?
     ) throws -> (found: [NoteView], missing: [String], record: RetrievalRecord?) {
-        let byId = try db.run(FetchNoteCatalogTransaction(ids: ids))
+        let byId = try FetchNoteCatalogOperation(ids: ids).execute(db)
         var found: [NoteView] = []
         var missing: [String] = []
 
@@ -252,12 +252,12 @@ public struct NotesService: NotesServiceable {
     }
 
     func structure(_ db: Database, prefix: String?) throws -> StructureResult {
-        let tree = try db.run(FetchTreeTransaction(prefix: prefix))
-        let distribution = try db.run(FetchLinkDistributionTransaction())
+        let tree = try FetchTreeOperation(prefix: prefix).execute(db)
+        let distribution = try FetchLinkDistributionOperation().execute(db)
         var stats: PrefixStats? = nil
 
         if let prefix {
-            stats = try db.run(PrefixStatsTransaction(prefix: prefix))
+            stats = try PrefixStatsOperation(prefix: prefix).execute(db)
         }
 
         return StructureResult(tree: tree, distribution: distribution, prefixStats: stats)

@@ -11,8 +11,8 @@ import Foundation
 //
 // Features only: every member opens and closes its own unit of work. Work
 // a collaborator needs *inside* a scope it already holds is not a feature
-// of this service — it is a transaction, and it lives in the DB module
-// where scopes are spoken (BuildFramingSnapshotTransaction).
+// of this service — it is an operation, and it lives in the DB module
+// where scopes are spoken (BuildFramingSnapshotOperation).
 //
 // applyRecord is the exception that proves it: it takes a record, not a
 // scope, and opens its own write.

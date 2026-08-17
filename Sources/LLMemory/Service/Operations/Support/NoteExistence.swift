@@ -23,7 +23,7 @@ struct NoteExistence {
     func isTaken(_ nid: String, context: HandlerContext, db: Database) throws -> Bool {
         if context.inFlightIds.contains(nid) { return true }
 
-        return try db.run(NoteExistsTransaction(nid: nid))
+        return try NoteExistsOperation(nid: nid).execute(db)
     }
 
     func rejectionForUnknown(
@@ -32,7 +32,7 @@ struct NoteExistence {
         db: Database
     ) throws -> String? {
         if context.inFlightIds.contains(nid) { return nil }
-        if try db.run(NoteExistsTransaction(nid: nid)) { return nil }
+        if try NoteExistsOperation(nid: nid).execute(db) { return nil }
         
         return "unknown id: \(nid)"
     }

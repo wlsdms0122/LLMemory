@@ -119,21 +119,21 @@ struct MergeNotesHandler: OperationHandling {
             atomically: true,
             encoding: .utf8
         )
-        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: intoPath), path: intoPath))
-        try db.run(StampNoteLifecycleTransaction(nid: intoId, file: context.brain.layout.file(forId: intoId), now: now, isNew: false))
+        try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: intoPath), path: intoPath).execute(db)
+        try StampNoteLifecycleOperation(nid: intoId, file: context.brain.layout.file(forId: intoId), now: now, isNew: false).execute(db)
         
         for fromId in fromIds {
-            _ = try db.run(FlagInboundReferrersTransaction(
-                targetId: fromId,
-                reason: "merged into \(intoId)",
-                now: now
-            ))
-            try db.run(RedirectLinksForMergeTransaction(fromId: fromId, intoId: intoId))
-            try db.run(AbsorbNoteArtifactsForMergeTransaction(from: fromId, into: intoId))
-            try db.run(DeleteNoteRowTransaction(nid: fromId))
+            _ = try FlagInboundReferrersOperation(
+            targetId: fromId,
+            reason: "merged into \(intoId)",
+            now: now
+            ).execute(db)
+            try RedirectLinksForMergeOperation(fromId: fromId, intoId: intoId).execute(db)
+            try AbsorbNoteArtifactsForMergeOperation(from: fromId, into: intoId).execute(db)
+            try DeleteNoteRowOperation(nid: fromId).execute(db)
         }
         
-        try db.run(SyncNoteEnrichTransaction(noteId: intoId))
+        try SyncNoteEnrichOperation(noteId: intoId).execute(db)
         
         for path in fromPaths {
             try Trash(layout: context.brain.layout).file(path, reason: "merged into \(intoId)", now: now)

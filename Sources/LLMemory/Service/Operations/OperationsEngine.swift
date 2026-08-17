@@ -133,16 +133,16 @@ public struct OperationsEngine: Sendable {
             sessionId: sessionId,
             now: now
         ) {
-            try? db.run(RecordEventTransaction(
-                kind: .capture,
-                payload: EventPayload([
-                    "tx_status": "rejected",
-                    "error": .string(message),
-                    "rejected_index": index.map { index in .integer(index) },
-                    "op_count": .integer(opsRaw.count)
-                ]),
-                sessionId: sessionId
-            ))
+            try? RecordEventOperation(
+            kind: .capture,
+            payload: EventPayload([
+                "tx_status": "rejected",
+                "error": .string(message),
+                "rejected_index": index.map { index in .integer(index) },
+                "op_count": .integer(opsRaw.count)
+            ]),
+            sessionId: sessionId
+            ).execute(db)
             
             return OperationsResult(
                 status: "rejected",
@@ -161,15 +161,15 @@ public struct OperationsEngine: Sendable {
         } catch {
             let message = "snapshot failed: \(error)"
             
-            try? db.run(RecordEventTransaction(
-                kind: .capture,
-                payload: EventPayload([
-                    "tx_status": "rejected",
-                    "error": .string(message),
-                    "op_count": .integer(opsRaw.count)
-                ]),
-                sessionId: sessionId
-            ))
+            try? RecordEventOperation(
+            kind: .capture,
+            payload: EventPayload([
+                "tx_status": "rejected",
+                "error": .string(message),
+                "op_count": .integer(opsRaw.count)
+            ]),
+            sessionId: sessionId
+            ).execute(db)
             
             return OperationsResult(
                 status: "rejected",
@@ -184,7 +184,7 @@ public struct OperationsEngine: Sendable {
         var results: [OperationOutcome] = []
         var failure: (Int?, String)? = nil
         var splitConflict: (Int, SplitConflict)? = nil
-        let eagerBefore = (try? db.run(CountEagerNotesTransaction())) ?? 0
+        let eagerBefore = (try? CountEagerNotesOperation().execute(db)) ?? 0
         
         do {
             try db.inSavepoint {
@@ -258,11 +258,11 @@ public struct OperationsEngine: Sendable {
             
             if let index { payload["failed_index"] = .integer(index) }
             
-            try? db.run(RecordEventTransaction(
-                kind: .capture,
-                payload: EventPayload(payload),
-                sessionId: sessionId
-            ))
+            try? RecordEventOperation(
+            kind: .capture,
+            payload: EventPayload(payload),
+            sessionId: sessionId
+            ).execute(db)
             
             return OperationsResult(
                 status: "failed",
@@ -282,15 +282,15 @@ public struct OperationsEngine: Sendable {
             ])
         }
         
-        try? db.run(RecordEventTransaction(
-            kind: .capture,
-            payload: EventPayload([
-                "tx_status": "ok",
-                "op_count": .integer(opsRaw.count),
-                "ops": .array(opsSummary)
-            ]),
-            sessionId: sessionId
-        ))
+        try? RecordEventOperation(
+        kind: .capture,
+        payload: EventPayload([
+            "tx_status": "ok",
+            "op_count": .integer(opsRaw.count),
+            "ops": .array(opsSummary)
+        ]),
+        sessionId: sessionId
+        ).execute(db)
         
         var degradedPasses: [String] = []
         let touched = enrichmentTouchedNotes(opsRaw)
@@ -300,27 +300,23 @@ public struct OperationsEngine: Sendable {
             // rolls back whole. The pass name rides the result; the error
             // detail rides the trace event.
             if case .failure(let error)? =
-                try? db.attempt({ try db.run(
-                    ValidatePendingTermsTransaction(
-                        noteIds: touched,
-                        keywords: keywords,
-                        roundtripTopK: enrichment.roundtripTopK,
-                        idfDFCeiling: enrichment.idfDFCeiling
-                    )
-                ) }) {
+                try? db.attempt({ try ValidatePendingTermsOperation(
+                    noteIds: touched,
+                    keywords: keywords,
+                    roundtripTopK: enrichment.roundtripTopK,
+                    idfDFCeiling: enrichment.idfDFCeiling
+                ).execute(db) }) {
                 degradedPasses.append("term_validation")
                 
-                try? db.run(
-                    RecordEventTransaction(
-                        kind: .capture,
-                        payload: EventPayload([
-                            "tx_status": "degraded",
-                            "pass": "term_validation",
-                            "error": .string("\(error)")
-                        ]),
-                        sessionId: sessionId
-                    )
-                )
+                try? RecordEventOperation(
+                    kind: .capture,
+                    payload: EventPayload([
+                        "tx_status": "degraded",
+                        "pass": "term_validation",
+                        "error": .string("\(error)")
+                    ]),
+                    sessionId: sessionId
+                ).execute(db)
             }
         }
         
@@ -538,7 +534,7 @@ public struct OperationsEngine: Sendable {
         for url in urls {
             guard let noteId = brain.layout.id(ofFile: url) else { continue }
             
-            if try db.run(NoteLockedTransaction(nid: noteId)) {
+            if try NoteLockedOperation(nid: noteId).execute(db) {
                 return "note is locked (human-only) — edit the file directly, not via ops: \(noteId)"
             }
         }
@@ -655,9 +651,7 @@ public struct OperationsEngine: Sendable {
         
         if !affectedIds.isEmpty {
             do {
-                let dependents = try db.run(
-                    FetchTemplateDependentNoteIdsTransaction(templateIds: affectedIds)
-                )
+                let dependents = try FetchTemplateDependentNoteIdsOperation(templateIds: affectedIds).execute(db)
                 
                 for noteId in dependents { enqueue(brain.layout.file(forId: noteId)) }
             } catch {
@@ -703,7 +697,7 @@ public struct OperationsEngine: Sendable {
     
     private func checkEagerCap(db: Database, before: Int) -> String? {
         let cap = brain.config.getInt("eager.max_count", default: 20)
-        let after = (try? db.run(CountEagerNotesTransaction())) ?? 0
+        let after = (try? CountEagerNotesOperation().execute(db)) ?? 0
         
         if after > cap && after > before {
             return "eager cap exceeded (\(after)/\(cap)) — use priority=lazy (eager is the per-session BOOT working set)"

@@ -12,7 +12,7 @@ import Foundation
 // under a candidate value.
 //
 // It does not own the plasticity rules. What a gene admits is the catalog's
-// (Genes.rejection), and writing a value is a transaction — both live in the
+// (Genes.rejection), and writing a value is an operation — both live in the
 // module, where the callers that need them already are.
 public struct GenomeService: GenomeServiceable {
     // MARK: - Property
@@ -38,14 +38,14 @@ public struct GenomeService: GenomeServiceable {
     // Maps the catalog against values fetched in this run — no cache mutation on
     // the read path (reads read; only gated writers warm).
     public func list() async throws -> [GeneListRow] {
-        catalogRows(brain.genes, values: try await storage.run(FetchGenomeValuesTransaction()))
+        catalogRows(brain.genes, values: try await storage.run(FetchGenomeValuesOperation()))
     }
 
     public func history(
         gene: String?,
         limit: Int
     ) async throws -> [GeneHistoryRow] {
-        try await storage.run(FetchGenomeEventsTransaction(geneId: gene, limit: limit))
+        try await storage.run(FetchGenomeEventsOperation(geneId: gene, limit: limit))
             .map { event in
                 GeneHistoryRow(
                     geneId: event.geneId,
@@ -71,7 +71,7 @@ public struct GenomeService: GenomeServiceable {
         if let rejection = Genes.rejection(gene, value: value) { throw rejection }
 
         let outcome = try await storage.run(
-            ReplayRetrievalQueriesTransaction(
+            ReplayRetrievalQueriesOperation(
                 baseline: RetrievalTuning(brain.genes),
                 candidate: RetrievalTuning(brain.shadowing(gene: gene, value: value).genes),
                 limit: limit,

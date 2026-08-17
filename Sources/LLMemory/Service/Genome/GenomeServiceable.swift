@@ -13,7 +13,7 @@ import Foundation
 //
 // Writing a gene value is not here: every caller of it is already inside a
 // unit of work and needs the change to belong to that unit, which makes it
-// a transaction (ApplyGeneValueTransaction), not a feature of this service.
+// an operation (ApplyGeneValueOperation), not a feature of this service.
 protocol GenomeServiceable: Sendable {
     func list() async throws -> [GeneListRow]
 

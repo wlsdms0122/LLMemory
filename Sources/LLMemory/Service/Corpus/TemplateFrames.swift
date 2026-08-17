@@ -12,7 +12,7 @@ import GRDB
 //
 // Two questions, one from each side: the database says whether the brain has
 // such a note, the file says what shape it asks for. Neither can answer the
-// other's, which is why this sits above both rather than inside a transaction
+// other's, which is why this sits above both rather than inside an operation
 // that would have to open a file to finish its answer.
 struct TemplateFrames {
     // MARK: - Property

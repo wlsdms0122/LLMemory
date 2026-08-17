@@ -9,33 +9,67 @@ import Foundation
 import GRDB
 import Storage
 
-// A store as the tiers above it use one: the ways a unit of work opens.
+// A store as the tiers above it use one, pinned to what GRDB calls a
+// connection and an open transaction.
 //
-// Nothing else is here. Opening, migrating, caching and closing the
-// connection are the composition root's business — Session builds the store
-// and is the only thing in Sources that sequences its lifecycle — so those
-// stay on the concrete type rather than being re-declared as an interface
-// no service calls.
+// Nothing is added. `run` comes from DBStorable and reaches the database only
+// through `open`, which is where this store puts the cross-process lock, the
+// in-process gate and the commit announcement — so the gating holds for every
+// caller without a single requirement being restated here.
+public protocol GRDBStorable: DBStorable where Connection == any DatabaseWriter, Transaction == Database { }
+
+public extension GRDBStorable {
+    // A unit of work whose body is domain work rather than a query bundle: the
+    // service orchestrates inside, calling operations on the transaction it was
+    // handed. Throwing rolls the whole body back.
+    //
+    // It is an operation like any other — the closure is the body `execute`
+    // would have held — so it goes through `run`, and the store's hooks see it.
+    @discardableResult
+    func write<T>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
+        try await run(Perform(body))
+    }
+
+    @discardableResult
+    func read<T>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
+        try await run(PerformReading(body))
+    }
+}
+
+// An operation whose work is a closure rather than a type.
 //
-// `run` is the exception, and only because it must be. DBStorable supplies
-// it, but its default runs the transaction against a bare connection, while
-// a write here has to hold the cross-process lock and the in-process gate
-// first and announce the commit after. Declared as a requirement, the
-// store's own answer is the one that dispatches, through the protocol as
-// well as through the type.
-public protocol GRDBStorable: DBStorable where Connection == any DatabaseWriter {
-    @discardableResult
-    func run<T: GRDBTransaction>(_ transaction: T) async throws -> T.Result
+// Naming a type per query bundle is what makes the vocabulary reusable, and
+// most work earns it. A body that only orchestrates other operations for one
+// caller does not — there is nothing to reuse, and a type per call site would
+// be a name that exists to be spelled once.
+public struct Perform<Result>: GRDBOperation {
+    // MARK: - Property
+    private let body: @Sendable (Database) throws -> Result
 
-    @discardableResult
-    func run<T: GRDBReadTransaction>(_ transaction: T) async throws -> T.Result
+    // MARK: - Initializer
+    public init(_ body: @escaping @Sendable (Database) throws -> Result) {
+        self.body = body
+    }
 
-    // A unit of work whose body is domain work rather than a query bundle:
-    // the service orchestrates inside, and every DB touch within goes
-    // through db.run(transaction). Throwing rolls the whole body back.
+    // MARK: - Public
     @discardableResult
-    func write<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T
+    public func execute(_ db: Database) throws -> Result {
+        try body(db)
+    }
+}
 
+public struct PerformReading<Result>: GRDBReadOperation {
+    // MARK: - Property
+    private let body: @Sendable (Database) throws -> Result
+
+    // MARK: - Initializer
+    public init(_ body: @escaping @Sendable (Database) throws -> Result) {
+        self.body = body
+    }
+
+    // MARK: - Public
     @discardableResult
-    func read<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T
+    public func execute(_ db: Database) throws -> Result {
+        try body(db)
+    }
 }

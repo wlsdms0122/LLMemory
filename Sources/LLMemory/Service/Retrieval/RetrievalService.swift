@@ -22,7 +22,7 @@ public struct RetrievalService: RetrievalServiceable {
     private let detector: CandidateDetector
 
     // How far this brain's genes say retrieval reaches. Named in one place;
-    // the transactions take the numbers.
+    // the operations take the numbers.
     var tuning: RetrievalTuning { RetrievalTuning(brain.genes) }
 
     // MARK: - Initializer
@@ -114,7 +114,7 @@ public struct RetrievalService: RetrievalServiceable {
         limit: Int
     ) async throws -> [EntityHit] {
         try await storage.read { db in
-            try db.run(LookupEntitiesTransaction(name: name, limit: limit))
+            try LookupEntitiesOperation(name: name, limit: limit).execute(db)
         }
     }
 
@@ -131,31 +131,27 @@ public struct RetrievalService: RetrievalServiceable {
         sinceTs: Int? = nil,
         raw: Bool = false
     ) throws -> (rows: [SearchRow], extra: [ExpandedNote], record: RetrievalRecord) {
-        let rows = try db.run(
-            SearchNotesFTSTransaction(
-                match: raw ? .raw(query) : .text(query, keywords: keywords),
-                tags: tags,
-                limit: limit,
-                includeStale: includeStale,
-                excludeTags: excludeTags,
-                sinceTs: sinceTs,
-                sessionId: sessionId,
-                primingWindowMin: tuning.primingWindowMin,
-                primingAlpha: tuning.primingAlpha
-            )
-        )
+        let rows = try SearchNotesFTSOperation(
+            match: raw ? .raw(query) : .text(query, keywords: keywords),
+            tags: tags,
+            limit: limit,
+            includeStale: includeStale,
+            excludeTags: excludeTags,
+            sinceTs: sinceTs,
+            sessionId: sessionId,
+            primingWindowMin: tuning.primingWindowMin,
+            primingAlpha: tuning.primingAlpha
+        ).execute(db)
         var extra: [ExpandedNote] = []
 
         if expand > 0 {
-            extra = (try? db.run(
-                ExpandLinksTransaction(
-                    noteIds: rows.map { row in row.id },
-                    hops: 1,
-                    limit: expand,
-                    minWeight: tuning.neighborFloor,
-                    siblingDiscount: tuning.siblingDiscount
-                )
-            )) ?? []
+            extra = (try? ExpandLinksOperation(
+                noteIds: rows.map { row in row.id },
+                hops: 1,
+                limit: expand,
+                minWeight: tuning.neighborFloor,
+                siblingDiscount: tuning.siblingDiscount
+            ).execute(db)) ?? []
         }
 
         let hitIds = rows.map { row in row.id } + extra.map { note in note.id }
@@ -188,21 +184,19 @@ public struct RetrievalService: RetrievalServiceable {
         sessionId: SessionId?,
         includeBodies: Bool
     ) throws -> (result: RelatedResult, record: RetrievalRecord) {
-        let snapshot = try db.run(
-            BuildFramingSnapshotTransaction(
-                text: text,
-                linkKind: kind,
-                sessionId: sessionId,
-                keywords: keywords,
-                entities: entities,
-                similarLimit: tuning.similarLimit,
-                expandHops: tuning.expandHops,
-                neighborFloor: tuning.neighborFloor,
-                siblingDiscount: tuning.siblingDiscount,
-                primingWindowMin: tuning.primingWindowMin,
-                primingAlpha: tuning.primingAlpha
-            )
-        )
+        let snapshot = try BuildFramingSnapshotOperation(
+            text: text,
+            linkKind: kind,
+            sessionId: sessionId,
+            keywords: keywords,
+            entities: entities,
+            similarLimit: tuning.similarLimit,
+            expandHops: tuning.expandHops,
+            neighborFloor: tuning.neighborFloor,
+            siblingDiscount: tuning.siblingDiscount,
+            primingWindowMin: tuning.primingWindowMin,
+            primingAlpha: tuning.primingAlpha
+        ).execute(db)
 
         var bodies: [String: String] = [:]
 
@@ -257,19 +251,17 @@ public struct RetrievalService: RetrievalServiceable {
         guard let record else { return [] }
 
         return try await storage.write { db in
-            try db.run(
-                RecordRetrievalTransaction(
-                    record,
-                    strengthenStep: brain.genes.double("links.strengthen_step"),
-                    rebirthFactor: brain.genes.double("rebirth.default_factor")
-                )
-            )
+            try RecordRetrievalOperation(
+                record,
+                strengthenStep: brain.genes.double("links.strengthen_step"),
+                rebirthFactor: brain.genes.double("rebirth.default_factor")
+            ).execute(db)
         }
     }
 
     // MARK: - Private
     // Pure derivations of the retrieval side effects — applied later by
-    // RecordRetrievalTransaction on the write path.
+    // RecordRetrievalOperation on the write path.
     private func cooccurrencePairs(_ ids: [String]) -> [RetrievalRecord.Pair] {
         var seen = Set<String>()
         var unique: [String] = []

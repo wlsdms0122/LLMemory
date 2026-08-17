@@ -35,7 +35,7 @@ struct RippleTests {
         
         // When
         let flagged = try home.database().write { database in
-            try FlagInboundReferrersTransaction(targetId: "tmp-ripple-a", reason: "test", now: home.now).perform(database)
+            try FlagInboundReferrersOperation(targetId: "tmp-ripple-a", reason: "test", now: home.now).execute(database)
         }
         
         // Then
@@ -73,7 +73,7 @@ struct RippleTests {
         try flagReferrers(of: "tmp-ripple-a")
         
         try home.database().write { database in
-            try SetNoteStaleTransaction(nid: "tmp-ripple-c", stale: true).perform(database)
+            try SetNoteStaleOperation(nid: "tmp-ripple-c", stale: true).execute(database)
         }
         
         // When
@@ -110,7 +110,7 @@ struct RippleTests {
     
     private func flagReferrers(of noteId: String) throws {
         _ = try home.database().write { database in
-            try FlagInboundReferrersTransaction(targetId: noteId, reason: "test", now: home.now).perform(database)
+            try FlagInboundReferrersOperation(targetId: noteId, reason: "test", now: home.now).execute(database)
         }
     }
     

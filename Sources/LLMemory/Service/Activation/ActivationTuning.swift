@@ -9,7 +9,7 @@ import Foundation
 
 // What the activity derivation is tuned by, resolved from one brain.
 //
-// The keys and their defaults live here and nowhere else. The transactions
+// The keys and their defaults live here and nowhere else. The operations
 // that group events into windows take these as numbers — how long a gap ends
 // a session is a judgement about attention, not something a row writer knows.
 struct ActivationTuning: Sendable {

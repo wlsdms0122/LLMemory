@@ -8,7 +8,7 @@
 import Foundation
 
 // Which genes the retrieval numbers come from. The bundle itself is the module's
-// — the transactions take those numbers — but reading a brain's genome is a
+// — the operations take those numbers — but reading a brain's genome is a
 // service's answer, so the two live apart.
 extension RetrievalTuning {
     // MARK: - Initializer

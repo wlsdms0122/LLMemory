@@ -10,10 +10,10 @@ import GRDB
 
 // Drift checking for the files a note was written from.
 //
-// It is not a transaction, because most of what it does is not one: the
+// It is not an operation, because most of what it does is not one: the
 // declared paths come out of the note's frontmatter, the fingerprints come
 // off the source files themselves, and the database only holds the last
-// answer. A transaction that opened those files to finish its work would be
+// answer. An operation that opened those files to finish its work would be
 // the store deciding where a note lives and what it declares.
 struct SourceVerifier {
     // MARK: - Property
@@ -43,7 +43,7 @@ struct SourceVerifier {
         now: Int? = nil
     ) throws -> SourceVerifyResult {
         let timestamp = now ?? Int(Date().timeIntervalSince1970)
-        let tracked = try db.run(FetchSourceTrackingTransaction())
+        let tracked = try FetchSourceTrackingOperation().execute(db)
         var result = SourceVerifyResult(
             total: tracked.count,
             rechecked: 0,
@@ -68,14 +68,12 @@ struct SourceVerifier {
             let checkable = declared.filter(fingerprint.isDriftCheckable)
 
             if checkable.isEmpty {
-                try db.run(SetSourceStalenessTransaction(noteId: noteId, stale: nil))
+                try SetSourceStalenessOperation(noteId: noteId, stale: nil).execute(db)
                 continue
             }
 
             if fingerprint.computeDeclHash(declared) != tracking.declHash {
-                try db.run(
-                    RebaseNoteSourceTransaction(noteId: noteId, paths: declared, now: timestamp)
-                )
+                try RebaseNoteSourceOperation(noteId: noteId, paths: declared, now: timestamp).execute(db)
                 result.rechecked += 1
 
                 if tracking.stale { result.recovered += 1 }
@@ -105,7 +103,7 @@ struct SourceVerifier {
                 result.recovered += 1
             }
 
-            try db.run(SetSourceStalenessTransaction(noteId: noteId, stale: stale))
+            try SetSourceStalenessOperation(noteId: noteId, stale: stale).execute(db)
         }
 
         return result

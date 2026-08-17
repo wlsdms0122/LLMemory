@@ -9,8 +9,8 @@ import Foundation
 
 // What the enrichment passes are tuned by, resolved from one brain's config.
 //
-// The keys and their defaults live here and nowhere else. The transactions
-// that act on these numbers take them as parameters — a store transaction
+// The keys and their defaults live here and nowhere else. The operations
+// that act on these numbers take them as parameters — a store operation
 // that read `enrich.disagree_floor` for itself would be the database layer
 // deciding what counts as disagreement — so without one owner the same
 // default would be spelled at each of the three call sites that pass them

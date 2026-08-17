@@ -9,7 +9,7 @@ import Foundation
 import CryptoKit
 
 // File-level note mechanics — parsing, hashing, path mapping. Row and FTS
-// projections are note transactions.
+// projections are note operations.
 struct NoteFile: Sendable {
     // MARK: - Property
     // Markers carry dots now that an id does. Widening only adds marker rows —

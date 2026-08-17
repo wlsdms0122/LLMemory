@@ -166,9 +166,9 @@ struct SplitNoteHandler: OperationHandling {
         let (srcDoc, srcBody) = try frontmatter.parse(
             try String(contentsOf: srcPath, encoding: .utf8)
         )
-        let (outboundEdges, inboundEdges) = try db.run(FetchLinkFanTransaction(fromId: fromId))
+        let (outboundEdges, inboundEdges) = try FetchLinkFanOperation(fromId: fromId).execute(db)
         let routing = parseRouting(op)
-        let srcTerms = try db.run(FetchActiveTermRowsTransaction(noteId: fromId))
+        let srcTerms = try FetchActiveTermRowsOperation(noteId: fromId).execute(db)
         var written: [URL] = []
         var newIds: [String] = []
         let now = context.now
@@ -219,9 +219,9 @@ struct SplitNoteHandler: OperationHandling {
                 atomically: true,
                 encoding: .utf8
             )
-            try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: childPath), path: childPath))
-            try db.run(InheritSourceObservationTransaction(from: fromId, to: childId))
-            try db.run(StampNoteLifecycleTransaction(nid: childId, file: context.brain.layout.file(forId: childId), now: now, isNew: true))
+            try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: childPath), path: childPath).execute(db)
+            try InheritSourceObservationOperation(from: fromId, to: childId).execute(db)
+            try StampNoteLifecycleOperation(nid: childId, file: context.brain.layout.file(forId: childId), now: now, isNew: true).execute(db)
             
             written.append(childPath)
             newIds.append(childId)
@@ -245,15 +245,15 @@ struct SplitNoteHandler: OperationHandling {
                 atomically: true,
                 encoding: .utf8
             )
-            try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: srcPath), path: srcPath))
-            try db.run(StampNoteLifecycleTransaction(nid: fromId, file: context.brain.layout.file(forId: fromId), now: now, isNew: false))
+            try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: srcPath), path: srcPath).execute(db)
+            try StampNoteLifecycleOperation(nid: fromId, file: context.brain.layout.file(forId: fromId), now: now, isNew: false).execute(db)
         } else {
-            _ = try db.run(FlagInboundReferrersTransaction(
-                targetId: fromId,
-                reason: "split into \(newIds.joined(separator: ", "))",
-                now: now
-            ))
-            try db.run(DeleteNoteRowTransaction(nid: fromId))
+            _ = try FlagInboundReferrersOperation(
+            targetId: fromId,
+            reason: "split into \(newIds.joined(separator: ", "))",
+            now: now
+            ).execute(db)
+            try DeleteNoteRowOperation(nid: fromId).execute(db)
             try Trash(layout: context.brain.layout).file(
                 srcPath,
                 reason: "split into \(newIds.joined(separator: ", "))",
@@ -273,15 +273,15 @@ struct SplitNoteHandler: OperationHandling {
             let src = outbound ? child : other
             let dst = outbound ? other : child
             
-            try db.run(AddLinkTransaction(
-                src: src,
-                dst: dst,
-                kind: edge.kind,
-                weight: weight,
-                createdAt: edge.createdAt,
-                lastActivatedAt: edge.lastActivatedAt,
-                provenance: edge.provenance
-            ))
+            try AddLinkOperation(
+            src: src,
+            dst: dst,
+            kind: edge.kind,
+            weight: weight,
+            createdAt: edge.createdAt,
+            lastActivatedAt: edge.lastActivatedAt,
+            provenance: edge.provenance
+            ).execute(db)
         }
         
         func redistribute(_ edges: [LinkEdge], outbound: Bool) throws {
@@ -352,12 +352,12 @@ struct SplitNoteHandler: OperationHandling {
         try redistribute(outboundEdges, outbound: true)
         try redistribute(inboundEdges, outbound: false)
         
-        for noteId in newIds { try db.run(NormalizeUndirectedLinksTransaction(nodeId: noteId)) }
+        for noteId in newIds { try NormalizeUndirectedLinksOperation(nodeId: noteId).execute(db) }
         
-        try db.run(LinkSiblingsTransaction(
-            ids: sourceSurvives ? newIds + [fromId] : newIds,
-            now: now
-        ))
+        try LinkSiblingsOperation(
+        ids: sourceSurvives ? newIds + [fromId] : newIds,
+        now: now
+        ).execute(db)
         
         if !sourceSurvives {
             for row in srcTerms {
@@ -375,17 +375,17 @@ struct SplitNoteHandler: OperationHandling {
                 }
                 
                 for noteId in targets {
-                    try db.run(InsertPendingTermIfAbsentTransaction(
-                        noteId: noteId,
-                        kind: kind,
-                        term: term,
-                        provenance: provenance,
-                        now: now
-                    ))
+                    try InsertPendingTermIfAbsentOperation(
+                    noteId: noteId,
+                    kind: kind,
+                    term: term,
+                    provenance: provenance,
+                    now: now
+                    ).execute(db)
                 }
             }
             
-            try db.run(DeleteNoteLinksTransaction(noteId: fromId))
+            try DeleteNoteLinksOperation(noteId: fromId).execute(db)
         }
         
         return [
@@ -483,7 +483,7 @@ struct SplitNoteHandler: OperationHandling {
         fromId: String,
         routing: [String: [String]]
     ) throws -> [RouteArtifact] {
-        try db.run(FetchSplitRouteTargetsTransaction(noteId: fromId)).filter { artifact in
+        try FetchSplitRouteTargetsOperation(noteId: fromId).execute(db).filter { artifact in
             routing[routeArtifactKey(artifact)] == nil
         }
     }

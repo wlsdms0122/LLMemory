@@ -83,7 +83,7 @@ public struct BrainContext: Sendable {
     // thing the database is asked — the location is the id — so this pairs
     // the one question a store can answer with the one it cannot.
     func notePath(_ db: Database, _ nid: String) throws -> URL? {
-        try db.run(NoteExistsTransaction(nid: nid)) ? layout.file(forId: nid) : nil
+        try NoteExistsOperation(nid: nid).execute(db) ? layout.file(forId: nid) : nil
     }
 
     // The id of a note file this brain can index, or a refusal that says
@@ -127,8 +127,8 @@ public struct BrainContext: Sendable {
         let queue = try storage.connect()
         let (configRows, genomeValues) = try queue.read { db in
             (
-                try FetchConfigRowsTransaction().perform(db),
-                try FetchGenomeValuesTransaction().perform(db)
+                try FetchConfigRowsOperation().execute(db),
+                try FetchGenomeValuesOperation().execute(db)
             )
         }
 

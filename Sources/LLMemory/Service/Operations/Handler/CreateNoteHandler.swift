@@ -49,7 +49,7 @@ struct CreateNoteHandler: OperationHandling {
         if hasTemplate {
             let templateId = op["template"] as! String
             
-            if !(try db.run(NoteExistsTransaction(nid: templateId)))
+            if !(try NoteExistsOperation(nid: templateId).execute(db))
                 && !context.inFlightIds.contains(templateId) {
                 return "unknown template note: \(templateId)"
             }
@@ -140,13 +140,13 @@ struct CreateNoteHandler: OperationHandling {
         try composer.mergeFields(&doc, schema.undeclaredFields(in: op))
         try (frontmatter.dump(doc) + body).write(to: path, atomically: true, encoding: .utf8)
         
-        try db.run(ReindexNoteFileTransaction(noteId: try context.brain.requireNoteId(of: path), path: path))
-        try db.run(StampNoteLifecycleTransaction(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: true))
-        try db.run(RecordNoteLifecycleEventTransaction(nid: noteId,
-            kind: "created",
-            reason: op["rationale"] as? String,
-            now: now
-        ))
+        try ReindexNoteFileOperation(noteId: try context.brain.requireNoteId(of: path), path: path).execute(db)
+        try StampNoteLifecycleOperation(nid: noteId, file: context.brain.layout.file(forId: noteId), now: now, isNew: true).execute(db)
+        try RecordNoteLifecycleEventOperation(nid: noteId,
+        kind: "created",
+        reason: op["rationale"] as? String,
+        now: now
+        ).execute(db)
         try bookkeeper.seedInitialLinks(db, nid: noteId, tags: doc.tags)
         
         return [

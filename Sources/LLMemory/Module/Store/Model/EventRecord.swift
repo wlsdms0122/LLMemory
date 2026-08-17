@@ -21,7 +21,7 @@ struct EventRecord: Encodable {
     // Column types, not domain values. A table record mirrors the DDL by
     // hand and is tied to it by a round-trip test, so it holds what the
     // columns hold; EventKind, SessionId and EventPayload convert one level
-    // up, in RecordEventTransaction, which is the only place that builds one.
+    // up, in RecordEventOperation, which is the only place that builds one.
     let ts: Int
     let kind: String
     let sessionId: String?

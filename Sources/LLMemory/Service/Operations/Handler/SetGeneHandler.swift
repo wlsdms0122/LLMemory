@@ -53,17 +53,15 @@ struct SetGeneHandler: OperationHandling {
         let reason = op["reason"] as? String
         
         if let raw = op["value"], !(raw is NSNull), let value = number.value(of: raw) {
-            let result = try db.run(
-                ApplyGeneValueTransaction(
-                    geneId: id,
-                    value: value,
-                    cause: "set_gene",
-                    detail: reason,
-                    requireMutable: false,
-                    ts: now,
-                    configured: context.brain.config.double(id)
-                )
-            )
+            let result = try ApplyGeneValueOperation(
+                geneId: id,
+                value: value,
+                cause: "set_gene",
+                detail: reason,
+                requireMutable: false,
+                ts: now,
+                configured: context.brain.config.double(id)
+            ).execute(db)
             
             return [
                 "status": "ok",
@@ -72,14 +70,12 @@ struct SetGeneHandler: OperationHandling {
             ]
         }
         
-        let old = try db.run(
-            RevertGeneValueTransaction(
-                geneId: id,
-                cause: "set_gene",
-                ts: now,
-                configured: context.brain.config.double(id)
-            )
-        )
+        let old = try RevertGeneValueOperation(
+            geneId: id,
+            cause: "set_gene",
+            ts: now,
+            configured: context.brain.config.double(id)
+        ).execute(db)
         
         return ["status": "ok", "ids": [id], "note": "gene \(id): \(old) → wild-type"]
     }
