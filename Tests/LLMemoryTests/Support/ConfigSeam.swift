@@ -15,7 +15,7 @@ import GRDB
 // come from the same place.
 extension Config {
     static func set(_ session: Session, _ key: String, value: Any) throws {
-        try session.storage.connect().write { db in
+        try session.storage.connection().write { db in
             try MetaRecord(key: prefix + key, value: "\(value)").upsert(db)
         }
 

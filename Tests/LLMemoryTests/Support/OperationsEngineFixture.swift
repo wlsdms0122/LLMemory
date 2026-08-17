@@ -41,7 +41,7 @@ extension OperationsEngine {
             }
 
             return try storage.writeLock {
-                try storage.connect().write { db in
+                try storage.connection().write { db in
                     engine.apply(db, decoded, sessionId: sessionId)
                 }
             }
@@ -79,7 +79,7 @@ extension OperationsEngine {
                 )
             }
 
-            return try storage.connect().read { db in
+            return try storage.connection().read { db in
                 engine.dryRun(db, decoded)
             }
         } catch {

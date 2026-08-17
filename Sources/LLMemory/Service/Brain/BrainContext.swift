@@ -124,7 +124,7 @@ public struct BrainContext: Sendable {
     // One snapshot for both caches — config rows and genome values come from
     // the same read transaction, then swap in together.
     private func loadCommitted(_ storage: any GRDBStorable) throws {
-        let queue = try storage.connect()
+        let queue = try storage.connection()
         let (configRows, genomeValues) = try queue.read { db in
             (
                 try FetchConfigRowsTransaction().perform(db),

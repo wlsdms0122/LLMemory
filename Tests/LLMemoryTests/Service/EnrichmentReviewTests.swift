@@ -54,7 +54,7 @@ struct EnrichmentReviewTests {
         ]])
         
         // When
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let status = try queue.read { db in try EnrichmentStatusTransaction(
                 neighborFloor: home.genes.double("links.neighbor_floor"),
                 disagreeFloor: EnrichmentTuning(home.config).disagreeFloor,
@@ -93,7 +93,7 @@ struct EnrichmentReviewTests {
         
         let now = home.now
         let flagged = try home.storage.writeLock { () -> Int in
-            let queue = try home.storage.connect()
+            let queue = try home.storage.connection()
         
         // When
             return try queue.write { db in try FlagEnrichmentDisagreementsTransaction(now: now, disagreeFloor: EnrichmentTuning(home.config).disagreeFloor).perform(db).flagged }
@@ -103,7 +103,7 @@ struct EnrichmentReviewTests {
         #expect(flagged >= 0)
         
         if flagged > 0 {
-            let queue = try home.storage.connect()
+            let queue = try home.storage.connection()
             let reviewFlags = try queue.read { db in
                 try Int.fetchOne(db, sql: """
                     SELECT COUNT(*) FROM ripple_flags WHERE flag = 'enrich_review'
@@ -129,7 +129,7 @@ struct EnrichmentReviewTests {
         ]])
         
         // When
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let stats = try queue.read { db in try FetchProvenanceStatsTransaction(disagreeFloor: EnrichmentTuning(home.config).disagreeFloor).perform(db) }
         let modelX = stats.first { entry in entry.provenance == "modelX" }
         
@@ -150,7 +150,7 @@ struct EnrichmentReviewTests {
         
         _ = try home.database().write { db in try BuildVectorsTransaction(dimension: home.config.getInt("vectors.dim", default: 48)).perform(db) }
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let status = try queue.read { db in try EnrichmentStatusTransaction(
                 neighborFloor: home.genes.double("links.neighbor_floor"),
                 disagreeFloor: EnrichmentTuning(home.config).disagreeFloor,
@@ -172,7 +172,7 @@ struct EnrichmentReviewTests {
         _ = home.apply([["op": "propose_link", "src": "rev-h1", "dst": "rev-h2"]])
         
         let now = home.now
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try home.storage.writeLock {
             try queue.write { db in
@@ -218,7 +218,7 @@ struct EnrichmentReviewTests {
         _ = home.apply([["op": "propose_link", "src": "rev-e1", "dst": "rev-e2"]])
         
         let now = home.now
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try home.storage.writeLock {
             try queue.write { db in
@@ -258,7 +258,7 @@ struct EnrichmentReviewTests {
         _ = home.apply([["op": "propose_link", "src": "rev-k1", "dst": "rev-k2"]])
         
         let now = home.now
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try home.storage.writeLock {
             try queue.write { db in
@@ -294,7 +294,7 @@ struct EnrichmentReviewTests {
         _ = home.apply([["op": "propose_link", "src": "rev-j1", "dst": "rev-j2"]])
         
         let now = home.now
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try home.storage.writeLock {
             try queue.write { db in
@@ -370,7 +370,7 @@ struct EnrichmentReviewTests {
         
         let now = home.now
         let flagged = try home.storage.writeLock { () -> Int in
-            let queue = try home.storage.connect()
+            let queue = try home.storage.connection()
         
         // When
             return try queue.write { db in try FlagEnrichmentDisagreementsTransaction(now: now, disagreeFloor: EnrichmentTuning(home.config).disagreeFloor).perform(db).flagged }

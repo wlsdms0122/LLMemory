@@ -7,6 +7,7 @@
 
 import Foundation
 import GRDB
+import Storage
 
 // Running a transaction against an open handle.
 //

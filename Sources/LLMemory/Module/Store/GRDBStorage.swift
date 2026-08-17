@@ -7,6 +7,7 @@
 
 import Foundation
 import GRDB
+import Storage
 
 @_silgen_name("flock") private func c_flock(_ fd: Int32, _ op: Int32) -> Int32
 
@@ -22,7 +23,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     private let migrations: [any GRDBMigration]
 
     private let stateLock = NSLock()
-    private var connection: DatabaseQueue?
+    private var cached: DatabaseQueue?
 
     // flock(2) — cross-process write exclusion between concurrent CLI invocations.
     // The depth counter is only sound under exactly one in-process gate at a
@@ -56,13 +57,13 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     }
 
     // MARK: - Lifecycle
-    public func connect() throws -> any DatabaseWriter {
+    public func connection() throws -> any DatabaseWriter {
         stateLock.lock()
 
         defer { stateLock.unlock() }
 
-        if let connection {
-            return connection
+        if let cached {
+            return cached
         }
 
         guard FileManager.default.fileExists(atPath: databaseURL.path) else {
@@ -85,7 +86,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
             }
         }
 
-        self.connection = connection
+        cached = connection
 
         return connection
     }
@@ -115,7 +116,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         defer { stateLock.unlock() }
 
-        connection = nil
+        cached = nil
     }
 
     public func reset() throws {
@@ -123,7 +124,7 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         defer { stateLock.unlock() }
 
-        connection = nil
+        cached = nil
 
         let fileManager = FileManager.default
 
@@ -147,18 +148,18 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         stateLock.lock()
 
         let connection: DatabaseQueue
-        let cached: Bool
+        let wasCached: Bool
 
         do {
-            if let opened = self.connection {
+            if let opened = cached {
                 connection = opened
-                cached = true
+                wasCached = true
             } else {
                 connection = try DatabaseQueue(
                     path: databaseURL.path,
                     configuration: Self.makeConfiguration()
                 )
-                cached = false
+                wasCached = false
             }
 
             stateLock.unlock()
@@ -171,11 +172,28 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
 
         // Cache only a validated connection — caching before the migration/shape
         // gate would let later connects hand out an unverified one.
-        if !cached {
+        if !wasCached {
             stateLock.lock()
-            self.connection = connection
+            cached = connection
             stateLock.unlock()
         }
+    }
+
+    // A write transaction run on its own. The gating lives here rather than
+    // in the transaction's own `execute` because it is the store's concern,
+    // not the transaction's: the same transaction composes inside a body that
+    // already holds the lock, and must not take it twice.
+    @discardableResult
+    public func run<T: GRDBTransaction>(_ transaction: T) async throws -> T.Result {
+        let connection = try self.connection()
+
+        return try await gated { try await transaction.execute(connection) }
+    }
+
+    // A read takes neither gate — nothing it does can be clobbered.
+    @discardableResult
+    public func run<T: GRDBReadTransaction>(_ transaction: T) async throws -> T.Result {
+        try await transaction.execute(try connection())
     }
 
     // The write unit of work — one flock + one BEGIN/COMMIT around the whole
@@ -183,42 +201,16 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     // through db.run(transaction). Throwing rolls the entire body back.
     @discardableResult
     public func write<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
-        let connection = try connect()
+        let connection = try self.connection()
 
-        // In-process exclusion first — flock cannot separate two tasks of one
-        // process (they share the descriptor, and the depth counter presumes an
-        // outer mutex), so the async gate is what makes the counter sound here.
-        // The flock wait and the scope body still block this thread — accepted
-        // for the single-shot CLI; a dedicated queue is the recorded way out if
-        // embedding ever needs it.
-        await writeGate.acquire()
-
-        defer { writeGate.release() }
-
-        try acquireLock(as: .gate)
-
-        defer { releaseLock() }
-
-        // A write scope is where committed state changes, so this is where
-        // the owner is told. Announcing here rather than inside the body is
-        // what makes it true on both paths: a body that wrote and then threw
-        // rolls its rows back, and nothing downstream ever held the
-        // rolled-back values to begin with.
-        //
-        // It runs while the gate and flock are still held — outside them
-        // another writer's committed values could be clobbered by ours.
-        defer { didCommit(self) }
-
-        return try await connection.write { db in
-            try body(db)
-        }
+        return try await gated { try await connection.write { db in try body(db) } }
     }
 
     // The read unit of work — no lock, no write transaction; SQLite rejects
     // writes issued through it at runtime.
     @discardableResult
     public func read<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
-        try await connect().read { db in
+        try await connection().read { db in
             try body(db)
         }
     }
@@ -243,6 +235,33 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     }
 
     // MARK: - Private
+    // Everything a write must hold, held once. In-process exclusion comes
+    // first — flock cannot separate two tasks of one process (they share the
+    // descriptor, and the depth counter presumes an outer mutex), so the async
+    // gate is what makes the counter sound here. The flock wait and the body
+    // still block this thread — accepted for the single-shot CLI; a dedicated
+    // queue is the recorded way out if embedding ever needs it.
+    //
+    // The commit announcement is the last defer, so it runs while the gate and
+    // flock are still held — outside them another writer's committed values
+    // could be clobbered by ours. Announcing here rather than inside the body
+    // is what makes it true on both paths: a body that wrote and then threw
+    // rolls its rows back, and nothing downstream ever held the rolled-back
+    // values to begin with.
+    private func gated<T>(_ body: () async throws -> T) async throws -> T {
+        await writeGate.acquire()
+
+        defer { writeGate.release() }
+
+        try acquireLock(as: .gate)
+
+        defer { releaseLock() }
+
+        defer { didCommit(self) }
+
+        return try await body()
+    }
+
     private static func makeConfiguration() -> Configuration {
         var configuration = Configuration()
         configuration.busyMode = .timeout(10)

@@ -101,7 +101,7 @@ struct EnrichmentTests {
         // Then
         #expect(result.status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let status = try queue.read { db in
             try String.fetchOne(db, sql: """
                 SELECT status FROM note_retrieval_terms
@@ -130,7 +130,7 @@ struct EnrichmentTests {
             "kind": "alias", "terms": ["xylophonic gradient"], "provenance": "gen1"
         ]]).status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try home.storage.writeLock {
             try queue.write { db in
@@ -192,7 +192,7 @@ struct EnrichmentTests {
         
         _ = try indexer.buildLocked(home.database(), home.brain, rebuild: true)
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let (status, hit) = try home.read { db -> (String?, Bool) in
             let status = try String.fetchOne(db, sql: """
                 SELECT status FROM note_retrieval_terms
@@ -214,7 +214,7 @@ struct EnrichmentTests {
         home.createNote(id: "mts-into", content: "## Body\ntarget body\n")
         home.createNote(id: "mts-from", content: "## Body\nother body\n")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let now = home.now
         
         // When
@@ -269,7 +269,7 @@ struct EnrichmentTests {
         
         #expect(result.status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let (onInto, fromGone, hit) = try queue.read { db -> (String?, Bool, Bool) in
             let status = try String.fetchOne(db, sql:
                 "SELECT status FROM note_retrieval_terms WHERE note_id='mrg-into' AND kind='alias'")
@@ -312,7 +312,7 @@ struct EnrichmentTests {
         
         #expect(home.apply([["op": "split_note", "from_id": "spl-src", "into": into, "routing": routing]]).status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let (onChild, provenance) = try queue.read { db -> (Bool, String?) in
             let count = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM note_retrieval_terms WHERE note_id='spl-a' AND term='zephyrine quasar'") ?? 0
             let provenance = try String.fetchOne(db, sql: "SELECT provenance FROM note_retrieval_terms WHERE note_id='spl-a' AND term='zephyrine quasar'")
@@ -335,7 +335,7 @@ struct EnrichmentTests {
             "kind": "alias", "terms": ["zephyrine quasar"], "provenance": "t"]]).status == "ok")
         #expect(home.apply([["op": "migrate_note", "id": "mig-src", "new_id": "mig-dst"]]).status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let (term, sourceGone, hit) = try queue.read { db -> (String?, Bool, Bool) in
             let term = try String.fetchOne(db, sql: "SELECT status FROM note_retrieval_terms WHERE note_id='mig-dst'")
             let sourceGone = (try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM notes WHERE id='mig-src'") ?? 0) == 0
@@ -373,7 +373,7 @@ struct EnrichmentTests {
         // Given
         home.createNote(id: "usage-note", content: "## a\nbody here\n")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try home.write { db in
             try db.execute(sql: "UPDATE note_usage SET hit_count=7, last_retrieved_at=1700000000 WHERE note_id='usage-note'")
@@ -398,7 +398,7 @@ struct EnrichmentTests {
         home.createNote(id: "lc-note", content: "## a\nb\n")
         
         // When
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let before = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT count(*) FROM note_lifecycle_events WHERE note_id='lc-note'") ?? 0
         }
@@ -450,7 +450,7 @@ struct EnrichmentTests {
             "title": "t", "tags": ["tech"], "summary": "s",
             "content": "## a\nb\n", "entities": ["FOO-1"]]]).status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try home.write { db in
             try db.execute(sql: "UPDATE entity_index SET hit_count=9 WHERE note_id='eh-note' AND entity='FOO-1'")
@@ -472,7 +472,7 @@ struct EnrichmentTests {
             "title": "t", "tags": ["tech"], "summary": "s",
             "content": "## a\nbody\n", "entities": ["BKIOS-999", "kim-cs"]]]).status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let before = try home.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM entity_index WHERE note_id='ent-note'") ?? 0
         }
@@ -494,7 +494,7 @@ struct EnrichmentTests {
         home.createNote(id: "co-a", content: "## Body\nalpha body\n")
         home.createNote(id: "co-b", content: "## Body\nbravo body\n")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try home.write { db in
             try db.execute(sql: """
@@ -547,7 +547,7 @@ struct EnrichmentTests {
         // Then
         #expect(result.status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let row = try queue.read { db in
             try Row.fetchOne(db, sql: """
                 SELECT status, reject_reason FROM note_retrieval_terms
@@ -581,7 +581,7 @@ struct EnrichmentTests {
         // Then
         #expect(result.status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let status = try queue.read { db in
             try String.fetchOne(db, sql: """
                 SELECT status FROM note_retrieval_terms WHERE note_id = 'enr-syn-a'
@@ -614,7 +614,7 @@ struct EnrichmentTests {
         // Then
         #expect(result.status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let row = try queue.read { db in
             try Row.fetchOne(db, sql: """
                 SELECT status, reject_reason FROM note_retrieval_terms
@@ -639,7 +639,7 @@ struct EnrichmentTests {
             home.createNote(id: "sg-stale\(index)", content: "## Body\nsurfacetoken stale body \(index)\n")
         }
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in
             for index in 0..<10 {
@@ -686,7 +686,7 @@ struct EnrichmentTests {
         #expect(result.status == "rejected", "a bool confidence must not be read as a number")
         #expect(result.error.contains("confidence must be a number"), "unexpected: \(result.error)")
 
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let count = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM note_links WHERE kind = 'assoc'") ?? 0
         }
@@ -712,7 +712,7 @@ struct EnrichmentTests {
         // Then
         #expect(result.status == "ok", "unexpected: \(result.error)")
 
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let weight = try queue.read { db in
             try Double.fetchOne(db, sql: "SELECT weight FROM note_links WHERE kind = 'assoc'") ?? 0
         }
@@ -735,7 +735,7 @@ struct EnrichmentTests {
         // Then
         #expect(result.status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let row = try queue.read { db in
             try Row.fetchOne(db, sql: """
                 SELECT weight, provenance FROM note_links WHERE kind = 'assoc'
@@ -796,7 +796,7 @@ struct EnrichmentTests {
         // Then
         #expect(result.status == "ok")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let termStatus = try queue.read { db in
             try String.fetchOne(db, sql: """
                 SELECT status FROM note_retrieval_terms WHERE provenance = 'noisy:model'
@@ -824,7 +824,7 @@ struct EnrichmentTests {
         ]])
         
         // When
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let status = try queue.read { db in
             try String.fetchOne(db, sql: """
                 SELECT status FROM note_retrieval_terms WHERE note_id = 'enr-pd1'
@@ -835,7 +835,7 @@ struct EnrichmentTests {
         #expect(status == "pending")
         
         let rejected = try home.storage.writeLock { () -> Int in
-            let writeQueue = try home.storage.connect()
+            let writeQueue = try home.storage.connection()
             
             return try writeQueue.write { db in try RejectStalePendingTermsTransaction(maxAgeSec: 0).perform(db) }
         }
@@ -850,7 +850,7 @@ struct EnrichmentTests {
         home.createNote(id: "ued-m", content: "## Body\nmiddle body\n")
         home.createNote(id: "ued-z", content: "## Body\nzulu body\n")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in
             try db.execute(sql: """
@@ -889,7 +889,7 @@ struct EnrichmentTests {
         home.createNote(id: "mwa-into", tags: ["persona"], content: "## Body\ninto body\n")
         home.createNote(id: "mwa-nbr", tags: ["env"], content: "## Body\nneighbor body\n")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in
             try db.execute(sql: """
@@ -930,7 +930,7 @@ struct EnrichmentTests {
         home.createNote(id: "nrt-from", content: "## Body\nfrom body\n")
         home.createNote(id: "nrt-into", content: "## Body\ninto body\n")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in
             try db.execute(sql: """
@@ -977,7 +977,7 @@ struct EnrichmentTests {
         home.createNote(id: "rpf-from", content: "## Body\nfrom body\n")
         home.createNote(id: "rpf-into", content: "## Body\ninto body\n")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in
             try db.execute(sql: """
@@ -1025,7 +1025,7 @@ struct EnrichmentTests {
         home.createNote(id: "rpf2-from", content: "## Body\nfrom body\n")
         home.createNote(id: "rpf2-into", content: "## Body\ninto body\n")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in
             try db.execute(sql: """
@@ -1067,7 +1067,7 @@ struct EnrichmentTests {
         home.createNote(id: "cds-from", content: "## Body\nfrom body\n")
         home.createNote(id: "cds-into", content: "## Body\ninto body\n")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in
             try db.execute(sql: """
@@ -1114,7 +1114,7 @@ struct EnrichmentTests {
             home.createNote(id: id, content: "## body\ntest entity EH-99 content\n")
         }
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in
             for id in ids {

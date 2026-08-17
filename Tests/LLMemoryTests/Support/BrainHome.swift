@@ -28,7 +28,7 @@ extension BrainHome {
     var brain: BrainContext { session.context }
 
     func database() throws -> any DatabaseWriter {
-        try storage.connect()
+        try storage.connection()
     }
 
     func read<T>(_ body: (Database) throws -> T) throws -> T {

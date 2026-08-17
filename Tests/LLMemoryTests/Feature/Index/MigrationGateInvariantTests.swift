@@ -79,7 +79,7 @@ struct MigrationGateInvariantTests {
         dropConnection()
 
         // When / Then
-        #expect(throws: DBError.self) { _ = try home.storage.connect() }
+        #expect(throws: DBError.self) { _ = try home.storage.connection() }
     }
 
     @Test("connect refuses a brain migrated by a newer binary")
@@ -95,7 +95,7 @@ struct MigrationGateInvariantTests {
         dropConnection()
 
         // When / Then
-        #expect(throws: DBError.self) { _ = try home.storage.connect() }
+        #expect(throws: DBError.self) { _ = try home.storage.connection() }
     }
 
     @Test("a table that lost its CHECK constraint fails the shape predicate")

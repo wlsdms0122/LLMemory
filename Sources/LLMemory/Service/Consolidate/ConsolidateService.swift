@@ -157,7 +157,7 @@ public struct ConsolidateService: ConsolidateServiceable {
     }
 
     public func report() async throws -> ConsolidateTagReport {
-        try await storage.read { db in try db.run(FetchTagReportTransaction()) }
+        try await storage.run(FetchTagReportTransaction())
     }
 
     // MARK: - Internal

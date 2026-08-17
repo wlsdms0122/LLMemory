@@ -22,17 +22,17 @@ public struct StatsService: StatsServiceable {
     public func noteStats(
         id: String
     ) async throws -> NoteStats? {
-        try await storage.read { db in try db.run(NoteStatsTransaction(id: id)) }
+        try await storage.run(NoteStatsTransaction(id: id))
     }
 
     public func prefixStats(
         prefix: String
     ) async throws -> PrefixStats {
-        try await storage.read { db in try db.run(PrefixStatsTransaction(prefix: prefix)) }
+        try await storage.run(PrefixStatsTransaction(prefix: prefix))
     }
 
     public func overallStats() async throws -> OverallStats {
-        try await storage.read { db in try db.run(OverallStatsTransaction()) }
+        try await storage.run(OverallStatsTransaction())
     }
 
     // MARK: - Private

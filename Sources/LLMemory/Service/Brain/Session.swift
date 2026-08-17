@@ -76,7 +76,7 @@ public final class Session {
             // there yet — re-warm before anything below reads the caches.
             rewarm()
 
-            let queue = try storage.connect()
+            let queue = try storage.connection()
 
             try beforeIndexing(BootstrapScope(queue: queue, context: context))
 

@@ -87,7 +87,7 @@ struct SourceVerifyInvariantTests {
         
         try markdown.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: notePath), path: notePath).perform(db) }
         
@@ -143,7 +143,7 @@ struct SourceVerifyInvariantTests {
         # body
         """.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: notePath), path: notePath).perform(db) }
         try "alpha-changed".write(to: older, atomically: true, encoding: .utf8)
@@ -182,7 +182,7 @@ struct SourceVerifyInvariantTests {
         # body
         """.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: notePath), path: notePath).perform(db) }
         
@@ -229,7 +229,7 @@ struct SourceVerifyInvariantTests {
         # body
         """.write(to: notePath, atomically: true, encoding: .utf8)
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: notePath), path: notePath).perform(db) }
         
@@ -260,7 +260,7 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote(home.layout, "src-keep", source: file)
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: notePath), path: notePath).perform(db) }
         
@@ -295,7 +295,7 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote(home.layout, "src-rb", source: file)
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: notePath), path: notePath).perform(db) }
         
@@ -332,7 +332,7 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote(home.layout, "src-ack", source: file)
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: notePath), path: notePath).perform(db) }
         
@@ -389,7 +389,7 @@ struct SourceVerifyInvariantTests {
         try "two".write(to: second, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote(home.layout, "src-decl", source: first)
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: notePath), path: notePath).perform(db) }
         try "one drifted".write(to: first, atomically: true, encoding: .utf8)
@@ -423,7 +423,7 @@ struct SourceVerifyInvariantTests {
         
         let notePath = try Self.writeSourcedNote(home.layout, "src-sp", source: file,
             body: "## A\nalpha\n## B\nbeta\n")
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: notePath), path: notePath).perform(db) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
@@ -462,7 +462,7 @@ struct SourceVerifyInvariantTests {
         try "two".write(to: second, atomically: true, encoding: .utf8)
         
         let intoPath = try Self.writeSourcedNote(home.layout, "src-mi", source: first)
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         // When
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: intoPath), path: intoPath).perform(db) }
@@ -501,7 +501,7 @@ struct SourceVerifyInvariantTests {
         try "v1".write(to: file, atomically: true, encoding: .utf8)
         
         let notePath = try Self.writeSourcedNote(home.layout, "src-same", source: file)
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: notePath), path: notePath).perform(db) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)
@@ -534,7 +534,7 @@ struct SourceVerifyInvariantTests {
         
         let notePath = try Self.writeSourcedNote(home.layout, "src-rs", source: file,
             body: "## A\nalpha\n## B\nbeta\n")
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in _ = try ReindexNoteFileTransaction(noteId: try home.brain.requireNoteId(of: notePath), path: notePath).perform(db) }
         try "v2 drifted".write(to: file, atomically: true, encoding: .utf8)

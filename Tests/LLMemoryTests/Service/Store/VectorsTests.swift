@@ -51,7 +51,7 @@ struct VectorsTests {
         #expect(result.noteCount == 6)
         #expect(result.dim >= 1 && result.dim <= 5)
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         let vectorCount = try queue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM note_vectors") ?? 0
         }
@@ -159,7 +159,7 @@ struct VectorsTests {
         home.createNote(id: "vg-stl-0", tags: ["flow", "vggroup"],
             content: "## A\nstale gate body 0\n")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in
             try db.execute(sql: "UPDATE notes SET stale = 1 WHERE id IN ('vg-arc-0', 'vg-arc-1')")
@@ -189,7 +189,7 @@ struct VectorsTests {
         let vector: [Float] = [0.6, 0.8, 0, 0]
         let blob = vector.withUnsafeBufferPointer { buffer in Data(buffer: buffer) }
         let now = home.now
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in
             for noteId in ["vt-n0"] + others {
@@ -221,7 +221,7 @@ struct VectorsTests {
         home.createNote(id: "vb-stl-0", tags: ["flow", "vbgroup"],
             content: "## A\nstale build body\n")
         
-        let queue = try home.storage.connect()
+        let queue = try home.storage.connection()
         
         try queue.write { db in
             try db.execute(sql: "UPDATE notes SET stale = 1 WHERE id = 'vb-arc-0'")

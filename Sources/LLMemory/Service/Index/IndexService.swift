@@ -60,13 +60,13 @@ public struct IndexService: IndexServiceable {
     public func check(
         level: Indexer.IntegrityLevel
     ) async throws -> (ok: Bool, msgs: [String]) {
-        try await storage.read { db in try db.run(CheckIntegrityTransaction(brain: brain, level: level)) }
+        try await storage.run(CheckIntegrityTransaction(brain: brain, level: level))
     }
 
     public func buildVectors() async throws -> VectorBuildResult {
-        try await storage.write { db in try db.run(
-                BuildVectorsTransaction(dimension: brain.config.getInt("vectors.dim", default: 48))
-            ) }
+        try await storage.run(
+            BuildVectorsTransaction(dimension: brain.config.getInt("vectors.dim", default: 48))
+        )
     }
 
     public func verifySources() async throws -> SourceVerifyResult {
@@ -76,14 +76,14 @@ public struct IndexService: IndexServiceable {
     public func validateTerms(
         rejectStale: Bool
     ) async throws -> Indexer.ValidateResult {
-        try await storage.write { db in try db.run(
-                ValidateTermsTransaction(
-                    rejectStale: rejectStale,
-                    keywords: keywords,
-                    roundtripTopK: enrichment.roundtripTopK,
-                    idfDFCeiling: enrichment.idfDFCeiling
-                )
-            ) }
+        try await storage.run(
+            ValidateTermsTransaction(
+                rejectStale: rejectStale,
+                keywords: keywords,
+                roundtripTopK: enrichment.roundtripTopK,
+                idfDFCeiling: enrichment.idfDFCeiling
+            )
+        )
     }
 
     // MARK: - Private

@@ -70,7 +70,7 @@ struct NoteExtraProjectionTests {
 
         #expect(try extras(of: "nx-b").isEmpty)
 
-        _ = try indexer.buildLocked(try home.storage.connect(), home.brain, rebuild: true)
+        _ = try indexer.buildLocked(try home.storage.connection(), home.brain, rebuild: true)
 
         // Then
         #expect(try extras(of: "nx-b") == ["affect": "normal"])

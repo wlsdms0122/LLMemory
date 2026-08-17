@@ -111,7 +111,7 @@ public struct NotesService: NotesServiceable {
             limit: limit
         )
 
-        return try await storage.read { db in try db.run(ListNoteRowsTransaction(filter)) }
+        return try await storage.run(ListNoteRowsTransaction(filter))
     }
 
     public func history(
@@ -124,7 +124,7 @@ public struct NotesService: NotesServiceable {
     }
 
     public func tree(prefix: String?) async throws -> [TreeRow] {
-        try await storage.read { db in try db.run(FetchTreeTransaction(prefix: prefix)) }
+        try await storage.run(FetchTreeTransaction(prefix: prefix))
     }
 
     public func structure(
