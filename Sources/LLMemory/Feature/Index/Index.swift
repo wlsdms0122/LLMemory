@@ -79,7 +79,7 @@ public struct Index {
         try await service.validateTerms(rejectStale: rejectStale)
     }
     
-    public func initialize(seed: Bool = true, force: Bool = false) throws -> InitResult {
+    public func initialize(seed: Bool = true, force: Bool = false) async throws -> InitResult {
         let fileManager = FileManager.default
         let dataExisted = fileManager.fileExists(atPath: session.context.layout.dataDirectory.path)
         let cortexExisted = fileManager.fileExists(atPath: session.context.layout.cortexRoot.path)
@@ -90,7 +90,7 @@ public struct Index {
         
         // Planted inside the bootstrap: after the migration, before the build.
         var seeding: Seeding.Result?
-        let result = try session.bootstrap { db in
+        let result = try await session.bootstrap { db in
             if seed { seeding = try plant(force: force, db: db) }
         }
 
@@ -112,13 +112,13 @@ public struct Index {
         )
     }
     
-    public func update(seed: Bool = true, force: Bool = false) throws -> UpdateResult {
+    public func update(seed: Bool = true, force: Bool = false) async throws -> UpdateResult {
         // update is the migration surface: a brain left behind by a binary upgrade
         // is carried forward by the bootstrap, before anything else touches the
         // connection — and before the seeds are restated, so a brain whose schema
         // did not move forward does not get files that did.
         var seeding: Seeding.Result?
-        let result = try session.bootstrap { db in
+        let result = try await session.bootstrap { db in
             if seed { seeding = try plant(force: force, db: db) }
         }
 

@@ -9,7 +9,7 @@ import ArgumentParser
 import Foundation
 import LLMemory
 
-struct OperationsVocab: ParsableCommand {
+struct OperationsVocab: AsyncParsableCommand {
     struct Output: Encodable {
         // MARK: - Property
         let ops: [String]
@@ -64,8 +64,8 @@ struct OperationsVocab: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let brain = Brain(home: global.home)
+    func run() async throws {
+        let brain = try await Brain.open(home: global.home)
         
         if verbose {
             let rows = brain.operations.operationNames().compactMap { name -> VerboseOp? in

@@ -32,7 +32,7 @@ struct ConsolidatePrune: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         let result = try await brain.consolidate.prune()
         

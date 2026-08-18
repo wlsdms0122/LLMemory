@@ -9,7 +9,7 @@ import ArgumentParser
 import Foundation
 import LLMemory
 
-struct OperationsDescribe: ParsableCommand {
+struct OperationsDescribe: AsyncParsableCommand {
     struct Output: Encodable {
         // MARK: - Property
         let name: String
@@ -49,8 +49,8 @@ struct OperationsDescribe: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let brain = Brain(home: global.home)
+    func run() async throws {
+        let brain = try await Brain.open(home: global.home)
         
         guard let schema = brain.operations.operationSchema(op) else {
             FileHandle.standardError.write(

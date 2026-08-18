@@ -55,7 +55,7 @@ struct ConsolidateReport: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         let tagReport = try await brain.consolidate.report()
         let report = ReportOutput(

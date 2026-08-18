@@ -48,7 +48,7 @@ struct OperationsApply: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         guard let payload = try CommandInput().readJSONText(input) else { throw ExitCode(2) }
         

@@ -96,7 +96,7 @@ struct QueryStructure: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         let structure = try await brain.query.structure(prefix: prefix)
         let distribution = structure.distribution

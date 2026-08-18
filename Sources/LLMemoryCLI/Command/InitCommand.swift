@@ -9,7 +9,7 @@ import ArgumentParser
 import Foundation
 import LLMemory
 
-struct InitCommand: ParsableCommand {
+struct InitCommand: AsyncParsableCommand {
     struct InitOutput: Encodable {
         enum CodingKeys: String, CodingKey {
             case homePath = "home", indexed, changed, errors, seed
@@ -73,8 +73,8 @@ struct InitCommand: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let result = try Brain(home: global.home).index.initialize(seed: seed, force: force)
+    func run() async throws {
+        let result = try await Brain.open(home: global.home).index.initialize(seed: seed, force: force)
         let output = InitOutput(
             alreadyInitialized: result.alreadyInitialized,
             homePath: result.homePath,

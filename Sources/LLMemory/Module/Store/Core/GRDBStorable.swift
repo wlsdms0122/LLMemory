@@ -9,14 +9,22 @@ import Foundation
 import GRDB
 import Storage
 
-// A store as the tiers above it use one, pinned to what GRDB calls a
-// connection and an open transaction.
+// A brain's store, as the services above it use one.
 //
-// Nothing is added. `run` comes from DBStorable and reaches the database only
-// through `open`, which is where this store puts the cross-process lock, the
-// in-process gate and the commit announcement — so the gating holds for every
-// caller without a single requirement being restated here.
-public protocol GRDBStorable: DBStorable where Connection == any DatabaseWriter, Transaction == Database { }
+// Two scopes, because a brain has two. `run` is one operation in one
+// transaction — the database's own boundary, and the everyday one. `exclusive`
+// is wider than the database: it fences the whole brain, which is what work
+// spanning the catalogue and the notes beside it needs, and what a transaction
+// cannot express.
+//
+// A write inside `run` takes the wide fence too. Nothing above has to know
+// that, which is the point of both living behind one contract.
+public protocol GRDBStorable: Sendable {
+    @discardableResult
+    func run<T: GRDBOperation>(_ operation: T) async throws -> T.Result
+
+    func exclusive<T>(_ body: @Sendable () async throws -> T) async throws -> T
+}
 
 public extension GRDBStorable {
     // A unit of work whose body is domain work rather than a query bundle: the
@@ -24,10 +32,8 @@ public extension GRDBStorable {
     // handed. Throwing rolls the whole body back.
     //
     // It is an operation like any other — the closure is the body `execute`
-    // would have held — so it goes through `run` rather than reaching for
-    // `open` itself. `open` is what the store implements, `run` is what a
-    // caller says; a convenience that called the first would be a second door
-    // into the same room, and whatever `run` grows to do next would miss it.
+    // would have held — so it goes through `run` rather than reaching for a
+    // transaction itself.
     @discardableResult
     func write<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
         try await run(Perform(body))
@@ -35,7 +41,7 @@ public extension GRDBStorable {
 
     @discardableResult
     func read<T: Sendable>(_ body: @escaping @Sendable (Database) throws -> T) async throws -> T {
-        try await run(PerformReading(body))
+        try await run(Perform(readOnly: true, body))
     }
 }
 
@@ -47,26 +53,15 @@ public extension GRDBStorable {
 // be a name that exists to be spelled once.
 public struct Perform<Result: Sendable>: GRDBOperation {
     // MARK: - Property
+    public typealias Parameter = @Sendable (Database) throws -> Result
+
+    public let readOnly: Bool
+
     private let body: @Sendable (Database) throws -> Result
 
     // MARK: - Initializer
-    public init(_ body: @escaping @Sendable (Database) throws -> Result) {
-        self.body = body
-    }
-
-    // MARK: - Public
-    @discardableResult
-    public func execute(_ db: Database) throws -> Result {
-        try body(db)
-    }
-}
-
-public struct PerformReading<Result: Sendable>: GRDBReadOperation {
-    // MARK: - Property
-    private let body: @Sendable (Database) throws -> Result
-
-    // MARK: - Initializer
-    public init(_ body: @escaping @Sendable (Database) throws -> Result) {
+    public init(readOnly: Bool = false, _ body: @escaping @Sendable (Database) throws -> Result) {
+        self.readOnly = readOnly
         self.body = body
     }
 

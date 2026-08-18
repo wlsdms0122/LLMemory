@@ -165,7 +165,7 @@ struct QueryGet: AsyncParsableCommand {
     }
     
     func run() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         if toc {
             try await runToc()
@@ -227,7 +227,7 @@ struct QueryGet: AsyncParsableCommand {
     
     // MARK: - Private
     private func runSections() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         let (note, slices) = try await brain.query.getSections(
             id: ids[0],
@@ -256,7 +256,7 @@ struct QueryGet: AsyncParsableCommand {
     }
     
     private func runBudget(_ budget: Int) async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         let (note, cut) = try await brain.query.getBudget(
             id: ids[0],
@@ -354,7 +354,7 @@ struct QueryGet: AsyncParsableCommand {
     }
     
     private func runToc() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         let (note, entries) = try await brain.query.toc(id: ids[0], sessionId: global.session)
         let output = TocOutput(

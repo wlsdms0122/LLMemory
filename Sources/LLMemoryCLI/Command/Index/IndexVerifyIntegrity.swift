@@ -53,7 +53,7 @@ struct IndexVerifyIntegrity: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         let (ok, messages) = try await brain.index.check(level: level)
         

@@ -34,7 +34,7 @@ struct QueryHistory: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         let rows = try await brain.query.history(noteId: id, limit: limit)
         

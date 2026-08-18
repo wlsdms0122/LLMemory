@@ -80,7 +80,7 @@ struct IndexVerifyTerms: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         let validation = try await brain.index.validateTerms(rejectStale: rejectStale)
         let result = ValidateOutput(

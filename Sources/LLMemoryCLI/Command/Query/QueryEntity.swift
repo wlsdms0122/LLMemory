@@ -58,7 +58,7 @@ struct QueryEntity: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         let hits = try await brain.query.entity(name: name, limit: limit)
         let rows = hits.map { hit in

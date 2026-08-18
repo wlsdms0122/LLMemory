@@ -136,7 +136,7 @@ struct IndexBuild: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         if !path.isEmpty {
             if rebuild { throw ValidationError("--path and --rebuild are mutually exclusive") }

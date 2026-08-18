@@ -67,9 +67,9 @@ public struct BrainContext: Sendable {
     // yet, and bootstrap re-runs this once it has. Every other failure means a
     // database that was readable a moment ago no longer is, and the process is
     // about to serve values it can no longer justify — so it says so.
-    func reloadCommitted(_ storage: GRDBStorage) {
+    func reloadCommitted(_ store: any GRDBStorable) async {
         do {
-            try loadCommitted(storage)
+            try await store.read { db in try loadCommitted(db) }
         } catch DBError.notInitialized, DBError.pendingMigrations, DBError.superseded {
             return
         } catch {
@@ -120,18 +120,16 @@ public struct BrainContext: Sendable {
         cache.plantConfigValue(key, value)
     }
 
-    // MARK: - Private
     // One snapshot for both caches — config rows and genome values come from
-    // the same read transaction, then swap in together.
-    private func loadCommitted(_ storage: GRDBStorage) throws {
-        let queue = try storage.connect()
-        let (configRows, genomeValues) = try queue.read { db in
-            (
-                try FetchConfigRowsOperation().execute(db),
-                try FetchGenomeValuesOperation().execute(db)
-            )
-        }
-
-        cache.warm(config: Config.cached(configRows), genes: genomeValues)
+    // the same read transaction, then swap in together. It takes the
+    // transaction rather than opening one, so the bootstrap (which holds a
+    // connection and no store yet) and a committed write reach the same code.
+    func loadCommitted(_ db: Database) throws {
+        cache.warm(
+            config: Config.cached(try FetchConfigRowsOperation().execute(db)),
+            genes: try FetchGenomeValuesOperation().execute(db)
+        )
     }
+
+    // MARK: - Private
 }

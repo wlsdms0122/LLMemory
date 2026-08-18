@@ -24,9 +24,14 @@ public struct Brain {
     public let operations: Operations
 
     // MARK: - Initializer
-    public init(home: String) {
-        let session = Session(home: home)
-        let container = Container(storage: session.storage, brain: session.context)
+    // Binding a home is async because opening the database is: whether that
+    // means waiting is the driver's answer, and this one happens not to.
+    public static func open(home: String) async throws -> Brain {
+        Brain(session: try await Session.open(home: home))
+    }
+
+    private init(session: Session) {
+        let container = Container(storage: session.store, brain: session.context)
 
         self.session = session
         self.container = container

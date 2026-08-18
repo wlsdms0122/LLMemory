@@ -9,7 +9,7 @@ import ArgumentParser
 import Foundation
 import LLMemory
 
-struct UpdateCommand: ParsableCommand {
+struct UpdateCommand: AsyncParsableCommand {
     struct UpdateOutput: Encodable {
         // MARK: - Property
         let home: String
@@ -66,8 +66,8 @@ struct UpdateCommand: ParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
-    func run() throws {
-        let result = try Brain(home: global.home).index.update(seed: seed, force: force)
+    func run() async throws {
+        let result = try await Brain.open(home: global.home).index.update(seed: seed, force: force)
         let output = UpdateOutput(
             home: result.homePath,
             seed: result.seeding != nil,

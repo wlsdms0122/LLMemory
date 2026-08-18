@@ -52,7 +52,7 @@ struct QueryTemplate: AsyncParsableCommand {
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
-        let brain = Brain(home: global.home)
+        let brain = try await Brain.open(home: global.home)
         
         let (note, frame) = try await brain.query.template(id: id, sessionId: global.session)
         let output = Output(id: note.id, path: note.path, frame: frame)
