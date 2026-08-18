@@ -9,35 +9,16 @@ import Foundation
 import GRDB
 import Storage
 
-@_silgen_name("flock") private func c_flock(_ fd: Int32, _ op: Int32) -> Int32
-
-public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
+// How this one database is put together and opened. Nothing about the brain
+// around it is here — no lock, no cache, no announcement; that is `BrainStore`,
+// which owns one of these and is the only thing that holds it.
+public final class GRDBStorage: DBDriver, DBStorable, @unchecked Sendable {
     // MARK: - Property
-    // What the owner of this store does once committed state has changed.
-    // The store does not know what a brain is — it knows when the answer to
-    // "what is committed" moved, and says so; whoever caches those answers
-    // decides what that costs them.
-    private let didCommit: @Sendable (GRDBStorage) -> Void
-
     private let databaseURL: URL
     private let migrations: [any GRDBMigration]
 
     private let stateLock = NSLock()
     private var cached: DatabaseQueue?
-
-    // flock(2) — cross-process write exclusion between concurrent CLI invocations.
-    // The depth counter is only sound under exactly one in-process gate at a
-    // time — writeSection (sync writeLock) or writeGate (async write
-    // transactions) — so acquireLock records its owner and fails loud if the
-    // other gate overlaps instead of silently skipping the flock.
-    private enum LockOwner { case section, gate }
-
-    private var lockDescriptor: Int32 = -1
-    private var lockDepth: Int = 0
-    private var lockOwner: LockOwner?
-    private let lockMutex = NSLock()
-    private let writeSection = NSRecursiveLock()
-    private let writeGate = AsyncLock()
 
     private var brainRootPath: String {
         databaseURL.deletingLastPathComponent()
@@ -46,14 +27,9 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     }
 
     // MARK: - Initializer
-    public init(
-        databaseURL: URL,
-        migrations: [any GRDBMigration],
-        didCommit: @escaping @Sendable (GRDBStorage) -> Void = { _ in }
-    ) {
+    public init(databaseURL: URL, migrations: [any GRDBMigration]) {
         self.databaseURL = databaseURL
         self.migrations = migrations
-        self.didCommit = didCommit
     }
 
     // MARK: - Lifecycle
@@ -138,12 +114,18 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
     }
 
     // MARK: - Public
-    // Migrate, then cache. Not named `initialize`: DBStorable already supplies
-    // one, and its default reaches the database through `connect`, which
-    // refuses while migrations are pending — the very state this exists to
-    // leave. Two methods answering the same name, one of them wrong for this
-    // store, is how a caller holding the protocol gets the wrong one.
-    public func prepare() throws {
+    // Nothing to do ahead of time: `connect` opens the file, checks the
+    // migration state and caches the result on first use, so a store is as
+    // ready as this database gets the moment it exists. What it is *not* is
+    // migrated — carrying a brain's schema forward is `migrateSchema`, and it
+    // happens only where a caller asked for it, so a stale brain refuses at
+    // `open` instead of being moved by whoever opened it first.
+    public func initialize() throws { }
+
+    // Create the file if it is missing, migrate it, then cache. The order is
+    // this database's answer: `connect` refuses while migrations are pending,
+    // which is the very state this exists to leave.
+    public func migrateSchema() throws {
         let dataDirectory = databaseURL.deletingLastPathComponent()
 
         guard FileManager.default.fileExists(atPath: dataDirectory.path) else {
@@ -184,73 +166,22 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
         }
     }
 
-    // Opening a transaction is the one thing a store answers, so it is the one
-    // place the gating can live: an operation composed inside a body that
-    // already holds the lock never reaches here, and so never takes it twice.
-    //
-    // A read takes neither gate — nothing it does can be clobbered — and gets
-    // a read connection, which is what `readOnly` was passed here to buy.
+    // A read gets a read connection, which is what `readOnly` was passed here
+    // to buy. Whatever wider exclusion the caller needs is the caller's — this
+    // opens a transaction and nothing else.
     public func open<T>(
         readOnly: Bool,
         _ body: @escaping @Sendable (Database) throws -> T
     ) async throws -> T {
         let connection = try connect()
 
-        guard !readOnly else {
-            return try await connection.read { db in try body(db) }
-        }
-
-        return try await gated {
-            try await connection.write { db in try body(db) }
-        }
+        return readOnly
+            ? try await connection.read { db in try body(db) }
+            : try await connection.write { db in try body(db) }
     }
 
-    // The sync lifecycle gate — Session.bootstrap (which must run before the
-    // migration gate can pass) and test fixtures. flock excludes it across
-    // processes; in-process it never overlaps `run` writes because bootstrap
-    // precedes any transaction dispatch.
-    public func writeLock<T>(_ body: () throws -> T) throws -> T {
-        writeSection.lock()
-
-        defer { writeSection.unlock() }
-
-        try acquireLock(as: .section)
-
-        defer { releaseLock() }
-
-        // The same announcement as `run`: this is a write scope too.
-        defer { didCommit(self) }
-
-        return try body()
-    }
 
     // MARK: - Private
-    // Everything a write must hold, held once. In-process exclusion comes
-    // first — flock cannot separate two tasks of one process (they share the
-    // descriptor, and the depth counter presumes an outer mutex), so the async
-    // gate is what makes the counter sound here. The flock wait and the body
-    // still block this thread — accepted for the single-shot CLI; a dedicated
-    // queue is the recorded way out if embedding ever needs it.
-    //
-    // The commit announcement is the last defer, so it runs while the gate and
-    // flock are still held — outside them another writer's committed values
-    // could be clobbered by ours. Announcing here rather than inside the body
-    // is what makes it true on both paths: a body that wrote and then threw
-    // rolls its rows back, and nothing downstream ever held the rolled-back
-    // values to begin with.
-    private func gated<T>(_ body: () async throws -> T) async throws -> T {
-        await writeGate.acquire()
-
-        defer { writeGate.release() }
-
-        try acquireLock(as: .gate)
-
-        defer { releaseLock() }
-
-        defer { didCommit(self) }
-
-        return try await body()
-    }
 
     private static func makeConfiguration() -> Configuration {
         var configuration = Configuration()
@@ -275,68 +206,5 @@ public final class GRDBStorage: GRDBStorable, @unchecked Sendable {
             }
 
         return migrator
-    }
-
-    private func acquireLock(as owner: LockOwner) throws {
-        lockMutex.lock()
-
-        defer { lockMutex.unlock() }
-
-        // Two gates never overlap by design (bootstrap precedes any transaction
-        // dispatch); if that ever breaks, skipping the flock here would silently
-        // drop cross-process exclusion — crash instead.
-        precondition(
-            lockDepth == 0 || lockOwner == owner,
-            "write lock overlap across gates — writeSection and writeGate must never interleave"
-        )
-
-        if lockDescriptor < 0 {
-            let dataDirectory = databaseURL.deletingLastPathComponent()
-
-            guard FileManager.default.fileExists(atPath: dataDirectory.path) else {
-                throw DBError.dataDirMissing(dataDirectory.path)
-            }
-
-            let lockPath = dataDirectory.appendingPathComponent(".write.lock").path
-            let descriptor = Darwin.open(lockPath, O_WRONLY | O_CREAT, 0o644)
-
-            guard descriptor >= 0 else {
-                throw DBError.lockFailed(errno: errno)
-            }
-
-            lockDescriptor = descriptor
-        }
-
-        if lockDepth == 0 {
-            guard c_flock(lockDescriptor, LOCK_EX) == 0 else {
-                throw DBError.lockFailed(errno: errno)
-            }
-
-            lockOwner = owner
-        }
-
-        lockDepth += 1
-    }
-
-    private func releaseLock() {
-        lockMutex.lock()
-
-        defer { lockMutex.unlock() }
-
-        lockDepth -= 1
-
-        if lockDepth == 0 {
-            lockOwner = nil
-
-            if lockDescriptor >= 0 {
-                _ = c_flock(lockDescriptor, LOCK_UN)
-            }
-        }
-    }
-
-    deinit {
-        if lockDescriptor >= 0 {
-            _ = Darwin.close(lockDescriptor)
-        }
     }
 }
