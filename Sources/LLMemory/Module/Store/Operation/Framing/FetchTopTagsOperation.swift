@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchTopTagsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = Int
     let limit: Int
 
     // MARK: - Initializer

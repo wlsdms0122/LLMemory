@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchTemplateDependentNoteIdsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = [String]
     let templateIds: [String]
 
     // MARK: - Initializer

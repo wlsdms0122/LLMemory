@@ -10,6 +10,7 @@ import GRDB
 
 struct SearchFTSNeighborRowsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (String, String)
     let matchExpr: String
     let excludeId: String
 

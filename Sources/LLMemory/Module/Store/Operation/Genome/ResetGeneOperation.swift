@@ -10,6 +10,7 @@ import GRDB
 
 struct ResetGeneOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, Double?, Double, String, Int)
     let geneId: String
     let oldValue: Double?
     let wildType: Double

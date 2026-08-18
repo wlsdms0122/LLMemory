@@ -12,6 +12,7 @@ import GRDB
 // alongside the note's body.
 struct FetchNoteHeaderOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let noteId: String
 
     // MARK: - Initializer

@@ -10,6 +10,7 @@ import GRDB
 
 struct AbsorbNoteArtifactsForMergeOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String)
     let from: String
     let into: String
 

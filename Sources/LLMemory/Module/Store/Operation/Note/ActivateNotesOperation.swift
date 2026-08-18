@@ -10,6 +10,7 @@ import GRDB
 
 struct ActivateNotesOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = ([String], Int)
     let ids: [String]
     let now: Int
 

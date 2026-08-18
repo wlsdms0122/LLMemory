@@ -10,6 +10,7 @@ import GRDB
 
 struct DecayAndPruneLinksOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (Double, Double)
     let factor: Double
     let floor: Double
 

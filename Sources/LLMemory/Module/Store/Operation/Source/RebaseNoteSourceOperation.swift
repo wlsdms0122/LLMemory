@@ -10,6 +10,7 @@ import GRDB
 
 struct RebaseNoteSourceOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, [String], Int, String?, String?)
     let noteId: String
     let paths: [String]
     let now: Int

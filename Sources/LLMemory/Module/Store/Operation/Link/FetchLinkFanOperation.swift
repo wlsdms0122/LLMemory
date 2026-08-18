@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchLinkFanOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let fromId: String
 
     // MARK: - Initializer

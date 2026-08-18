@@ -12,6 +12,7 @@ import GRDB
 // integrity probes, and the tag report.
 struct CompactOldEventsOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (Int, Int)
     let now: Int
     let retentionSec: Int
 

@@ -32,6 +32,7 @@ struct DeriveActivityWindowsOperation: GRDBOperation {
     }
 
     // MARK: - Property
+    typealias Parameter = (Int, Int)
     let now: Int
     let windowGapSec: Int
 

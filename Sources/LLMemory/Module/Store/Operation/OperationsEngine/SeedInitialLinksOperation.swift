@@ -10,6 +10,7 @@ import GRDB
 
 struct SeedInitialLinksOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, [String])
     let nid: String
     let tags: [String]
 

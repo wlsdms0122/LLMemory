@@ -17,6 +17,7 @@ import GRDB
 // keeps those two apart is the cache's problem, not this row's.
 struct FetchConfigRowsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = Never
     // MARK: - Initializer
     // MARK: - Public
     func execute(_ db: Database) throws -> [String: String?] {

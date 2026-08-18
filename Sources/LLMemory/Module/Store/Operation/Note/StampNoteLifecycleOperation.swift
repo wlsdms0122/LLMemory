@@ -10,6 +10,7 @@ import GRDB
 
 struct StampNoteLifecycleOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, URL, Int, Bool)
     let nid: String
     // Where the note's body is — the caller resolved it from the same id.
     let file: URL

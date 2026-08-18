@@ -12,6 +12,7 @@ import GRDB
 // scope commits, so nothing here has to keep them in step.
 struct SetConfigValueOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String)
     let key: String
     let value: String
 

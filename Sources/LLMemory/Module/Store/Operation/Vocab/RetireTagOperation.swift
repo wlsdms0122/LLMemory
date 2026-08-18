@@ -10,6 +10,7 @@ import GRDB
 
 struct RetireTagOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String)
     let tag: String
     let successor: String
 

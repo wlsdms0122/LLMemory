@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchActiveTermRowsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let noteId: String
 
     // MARK: - Initializer

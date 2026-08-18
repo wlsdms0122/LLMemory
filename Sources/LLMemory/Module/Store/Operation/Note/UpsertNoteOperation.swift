@@ -13,6 +13,7 @@ import GRDB
 // in NoteFile.
 struct UpsertNoteOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, URL, FrontmatterDocument, String, String?, Int)
     // The address the file was resolved to. It arrives resolved: a file's
     // location is its id, and that grammar is not the store's.
     let noteId: String

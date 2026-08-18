@@ -10,6 +10,7 @@ import GRDB
 
 struct AddRippleFlagOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, String, Int)
     let noteId: String
     let kind: String
     let reason: String

@@ -13,6 +13,7 @@ import GRDB
 // the address, so answering it here would be the store deriving a location.
 struct FetchNoteAnchorOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let nid: String
 
     // MARK: - Initializer

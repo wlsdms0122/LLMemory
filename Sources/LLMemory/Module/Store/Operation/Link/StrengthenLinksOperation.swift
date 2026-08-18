@@ -10,6 +10,7 @@ import GRDB
 
 struct StrengthenLinksOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = ([(String, String)], LinkKind, Double, Double?)
     let pairs: [(String, String)]
     let kind: LinkKind
     let step: Double

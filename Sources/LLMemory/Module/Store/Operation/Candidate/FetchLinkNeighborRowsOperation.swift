@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchLinkNeighborRowsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (String, Double)
     let nid: String
     let siblingDiscount: Double
 

@@ -10,6 +10,7 @@ import GRDB
 
 struct UpsertAssocLinkOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, Double, Int, String?)
     let src: String
     let dst: String
     let weight: Double

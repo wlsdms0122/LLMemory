@@ -10,6 +10,7 @@ import GRDB
 
 struct RebirthLinksOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = ([String], Double, Double?, Double)
     // A factor per note, absent meaning the caller had no ranking to express
     // and every note rebirths by the same default.
     let ranked: [(id: String, factor: Double?)]

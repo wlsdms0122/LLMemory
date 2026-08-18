@@ -11,6 +11,7 @@ import GRDB
 // Vocabulary operations — tag vocab and tag aliases.
 struct EnsureTagOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, Int?)
     let tag: String
     let now: Int?
 

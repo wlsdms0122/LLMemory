@@ -10,6 +10,7 @@ import GRDB
 
 struct ExpandLinksOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = ([String], Int, Int, LinkKind?, Double, Double)
     let noteIds: [String]
     let hops: Int
     let limit: Int

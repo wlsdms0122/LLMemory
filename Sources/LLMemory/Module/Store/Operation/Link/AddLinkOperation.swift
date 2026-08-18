@@ -10,6 +10,7 @@ import GRDB
 
 struct AddLinkOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, String, Double, Int, Int, String?)
     let src: String
     let dst: String
     let kind: String

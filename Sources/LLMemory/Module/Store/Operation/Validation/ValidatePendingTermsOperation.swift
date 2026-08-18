@@ -22,6 +22,7 @@ struct ValidatePendingTermsOperation: GRDBOperation {
     }
 
     // MARK: - Property
+    typealias Parameter = ([String]?, any KeywordExtracting, Int, Double)
     private static let idfMinCorpus = 8
 
     let noteIds: [String]?

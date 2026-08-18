@@ -9,6 +9,9 @@ import Foundation
 import GRDB
 
 struct FetchActivationStatsOperation: GRDBReadOperation {
+    // MARK: - Property
+    typealias Parameter = Never
+
     // MARK: - Initializer
     init() { }
 

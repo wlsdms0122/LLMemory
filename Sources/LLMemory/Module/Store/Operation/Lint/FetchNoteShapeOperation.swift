@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchNoteShapeOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let nid: String
 
     // MARK: - Initializer

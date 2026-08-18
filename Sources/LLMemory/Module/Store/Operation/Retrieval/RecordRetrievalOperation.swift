@@ -14,6 +14,7 @@ import GRDB
 // best-effort, surfaced through the returned degraded notes.
 struct RecordRetrievalOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (RetrievalRecord, Double, Double)
     let record: RetrievalRecord
     let strengthenStep: Double
     let rebirthFactor: Double

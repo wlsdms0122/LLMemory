@@ -10,6 +10,7 @@ import GRDB
 
 struct NoteStatsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let id: String
 
     // MARK: - Initializer

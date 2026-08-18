@@ -12,6 +12,7 @@ import GRDB
 // as a defect is LintService's rule catalog; these only fetch.
 struct FetchLintCorpusIndexOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (Int, Int)
     let oversizedWords: Int
     let growthMinDatedSections: Int
 

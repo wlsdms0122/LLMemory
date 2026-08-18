@@ -14,6 +14,7 @@ import GRDB
 // unit actually did.
 struct FetchGeneValueOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let geneId: String
 
     // MARK: - Initializer

@@ -15,6 +15,7 @@ import GRDB
 // So the failure comes back out, and each caller says what it does with it.
 struct RecordEventOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (EventKind, EventPayload, SessionId?, Int?)
     let kind: EventKind
     let payload: EventPayload
     let sessionId: SessionId?

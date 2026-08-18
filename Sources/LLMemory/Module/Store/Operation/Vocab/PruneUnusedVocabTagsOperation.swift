@@ -10,6 +10,7 @@ import GRDB
 
 struct PruneUnusedVocabTagsOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = Set<String>
     let protected: Set<String>
 
     // MARK: - Initializer

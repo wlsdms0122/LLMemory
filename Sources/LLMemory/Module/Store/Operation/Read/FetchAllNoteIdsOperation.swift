@@ -11,6 +11,9 @@ import GRDB
 // Every catalogued id, in address order. What each id addresses is not asked
 // here — the caller owns that grammar.
 struct FetchAllNoteIdsOperation: GRDBReadOperation {
+    // MARK: - Property
+    typealias Parameter = Never
+
     // MARK: - Initializer
     init() { }
 

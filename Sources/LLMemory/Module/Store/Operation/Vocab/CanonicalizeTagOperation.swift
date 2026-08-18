@@ -10,6 +10,7 @@ import GRDB
 
 struct CanonicalizeTagOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let tag: String
 
     // MARK: - Initializer

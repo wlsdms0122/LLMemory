@@ -21,6 +21,7 @@ struct MarkNotesUsedOperation: GRDBOperation {
     }
 
     // MARK: - Property
+    typealias Parameter = ([String], String?, SessionId?, Int, Int)
     let ids: [String]
     let response: String?
     let sessionLabel: SessionId?

@@ -10,6 +10,7 @@ import GRDB
 
 struct RedirectLinksForMergeOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String)
     let fromId: String
     let intoId: String
 

@@ -14,6 +14,7 @@ import GRDB
 // to know; a corpus this size makes the choice free.
 struct FetchTreeOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String?
     let prefix: String?
 
     // MARK: - Initializer

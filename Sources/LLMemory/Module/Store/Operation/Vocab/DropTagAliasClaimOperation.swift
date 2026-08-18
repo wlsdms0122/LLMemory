@@ -13,6 +13,7 @@ import GRDB
 // silently rewrite the new tag back to its old canonical.
 struct DropTagAliasClaimOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = String
     let alias: String
 
     // MARK: - Initializer

@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchSimilarNotesOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = ([String], Int, Bool, SessionId?, Int, Double)
     let keywords: [String]
     let limit: Int
     let includeStale: Bool

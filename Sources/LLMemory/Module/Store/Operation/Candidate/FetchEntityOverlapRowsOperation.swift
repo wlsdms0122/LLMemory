@@ -23,6 +23,7 @@ struct FetchEntityOverlapRowsOperation: GRDBReadOperation {
     }
 
     // MARK: - Property
+    typealias Parameter = String
     let nid: String
 
     // MARK: - Initializer

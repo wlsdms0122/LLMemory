@@ -10,6 +10,7 @@ import GRDB
 
 struct PruneOldLifecycleEventsOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (Int, Int)
     let now: Int
     let retentionDays: Int
 

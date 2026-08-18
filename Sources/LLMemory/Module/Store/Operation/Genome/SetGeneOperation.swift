@@ -10,6 +10,7 @@ import GRDB
 
 struct SetGeneOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, Double, Double?, String, String?, Int)
     let geneId: String
     let value: Double
     let oldValue: Double?

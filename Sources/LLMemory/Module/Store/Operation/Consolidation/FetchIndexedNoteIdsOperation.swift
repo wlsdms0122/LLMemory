@@ -11,6 +11,9 @@ import GRDB
 // Which notes the search index currently holds rows for. Compared against the
 // catalog, the difference in either direction is a defect.
 struct FetchIndexedNoteIdsOperation: GRDBReadOperation {
+    // MARK: - Property
+    typealias Parameter = Never
+
     // MARK: - Initializer
     init() { }
 

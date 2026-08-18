@@ -13,6 +13,7 @@ import GRDB
 // scoped the same way — the revert belongs to the caller's unit of work.
 struct RevertGeneValueOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, Int, Double?)
     let geneId: String
     let cause: String
     let ts: Int

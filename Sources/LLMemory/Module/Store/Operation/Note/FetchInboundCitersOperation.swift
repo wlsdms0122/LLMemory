@@ -13,6 +13,7 @@ import GRDB
 // searching the corpus for it.
 struct FetchInboundCitersOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (String, String)
     let marker: String
     let excluding: String
 

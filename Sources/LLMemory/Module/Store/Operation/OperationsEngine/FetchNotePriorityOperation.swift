@@ -12,6 +12,7 @@ import GRDB
 // vocabulary the mutation engine validates and applies through.
 struct FetchNotePriorityOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let nid: String
 
     // MARK: - Initializer

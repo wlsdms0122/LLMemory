@@ -14,6 +14,7 @@ import GRDB
 // in as many contexts as it has tags, and the session decides which one is warm.
 struct ComputeTagPriorOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (SessionId, Int, Int)
     let sessionId: SessionId
     let windowSec: Int
     let now: Int

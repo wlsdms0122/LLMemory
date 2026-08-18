@@ -13,6 +13,7 @@ import GRDB
 // value — there the row is ahead of the cache, so the row is what is asked.
 struct FetchConfigValueOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (String, String)
     let key: String
     let defaultValue: String
 

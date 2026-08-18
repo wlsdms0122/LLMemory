@@ -10,6 +10,7 @@ import GRDB
 
 struct BuildVectorsOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = Int
     // The ceiling on the factorisation rank — the pass takes the lower of
     // this and what the corpus can support.
     let dimension: Int

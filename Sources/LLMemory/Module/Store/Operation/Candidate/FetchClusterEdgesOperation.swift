@@ -11,6 +11,9 @@ import GRDB
 // Cluster substrate — surfaced, forget-exempt link and entity co-mention
 // edges.
 struct FetchClusterEdgesOperation: GRDBReadOperation {
+    // MARK: - Property
+    typealias Parameter = Never
+
     // MARK: - Initializer
     init() { }
 

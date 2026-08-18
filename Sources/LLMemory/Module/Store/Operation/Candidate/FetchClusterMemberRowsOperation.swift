@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchClusterMemberRowsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = [String]
     let ids: [String]
 
     // MARK: - Initializer

@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchProvenanceStatsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = Double
     let disagreeFloor: Double
 
     private let vectorMath = VectorMath()

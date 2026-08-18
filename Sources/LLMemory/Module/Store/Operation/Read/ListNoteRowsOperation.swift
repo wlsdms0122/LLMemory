@@ -10,6 +10,7 @@ import GRDB
 
 struct ListNoteRowsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = NoteListFilter
     let filter: NoteListFilter
 
 

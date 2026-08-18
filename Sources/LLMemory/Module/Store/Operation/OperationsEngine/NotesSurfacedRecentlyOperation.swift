@@ -14,6 +14,7 @@ import GRDB
 // the batch is judged with one hits query and one event scan.
 struct NotesSurfacedRecentlyOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = ([String], Int, SessionId?)
     // Keeps each IN (...) under SQLite's bind-variable ceiling — batch size
     // must not decide the judgement's error path.
     private static let chunkSize = 500

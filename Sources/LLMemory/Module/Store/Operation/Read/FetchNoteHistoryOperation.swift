@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchNoteHistoryOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (String, Int)
     let noteId: String
     let limit: Int
 

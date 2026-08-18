@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchEntityHitsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = ([String], Int)
     let entities: [String]
     let limitPerEntity: Int
 

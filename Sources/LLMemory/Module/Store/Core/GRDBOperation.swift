@@ -24,4 +24,4 @@ public protocol GRDBOperation: DBOperation where Transaction == Database { }
 // connection when the operation runs on its own, and a read entry point that
 // accepts nothing else. A write issued from inside a read body is a runtime
 // SQLITE_READONLY, as SQLite always said it would be.
-public protocol GRDBReadOperation: GRDBOperation, DBReadOperation { }
+public protocol GRDBReadOperation: GRDBOperation { }

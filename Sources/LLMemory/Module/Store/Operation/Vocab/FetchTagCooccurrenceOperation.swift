@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchTagCooccurrenceOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = ([String], Int)
     let tags: [String]
     let limit: Int
 

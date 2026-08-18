@@ -10,6 +10,7 @@ import GRDB
 
 struct ValidateTermsOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (Bool, any KeywordExtracting, Int, Double)
     let rejectStale: Bool
     let keywords: any KeywordExtracting
     let roundtripTopK: Int

@@ -9,6 +9,9 @@ import Foundation
 import GRDB
 
 struct FetchSurfaceNoteRowsOperation: GRDBReadOperation {
+    // MARK: - Property
+    typealias Parameter = Never
+
     struct SurfaceNote {
         // MARK: - Property
         let id: String

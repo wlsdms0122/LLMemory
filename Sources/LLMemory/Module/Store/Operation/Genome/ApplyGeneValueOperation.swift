@@ -18,6 +18,7 @@ import GRDB
 // belongs a tier up.
 struct ApplyGeneValueOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, Double, String, String?, Bool, Int, Double?)
     let geneId: String
     let value: Double
     let cause: String

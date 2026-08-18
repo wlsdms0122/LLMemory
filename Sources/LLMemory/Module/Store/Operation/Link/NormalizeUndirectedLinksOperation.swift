@@ -10,6 +10,7 @@ import GRDB
 
 struct NormalizeUndirectedLinksOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = String
     let nodeId: String
 
     // MARK: - Initializer

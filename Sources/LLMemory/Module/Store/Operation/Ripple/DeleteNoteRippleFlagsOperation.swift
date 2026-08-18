@@ -10,6 +10,7 @@ import GRDB
 
 struct DeleteNoteRippleFlagsOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = String
     let noteId: String
 
     // MARK: - Initializer

@@ -23,6 +23,7 @@ struct FetchFlaggedRowsOperation: GRDBReadOperation {
     }
 
     // MARK: - Property
+    typealias Parameter = (String, Int)
     let flag: String
     let limit: Int
 

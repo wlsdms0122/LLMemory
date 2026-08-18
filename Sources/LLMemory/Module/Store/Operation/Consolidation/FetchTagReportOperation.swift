@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchTagReportOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (Int, Int)
     let lowFreq: Int
     let limit: Int
 

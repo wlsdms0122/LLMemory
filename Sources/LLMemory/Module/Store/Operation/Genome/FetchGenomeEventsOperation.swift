@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchGenomeEventsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (String?, Int)
     let geneId: String?
     let limit: Int
 

@@ -10,6 +10,7 @@ import GRDB
 
 struct InsertLineageLinkOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, LinkKind, Int)
     let src: String
     let dst: String
     let kind: LinkKind

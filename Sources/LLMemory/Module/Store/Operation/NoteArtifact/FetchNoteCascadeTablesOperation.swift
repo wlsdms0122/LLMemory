@@ -9,6 +9,9 @@ import Foundation
 import GRDB
 
 struct FetchNoteCascadeTablesOperation: GRDBReadOperation {
+    // MARK: - Property
+    typealias Parameter = Never
+
     // MARK: - Initializer
     init() { }
 

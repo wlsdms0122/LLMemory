@@ -10,6 +10,7 @@ import GRDB
 
 struct InheritSourceObservationOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String)
     let from: String
     let to: String
 

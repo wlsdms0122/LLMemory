@@ -10,6 +10,7 @@ import GRDB
 
 struct RecordDismissalOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (LintTarget, String, String?, Int)
     let target: LintTarget
     let kind: String
     let reason: String?

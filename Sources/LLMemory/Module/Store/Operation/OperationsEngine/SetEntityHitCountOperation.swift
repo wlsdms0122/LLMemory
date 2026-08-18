@@ -10,6 +10,7 @@ import GRDB
 
 struct SetEntityHitCountOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, Int)
     let noteId: String
     let entity: String
     let hits: Int

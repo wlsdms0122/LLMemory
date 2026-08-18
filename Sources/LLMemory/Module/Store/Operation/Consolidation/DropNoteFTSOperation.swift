@@ -12,6 +12,7 @@ import GRDB
 // for a note the catalog no longer has.
 struct DropNoteFTSOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = String
     let noteId: String
 
     // MARK: - Initializer

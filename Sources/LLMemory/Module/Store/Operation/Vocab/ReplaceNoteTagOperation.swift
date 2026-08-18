@@ -10,6 +10,7 @@ import GRDB
 
 struct ReplaceNoteTagOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, String)
     let noteId: String
     let fromTag: String
     let toTag: String

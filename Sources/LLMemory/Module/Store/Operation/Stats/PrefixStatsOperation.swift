@@ -13,6 +13,7 @@ import GRDB
 // about all of it.
 struct PrefixStatsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let prefix: String
 
     // MARK: - Initializer

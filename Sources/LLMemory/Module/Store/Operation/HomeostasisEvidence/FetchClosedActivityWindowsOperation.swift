@@ -22,6 +22,7 @@ struct FetchClosedActivityWindowsOperation: GRDBReadOperation {
     }
 
     // MARK: - Property
+    typealias Parameter = (Int, Int)
     let watermark: Int
     let closedBefore: Int
 

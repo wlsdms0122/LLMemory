@@ -11,6 +11,9 @@ import GRDB
 // Genome-domain operations — the DB vocabulary for the epigenome
 // (per-brain gene values) and its provenance ledger.
 struct FetchGenomeValuesOperation: GRDBReadOperation {
+    // MARK: - Property
+    typealias Parameter = Never
+
     // MARK: - Initializer
     init() { }
 

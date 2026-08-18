@@ -10,6 +10,7 @@ import GRDB
 
 struct RefreshReferenceLinksOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, Int)
     let nid: String
     let body: String
     let now: Int

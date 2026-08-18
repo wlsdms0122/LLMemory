@@ -10,6 +10,7 @@ import GRDB
 
 struct TagInUseOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let tag: String
 
     // MARK: - Initializer

@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchDismissalsByNoteOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let kind: String
 
     // MARK: - Initializer

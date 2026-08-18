@@ -10,6 +10,7 @@ import GRDB
 
 struct PurgeEnrichmentProvenanceOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, Int)
     let provenance: String
     let now: Int
 

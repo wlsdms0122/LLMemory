@@ -10,6 +10,7 @@ import GRDB
 
 struct SearchNotesFTSOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (FTSMatch, [String], Int, Bool, [String]?, Int?, SessionId?, Int, Double)
     let match: FTSMatch
     let tags: [String]
     let limit: Int

@@ -10,6 +10,7 @@ import GRDB
 
 struct FlagEnrichmentDisagreementsOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (Int, Double)
     let now: Int
     let disagreeFloor: Double
 

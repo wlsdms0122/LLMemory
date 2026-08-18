@@ -10,6 +10,7 @@ import GRDB
 
 struct RecordNoteLifecycleEventOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, String?, Int)
     let nid: String
     let kind: String
     let reason: String?

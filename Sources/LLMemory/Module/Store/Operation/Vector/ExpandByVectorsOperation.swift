@@ -10,6 +10,7 @@ import GRDB
 
 struct ExpandByVectorsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = ([String], Int, Set<String>)
     let seedIds: [String]
     let limit: Int
     let excludeIds: Set<String>

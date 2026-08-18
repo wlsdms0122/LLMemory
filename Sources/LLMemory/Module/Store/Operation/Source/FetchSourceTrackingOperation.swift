@@ -11,6 +11,9 @@ import GRDB
 // Every note whose sources were ever fingerprinted. A row with no
 // fingerprint is not tracked and never comes back.
 struct FetchSourceTrackingOperation: GRDBReadOperation {
+    // MARK: - Property
+    typealias Parameter = Never
+
     // MARK: - Initializer
     init() { }
 

@@ -10,6 +10,7 @@ import GRDB
 
 struct ReindexNoteFTSOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, String?, String)
     let noteId: String
     let title: String
     let summary: String?

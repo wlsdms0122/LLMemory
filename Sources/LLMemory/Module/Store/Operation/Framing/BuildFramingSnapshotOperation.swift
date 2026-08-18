@@ -24,6 +24,7 @@ import GRDB
 // answers differently than the one the baseline used.
 struct BuildFramingSnapshotOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (String, LinkKind?, SessionId?, any KeywordExtracting, any EntityHinting, Int, Int, Double, Double, Int, Double)
     let text: String
     let linkKind: LinkKind?
     let sessionId: SessionId?

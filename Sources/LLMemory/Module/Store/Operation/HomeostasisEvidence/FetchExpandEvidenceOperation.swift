@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchExpandEvidenceOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = Int
     let windowId: Int
 
     // MARK: - Initializer

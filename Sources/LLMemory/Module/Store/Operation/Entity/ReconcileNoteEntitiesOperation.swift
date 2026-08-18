@@ -10,6 +10,7 @@ import GRDB
 
 struct ReconcileNoteEntitiesOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = ([String], String, Int)
     let entities: [String]
     let noteId: String
     let now: Int

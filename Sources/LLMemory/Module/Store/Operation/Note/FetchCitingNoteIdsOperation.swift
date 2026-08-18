@@ -11,6 +11,7 @@ import GRDB
 // Who cites this id — whether or not the citation currently resolves.
 struct FetchCitingNoteIdsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let marker: String
 
     // MARK: - Initializer

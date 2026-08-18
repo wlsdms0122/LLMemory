@@ -10,6 +10,7 @@ import GRDB
 
 struct LinkSiblingsOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = ([String], Int)
     let ids: [String]
     let now: Int
 

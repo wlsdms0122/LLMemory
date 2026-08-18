@@ -12,6 +12,7 @@ import GRDB
 // with lifecycle provenance, and resolution.
 struct FlagInboundReferrersOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, Int)
     let targetId: String
     let reason: String
     let now: Int

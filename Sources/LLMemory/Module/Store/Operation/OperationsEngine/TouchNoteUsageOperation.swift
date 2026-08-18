@@ -10,6 +10,7 @@ import GRDB
 
 struct TouchNoteUsageOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, Int)
     let noteId: String
     let now: Int
 

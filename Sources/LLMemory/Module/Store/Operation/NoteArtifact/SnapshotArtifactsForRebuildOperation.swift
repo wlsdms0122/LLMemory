@@ -9,6 +9,9 @@ import Foundation
 import GRDB
 
 struct SnapshotArtifactsForRebuildOperation: GRDBOperation {
+    // MARK: - Property
+    typealias Parameter = Never
+
     private let artifactPolicy = NoteArtifactPolicy()
 
     // MARK: - Initializer

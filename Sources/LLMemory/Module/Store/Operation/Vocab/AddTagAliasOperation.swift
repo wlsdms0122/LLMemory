@@ -10,6 +10,7 @@ import GRDB
 
 struct AddTagAliasOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, Int)
     let alias: String
     let canonical: String
     let now: Int

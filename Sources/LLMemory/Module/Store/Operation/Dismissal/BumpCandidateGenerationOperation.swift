@@ -9,6 +9,9 @@ import Foundation
 import GRDB
 
 struct BumpCandidateGenerationOperation: GRDBOperation {
+    // MARK: - Property
+    typealias Parameter = Never
+
     // MARK: - Initializer
     init() { }
 

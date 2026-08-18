@@ -39,6 +39,7 @@ struct ReplayRetrievalQueriesOperation: GRDBReadOperation {
     }
 
     // MARK: - Property
+    typealias Parameter = (RetrievalTuning, RetrievalTuning, Int, Int, any KeywordExtracting, any EntityHinting)
     let baseline: RetrievalTuning
     let candidate: RetrievalTuning
     let limit: Int

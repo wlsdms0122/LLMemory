@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchNoteEntityHitsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = String
     let noteId: String
 
     // MARK: - Initializer

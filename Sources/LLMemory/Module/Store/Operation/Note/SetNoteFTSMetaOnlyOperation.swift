@@ -10,6 +10,7 @@ import GRDB
 
 struct SetNoteFTSMetaOnlyOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, String?)
     let nid: String
     let title: String
     let summary: String?

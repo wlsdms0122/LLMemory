@@ -25,6 +25,7 @@ struct FetchSplitShapeRowsOperation: GRDBReadOperation {
     }
 
     // MARK: - Property
+    typealias Parameter = (Int, Int)
     let minWords: Int
     let minSections: Int
 

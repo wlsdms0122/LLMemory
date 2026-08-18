@@ -10,6 +10,7 @@ import GRDB
 
 struct ReindexNoteFileOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, URL)
     // The address the file was resolved to — the caller has already refused
     // anything that is not a live note of this brain.
     let noteId: String

@@ -20,6 +20,7 @@ import GRDB
 // them if the commit does not land.
 struct RemoveNoteRowsOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, Int)
     let nid: String
     // Why the citers are being flagged — what they will read when they look.
     let flagReason: String

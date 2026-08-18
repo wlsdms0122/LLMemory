@@ -9,6 +9,9 @@ import Foundation
 import GRDB
 
 struct FetchLintDismissalsOperation: GRDBReadOperation {
+    // MARK: - Property
+    typealias Parameter = Never
+
     private let dismissalPolicy = DismissalPolicy()
 
     // MARK: - Initializer

@@ -10,6 +10,7 @@ import GRDB
 
 struct SetNoteStaleOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, Bool)
     let nid: String
     let stale: Bool
 

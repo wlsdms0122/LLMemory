@@ -10,6 +10,7 @@ import GRDB
 
 struct FetchNoteCatalogOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = [String]
     let ids: [String]
 
     // MARK: - Initializer

@@ -13,6 +13,7 @@ import GRDB
 // alone can only ever find what is still shipped.
 struct FetchSeededNoteIdsOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = Never
     // MARK: - Initializer
     // MARK: - Public
     func execute(_ db: Database) throws -> [String] {

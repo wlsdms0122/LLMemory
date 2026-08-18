@@ -10,6 +10,7 @@ import GRDB
 
 struct UpsertPendingTermOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, String, String, String?, Int)
     let noteId: String
     let kind: String
     let term: String

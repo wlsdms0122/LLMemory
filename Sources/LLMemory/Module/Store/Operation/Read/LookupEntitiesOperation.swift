@@ -10,6 +10,7 @@ import GRDB
 
 struct LookupEntitiesOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (String?, Int)
     let name: String?
     let limit: Int
 

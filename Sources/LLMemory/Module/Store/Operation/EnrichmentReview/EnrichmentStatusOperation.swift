@@ -10,6 +10,7 @@ import GRDB
 
 struct EnrichmentStatusOperation: GRDBReadOperation {
     // MARK: - Property
+    typealias Parameter = (Double, Double, Double)
     let neighborFloor: Double
     let disagreeFloor: Double
     let modelAlarmRate: Double

@@ -10,6 +10,7 @@ import GRDB
 
 struct RejectStalePendingTermsOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = Int
     let maxAgeSec: Int
 
     // MARK: - Initializer

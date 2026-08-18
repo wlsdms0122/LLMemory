@@ -13,6 +13,7 @@ import GRDB
 // against is not a note with fresh sources, it is a note without any.
 struct SetSourceStalenessOperation: GRDBOperation {
     // MARK: - Property
+    typealias Parameter = (String, Bool?)
     let noteId: String
     let stale: Bool?
 
